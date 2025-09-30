@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # PostgreSQL データベース
+  postgres:
+    image: postgres:15-alpine
+    container_name: csi_postgres_prod
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-csi_user}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-secure_password_change_me}
+      POSTGRES_DB: ${DATABASE_NAME:-csi_system}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-csi_user} -d ${DATABASE_NAME:-csi_system}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - csi_network_prod
+    restart: unless-stopped
+
+  # Redis キャッシュ
+  redis:
+    image: redis:7-alpine
+    container_name: csi_redis_prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-secure_redis_password}
+    volumes:
+      - redis_data_prod:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-secure_redis_password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - csi_network_prod
+    restart: unless-stopped
+
+  # FastAPI バックエンド
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: csi_backend_prod
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${DATABASE_USER:-csi_user}:${DATABASE_PASSWORD:-secure_password_change_me}@postgres:5432/${DATABASE_NAME:-csi_system}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-secure_redis_password}@redis:6379/0
+      - DATABASE_HOST=postgres
+      - REDIS_HOST=redis
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-please-change-this-secret-key-in-production}
+      - ALLOWED_ORIGINS=["${FRONTEND_URL:-https://yourdomain.com}"]
+      - DEBUG=False
+      - LOG_LEVEL=INFO
+    volumes:
+      - csi_uploads_prod:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - csi_network_prod
+    restart: unless-stopped
+
+  # Next.js フロントエンド
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: csi_frontend_prod
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${BACKEND_URL:-https://api.yourdomain.com}
+      - NEXT_TELEMETRY_DISABLED=1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - csi_network_prod
+    restart: unless-stopped
+
+  # IPFS ノード（既存システム連携用）
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: csi_ipfs_prod
+    volumes:
+      - ipfs_data_prod:/data/ipfs
+    ports:
+      - "5001:5001"  # API
+      - "8080:8080"  # Gateway
+    networks:
+      - csi_network_prod
+    restart: unless-stopped
+
+  # Nginx リバースプロキシ（本番環境用）
+  nginx:
+    image: nginx:alpine
+    container_name: csi_nginx_prod
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - csi_network_prod
+    restart: unless-stopped
+
+volumes:
+  postgres_data_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+  ipfs_data_prod:
+    driver: local
+  csi_uploads_prod:
+    driver: local
+
+networks:
+  csi_network_prod:
+    driver: bridge

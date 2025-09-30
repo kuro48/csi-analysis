@@ -1,0 +1,46 @@
+FROM node:18-alpine AS builder
+
+# 作業ディレクトリ設定
+WORKDIR /app
+
+# パッケージファイルをコピー
+COPY package*.json ./
+
+# 依存関係をインストール
+RUN npm ci --only=production
+
+# アプリケーションコードをコピー
+COPY . .
+
+# Next.jsアプリケーションをビルド
+RUN npm run build
+
+# 本番環境用の軽量イメージ
+FROM node:18-alpine AS runner
+
+# 作業ディレクトリ設定
+WORKDIR /app
+
+# 非rootユーザーの作成
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+# 必要なファイルのみをコピー
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+# ファイル権限設定
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# ポート公開
+EXPOSE 3000
+
+# 環境変数設定
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+
+# アプリケーション起動
+CMD ["node", "server.js"]

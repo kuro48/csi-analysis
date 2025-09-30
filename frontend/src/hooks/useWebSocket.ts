@@ -1,0 +1,278 @@
+'use client'
+
+import { useEffect, useRef, useState, useCallback } from 'react'
+
+interface WebSocketMessage {
+  type: string
+  [key: string]: any
+}
+
+interface UseWebSocketOptions {
+  url: string
+  protocols?: string | string[]
+  onOpen?: (event: Event) => void
+  onMessage?: (message: WebSocketMessage) => void
+  onError?: (event: Event) => void
+  onClose?: (event: CloseEvent) => void
+  shouldReconnect?: boolean
+  reconnectInterval?: number
+  maxReconnectAttempts?: number
+  enabled?: boolean // 接続を有効にするかどうか
+}
+
+interface WebSocketState {
+  readyState: number
+  lastMessage: WebSocketMessage | null
+  connectionStatus: 'Connecting' | 'Open' | 'Closing' | 'Closed'
+}
+
+export function useWebSocket({
+  url,
+  protocols,
+  onOpen,
+  onMessage,
+  onError,
+  onClose,
+  shouldReconnect = true,
+  reconnectInterval = 5000,
+  maxReconnectAttempts = 3,
+  enabled = true,
+}: UseWebSocketOptions) {
+  const [state, setState] = useState<WebSocketState>({
+    readyState: WebSocket.CONNECTING,
+    lastMessage: null,
+    connectionStatus: 'Connecting',
+  })
+
+  const wsRef = useRef<WebSocket | null>(null)
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
+  const reconnectAttemptsRef = useRef(0)
+  const urlRef = useRef(url)
+
+  // URL変更の追跡
+  useEffect(() => {
+    urlRef.current = url
+  }, [url])
+
+  const getConnectionStatus = useCallback((readyState: number): WebSocketState['connectionStatus'] => {
+    switch (readyState) {
+      case WebSocket.CONNECTING:
+        return 'Connecting'
+      case WebSocket.OPEN:
+        return 'Open'
+      case WebSocket.CLOSING:
+        return 'Closing'
+      case WebSocket.CLOSED:
+        return 'Closed'
+      default:
+        return 'Closed'
+    }
+  }, [])
+
+  const connect = useCallback(() => {
+    try {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        return
+      }
+
+      const token = localStorage.getItem('access_token')
+      const wsUrl = token ? `${urlRef.current}?token=${token}` : urlRef.current
+
+      console.log('Attempting WebSocket connection to:', wsUrl)
+      console.log('Using token:', token ? 'Token present' : 'No token')
+
+      wsRef.current = new WebSocket(wsUrl, protocols)
+
+      wsRef.current.onopen = (event) => {
+        setState((prev) => ({
+          ...prev,
+          readyState: WebSocket.OPEN,
+          connectionStatus: 'Open',
+        }))
+        reconnectAttemptsRef.current = 0
+        onOpen?.(event)
+      }
+
+      wsRef.current.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data) as WebSocketMessage
+          setState((prev) => ({
+            ...prev,
+            lastMessage: message,
+          }))
+          onMessage?.(message)
+        } catch (error) {
+          console.error('Failed to parse WebSocket message:', error)
+        }
+      }
+
+      wsRef.current.onerror = (event) => {
+        console.error('WebSocket error occurred:', event)
+        console.error('WebSocket URL:', wsUrl)
+        console.error('ReadyState:', wsRef.current?.readyState)
+        onError?.(event)
+      }
+
+      wsRef.current.onclose = (event) => {
+        console.log('WebSocket connection closed:', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+          url: wsUrl
+        })
+
+        setState((prev) => ({
+          ...prev,
+          readyState: WebSocket.CLOSED,
+          connectionStatus: 'Closed',
+        }))
+
+        onClose?.(event)
+
+        // 自動再接続（異常終了の場合のみ）
+        if (shouldReconnect &&
+            reconnectAttemptsRef.current < maxReconnectAttempts &&
+            (event.code !== 1000 && event.code !== 1001)) { // 正常終了以外の場合
+          reconnectAttemptsRef.current += 1
+
+          // 指数バックオフ: 最初は5秒、その後10秒、15秒
+          const backoffDelay = reconnectInterval * reconnectAttemptsRef.current
+
+          console.log(
+            `WebSocket connection closed (code: ${event.code}). Attempting to reconnect in ${backoffDelay}ms... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`
+          )
+
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect()
+          }, backoffDelay)
+        } else if (event.code === 1000 || event.code === 1001) {
+          // 正常終了の場合は再接続を試行しない
+          console.log('WebSocket connection closed normally')
+        } else {
+          // 最大再接続回数に達した場合
+          console.log('WebSocket reconnection attempts exhausted')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error)
+    }
+  }, [url, protocols, onOpen, onMessage, onError, onClose, shouldReconnect, reconnectInterval, maxReconnectAttempts, enabled])
+
+  const disconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+    }
+
+    if (wsRef.current) {
+      wsRef.current.close()
+    }
+  }, [])
+
+  const sendMessage = useCallback((message: WebSocketMessage | string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      const messageString = typeof message === 'string' ? message : JSON.stringify(message)
+      wsRef.current.send(messageString)
+      return true
+    }
+    return false
+  }, [])
+
+  // 特定のチャンネルに購読
+  const subscribe = useCallback((channel: string) => {
+    return sendMessage({
+      type: 'subscribe',
+      channel: channel,
+    })
+  }, [sendMessage])
+
+  // 特定のチャンネルから購読解除
+  const unsubscribe = useCallback((channel: string) => {
+    return sendMessage({
+      type: 'unsubscribe',
+      channel: channel,
+    })
+  }, [sendMessage])
+
+  // ヘルスチェック
+  const ping = useCallback(() => {
+    return sendMessage({
+      type: 'ping',
+    })
+  }, [sendMessage])
+
+  // 定期的なpingを送信（接続がオープンの時のみ）
+  useEffect(() => {
+    if (!enabled) return // enabledがfalseの場合はpingを送信しない
+
+    const pingInterval = setInterval(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        console.log('Sending ping to maintain connection')
+        // ping関数を直接呼ばずに、sendMessage直接呼び出し
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'ping' }))
+        }
+      }
+    }, 45000) // 45秒ごとに変更して負荷を軽減
+
+    return () => {
+      clearInterval(pingInterval)
+    }
+  }, [enabled]) // pingを依存関係から削除
+
+  // 接続開始（enabledがtrueの時のみ）
+  useEffect(() => {
+    if (enabled) {
+      console.log('WebSocket connecting because enabled=true')
+      connect()
+    } else {
+      console.log('WebSocket disconnecting because enabled=false')
+
+      // 直接切断処理を実行
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+
+      // 状態もリセット
+      setState({
+        readyState: WebSocket.CLOSED,
+        lastMessage: null,
+        connectionStatus: 'Closed',
+      })
+    }
+
+    return () => {
+      // クリーンアップ時は直接切断
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+    }
+  }, [enabled]) // connectとdisconnectを依存関係から削除
+
+  // ページ離脱時の処理
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      disconnect()
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [disconnect])
+
+  return {
+    ...state,
+    sendMessage,
+    subscribe,
+    unsubscribe,
+    ping,
+    connect,
+    disconnect,
+  }
+}

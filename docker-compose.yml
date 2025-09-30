@@ -1,0 +1,121 @@
+# version: '3.8' - obsolete in newer docker-compose
+
+services:
+  # PostgreSQL データベース
+  postgres:
+    image: postgres:15-alpine
+    container_name: csi_postgres
+    environment:
+      POSTGRES_USER: csi_user
+      POSTGRES_PASSWORD: csi_password
+      POSTGRES_DB: csi_system
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U csi_user -d csi_system"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - csi_network
+
+  # Redis キャッシュ
+  redis:
+    image: redis:7-alpine
+    container_name: csi_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - csi_network
+
+  # FastAPI バックエンド
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: csi_backend
+    environment:
+      - DATABASE_URL=postgresql://csi_user:csi_password@postgres:5432/csi_system
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_HOST=postgres
+      - REDIS_HOST=redis
+      - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
+      - ALLOWED_ORIGINS=["http://localhost:3000", "http://127.0.0.1:3000", "http://frontend:3000"]
+      - DEBUG=True
+    volumes:
+      - ./backend:/app
+      - csi_uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - csi_network
+    restart: unless-stopped
+
+  # Next.js フロントエンド
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: csi_frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - csi_network
+    restart: unless-stopped
+
+  # IPFS ノード（既存システム連携用）
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: csi_ipfs
+    volumes:
+      - ipfs_data:/data/ipfs
+    ports:
+      - "5001:5001"  # API
+      - "8080:8080"  # Gateway
+    networks:
+      - csi_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  ipfs_data:
+    driver: local
+  csi_uploads:
+    driver: local
+
+networks:
+  csi_network:
+    driver: bridge

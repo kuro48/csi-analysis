@@ -1,0 +1,86 @@
+# Git関連
+.git
+.gitignore
+
+# 環境設定
+.env
+.env.local
+.env.production
+.env.development
+
+# ログファイル
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ランタイムデータ
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# 依存関係ディレクトリ
+node_modules/
+**/node_modules/
+
+# Python関連
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 仮想環境
+venv/
+env/
+ENV/
+
+# IDE設定
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS関連
+.DS_Store
+Thumbs.db
+
+# テスト関連
+coverage/
+.nyc_output
+.coverage
+htmlcov/
+
+# 一時ファイル
+*.tmp
+*.temp
+
+# ビルド成果物
+.next/
+out/
+
+# データベース
+*.db
+*.sqlite
+*.sqlite3
+
+# アップロードファイル
+uploads/
+files/

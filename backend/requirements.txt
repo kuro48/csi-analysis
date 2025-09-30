@@ -1,0 +1,47 @@
+# FastAPI と関連ライブラリ
+fastapi==0.109.0
+uvicorn[standard]==0.25.0
+python-multipart==0.0.6
+
+# データベース関連
+sqlalchemy==2.0.25
+alembic==1.13.1
+psycopg2-binary==2.9.9
+
+# Redis関連
+redis==5.0.1
+aioredis==2.0.1
+
+# 認証・セキュリティ関連
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+
+# バリデーション・シリアライゼーション
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# WebSocket
+websockets==12.0
+
+# HTTPクライアント
+httpx==0.26.0
+requests==2.31.0
+
+# ログ・監視
+structlog==23.2.0
+
+# 開発・テスト用
+pytest==7.4.4
+pytest-asyncio==0.23.2
+black==23.12.1
+isort==5.13.2
+flake8==7.0.0
+
+# CSI解析関連（既存システムから移行）
+numpy==1.26.3
+pandas==2.2.0
+scipy==1.12.0
+
+# 環境変数管理
+python-dotenv==1.0.0

@@ -1,0 +1,221 @@
+"""
+CSIデータ関連エンドポイント
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query
+from sqlalchemy.orm import Session
+from typing import Optional, List
+import uuid
+import math
+import json
+from datetime import datetime
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.user import User
+from app.services.csi_data import CSIDataService, SessionService
+from app.schemas.csi_data import (
+    CSIDataUpload, CSIDataResponse, CSIDataListResponse, CSIDataFilter,
+    SessionCreate, SessionUpdate, SessionResponse, ProcessingStatus
+)
+
+router = APIRouter()
+
+
+@router.post("/upload", response_model=CSIDataResponse)
+async def upload_csi_data(
+    device_id: str = Form(..., description="デバイスID"),
+    session_id: Optional[str] = Form(None, description="セッションID"),
+    collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
+    collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
+    metadata: Optional[str] = Form(None, description="メタデータ（JSON文字列）"),
+    file: UploadFile = File(..., description="CSIデータファイル"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    CSIデータアップロード
+    """
+    try:
+        # ファイルデータ読み取り
+        file_data = await file.read()
+
+        if len(file_data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="アップロードファイルが空です"
+            )
+
+        # アップロード情報構築
+        upload_info = CSIDataUpload(
+            device_id=device_id,
+            session_id=session_id,
+            file_name=file.filename or "unknown",
+            collection_start_time=datetime.fromisoformat(collection_start_time) if collection_start_time else None,
+            collection_duration=collection_duration,
+            metadata=json.loads(metadata) if metadata else None
+        )
+
+        # アップロード処理
+        csi_data = await CSIDataService.upload_csi_data(
+            db, device_id, file_data, upload_info, current_user.id
+        )
+
+        return CSIDataResponse(
+            id=csi_data.id,
+            device_id=device_id,
+            session_id=csi_data.session_id,
+            raw_data=csi_data.raw_data,
+            processed_data=csi_data.processed_data,
+            file_path=csi_data.file_path,
+            file_size=csi_data.file_size,
+            status=csi_data.status,
+            created_at=csi_data.created_at,
+            updated_at=csi_data.updated_at
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"アップロード処理に失敗しました: {str(e)}"
+        )
+
+
+@router.get("/", response_model=CSIDataListResponse)
+async def list_csi_data(
+    device_id: Optional[str] = Query(None, description="デバイスIDフィルター"),
+    session_id: Optional[str] = Query(None, description="セッションIDフィルター"),
+    status: Optional[str] = Query("all", description="ステータスフィルター"),
+    start_date: Optional[str] = Query(None, description="開始日時"),
+    end_date: Optional[str] = Query(None, description="終了日時"),
+    page: int = Query(1, ge=1, description="ページ番号"),
+    page_size: int = Query(20, ge=1, le=100, description="1ページあたりの件数"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    CSIデータ一覧取得
+    """
+    try:
+        # フィルター構築
+        filters = CSIDataFilter(
+            device_id=device_id,
+            session_id=session_id,
+            status=status,
+            start_date=datetime.fromisoformat(start_date) if start_date else None,
+            end_date=datetime.fromisoformat(end_date) if end_date else None
+        )
+
+        csi_data_list, total_count = CSIDataService.get_csi_data_list(
+            db, current_user.id, filters, page, page_size
+        )
+
+        # レスポンス構築
+        csi_responses = []
+        for csi_data in csi_data_list:
+            device = csi_data.device
+            csi_response = CSIDataResponse(
+                id=csi_data.id,
+                device_id=device.device_id if device else "unknown",
+                session_id=csi_data.session_id,
+                raw_data=csi_data.raw_data,
+                processed_data=csi_data.processed_data,
+                file_path=csi_data.file_path,
+                file_size=csi_data.file_size,
+                status=csi_data.status,
+                created_at=csi_data.created_at,
+                updated_at=csi_data.updated_at
+            )
+            csi_responses.append(csi_response)
+
+        total_pages = math.ceil(total_count / page_size) if total_count > 0 else 1
+
+        return CSIDataListResponse(
+            csi_data=csi_responses,
+            total=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"CSIデータ一覧取得に失敗しました: {str(e)}"
+        )
+
+
+@router.get("/{csi_data_id}", response_model=CSIDataResponse)
+async def get_csi_data(
+    csi_data_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    特定CSIデータ取得
+    """
+    csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id, current_user.id)
+    if not csi_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CSIデータが見つかりません"
+        )
+
+    device = csi_data.device
+
+    return CSIDataResponse(
+        id=csi_data.id,
+        device_id=device.device_id if device else "unknown",
+        session_id=csi_data.session_id,
+        raw_data=csi_data.raw_data,
+        processed_data=csi_data.processed_data,
+        file_path=csi_data.file_path,
+        file_size=csi_data.file_size,
+        status=csi_data.status,
+        created_at=csi_data.created_at,
+        updated_at=csi_data.updated_at
+    )
+
+
+@router.delete("/{csi_data_id}")
+async def delete_csi_data(
+    csi_data_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    CSIデータ削除
+    """
+    success = CSIDataService.delete_csi_data(db, csi_data_id, current_user.id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CSIデータが見つかりません"
+        )
+
+    return {"message": "CSIデータが正常に削除されました"}
+
+
+@router.get("/{device_id}/stats")
+async def get_device_csi_stats(
+    device_id: str,
+    days: int = Query(7, ge=1, le=365, description="統計期間（日数）"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    デバイスのCSI統計情報取得
+    """
+    stats = CSIDataService.get_device_csi_stats(db, device_id, current_user.id, days)
+    if not stats:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="デバイスが見つかりません"
+        )
+
+    return stats
