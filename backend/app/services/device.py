@@ -7,7 +7,7 @@ import json
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func, desc, asc
 from typing import Optional, List, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from app.models.device import Device
@@ -39,7 +39,7 @@ class DeviceService:
             location=device_data.location,
             owner_id=owner_id,
             is_active=True,
-            last_seen=datetime.utcnow()
+            last_seen=datetime.now(timezone.utc)
         )
 
         db.add(db_device)
@@ -126,7 +126,7 @@ class DeviceService:
 
             # 状態フィルター（最も重要なフィルタ）
             if filters.status and filters.status != "all":
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 cutoff_time = now - timedelta(minutes=5)
 
                 if filters.status == "online":
@@ -184,7 +184,7 @@ class DeviceService:
                 if filters.device_type and filters.device_type != "all":
                     count_query = count_query.filter(Device.device_type == filters.device_type)
                 if filters.status and filters.status != "all":
-                    now = datetime.utcnow()
+                    now = datetime.now(timezone.utc)
                     cutoff_time = now - timedelta(minutes=5)
                     if filters.status == "online":
                         count_query = count_query.filter(
@@ -289,7 +289,7 @@ class DeviceService:
         for field, value in update_data.items():
             setattr(device, field, value)
 
-        device.updated_at = datetime.utcnow()
+        device.updated_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(device)
 
@@ -342,7 +342,7 @@ class DeviceService:
         previous_status = DeviceService.get_device_status(db, device.device_id)
 
         # ハートビート情報を更新
-        device.last_seen = datetime.utcnow()
+        device.last_seen = datetime.now(timezone.utc)
         device.is_active = True
 
         # メタデータがある場合は更新
@@ -397,7 +397,7 @@ class DeviceService:
         if not device:
             return None
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # 接続状態判定
         if device.last_seen:
@@ -435,7 +435,7 @@ class DeviceService:
             query = query.filter(Device.owner_id == user_id)
 
         devices = query.all()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # 基本統計
         total_devices = len(devices)
