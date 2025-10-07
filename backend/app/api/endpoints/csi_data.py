@@ -34,7 +34,7 @@ async def upload_csi_data(
     device: Device = Depends(get_device_auth)
 ):
     """
-    CSIデータアップロード
+    CSIデータアップロード（デバイス認証）
     """
     try:
         # ファイルデータ読み取り
@@ -48,28 +48,30 @@ async def upload_csi_data(
 
         # アップロード情報構築
         upload_info = CSIDataUpload(
-            device_id=device.device_id,
+            file_name=file.filename,
             session_id=session_id,
-            file_name=file.filename or "unknown",
-            collection_start_time=datetime.fromisoformat(collection_start_time) if collection_start_time else None,
+            collection_start_time=datetime.fromisoformat(collection_start_time.replace('Z', '+00:00')) if collection_start_time else None,
             collection_duration=collection_duration,
-            metadata=json.loads(metadata) if metadata else None
+            metadata=json.loads(metadata) if metadata else {}
         )
 
-        # アップロード処理（デバイス認証）
+        # CSIデータアップロード
         csi_data = await CSIDataService.upload_csi_data(
-            db, device.device_id, file_data, upload_info, device.owner_id
+            db=db,
+            device_id=device.device_id,
+            file_data=file_data,
+            upload_info=upload_info,
+            user_id=device.owner_id
         )
 
         return CSIDataResponse(
             id=csi_data.id,
             device_id=device.device_id,
             session_id=csi_data.session_id,
-            raw_data=csi_data.raw_data,
-            processed_data=csi_data.processed_data,
             file_path=csi_data.file_path,
             file_size=csi_data.file_size,
             status=csi_data.status,
+            ipfs_hash=csi_data.ipfs_hash,
             created_at=csi_data.created_at,
             updated_at=csi_data.updated_at
         )
@@ -82,7 +84,73 @@ async def upload_csi_data(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"アップロード処理に失敗しました: {str(e)}"
+            detail=f"CSIデータアップロードに失敗しました: {str(e)}"
+        )
+
+
+@router.post("/upload-test", response_model=CSIDataResponse)
+async def upload_csi_data_test(
+    device_id: str = Form(..., description="デバイスID"),
+    session_id: Optional[str] = Form(None, description="セッションID"),
+    collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
+    collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
+    metadata: Optional[str] = Form(None, description="メタデータ（JSON文字列）"),
+    file: UploadFile = File(..., description="CSIデータファイル"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    CSIデータアップロード（テスト用・ユーザー認証）
+    """
+    try:
+        # ファイルデータ読み取り
+        file_data = await file.read()
+
+        if len(file_data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="アップロードファイルが空です"
+            )
+
+        # アップロード情報構築
+        upload_info = CSIDataUpload(
+            file_name=file.filename or "unknown",
+            session_id=session_id,
+            collection_start_time=datetime.fromisoformat(collection_start_time.replace('Z', '+00:00')) if collection_start_time else None,
+            collection_duration=collection_duration,
+            metadata=json.loads(metadata) if metadata else {}
+        )
+
+        # CSIデータアップロード
+        csi_data = await CSIDataService.upload_csi_data(
+            db=db,
+            device_id=device_id,
+            file_data=file_data,
+            upload_info=upload_info,
+            user_id=current_user.id
+        )
+
+        return CSIDataResponse(
+            id=csi_data.id,
+            device_id=device_id,
+            session_id=csi_data.session_id,
+            file_path=csi_data.file_path,
+            file_size=csi_data.file_size,
+            status=csi_data.status,
+            ipfs_hash=csi_data.ipfs_hash,
+            created_at=csi_data.created_at,
+            updated_at=csi_data.updated_at
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"CSIデータアップロードに失敗しました: {str(e)}"
         )
 
 

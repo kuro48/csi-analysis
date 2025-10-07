@@ -106,6 +106,46 @@ async def list_devices(
         )
 
 
+@router.post("/register", response_model=DeviceResponse)
+async def register_device(
+    device_data: DeviceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    デバイス登録（/registerエンドポイント）
+    """
+    try:
+        device = await DeviceService.create_device(db, device_data, current_user.id)
+        status_info = DeviceService.get_device_status(db, device.device_id)
+
+        return DeviceResponse(
+            id=device.id,
+            device_id=device.device_id,
+            device_name=device.device_name,
+            device_type=device.device_type,
+            location=device.location,
+            owner_id=device.owner_id,
+            is_active=device.is_active,
+            last_seen=device.last_seen,
+            created_at=device.created_at,
+            updated_at=device.updated_at,
+            status=status_info.status if status_info else "unknown",
+            connection_status=status_info.connection_status if status_info else "offline"
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"デバイス作成に失敗しました: {str(e)}"
+        )
+
+
 @router.post("/", response_model=DeviceResponse)
 async def create_device(
     device_data: DeviceCreate,

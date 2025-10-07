@@ -10,7 +10,7 @@ import uuid
 
 class CSIDataUpload(BaseModel):
     """CSIデータアップロード時のスキーマ"""
-    device_id: str = Field(..., description="デバイスID")
+    device_id: Optional[str] = Field(None, description="デバイスID")
     session_id: Optional[str] = Field(None, description="セッションID")
     file_name: str = Field(..., description="ファイル名")
     collection_start_time: Optional[datetime] = Field(None, description="データ収集開始時刻")
@@ -19,20 +19,21 @@ class CSIDataUpload(BaseModel):
 
     @validator('device_id')
     def validate_device_id(cls, v):
-        if not v or len(v.strip()) == 0:
+        if v is not None and (not v or len(v.strip()) == 0):
             raise ValueError('デバイスIDは必須です')
-        return v.strip()
+        return v.strip() if v else None
 
 
 class CSIDataResponse(BaseModel):
     """CSIデータレスポンススキーマ"""
     id: uuid.UUID
     device_id: str
-    session_id: Optional[str]
-    raw_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]]
-    processed_data: Optional[Dict[str, Any]]
-    file_path: Optional[str]
-    file_size: Optional[int]
+    session_id: Optional[str] = None
+    raw_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
+    processed_data: Optional[Dict[str, Any]] = None
+    file_path: Optional[str] = None
+    file_size: Optional[int] = None
+    ipfs_hash: Optional[str] = None
     status: str
     created_at: datetime
     updated_at: datetime
