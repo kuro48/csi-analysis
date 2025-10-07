@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 # 作業ディレクトリ設定
 WORKDIR /app
