@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
+import { api } from '@/services/api'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -15,14 +16,21 @@ export default function ForgotPasswordPage() {
     setError('')
 
     try {
-      // TODO: パスワードリセットAPI呼び出し実装
-      console.log('Password reset request for:', email)
-
-      // 仮のリセット処理
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // パスワードリセットAPI呼び出し
+      const response = await api.auth.requestPasswordReset(email)
+      console.log('Password reset response:', response)
       setSuccess(true)
-    } catch (err) {
-      setError('パスワードリセットの送信に失敗しました。もう一度お試しください。')
+    } catch (err: any) {
+      console.error('Password reset error:', err)
+
+      // サーバーからのエラーメッセージを処理
+      if (err.message?.includes('404')) {
+        setError('指定されたメールアドレスのアカウントが見つかりません。')
+      } else if (err.message?.includes('429')) {
+        setError('リクエストが多すぎます。しばらくしてからもう一度お試しください。')
+      } else {
+        setError(err.message || 'パスワードリセットの送信に失敗しました。もう一度お試しください。')
+      }
     } finally {
       setIsLoading(false)
     }

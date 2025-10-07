@@ -151,6 +151,21 @@ class ApiClient {
     return this.get<User>('/auth/me')
   }
 
+  async updateProfile(profileData: { username?: string; email?: string }): Promise<User> {
+    return this.put<User>('/users/me', profileData)
+  }
+
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    return this.post<{ message: string }>('/auth/password-reset/request', { email })
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    return this.post<{ message: string }>('/auth/password-reset/confirm', {
+      token,
+      new_password: newPassword
+    })
+  }
+
   // デバイス関連
   async getDevices(params?: URLSearchParams): Promise<any> {
     const endpoint = params ? `/devices/?${params.toString()}` : '/devices/'
@@ -245,6 +260,13 @@ class ApiClient {
     return this.get(`/csi-data/${deviceId}/stats?days=${days}`)
   }
 
+  async getCSIVisualizationData(csiDataId: string, params?: URLSearchParams): Promise<any> {
+    const endpoint = params
+      ? `/csi-data/${csiDataId}/visualization?${params.toString()}`
+      : `/csi-data/${csiDataId}/visualization`
+    return this.get(endpoint)
+  }
+
   // 呼吸解析関連
   async getBreathingAnalysis(deviceId: string, params?: URLSearchParams): Promise<any> {
     const endpoint = params ? `/breathing-analysis/results/${deviceId}?${params.toString()}` : `/breathing-analysis/results/${deviceId}`
@@ -270,6 +292,11 @@ export const api = {
     register: (username: string, email: string, password: string) => apiClient.register(username, email, password),
     logout: () => apiClient.logout(),
     getCurrentUser: () => apiClient.getCurrentUser(),
+    requestPasswordReset: (email: string) => apiClient.requestPasswordReset(email),
+    resetPassword: (token: string, newPassword: string) => apiClient.resetPassword(token, newPassword),
+  },
+  users: {
+    updateProfile: (data: { username?: string; email?: string }) => apiClient.updateProfile(data),
   },
   devices: {
     list: (params?: URLSearchParams) => apiClient.getDevices(params),

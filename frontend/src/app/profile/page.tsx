@@ -5,6 +5,7 @@ import MainLayout from '@/components/layout/MainLayout'
 import { ProtectedPage } from '@/components/auth/AuthGuard'
 import { useAuth } from '@/hooks/useAuth'
 import { formatJapaneseDate } from '@/utils/date'
+import { api } from '@/services/api'
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth()
@@ -22,17 +23,20 @@ export default function ProfilePage() {
     setMessage('')
 
     try {
-      // TODO: API呼び出し実装
-      console.log('Profile update:', formData)
-
-      // 仮の更新処理
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // プロフィール更新API呼び出し
+      await api.users.updateProfile({
+        username: formData.username,
+        email: formData.email,
+      })
 
       setMessage('プロフィールを更新しました。')
       setIsEditing(false)
       await refreshUser()
-    } catch (error) {
-      setMessage('プロフィールの更新に失敗しました。')
+    } catch (error: any) {
+      console.error('Profile update error:', error)
+      setMessage(
+        error.message || 'プロフィールの更新に失敗しました。'
+      )
     } finally {
       setIsLoading(false)
     }

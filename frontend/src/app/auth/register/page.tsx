@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { api } from '@/services/api'
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -36,23 +37,31 @@ export default function RegisterPage() {
     }
 
     try {
-      // TODO: 実際のAPI呼び出し実装
-      console.log('Register attempt:', {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password
-      })
+      // ユーザー登録API呼び出し
+      const response = await api.auth.register(
+        formData.username,
+        formData.email,
+        formData.password
+      )
 
-      // 仮の登録処理（成功したと仮定）
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      console.log('Registration successful:', response)
       setSuccess(true)
 
       // 2秒後にログインページへリダイレクト
       setTimeout(() => {
         router.push('/auth/login?message=registration-success')
       }, 2000)
-    } catch (err) {
-      setError('アカウントの作成に失敗しました。もう一度お試しください。')
+    } catch (err: any) {
+      console.error('Registration error:', err)
+
+      // サーバーからのエラーメッセージを処理
+      if (err.message?.includes('409')) {
+        setError('このユーザー名またはメールアドレスは既に使用されています。')
+      } else if (err.message?.includes('422')) {
+        setError('入力内容に誤りがあります。入力内容を確認してください。')
+      } else {
+        setError(err.message || 'アカウントの作成に失敗しました。もう一度お試しください。')
+      }
     } finally {
       setIsLoading(false)
     }
