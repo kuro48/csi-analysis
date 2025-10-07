@@ -190,6 +190,21 @@ class RealtimeDataService:
         await self.manager.broadcast_to_channel(message, f"device_{device_id}")
         await self.manager.broadcast_to_channel(message, "dashboard")
 
+    async def broadcast_csi_analysis(self, device_id: str, analysis_data: dict):
+        """CSI解析結果をリアルタイムブロードキャスト"""
+        message = {
+            "type": "csi_analysis_realtime",
+            "device_id": device_id,
+            "data": analysis_data,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        # リアルタイムチャンネル、デバイス固有チャンネル、ダッシュボードにブロードキャスト
+        await self.manager.broadcast_to_channel(message, f"realtime_csi_{device_id}")
+        await self.manager.broadcast_to_channel(message, f"device_{device_id}")
+        await self.manager.broadcast_to_channel(message, "dashboard")
+        await self.manager.broadcast_to_channel(message, "realtime_monitoring")
+
     async def broadcast_system_notification(self, notification_data: dict):
         """システム通知をブロードキャスト"""
         message = {

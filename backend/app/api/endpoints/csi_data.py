@@ -11,8 +11,9 @@ import json
 from datetime import datetime
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_device_auth
 from app.models.user import User
+from app.models.device import Device
 from app.services.csi_data import CSIDataService, SessionService
 from app.schemas.csi_data import (
     CSIDataUpload, CSIDataResponse, CSIDataListResponse, CSIDataFilter,
@@ -24,14 +25,13 @@ router = APIRouter()
 
 @router.post("/upload", response_model=CSIDataResponse)
 async def upload_csi_data(
-    device_id: str = Form(..., description="デバイスID"),
     session_id: Optional[str] = Form(None, description="セッションID"),
     collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
     collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
     metadata: Optional[str] = Form(None, description="メタデータ（JSON文字列）"),
     file: UploadFile = File(..., description="CSIデータファイル"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    device: Device = Depends(get_device_auth)
 ):
     """
     CSIデータアップロード
@@ -48,7 +48,7 @@ async def upload_csi_data(
 
         # アップロード情報構築
         upload_info = CSIDataUpload(
-            device_id=device_id,
+            device_id=device.device_id,
             session_id=session_id,
             file_name=file.filename or "unknown",
             collection_start_time=datetime.fromisoformat(collection_start_time) if collection_start_time else None,
@@ -56,14 +56,14 @@ async def upload_csi_data(
             metadata=json.loads(metadata) if metadata else None
         )
 
-        # アップロード処理
+        # アップロード処理（デバイス認証）
         csi_data = await CSIDataService.upload_csi_data(
-            db, device_id, file_data, upload_info, current_user.id
+            db, device.device_id, file_data, upload_info, device.owner_id
         )
 
         return CSIDataResponse(
             id=csi_data.id,
-            device_id=device_id,
+            device_id=device.device_id,
             session_id=csi_data.session_id,
             raw_data=csi_data.raw_data,
             processed_data=csi_data.processed_data,
@@ -191,7 +191,7 @@ async def delete_csi_data(
     """
     CSIデータ削除
     """
-    success = CSIDataService.delete_csi_data(db, csi_data_id, current_user.id)
+    success = await CSIDataService.delete_csi_data(db, csi_data_id, current_user.id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -219,3 +219,83 @@ async def get_device_csi_stats(
         )
 
     return stats
+
+
+@router.get("/{csi_data_id}/visualization")
+async def get_csi_visualization_data(
+    csi_data_id: uuid.UUID,
+    subcarrier_limit: int = Query(10, ge=1, le=64, description="表示するサブキャリア数"),
+    time_window: Optional[int] = Query(None, ge=1, description="時間窓（秒）"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    CSIデータの可視化用データ取得
+    """
+    csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id, current_user.id)
+    if not csi_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CSIデータが見つかりません"
+        )
+
+    if not csi_data.processed_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CSIデータが処理されていません"
+        )
+
+    try:
+        # 時系列データを取得
+        time_series = csi_data.processed_data.get('subcarrier_data', {})
+
+        # サブキャリアデータを制限
+        limited_subcarriers = {}
+        subcarrier_keys = list(time_series.keys())[:subcarrier_limit]
+
+        for key in subcarrier_keys:
+            sc_data = time_series[key]
+            timestamps = sc_data.get('timestamps', [])
+            amplitudes = sc_data.get('amplitudes', [])
+            phases = sc_data.get('phases', [])
+
+            # 時間窓の適用
+            if time_window and timestamps:
+                max_time = max(timestamps)
+                min_time = max_time - time_window
+
+                filtered_data = [(t, a, p) for t, a, p in zip(timestamps, amplitudes, phases)
+                               if t >= min_time]
+
+                if filtered_data:
+                    timestamps, amplitudes, phases = zip(*filtered_data)
+                    timestamps = list(timestamps)
+                    amplitudes = list(amplitudes)
+                    phases = list(phases)
+
+            limited_subcarriers[key] = {
+                'timestamps': timestamps,
+                'amplitudes': amplitudes,
+                'phases': phases
+            }
+
+        # 統計データ
+        summary_stats = csi_data.processed_data.get('summary_stats', {})
+
+        return {
+            "csi_data_id": str(csi_data_id),
+            "subcarrier_data": limited_subcarriers,
+            "summary": summary_stats,
+            "metadata": {
+                "total_subcarriers": len(time_series),
+                "displayed_subcarriers": len(limited_subcarriers),
+                "time_window_applied": time_window is not None,
+                "device_id": csi_data.device.device_id if csi_data.device else "unknown"
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"可視化データの生成に失敗しました: {str(e)}"
+        )

@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.core.security import verify_token
 from app.core.config import settings
 from app.models.user import User
+from app.models.device import Device
 from app.services.cache import get_device_cache, get_analysis_cache, get_session_cache
 
 # OAuth2スキーム設定
@@ -132,3 +133,49 @@ def get_current_superuser(
             detail="スーパーユーザー権限が必要です"
         )
     return current_user
+
+
+def get_device_auth(
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> Device:
+    """デバイス認証（デバイス専用トークン）"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="デバイス認証が無効です",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        # デバイストークンの検証
+        token = credentials.credentials
+
+        # デバイストークンの形式: device_<device_id>_<token_hash>
+        if not token.startswith("device_"):
+            raise credentials_exception
+
+        # device_id を抽出
+        parts = token.split("_")
+        if len(parts) < 3:
+            raise credentials_exception
+
+        device_id = "_".join(parts[1:-1])  # device_id部分を再構築
+        token_hash = parts[-1]
+
+        # データベースからデバイスを取得
+        device = db.query(Device).filter(
+            Device.device_id == device_id,
+            Device.is_active == True
+        ).first()
+
+        if not device:
+            raise credentials_exception
+
+        # デバイスのメタデータからトークンハッシュを確認
+        if not device.metadata or device.metadata.get("token_hash") != token_hash:
+            raise credentials_exception
+
+        return device
+
+    except Exception:
+        raise credentials_exception

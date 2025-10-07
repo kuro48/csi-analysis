@@ -32,24 +32,69 @@ async def send_ping_periodically(websocket: WebSocket, connection_id: str):
 
 
 async def get_current_user_websocket(websocket: WebSocket) -> Optional[User]:
-    """WebSocket接続での認証チェック"""
+    """WebSocket接続での認証チェック（強化版）"""
     try:
         # クエリパラメータからトークンを取得
         token = websocket.query_params.get("token")
         if not token:
+            await websocket.close(code=4001, reason="Authentication token required")
             return None
 
         # トークンを検証
-        user_id_str = verify_token(token)
-        if not user_id_str:
+        try:
+            user_id_str = verify_token(token)
+            if not user_id_str:
+                await websocket.close(code=4001, reason="Invalid or expired token")
+                return None
+        except Exception as e:
+            await websocket.close(code=4001, reason=f"Token verification failed: {str(e)}")
             return None
 
-        # データベースからユーザーを取得（簡略化版）
-        # 実際の実装ではget_dbを使用
-        return User(id=uuid.UUID(user_id_str), username="authenticated_user")
+        # データベースからユーザーを取得（実際の実装）
+        try:
+            from app.core.database import SessionLocal
+            db = SessionLocal()
+            try:
+                user = db.query(User).filter(User.id == uuid.UUID(user_id_str)).first()
+                if not user or not user.is_active:
+                    await websocket.close(code=4003, reason="User not found or inactive")
+                    return None
+                return user
+            finally:
+                db.close()
+        except Exception as e:
+            await websocket.close(code=4002, reason=f"Database error: {str(e)}")
+            return None
 
-    except Exception:
+    except Exception as e:
+        await websocket.close(code=4000, reason=f"Authentication error: {str(e)}")
         return None
+
+
+def is_channel_accessible(channel: str, user: User) -> bool:
+    """チャンネルアクセス権限チェック"""
+    if not user:
+        return False
+
+    # チャンネル別アクセス制御
+    if channel.startswith("admin_"):
+        # 管理者専用チャンネル
+        return user.role in ["superuser", "admin"]
+    elif channel.startswith("device_"):
+        # デバイス関連チャンネル（デバイス所有者のみ）
+        device_id = channel.replace("device_", "")
+        # 実際の実装では、デバイス所有権をチェック
+        # 簡略化版では全ユーザーに許可
+        return True
+    elif channel.startswith("system_"):
+        # システム関連チャンネル（管理者のみ）
+        return user.role in ["superuser", "admin"]
+    elif channel in ["general", "notifications"]:
+        # 一般チャンネル（全ユーザー）
+        return True
+    else:
+        # その他のチャンネル（一般ユーザーに許可）
+        return True
 
 
 @router.websocket("/realtime")
@@ -63,11 +108,15 @@ async def websocket_endpoint(websocket: WebSocket):
     user = None
 
     try:
-        # 認証チェック（オプション）
+        # 認証チェック（必須）
         user = await get_current_user_websocket(websocket)
-        user_id = str(user.id) if user else None
+        if not user:
+            # 認証失敗の場合は接続を拒否（get_current_user_websocketで既にcloseされている）
+            return
 
-        # 接続を受け入れ（認証失敗でも接続を許可）
+        user_id = str(user.id)
+
+        # 認証成功後に接続を受け入れ
         await websocket.accept()
         await manager.connect(websocket, connection_id, user_id)
 
@@ -75,7 +124,12 @@ async def websocket_endpoint(websocket: WebSocket):
         welcome_message = {
             "type": "connection_established",
             "connection_id": connection_id,
-            "authenticated": user is not None,
+            "authenticated": True,
+            "user": {
+                "id": str(user.id),
+                "username": user.username,
+                "role": user.role
+            },
             "timestamp": "2024-12-01T00:00:00"  # 実際は datetime.utcnow().isoformat()
         }
         await manager.send_personal_message(welcome_message, connection_id)
@@ -91,7 +145,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     data = await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
                     message = json.loads(data)
 
-                    await handle_websocket_message(connection_id, message, user_id)
+                    await handle_websocket_message(connection_id, message, user)
 
                 except asyncio.TimeoutError:
                     # タイムアウトの場合は続行（Pingタスクがあるのでここでは何もしない）
@@ -126,22 +180,28 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket error: {e}")
     finally:
         # 接続を削除
-        manager.disconnect(connection_id, user_id)
+        manager.disconnect(connection_id, str(user.id) if user else None)
 
 
-async def handle_websocket_message(connection_id: str, message: dict, user_id: str = None):
-    """WebSocketメッセージの処理"""
+async def handle_websocket_message(connection_id: str, message: dict, user: User = None):
+    """WebSocketメッセージの処理（ロール基盤アクセス制御付き）"""
     message_type = message.get("type")
 
     if message_type == "subscribe":
-        # チャンネル購読
+        # チャンネル購読（ロール確認付き）
         channel = message.get("channel")
-        if channel:
+        if channel and is_channel_accessible(channel, user):
             await manager.subscribe_to_channel(connection_id, channel)
             response = {
                 "type": "subscribed",
                 "channel": channel,
                 "message": f"Successfully subscribed to {channel}"
+            }
+            await manager.send_personal_message(response, connection_id)
+        else:
+            response = {
+                "type": "error",
+                "message": f"Access denied to channel: {channel}"
             }
             await manager.send_personal_message(response, connection_id)
 
@@ -170,7 +230,8 @@ async def handle_websocket_message(connection_id: str, message: dict, user_id: s
         response = {
             "type": "status",
             "connection_id": connection_id,
-            "authenticated": user_id is not None,
+            "authenticated": user is not None,
+            "user_role": user.role if user else None,
             "active_connections": manager.get_connection_count()
         }
         await manager.send_personal_message(response, connection_id)

@@ -16,7 +16,7 @@ from app.schemas.device import (
     DeviceCreate, DeviceUpdate, DeviceFilter, DeviceSort,
     DevicePagination, DeviceStatus, DeviceHeartbeat
 )
-from app.services.websocket import RealtimeDataService
+from app.services.websocket import realtime_service
 from app.services.cache import DeviceCacheService
 
 
@@ -47,7 +47,8 @@ class DeviceService:
         db.refresh(db_device)
 
         # WebSocketで新規デバイス作成を通知
-        await RealtimeDataService.notify_device_created({
+        await realtime_service.broadcast_device_status_update(db_device.device_id, {
+            "type": "device_created",
             "id": str(db_device.id),
             "device_id": db_device.device_id,
             "device_name": db_device.device_name,

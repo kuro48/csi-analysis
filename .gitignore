@@ -160,3 +160,5 @@ dump.rdb
 data/raw/
 data/processed/
 models/trained/
+
+.claude

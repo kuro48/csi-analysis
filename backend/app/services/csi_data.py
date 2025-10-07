@@ -18,7 +18,10 @@ from app.schemas.csi_data import (
     CSIDataUpload, CSIDataResponse, CSIDataFilter,
     SessionCreate, SessionUpdate, ProcessingStatus
 )
-from app.services.websocket import RealtimeDataService
+from app.services.websocket import realtime_service
+from app.services.ipfs import ipfs_service
+from app.services.pcap_analyzer import pcap_analyzer
+from app.services.realtime_csi_analyzer import realtime_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -62,30 +65,94 @@ class CSIDataService:
             with open(file_path, 'wb') as f:
                 f.write(file_data)
 
+            # IPFSに統合アップロード（メタデータ含む）
+            ipfs_hash = None
+            try:
+                # メタデータ構築
+                csi_metadata = {
+                    "device_id": device_id,
+                    "session_id": upload_info.session_id,
+                    "collection_start_time": upload_info.collection_start_time.isoformat() if upload_info.collection_start_time else None,
+                    "collection_duration": upload_info.collection_duration,
+                    "original_filename": upload_info.file_name,
+                    "file_size": len(file_data),
+                    "upload_timestamp": datetime.now().isoformat(),
+                    "user_id": str(user_id),
+                    "custom_metadata": upload_info.metadata
+                }
+
+                # IPFS統合アップロード
+                ipfs_result = await ipfs_service.upload_csi_data_with_metadata(
+                    file_data,
+                    csi_metadata,
+                    filename=upload_info.file_name
+                )
+                ipfs_hash = ipfs_result["combined_hash"]
+                logger.info(f"CSI data package uploaded to IPFS: {ipfs_hash}")
+            except Exception as e:
+                logger.warning(f"IPFS upload failed, continuing without IPFS: {e}")
+
+            # PCAPファイルの場合は解析処理を実行
+            raw_data = None
+            processed_data = None
+
+            if file_extension.lower() == '.pcap':
+                try:
+                    logger.info(f"Analyzing PCAP file: {file_path}")
+                    analysis_result = pcap_analyzer.analyze_pcap_file(str(file_path))
+                    raw_data = analysis_result.get('csi_packets')
+                    processed_data = analysis_result.get('time_series')
+
+                    # 解析成功の通知
+                    await realtime_service.broadcast_device_status_update(
+                        device_id,
+                        {
+                            "type": "pcap_analysis_completed",
+                            "csi_data_id": None,  # まだ作成前
+                            "packets_found": len(raw_data) if raw_data else 0,
+                            "analysis_metadata": analysis_result.get('metadata')
+                        }
+                    )
+                    logger.info(f"PCAP analysis completed: {len(raw_data) if raw_data else 0} CSI packets found")
+
+                except Exception as e:
+                    logger.error(f"PCAP analysis failed: {e}")
+                    # 解析失敗でも継続（ファイルは保存される）
+
             # データベースレコード作成
             csi_data = CSIData(
                 device_id=device.id,
                 session_id=upload_info.session_id,
-                raw_data=None,  # 後で処理
-                processed_data=None,
+                raw_data=raw_data,
+                processed_data=processed_data,
                 file_path=str(file_path),
                 file_size=len(file_data),
-                status="received"
+                status="processed" if processed_data else "received",
+                ipfs_hash=ipfs_hash
             )
 
             db.add(csi_data)
             db.commit()
             db.refresh(csi_data)
 
+            # リアルタイムCSI解析を実行
+            try:
+                analysis_result = await realtime_analyzer.analyze_csi_data(device_id, file_data)
+                if analysis_result:
+                    logger.info(f"Real-time CSI analysis completed for device {device_id}")
+            except Exception as e:
+                logger.error(f"Real-time CSI analysis failed for device {device_id}: {e}")
+
             # WebSocketでアップロード完了を通知
-            await RealtimeDataService.send_device_status_update(
+            await realtime_service.broadcast_device_status_update(
                 device_id,
                 {
                     "type": "csi_data_uploaded",
                     "csi_data_id": str(csi_data.id),
                     "file_name": upload_info.file_name,
                     "file_size": len(file_data),
-                    "status": "received"
+                    "status": "received",
+                    "ipfs_hash": ipfs_hash
                 }
             )
 
@@ -169,7 +236,7 @@ class CSIDataService:
         # WebSocketで状態更新を通知
         device = db.query(Device).filter(Device.id == csi_data.device_id).first()
         if device:
-            await RealtimeDataService.send_device_status_update(
+            await realtime_service.broadcast_device_status_update(
                 device.device_id,
                 {
                     "type": "csi_data_processing_update",
@@ -182,7 +249,7 @@ class CSIDataService:
         return csi_data
 
     @staticmethod
-    def delete_csi_data(
+    async def delete_csi_data(
         db: Session,
         csi_data_id: uuid.UUID,
         user_id: uuid.UUID
@@ -192,7 +259,15 @@ class CSIDataService:
         if not csi_data:
             return False
 
-        # ファイル削除
+        # IPFSからCSIデータパッケージ削除
+        if csi_data.ipfs_hash:
+            try:
+                await ipfs_service.delete_csi_data_package(csi_data.ipfs_hash)
+                logger.info(f"CSI data package deleted from IPFS: {csi_data.ipfs_hash}")
+            except Exception as e:
+                logger.warning(f"Failed to delete IPFS package {csi_data.ipfs_hash}: {e}")
+
+        # ローカルファイル削除
         if csi_data.file_path and Path(csi_data.file_path).exists():
             try:
                 Path(csi_data.file_path).unlink()
@@ -297,7 +372,7 @@ class SessionService:
         db.refresh(session)
 
         # WebSocketで新セッション開始を通知
-        await RealtimeDataService.send_device_status_update(
+        await realtime_service.broadcast_device_status_update(
             session_data.device_id,
             {
                 "type": "session_started",
@@ -339,7 +414,7 @@ class SessionService:
         # WebSocketでセッション終了を通知
         device = db.query(Device).filter(Device.id == session.device_id).first()
         if device:
-            await RealtimeDataService.send_device_status_update(
+            await realtime_service.broadcast_device_status_update(
                 device.device_id,
                 {
                     "type": "session_ended",

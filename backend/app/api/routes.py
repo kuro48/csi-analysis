@@ -3,7 +3,7 @@ APIルーター統合モジュール
 """
 
 from fastapi import APIRouter
-from app.api.endpoints import health, auth, devices, csi_data, breathing_analysis, websocket
+from app.api.endpoints import health, auth, devices, csi_data, breathing_analysis, websocket, ipfs, tasks
 
 api_router = APIRouter()
 
@@ -42,4 +42,16 @@ api_router.include_router(
     websocket.router,
     prefix="/ws",
     tags=["websocket"]
+)
+
+api_router.include_router(
+    ipfs.router,
+    prefix="/ipfs",
+    tags=["ipfs"]
+)
+
+api_router.include_router(
+    tasks.router,
+    prefix="/tasks",
+    tags=["task-management"]
 )

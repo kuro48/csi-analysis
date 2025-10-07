@@ -4,6 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import api_router
+from app.services.task_queue import task_queue
+from app.services.analysis_tasks import register_task_handlers
+import logging
 
 # アプリケーション初期化
 app = FastAPI(
@@ -24,6 +27,39 @@ app.add_middleware(
 
 # APIルーターを登録
 app.include_router(api_router, prefix=settings.API_V2_PREFIX)
+
+logger = logging.getLogger(__name__)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """アプリケーション起動時の初期化処理"""
+    try:
+        # タスクキューに接続
+        await task_queue.connect()
+
+        # タスクハンドラー登録
+        register_task_handlers()
+
+        logger.info("Application startup completed successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize application: {e}")
+        raise
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """アプリケーション終了時のクリーンアップ処理"""
+    try:
+        # ワーカー停止
+        await task_queue.stop_workers()
+
+        # タスクキューから切断
+        await task_queue.disconnect()
+
+        logger.info("Application shutdown completed successfully")
+    except Exception as e:
+        logger.error(f"Error during application shutdown: {e}")
 
 
 @app.get("/")

@@ -45,3 +45,10 @@ scipy==1.12.0
 
 # 環境変数管理
 python-dotenv==1.0.0
+
+# IPFS関連
+ipfshttpclient==0.8.0a2
+
+# PCAP解析関連
+scapy==2.5.0
+pyshark==0.6
