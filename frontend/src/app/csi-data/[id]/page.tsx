@@ -69,7 +69,7 @@ export default function CSIDataDetailPage() {
     try {
       setLoading(true)
       const response = await apiClient.get(`/csi-data/${csiDataId}`)
-      setCsiData(response)
+      setCsiData(response as CSIData)
     } catch (err: any) {
       console.error('Failed to load CSI data:', err)
       setError(err.response?.data?.detail || 'CSIデータの読み込みに失敗しました')
@@ -93,7 +93,7 @@ export default function CSIDataDetailPage() {
       const response = await apiClient.get(
         `/csi-data/${csiDataId}/visualization?${params}`
       )
-      setVisualizationData(response)
+      setVisualizationData(response as CSIVisualizationData)
     } catch (err: any) {
       console.error('Failed to load visualization data:', err)
       setError(err.response?.data?.detail || '可視化データの読み込みに失敗しました')
