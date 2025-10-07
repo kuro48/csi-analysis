@@ -140,6 +140,9 @@ def get_device_auth(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> Device:
     """デバイス認証（デバイス専用トークン）"""
+    import logging
+    logger = logging.getLogger(__name__)
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="デバイス認証が無効です",
@@ -149,18 +152,23 @@ def get_device_auth(
     try:
         # デバイストークンの検証
         token = credentials.credentials
+        logger.info(f"Device auth attempt with token: {token}")
 
         # デバイストークンの形式: device_<device_id>_<token_hash>
         if not token.startswith("device_"):
+            logger.warning("Token does not start with 'device_'")
             raise credentials_exception
 
         # device_id を抽出
         parts = token.split("_")
+        logger.info(f"Token parts: {parts}")
         if len(parts) < 3:
+            logger.warning("Token has insufficient parts")
             raise credentials_exception
 
         device_id = "_".join(parts[1:-1])  # device_id部分を再構築
         token_hash = parts[-1]
+        logger.info(f"Extracted device_id: {device_id}, token_hash: {token_hash}")
 
         # データベースからデバイスを取得
         device = db.query(Device).filter(
@@ -169,15 +177,24 @@ def get_device_auth(
         ).first()
 
         if not device:
+            logger.warning(f"Device not found or inactive: {device_id}")
             raise credentials_exception
+
+        logger.info(f"Found device: {device.device_id}")
 
         # 簡易トークン認証: 設定されたデバイストークンと照合
         # 実際の本番環境では、より安全なハッシュ化されたトークンを使用すべき
         expected_token = f"device_{device_id}_abc123def456"
+        logger.info(f"Expected token: {expected_token}")
+        logger.info(f"Received token: {token}")
+
         if token != expected_token:
+            logger.warning("Token mismatch")
             raise credentials_exception
 
+        logger.info("Device authentication successful")
         return device
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"Device authentication error: {e}")
         raise credentials_exception

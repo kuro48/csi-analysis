@@ -89,7 +89,7 @@ class Settings:
     RATE_LIMIT_UPLOAD: str = os.getenv("RATE_LIMIT_UPLOAD", "10/minute")
 
     # ログ設定
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "WARNING")
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
 
 # 設定インスタンス
