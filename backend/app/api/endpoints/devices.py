@@ -2,7 +2,8 @@
 デバイス管理関連エンドポイント
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from sqlalchemy.orm import Session
 from typing import Optional
 import uuid
@@ -100,7 +101,7 @@ async def list_devices(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"デバイス一覧の取得に失敗しました: {str(e)}"
         )
 
