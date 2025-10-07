@@ -20,11 +20,12 @@ class IPFSService:
     def __init__(self):
         self.client = None
         # IPFSクライアント接続設定（Docker環境対応）
-        if settings.IPFS_HOST in ["localhost", "ipfs"]:
-            # Docker環境では dns4 形式を使用
-            self._connection_url = f"/dns4/ipfs/tcp/{settings.IPFS_PORT}"
+        if settings.IPFS_HOST == "ipfs":
+            # Docker環境では http URL形式を使用
+            self._connection_url = f"http://ipfs:{settings.IPFS_PORT}"
         else:
-            self._connection_url = f"{settings.IPFS_HOST}:{settings.IPFS_PORT}"
+            # ローカル環境では標準的なアドレス形式を使用
+            self._connection_url = f"http://{settings.IPFS_HOST}:{settings.IPFS_PORT}"
 
     async def _get_client(self) -> ipfshttpclient.Client:
         """IPFS クライアントを取得（接続確認付き）"""

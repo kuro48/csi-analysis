@@ -92,14 +92,30 @@ class RealtimeCSIAnalyzer:
             # 生データの形式に応じて解析
             # ここでは簡単な例として、バイナリデータをfloat配列として解釈
             if len(raw_data) < 4:
+                self.logger.warning(f"CSIデータが短すぎます: {len(raw_data)} bytes")
                 return None
 
-            # バイナリデータをfloat32配列に変換
-            float_array = np.frombuffer(raw_data, dtype=np.float32)
+            # バイナリデータサイズをfloat32（4バイト）の倍数に調整
+            element_size = 4  # float32のサイズ
+            adjusted_size = (len(raw_data) // element_size) * element_size
+
+            if adjusted_size < element_size:
+                self.logger.warning(f"調整後のCSIデータが短すぎます: {adjusted_size} bytes")
+                return None
+
+            # 調整されたサイズでバイナリデータをfloat32配列に変換
+            adjusted_data = raw_data[:adjusted_size]
+            float_array = np.frombuffer(adjusted_data, dtype=np.float32)
 
             # CSI行列の次元を推定（例：64サブキャリア x 複数タイムスタンプ）
             if len(float_array) < 64:
-                return None
+                # 小さなデータでも動作するよう、利用可能なデータで解析
+                num_subcarriers = min(len(float_array), 64)
+                if num_subcarriers > 0:
+                    csi_matrix = float_array[:num_subcarriers].reshape(1, num_subcarriers)
+                    return csi_matrix
+                else:
+                    return None
 
             # 64サブキャリアずつに分割
             num_samples = len(float_array) // 64

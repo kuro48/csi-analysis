@@ -24,7 +24,8 @@
       "mcp__chrome-devtools__list_console_messages",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Read(//Users/ryunosukekurokawa/Documents/class/lab/M1/研究関連/github_repos/csi-edge-device/**)"
     ],
     "deny": [],
     "ask": []

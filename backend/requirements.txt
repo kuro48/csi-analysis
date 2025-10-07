@@ -47,7 +47,7 @@ scipy==1.12.0
 python-dotenv==1.0.0
 
 # IPFS関連
-ipfshttpclient==0.8.0a2
+py-ipfs-http-client==0.8.0
 
 # PCAP解析関連
 scapy==2.5.0
