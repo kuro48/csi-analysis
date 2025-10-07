@@ -39,15 +39,15 @@ isort==5.13.2
 flake8==7.0.0
 
 # CSI解析関連（既存システムから移行）
-numpy==1.26.3
-pandas==2.2.0
-scipy==1.12.0
+numpy>=1.24.0,<1.27.0
+pandas>=2.0.0,<2.3.0
+scipy>=1.10.0,<1.13.0
 
 # 環境変数管理
 python-dotenv==1.0.0
 
 # IPFS関連
-py-ipfs-http-client==0.8.0
+ipfshttpclient==0.7.0
 
 # PCAP解析関連
 scapy==2.5.0
