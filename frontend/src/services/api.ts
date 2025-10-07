@@ -7,7 +7,7 @@ import { ApiResponse, User, Device, CSIData, BreathingAnalysis } from '@/types'
 // API Base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?
   `${process.env.NEXT_PUBLIC_API_URL}/api/v2` :
-  'http://localhost:8000/api/v2'
+  'http://192.168.101.168:8000/api/v2'
 
 // APIクライアントクラス
 class ApiClient {
