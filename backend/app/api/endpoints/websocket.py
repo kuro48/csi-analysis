@@ -177,7 +177,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        logger.error(f"WebSocket error: {e}")
     finally:
         # 接続を削除
         manager.disconnect(connection_id, str(user.id) if user else None)

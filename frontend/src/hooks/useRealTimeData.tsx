@@ -64,7 +64,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const realtimePages = ['/dashboard', '/devices', '/analysis']
   const shouldConnect = realtimePages.some(page => pathname.startsWith(page))
 
-  console.log(`Page: ${pathname}, Should connect WebSocket: ${shouldConnect}`)
+  // Debug logging for development only
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Page: ${pathname}, Should connect WebSocket: ${shouldConnect}`)
+  }
 
   const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/api/v2/ws/realtime'
 
