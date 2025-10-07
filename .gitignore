@@ -161,4 +161,15 @@ data/raw/
 data/processed/
 models/trained/
 
+# Test results and screenshots
+test_result_*.png
+screenshots/
+
+# Backup directory (created by backup script)
+backup/
+
+# Development tokens and secrets
+token.txt
+*.token
+
 .claude

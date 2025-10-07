@@ -23,7 +23,8 @@
       "mcp__chrome-devtools__new_page",
       "mcp__chrome-devtools__list_console_messages",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
