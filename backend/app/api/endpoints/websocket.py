@@ -8,6 +8,7 @@ import json
 import uuid
 from typing import Optional
 import asyncio
+import logging
 
 from app.services.websocket import manager, RealtimeDataService
 from app.core.security import verify_token
@@ -15,6 +16,7 @@ from app.core.database import get_db
 from app.models.user import User
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 async def send_ping_periodically(websocket: WebSocket, connection_id: str):
@@ -79,7 +81,7 @@ def is_channel_accessible(channel: str, user: User) -> bool:
     # チャンネル別アクセス制御
     if channel.startswith("admin_"):
         # 管理者専用チャンネル
-        return user.role in ["superuser", "admin"]
+        return user.is_superuser
     elif channel.startswith("device_"):
         # デバイス関連チャンネル（デバイス所有者のみ）
         device_id = channel.replace("device_", "")
@@ -88,8 +90,8 @@ def is_channel_accessible(channel: str, user: User) -> bool:
         return True
     elif channel.startswith("system_"):
         # システム関連チャンネル（管理者のみ）
-        return user.role in ["superuser", "admin"]
-    elif channel in ["general", "notifications"]:
+        return user.is_superuser
+    elif channel in ["general", "notifications", "dashboard"]:
         # 一般チャンネル（全ユーザー）
         return True
     else:
@@ -128,7 +130,7 @@ async def websocket_endpoint(websocket: WebSocket):
             "user": {
                 "id": str(user.id),
                 "username": user.username,
-                "role": user.role
+                "is_superuser": user.is_superuser
             },
             "timestamp": "2024-12-01T00:00:00"  # 実際は datetime.utcnow().isoformat()
         }
@@ -231,7 +233,7 @@ async def handle_websocket_message(connection_id: str, message: dict, user: User
             "type": "status",
             "connection_id": connection_id,
             "authenticated": user is not None,
-            "user_role": user.role if user else None,
+            "is_superuser": user.is_superuser if user else False,
             "active_connections": manager.get_connection_count()
         }
         await manager.send_personal_message(response, connection_id)

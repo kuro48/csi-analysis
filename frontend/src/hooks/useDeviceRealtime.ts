@@ -56,6 +56,12 @@ export function useDeviceRealtime({
       case 'device_heartbeat':
         onHeartbeat?.(device_id, data)
         break
+      case 'connection_established':
+      case 'subscribed':
+      case 'unsubscribed':
+      case 'pong':
+        // これらはシステムメッセージなので処理不要
+        break
       default:
         console.debug('Unknown device message type:', type)
     }

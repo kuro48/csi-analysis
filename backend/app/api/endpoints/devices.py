@@ -176,12 +176,12 @@ async def create_device(
 
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"デバイス作成に失敗しました: {str(e)}"
         )
 
@@ -198,7 +198,7 @@ async def get_device(
     device = DeviceService.get_device_by_uuid(db, device_uuid, current_user.id)
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="デバイスが見つかりません"
         )
 
@@ -233,7 +233,7 @@ async def update_device(
     device = await DeviceService.update_device(db, device_uuid, device_update, current_user.id)
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="デバイスが見つかりません"
         )
 
@@ -267,7 +267,7 @@ async def delete_device(
     success = await DeviceService.delete_device(db, device_uuid, current_user.id)
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="デバイスが見つかりません"
         )
 
@@ -286,7 +286,7 @@ async def device_heartbeat(
     # デバイスIDの整合性チェック
     if heartbeat_data.device_id != device_id:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="URLのデバイスIDとリクエストボディのデバイスIDが一致しません"
         )
 
@@ -294,7 +294,7 @@ async def device_heartbeat(
         device = await DeviceService.update_heartbeat(db, heartbeat_data)
         if not device:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="デバイスが見つかりません"
             )
 
@@ -317,7 +317,7 @@ async def device_heartbeat(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"ハートビート処理に失敗しました: {str(e)}"
         )
 
@@ -335,14 +335,14 @@ async def get_device_status(
     device = DeviceService.get_device(db, device_id, current_user.id)
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="デバイスが見つかりません"
         )
 
     status_info = DeviceService.get_device_status(db, device_id)
     if not status_info:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="デバイス状態の取得に失敗しました"
         )
 
@@ -358,10 +358,10 @@ async def get_device_statistics(
     デバイス統計情報取得
     """
     try:
-        statistics = await DeviceService.get_device_statistics(db, current_user.id, broadcast=True)
+        statistics = await DeviceService.get_device_statistics(db, current_user.id, broadcast=False)
         return statistics
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"統計情報の取得に失敗しました: {str(e)}"
         )

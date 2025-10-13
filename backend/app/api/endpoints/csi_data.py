@@ -2,7 +2,7 @@
 CSIデータ関連エンドポイント
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, File, UploadFile, Form, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 import uuid
@@ -42,7 +42,7 @@ async def upload_csi_data(
 
         if len(file_data) == 0:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="アップロードファイルが空です"
             )
 
@@ -78,12 +78,12 @@ async def upload_csi_data(
 
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"CSIデータアップロードに失敗しました: {str(e)}"
         )
 
@@ -108,7 +108,7 @@ async def upload_csi_data_test(
 
         if len(file_data) == 0:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="アップロードファイルが空です"
             )
 
@@ -144,12 +144,12 @@ async def upload_csi_data_test(
 
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"CSIデータアップロードに失敗しました: {str(e)}"
         )
 
@@ -158,7 +158,7 @@ async def upload_csi_data_test(
 async def list_csi_data(
     device_id: Optional[str] = Query(None, description="デバイスIDフィルター"),
     session_id: Optional[str] = Query(None, description="セッションIDフィルター"),
-    status: Optional[str] = Query("all", description="ステータスフィルター"),
+    data_status: Optional[str] = Query("all", description="ステータスフィルター"),
     start_date: Optional[str] = Query(None, description="開始日時"),
     end_date: Optional[str] = Query(None, description="終了日時"),
     page: int = Query(1, ge=1, description="ページ番号"),
@@ -174,7 +174,7 @@ async def list_csi_data(
         filters = CSIDataFilter(
             device_id=device_id,
             session_id=session_id,
-            status=status,
+            status=data_status,
             start_date=datetime.fromisoformat(start_date) if start_date else None,
             end_date=datetime.fromisoformat(end_date) if end_date else None
         )
@@ -187,12 +187,22 @@ async def list_csi_data(
         csi_responses = []
         for csi_data in csi_data_list:
             device = csi_data.device
+
+            # JSONフィールドをパース（文字列の場合）
+            raw_data = csi_data.raw_data
+            if isinstance(raw_data, str):
+                raw_data = json.loads(raw_data) if raw_data else None
+
+            processed_data = csi_data.processed_data
+            if isinstance(processed_data, str):
+                processed_data = json.loads(processed_data) if processed_data else None
+
             csi_response = CSIDataResponse(
                 id=csi_data.id,
                 device_id=device.device_id if device else "unknown",
                 session_id=csi_data.session_id,
-                raw_data=csi_data.raw_data,
-                processed_data=csi_data.processed_data,
+                raw_data=raw_data,
+                processed_data=processed_data,
                 file_path=csi_data.file_path,
                 file_size=csi_data.file_size,
                 status=csi_data.status,
@@ -213,7 +223,7 @@ async def list_csi_data(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"CSIデータ一覧取得に失敗しました: {str(e)}"
         )
 
@@ -230,18 +240,27 @@ async def get_csi_data(
     csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id, current_user.id)
     if not csi_data:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="CSIデータが見つかりません"
         )
 
     device = csi_data.device
 
+    # JSONフィールドをパース（文字列の場合）
+    raw_data = csi_data.raw_data
+    if isinstance(raw_data, str):
+        raw_data = json.loads(raw_data) if raw_data else None
+
+    processed_data = csi_data.processed_data
+    if isinstance(processed_data, str):
+        processed_data = json.loads(processed_data) if processed_data else None
+
     return CSIDataResponse(
         id=csi_data.id,
         device_id=device.device_id if device else "unknown",
         session_id=csi_data.session_id,
-        raw_data=csi_data.raw_data,
-        processed_data=csi_data.processed_data,
+        raw_data=raw_data,
+        processed_data=processed_data,
         file_path=csi_data.file_path,
         file_size=csi_data.file_size,
         status=csi_data.status,
@@ -262,7 +281,7 @@ async def delete_csi_data(
     success = await CSIDataService.delete_csi_data(db, csi_data_id, current_user.id)
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="CSIデータが見つかりません"
         )
 
@@ -282,7 +301,7 @@ async def get_device_csi_stats(
     stats = CSIDataService.get_device_csi_stats(db, device_id, current_user.id, days)
     if not stats:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="デバイスが見つかりません"
         )
 
@@ -303,13 +322,13 @@ async def get_csi_visualization_data(
     csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id, current_user.id)
     if not csi_data:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="CSIデータが見つかりません"
         )
 
     if not csi_data.processed_data:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="CSIデータが処理されていません"
         )
 
@@ -364,6 +383,6 @@ async def get_csi_visualization_data(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"可視化データの生成に失敗しました: {str(e)}"
         )

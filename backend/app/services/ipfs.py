@@ -1,5 +1,5 @@
 """
-IPFS サービス
+IPFS サービス - HTTP API直接実装
 """
 
 import asyncio
@@ -7,7 +7,8 @@ import json
 import logging
 from typing import Dict, Optional, Tuple, Union
 from datetime import datetime
-import ipfshttpclient
+import httpx
+import io
 
 from app.core.config import settings
 
@@ -15,32 +16,25 @@ logger = logging.getLogger(__name__)
 
 
 class IPFSService:
-    """IPFS クライアントサービス"""
+    """IPFS クライアントサービス (HTTP API使用)"""
 
     def __init__(self):
-        self.client = None
-        # IPFSクライアント接続設定（Docker環境対応）
+        # IPFS HTTP API接続設定（Docker環境対応）
         if settings.IPFS_HOST == "ipfs":
-            # Docker環境では http URL形式を使用
-            self._connection_url = f"http://ipfs:{settings.IPFS_PORT}"
+            # Docker環境
+            self._api_url = f"http://ipfs:{settings.IPFS_PORT}/api/v0"
         else:
-            # ローカル環境では標準的なアドレス形式を使用
-            self._connection_url = f"http://{settings.IPFS_HOST}:{settings.IPFS_PORT}"
+            # ローカル環境
+            self._api_url = f"http://{settings.IPFS_HOST}:{settings.IPFS_PORT}/api/v0"
 
-    async def _get_client(self) -> ipfshttpclient.Client:
-        """IPFS クライアントを取得（接続確認付き）"""
-        if self.client is None:
-            try:
-                # 同期クライアントを作成（ipfshttpclientは非同期対応していない）
-                self.client = ipfshttpclient.connect(self._connection_url, timeout=10)
-                # 接続テスト
-                self.client.version()
-                logger.info(f"IPFS connection established: {self._connection_url}")
-            except Exception as e:
-                logger.error(f"Failed to connect to IPFS: {e}")
-                raise ConnectionError(f"IPFS接続に失敗しました: {e}")
+        self._client = None
+        logger.info(f"IPFS API URL configured: {self._api_url}")
 
-        return self.client
+    async def _get_http_client(self) -> httpx.AsyncClient:
+        """HTTP クライアントを取得"""
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=30.0)
+        return self._client
 
     async def upload_file(self, file_data: bytes, filename: str = None) -> str:
         """
@@ -54,29 +48,23 @@ class IPFSService:
             str: IPFSハッシュ値
         """
         try:
-            client = await self._get_client()
+            client = await self._get_http_client()
 
-            # バックグラウンドスレッドで同期処理を実行
-            def _upload():
-                # BytesIOを使用してファイルオブジェクトとして扱う
-                import io
-                file_obj = io.BytesIO(file_data)
+            # ファイルをmultipart/form-dataとして送信
+            files = {
+                'file': (filename or 'file', file_data, 'application/octet-stream')
+            }
 
-                if filename:
-                    # ファイル名付きでアップロード
-                    result = client.add(file_obj, pin=True, wrap_with_directory=False)
-                else:
-                    # バイナリデータのみでアップロード
-                    result = client.add(file_obj, pin=True)
+            response = await client.post(
+                f"{self._api_url}/add",
+                files=files,
+                params={'pin': 'true'}
+            )
+            response.raise_for_status()
 
-                # レスポンスがリストの場合は最後の要素、辞書の場合はそのまま使用
-                if isinstance(result, list):
-                    return result[-1]['Hash']
-                else:
-                    return result['Hash']
-
-            # 非同期で実行
-            ipfs_hash = await asyncio.get_event_loop().run_in_executor(None, _upload)
+            # レスポンスからハッシュ値を取得
+            result = response.json()
+            ipfs_hash = result['Hash']
 
             logger.info(f"File uploaded to IPFS: {ipfs_hash}")
             return ipfs_hash
@@ -99,7 +87,7 @@ class IPFSService:
         try:
             # JSONをバイナリに変換
             json_data = json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8')
-            return await self.upload_file(json_data, filename)
+            return await self.upload_file(json_data, filename or 'data.json')
 
         except Exception as e:
             logger.error(f"IPFS JSON upload failed: {e}")
@@ -116,16 +104,16 @@ class IPFSService:
             bytes: ファイルのバイナリデータ
         """
         try:
-            client = await self._get_client()
+            client = await self._get_http_client()
 
-            def _get():
-                return client.cat(ipfs_hash)
-
-            # 非同期で実行
-            file_data = await asyncio.get_event_loop().run_in_executor(None, _get)
+            response = await client.post(
+                f"{self._api_url}/cat",
+                params={'arg': ipfs_hash}
+            )
+            response.raise_for_status()
 
             logger.info(f"File retrieved from IPFS: {ipfs_hash}")
-            return file_data
+            return response.content
 
         except Exception as e:
             logger.error(f"IPFS file retrieval failed: {e}")
@@ -160,18 +148,16 @@ class IPFSService:
             bool: 成功フラグ
         """
         try:
-            client = await self._get_client()
+            client = await self._get_http_client()
 
-            def _pin():
-                result = client.pin.add(ipfs_hash)
-                return result is not None
+            response = await client.post(
+                f"{self._api_url}/pin/add",
+                params={'arg': ipfs_hash}
+            )
+            response.raise_for_status()
 
-            success = await asyncio.get_event_loop().run_in_executor(None, _pin)
-
-            if success:
-                logger.info(f"File pinned: {ipfs_hash}")
-
-            return success
+            logger.info(f"File pinned: {ipfs_hash}")
+            return True
 
         except Exception as e:
             logger.error(f"IPFS pin failed: {e}")
@@ -188,18 +174,16 @@ class IPFSService:
             bool: 成功フラグ
         """
         try:
-            client = await self._get_client()
+            client = await self._get_http_client()
 
-            def _unpin():
-                result = client.pin.rm(ipfs_hash)
-                return result is not None
+            response = await client.post(
+                f"{self._api_url}/pin/rm",
+                params={'arg': ipfs_hash}
+            )
+            response.raise_for_status()
 
-            success = await asyncio.get_event_loop().run_in_executor(None, _unpin)
-
-            if success:
-                logger.info(f"File unpinned: {ipfs_hash}")
-
-            return success
+            logger.info(f"File unpinned: {ipfs_hash}")
+            return True
 
         except Exception as e:
             logger.error(f"IPFS unpin failed: {e}")
@@ -216,12 +200,15 @@ class IPFSService:
             Dict: ファイル情報
         """
         try:
-            client = await self._get_client()
+            client = await self._get_http_client()
 
-            def _get_info():
-                return client.object.stat(ipfs_hash)
+            response = await client.post(
+                f"{self._api_url}/object/stat",
+                params={'arg': ipfs_hash}
+            )
+            response.raise_for_status()
 
-            info = await asyncio.get_event_loop().run_in_executor(None, _get_info)
+            info = response.json()
 
             return {
                 'hash': ipfs_hash,
@@ -242,15 +229,17 @@ class IPFSService:
             bool: 接続状態
         """
         try:
-            client = await self._get_client()
+            client = await self._get_http_client()
 
-            def _check():
-                version = client.version()
-                return version is not None
+            response = await client.post(f"{self._api_url}/version")
+            response.raise_for_status()
 
-            return await asyncio.get_event_loop().run_in_executor(None, _check)
+            version_info = response.json()
+            logger.info(f"IPFS connected, version: {version_info.get('Version', 'unknown')}")
+            return True
 
-        except Exception:
+        except Exception as e:
+            logger.warning(f"IPFS connection check failed: {e}")
             return False
 
     async def upload_csi_data_with_metadata(
@@ -394,15 +383,15 @@ class IPFSService:
             logger.error(f"CSI data package deletion failed: {e}")
             return False
 
-    def close(self):
+    async def close(self):
         """接続を閉じる"""
-        if self.client:
+        if self._client:
             try:
-                self.client.close()
-                self.client = None
-                logger.info("IPFS connection closed")
+                await self._client.aclose()
+                self._client = None
+                logger.info("IPFS HTTP client closed")
             except Exception as e:
-                logger.error(f"Error closing IPFS connection: {e}")
+                logger.error(f"Error closing IPFS HTTP client: {e}")
 
 
 # シングルトンインスタンス

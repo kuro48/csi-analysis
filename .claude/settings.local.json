@@ -25,7 +25,11 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(find:*)",
-      "Read(//Users/ryunosukekurokawa/Documents/class/lab/M1/研究関連/github_repos/csi-edge-device/**)"
+      "Read(//Users/ryunosukekurokawa/Documents/class/lab/M1/研究関連/github_repos/csi-edge-device/**)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjA0NDkwMzYsInN1YiI6ImE3NzNjYThiLTYyMGUtNGM5MS04NDNhLWFjMDVhZmM5MzdmYSJ9.IUn1VaU3hVImUUYc4WSldwgwvtxbg-Xfa1Pvb-MP9U4\")",
+      "Bash(__NEW_LINE__ curl -X POST http://localhost:8000/api/v2/csi-data/upload )",
+      "Bash(__NEW_LINE__ curl -X POST http://localhost:8000/api/v2/devices )",
+      "mcp__chrome-devtools__take_screenshot"
     ],
     "deny": [],
     "ask": []

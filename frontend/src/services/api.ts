@@ -197,7 +197,7 @@ class ApiClient {
   }
 
   async getDeviceStatistics(): Promise<any> {
-    return this.get<any>('/devices/statistics/summary/')
+    return this.get<any>('/devices/statistics/summary')
   }
 
   // CSIデータ関連
@@ -244,7 +244,7 @@ class ApiClient {
   }
 
   async getCSIDataList(params?: URLSearchParams): Promise<any> {
-    const endpoint = params ? `/csi-data?${params.toString()}` : '/csi-data'
+    const endpoint = params ? `/csi-data/?${params.toString()}` : '/csi-data/'
     return this.get(endpoint)
   }
 

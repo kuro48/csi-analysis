@@ -295,7 +295,7 @@ class DeviceService:
 
         # WebSocketでデバイス更新を通知
         status = DeviceService.get_device_status(db, device.device_id)
-        await RealtimeDataService.notify_device_updated({
+        await realtime_service.notify_device_updated({
             "id": str(device.id),
             "device_id": device.device_id,
             "device_name": device.device_name,
@@ -323,7 +323,7 @@ class DeviceService:
         db.commit()
 
         # WebSocketでデバイス削除を通知
-        await RealtimeDataService.notify_device_deleted(device_id)
+        await realtime_service.notify_device_deleted(device_id)
 
         return True
 
@@ -360,7 +360,7 @@ class DeviceService:
         current_status = DeviceService.get_device_status(db, device.device_id)
 
         # WebSocketでハートビート通知
-        await RealtimeDataService.broadcast_device_heartbeat(
+        await realtime_service.broadcast_device_heartbeat(
             device.device_id,
             {
                 "device_id": device.device_id,
@@ -375,7 +375,7 @@ class DeviceService:
 
         # 状態が変更された場合は状態変更通知
         if (not previous_status) or (current_status and previous_status.status != current_status.status):
-            await RealtimeDataService.broadcast_device_status({
+            await realtime_service.broadcast_device_status({
                 "id": str(device.id),
                 "device_id": device.device_id,
                 "device_name": device.device_name,
@@ -479,6 +479,6 @@ class DeviceService:
 
         # WebSocketで統計情報をブロードキャスト
         if broadcast:
-            await RealtimeDataService.broadcast_device_statistics(statistics)
+            await realtime_service.broadcast_device_statistics(statistics)
 
         return statistics
