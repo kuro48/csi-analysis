@@ -101,7 +101,7 @@ class Settings:
     )
     BLOCKCHAIN_PRIVATE_KEY: str = os.getenv(
         "BLOCKCHAIN_PRIVATE_KEY",
-        "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"  # Ganache default private key (開発用のみ)
+        ""  # 空の場合はGanacheのunlocked accountを使用
     )
 
     # ガス設定
