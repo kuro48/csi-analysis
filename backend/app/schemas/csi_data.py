@@ -35,6 +35,12 @@ class CSIDataResponse(BaseModel):
     file_size: Optional[int] = None
     ipfs_hash: Optional[str] = None
     status: str
+
+    # ブロックチェーン関連フィールド
+    blockchain_tx_hash: Optional[str] = Field(None, description="ブロックチェーントランザクションハッシュ")
+    blockchain_status: Optional[str] = Field(None, description="ブロックチェーン記録状態")
+    blockchain_recorded_at: Optional[datetime] = Field(None, description="ブロックチェーン記録完了時刻")
+
     created_at: datetime
     updated_at: datetime
 

@@ -8,6 +8,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         gcc \
         libpq-dev \
+        postgresql-client \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -18,6 +19,10 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # アプリケーションコードをコピー
 COPY . .
+
+# エントリーポイントスクリプトをコピーして実行権限を付与
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # アップロード用ディレクトリ作成
 RUN mkdir -p /app/uploads
@@ -34,5 +39,5 @@ ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# アプリケーション起動
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# エントリーポイントを設定
+ENTRYPOINT ["/entrypoint.sh"]

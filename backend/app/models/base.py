@@ -3,11 +3,11 @@ SQLAlchemy ベースモデル
 """
 
 from sqlalchemy import Column, DateTime, UUID
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 import uuid as uuid_pkg
 
-Base = declarative_base()
+# app.core.database の Base を使用
+from app.core.database import Base
 
 class BaseModel(Base):
     """

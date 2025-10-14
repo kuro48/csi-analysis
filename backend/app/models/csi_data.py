@@ -35,6 +35,26 @@ class CSIData(BaseModel):
     # ステータス
     status = Column(String(50), default="received", nullable=False, index=True)  # ステータス検索用
 
+    # ブロックチェーン関連フィールド
+    blockchain_tx_hash = Column(
+        String(66),
+        nullable=True,
+        index=True,
+        comment="ブロックチェーントランザクションハッシュ"
+    )
+    blockchain_status = Column(
+        String(20),
+        default="pending",
+        nullable=False,
+        index=True,
+        comment="ブロックチェーン記録状態: pending, confirmed, failed"
+    )
+    blockchain_recorded_at = Column(
+        BaseModel.created_at.type,
+        nullable=True,
+        comment="ブロックチェーン記録完了時刻"
+    )
+
     # 複合インデックス - CSIデータ固有のクエリパターン用
     __table_args__ = (
         Index('idx_csi_device_created', 'device_id', 'created_at'),  # デバイス別時系列検索用

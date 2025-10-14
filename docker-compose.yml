@@ -11,7 +11,6 @@ services:
       POSTGRES_DB: csi_system
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     healthcheck:
@@ -49,10 +48,16 @@ services:
       - DATABASE_URL=postgresql://csi_user:csi_password@postgres:5432/csi_system
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_HOST=postgres
+      - POSTGRES_USER=csi_user
+      - POSTGRES_PASSWORD=csi_password
+      - POSTGRES_DB=csi_system
       - REDIS_HOST=redis
       - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
       - ALLOWED_ORIGINS=["http://localhost:3000", "http://127.0.0.1:3000", "http://frontend:3000"]
       - DEBUG=True
+      - BLOCKCHAIN_ENABLED=true
+      - ETHEREUM_RPC_URL=http://ganache:8545
+      - IPFS_HOST=ipfs
     volumes:
       - ./backend:/app
       - csi_uploads:/app/uploads
@@ -63,6 +68,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ganache:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -102,6 +109,22 @@ services:
     ports:
       - "5001:5001"  # API
       - "8080:8080"  # Gateway
+    networks:
+      - csi_network
+    restart: unless-stopped
+
+  # Ganache - ローカル開発用Ethereumブロックチェーン
+  ganache:
+    image: trufflesuite/ganache:latest
+    container_name: csi_ganache
+    command: >
+      --mnemonic "test test test test test test test test test test test junk"
+      --accounts 10
+      --networkId 1337
+      --gasLimit 8000000
+      --gasPrice 20000000000
+    ports:
+      - "8545:8545"
     networks:
       - csi_network
     restart: unless-stopped

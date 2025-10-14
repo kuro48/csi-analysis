@@ -29,7 +29,10 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjA0NDkwMzYsInN1YiI6ImE3NzNjYThiLTYyMGUtNGM5MS04NDNhLWFjMDVhZmM5MzdmYSJ9.IUn1VaU3hVImUUYc4WSldwgwvtxbg-Xfa1Pvb-MP9U4\")",
       "Bash(__NEW_LINE__ curl -X POST http://localhost:8000/api/v2/csi-data/upload )",
       "Bash(__NEW_LINE__ curl -X POST http://localhost:8000/api/v2/devices )",
-      "mcp__chrome-devtools__take_screenshot"
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__list_network_requests",
+      "Bash(export TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjA0OTE1NTEsInN1YiI6IjY5MDI0OTY4LTdhNjAtNGIxYS1hMzc5LTdlMDU5ODBhYzdlYiJ9.BTQYNQUU8xCYxbWKfvhuVWnuwNO5L6UIEvleCSTHVk4\" curl -s -X GET http://localhost:8000/api/v2/users/me -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjA0OTE1NTEsInN1YiI6IjY5MDI0OTY4LTdhNjAtNGIxYS1hMzc5LTdlMDU5ODBhYzdlYiJ9.BTQYNQUU8xCYxbWKfvhuVWnuwNO5L6UIEvleCSTHVk4\")"
     ],
     "deny": [],
     "ask": []

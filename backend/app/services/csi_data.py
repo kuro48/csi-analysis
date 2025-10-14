@@ -22,6 +22,7 @@ from app.services.websocket import realtime_service
 from app.services.ipfs import ipfs_service
 from app.services.pcap_analyzer import pcap_analyzer
 from app.services.realtime_csi_analyzer import realtime_analyzer
+from app.services.blockchain_service import blockchain_service
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,7 @@ class CSIDataService:
 
             # IPFSに統合アップロード（メタデータ含む）
             ipfs_hash = None
+            metadata_hash = None
             try:
                 # メタデータ構築
                 csi_metadata = {
@@ -88,9 +90,30 @@ class CSIDataService:
                     filename=upload_info.file_name
                 )
                 ipfs_hash = ipfs_result["combined_hash"]
+                metadata_hash = ipfs_result["metadata_hash"]
                 logger.info(f"CSI data package uploaded to IPFS: {ipfs_hash}")
             except Exception as e:
                 logger.warning(f"IPFS upload failed, continuing without IPFS: {e}")
+
+            # ブロックチェーン記録処理
+            blockchain_tx_hash = None
+            blockchain_status = "pending"
+            blockchain_recorded_at = None
+
+            if ipfs_hash and blockchain_service.enabled:
+                try:
+                    # ブロックチェーンにCIDを記録（非同期バックグラウンド処理）
+                    blockchain_result = await blockchain_service.record_csi_data_cid(
+                        device_id=device_id,
+                        ipfs_cid=ipfs_hash,
+                        metadata_hash=metadata_hash or ipfs_hash
+                    )
+                    blockchain_tx_hash = blockchain_result["tx_hash"]
+                    blockchain_status = blockchain_result["status"]
+                    logger.info(f"CSI data CID recorded on blockchain: {blockchain_tx_hash}")
+                except Exception as e:
+                    logger.error(f"Blockchain recording failed: {e}")
+                    blockchain_status = "failed"
 
             # PCAPファイルの場合は解析処理を実行
             raw_data = None
@@ -128,7 +151,10 @@ class CSIDataService:
                 file_path=str(file_path),
                 file_size=len(file_data),
                 status="processed" if processed_data else "received",
-                ipfs_hash=ipfs_hash
+                ipfs_hash=ipfs_hash,
+                blockchain_tx_hash=blockchain_tx_hash,
+                blockchain_status=blockchain_status,
+                blockchain_recorded_at=blockchain_recorded_at
             )
 
             db.add(csi_data)
