@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+build/
+*.r1cs
+*.wasm
+*.wtns
+*.sym
+
+# Keys and ceremony files
+keys/*.ptau
+keys/*.zkey
+keys/*.json
+keys/*.sol
+
+# Test outputs
+test_*.json
+test_*.wtns
+
+# Proofs
+proof.json
+public.json
+witness.wtns
+input.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
