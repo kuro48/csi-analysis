@@ -1,0 +1,18 @@
+{
+  "num_subcarriers": 64,
+  "num_frequency_bins": 49,
+  "frequency_range": {
+    "min": 1.0,
+    "max": 49.0
+  },
+  "peak_frequencies": {
+    "min": 1.0,
+    "max": 48.0,
+    "mean": 16.765625
+  },
+  "peak_powers": {
+    "min": 0.0,
+    "max": 44188741.82029847,
+    "mean": 8661833.77023707
+  }
+}
