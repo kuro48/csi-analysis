@@ -4,6 +4,7 @@ APIルーター統合モジュール
 
 from fastapi import APIRouter
 from app.api.endpoints import health, auth, devices, csi_data, breathing_analysis, websocket, ipfs, tasks
+from app.api.v2 import zkp
 
 api_router = APIRouter()
 
@@ -54,4 +55,10 @@ api_router.include_router(
     tasks.router,
     prefix="/tasks",
     tags=["task-management"]
+)
+
+api_router.include_router(
+    zkp.router,
+    prefix="/zkp",
+    tags=["zero-knowledge-proof"]
 )

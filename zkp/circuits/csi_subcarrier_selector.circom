@@ -21,10 +21,6 @@ include "../node_modules/circomlib/circuits/comparators.circom";
  * 4. 閾値判定で有効なサブキャリアを選択
  */
 
-/**
- * ノルム計算テンプレート
- * ||V|| = √(Σ Vi²)
- */
 template VectorNorm(N) {
     signal input vector[N];
     signal output normSquared;    // ノルムの二乗を出力 (平方根は witness で計算)
@@ -133,8 +129,11 @@ template CosineSimilarityVerified(N, SCALE) {
     // (近似: 整数除算による誤差を許容)
     signal lhs;  // left-hand side
     signal rhs;  // right-hand side
+    signal temp;  // 中間変数
 
-    lhs <== similarity * normA * normB;
+    // 二次制約に分解: temp = similarity * normA, then lhs = temp * normB
+    temp <== similarity * normA;
+    lhs <== temp * normB;
     rhs <== dotProduct * SCALE;
 
     // 検証: lhs と rhs の差が許容範囲内
@@ -172,12 +171,13 @@ template CSISubcarrierSelector(N, M, SCALE, THRESHOLD) {
     signal input similarities[M];        // 各候補の類似度
     signal input referenceNorm;          // 参照ベクトルのノルム
 
-    signal output bestIndex;             // 最も類似度が高い候補のインデックス
-    signal output bestSimilarity;        // 最大類似度
-    signal output hasValidCandidate;     // 閾値以上の候補が存在する場合1
+    signal output bestIndex;             // 最も類似度が低い候補のインデックス（ノイズの少ないサブキャリア）
+    signal output bestSimilarity;        // 最小類似度
+    signal output hasValidCandidate;     // 閾値以下の候補が存在する場合1
 
     // 各候補の類似度を検証
     component cosSimVerifiers[M];
+    component thresholdCheck[M];
     signal validFlags[M];
 
     for (var i = 0; i < M; i++) {
@@ -192,25 +192,39 @@ template CSISubcarrierSelector(N, M, SCALE, THRESHOLD) {
         cosSimVerifiers[i].normB <== candidateNorms[i];
         cosSimVerifiers[i].similarity <== similarities[i];
 
-        // 閾値チェック
-        component thresholdCheck = GreaterEqThan(32);
-        thresholdCheck.in[0] <== similarities[i];
-        thresholdCheck.in[1] <== THRESHOLD;
+        // 閾値チェック（類似度が低い = ノイズが少ない）
+        // 類似度が閾値以下であることを確認
+        thresholdCheck[i] = LessEqThan(32);
+        thresholdCheck[i].in[0] <== similarities[i];
+        thresholdCheck[i].in[1] <== THRESHOLD;
 
-        validFlags[i] <== thresholdCheck.out * cosSimVerifiers[i].isValid;
+        validFlags[i] <== thresholdCheck[i].out * cosSimVerifiers[i].isValid;
     }
 
-    // 最大類似度のインデックスを見つける (M=2の簡易実装)
-    // TODO: 一般的なM個の最大値検索
-    component maxFinder = GreaterThan(32);
-    maxFinder.in[0] <== similarities[0];
-    maxFinder.in[1] <== similarities[1];
+    // 最小類似度のインデックスを見つける (M=2の簡易実装)
+    // 類似性が低いものを選択（ノイズの少ないサブキャリア）
+    component minFinder = LessThan(32);
+    minFinder.in[0] <== similarities[0];
+    minFinder.in[1] <== similarities[1];
 
     signal selectedIndex;
-    selectedIndex <== maxFinder.out;  // 0 or 1
+    // LessThan: similarities[0] < similarities[1] なら 1, そうでなければ 0
+    // 目標: 類似度が低い方のインデックスを選択
+    // - similarities[0] < similarities[1] (候補0の方が低い) → minFinder.out = 1 だが selectedIndex = 0 にすべき
+    // - similarities[0] >= similarities[1] (候補1の方が低い) → minFinder.out = 0 だが selectedIndex = 1 にすべき
+    // したがって反転が必要: selectedIndex = 1 - minFinder.out
+    selectedIndex <== 1 - minFinder.out;
 
     bestIndex <== selectedIndex;
-    bestSimilarity <== similarities[0] * (1 - selectedIndex) + similarities[1] * selectedIndex;
+
+    // bestSimilarity の計算（二次制約を守る）
+    signal inverseIndex;
+    signal term1;
+    signal term2;
+    inverseIndex <== 1 - selectedIndex;
+    term1 <== similarities[0] * inverseIndex;
+    term2 <== similarities[1] * selectedIndex;
+    bestSimilarity <== term1 + term2;
 
     // 有効な候補が存在するかチェック
     signal validSum;

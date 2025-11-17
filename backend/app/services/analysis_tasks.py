@@ -64,9 +64,16 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
                 csi_data_id=csi_data.id,
                 device_id=csi_data.device_id,
                 breathing_rate=analysis_result["breathing_rate"],
-                breathing_pattern=analysis_result["breathing_pattern"],
-                analysis_result=analysis_result,
-                confidence_score=analysis_result["confidence_score"]
+                confidence_score=analysis_result["confidence_score"],
+                analysis_timestamp=datetime.utcnow(),
+                window_start=None,  # 実際の実装では解析ウィンドウの開始時刻を設定
+                window_end=None,    # 実際の実装では解析ウィンドウの終了時刻を設定
+                time_domain_data={
+                    "breathing_pattern": analysis_result.get("breathing_pattern", []),
+                    "algorithm_version": analysis_result.get("algorithm_version", "1.0.0")
+                },
+                frequency_domain_data=None,  # 実際の実装では周波数域データを設定
+                quality_metrics=analysis_result.get("quality_metrics", {})
             )
 
             db.add(breathing_analysis)

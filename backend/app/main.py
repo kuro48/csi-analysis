@@ -3,6 +3,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.core.errors import setup_error_handlers
 from app.api.routes import api_router
 from app.services.task_queue import task_queue
 from app.services.analysis_tasks import register_task_handlers
@@ -19,7 +20,7 @@ app = FastAPI(
 # CORS設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 開発環境では全てのオリジンを許可
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,6 +30,9 @@ app.add_middleware(
 # APIルーターを登録
 app.include_router(api_router, prefix=settings.API_V2_PREFIX)
 
+# エラーハンドラーを登録
+setup_error_handlers(app)
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,16 +40,62 @@ logger = logging.getLogger(__name__)
 async def startup_event():
     """アプリケーション起動時の初期化処理"""
     try:
+        print("⏳ Starting application initialization...")
+        logger.info("Starting application initialization...")
+
+        # セキュリティ設定の検証
+        _validate_security_settings()
+        print("✅ Security settings validated")
+
         # タスクキューに接続
+        print("⏳ Connecting to task queue...")
         await task_queue.connect()
+        print("✅ Task queue connected")
 
         # タスクハンドラー登録
+        print("⏳ Registering task handlers...")
         register_task_handlers()
+        print("✅ Task handlers registered")
 
-        logger.info("Application startup completed successfully")
+        # タスクキューのワーカーを起動
+        print("⏳ Starting task workers...")
+        await task_queue.start_workers(num_workers=3)
+        print("✅ Task workers started")
+
+        logger.info("✅ Application startup completed successfully")
+        print("✅ Application startup completed successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize application: {e}")
+        error_msg = f"Failed to initialize application: {e}"
+        logger.error(error_msg)
+        print(f"❌ {error_msg}")
+        import traceback
+        traceback.print_exc()
         raise
+
+
+def _validate_security_settings():
+    """起動時のセキュリティ設定検証"""
+    # JWT秘密鍵の検証
+    unsafe_secrets = [
+        "your-super-secret-jwt-key-change-in-production",
+        "secret",
+        "changeme",
+        "default"
+    ]
+
+    if settings.JWT_SECRET_KEY in unsafe_secrets or len(settings.JWT_SECRET_KEY) < 32:
+        error_msg = (
+            "SECURITY WARNING: JWT_SECRET_KEY is using an unsafe default value or is too short. "
+            "Please set a strong JWT_SECRET_KEY (minimum 32 characters) in your environment variables."
+        )
+
+        if not settings.DEBUG:
+            # 本番環境では起動を拒否
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        else:
+            # 開発環境では警告のみ
+            logger.warning(error_msg)
 
 
 @app.on_event("shutdown")

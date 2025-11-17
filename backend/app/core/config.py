@@ -23,16 +23,14 @@ class Settings:
     API_V2_PREFIX: str = os.getenv("API_V2_PREFIX", "/api/v2")
 
     # デバッグ・開発設定
-    DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     TESTING: bool = os.getenv("TESTING", "false").lower() == "true"
 
     # データベース設定
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://csi_user:csi_password@localhost:5432/csi_system"
-    )
-    DATABASE_USER: str = os.getenv("DATABASE_USER", "csi_user")
-    DATABASE_PASSWORD: str = os.getenv("DATABASE_PASSWORD", "csi_password")
+    # SECURITY: DATABASE credentials must be set via environment variables
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    DATABASE_USER: str = os.getenv("DATABASE_USER", "")
+    DATABASE_PASSWORD: str = os.getenv("DATABASE_PASSWORD", "")
     DATABASE_HOST: str = os.getenv("DATABASE_HOST", "localhost")
     DATABASE_PORT: int = int(os.getenv("DATABASE_PORT", "5432"))
     DATABASE_NAME: str = os.getenv("DATABASE_NAME", "csi_system")
@@ -52,22 +50,22 @@ class Settings:
     CACHE_SESSION_TTL: int = int(os.getenv("CACHE_SESSION_TTL", "1800"))  # 30分
 
     # JWT設定
-    JWT_SECRET_KEY: str = os.getenv(
-        "JWT_SECRET_KEY",
-        "your-super-secret-jwt-key-change-in-production"
-    )
+    # SECURITY: JWT_SECRET_KEY must be set via environment variable
+    # Never use default values in production
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
         os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "1440")  # 24時間
     )
 
     # CORS設定
-    ALLOWED_ORIGINS: List[str] = [
+    # 環境変数から読み込み、未設定時は開発環境用のローカルホストのみ許可
+    ALLOWED_ORIGINS: List[str] = os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",") if os.getenv("ALLOWED_ORIGINS") else [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "http://192.168.101.168:3000",
-        "http://192.168.101.40:3000",
-        "*"  # エッジデバイスからのアクセスを許可
     ]
 
     # IPFS設定（既存システム連携用）
@@ -122,3 +120,39 @@ class Settings:
 
 # 設定インスタンス
 settings = Settings()
+
+# セキュリティ検証: 本番環境では必須環境変数をチェック
+def validate_security_settings():
+    """
+    セキュリティ上重要な環境変数が適切に設定されているかを検証
+    本番環境では必須、開発環境では警告のみ
+    """
+    import sys
+
+    required_vars = {
+        "JWT_SECRET_KEY": settings.JWT_SECRET_KEY,
+        "DATABASE_URL": settings.DATABASE_URL,
+    }
+
+    missing_vars = []
+    for var_name, var_value in required_vars.items():
+        if not var_value:
+            missing_vars.append(var_name)
+
+    if missing_vars:
+        error_msg = f"🚨 SECURITY ERROR: Missing required environment variables: {', '.join(missing_vars)}"
+
+        if not settings.DEBUG:
+            # 本番環境では起動を停止
+            print(error_msg)
+            print("Set these environment variables before starting the application.")
+            sys.exit(1)
+        else:
+            # 開発環境では警告のみ
+            print(f"⚠️ WARNING: {error_msg}")
+            print("This is acceptable in development, but MUST be fixed for production.")
+    else:
+        print("✅ Security settings validated successfully")
+
+# アプリケーション起動時に検証を実行
+validate_security_settings()

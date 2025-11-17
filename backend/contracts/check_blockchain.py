@@ -88,22 +88,22 @@ def check_cid_exists(contract, cid):
         print(f"🔍 CID確認: {cid}")
         print("=" * 60)
 
-        exists = contract.functions.recordExists(cid).call()
+        exists = contract.functions.cidExists(cid).call()
 
         if exists:
             print("✅ このCIDは記録されています")
 
             # 詳細情報を取得
-            record = contract.functions.getRecord(cid).call()
+            record = contract.functions.getCSIDataByCID(cid).call()
             device_id = record[0]
             timestamp = record[1]
             block_number = record[2]
             data_hash = record[3]
 
-            dt = datetime.fromtimestamp(timestamp)
+            # dt = datetime.fromtimestamp(timestamp)
 
             print(f"   デバイスID: {device_id}")
-            print(f"   記録日時: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
+            # print(f"   記録日時: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"   ブロック番号: {block_number}")
             print(f"   データハッシュ: {data_hash}")
         else:

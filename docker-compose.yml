@@ -141,4 +141,4 @@ volumes:
 
 networks:
   csi_network:
-    driver: bridgec
+    driver: bridge

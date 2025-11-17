@@ -5,9 +5,25 @@
 import { ApiResponse, User, Device, CSIData, BreathingAnalysis } from '@/types'
 
 // API Base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?
-  `${process.env.NEXT_PUBLIC_API_URL}/api/v2` :
-  'http://192.168.101.168:8000/api/v2'
+// SECURITY: Production environments MUST set NEXT_PUBLIC_API_URL
+const getApiBaseUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return `${process.env.NEXT_PUBLIC_API_URL}/api/v2`
+  }
+
+  // Development環境のフォールバック
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '🚨 SECURITY ERROR: NEXT_PUBLIC_API_URL environment variable is required in production'
+    )
+  }
+
+  // 開発環境ではlocalhostを使用
+  console.warn('⚠️ WARNING: Using default API URL (localhost). Set NEXT_PUBLIC_API_URL for production.')
+  return 'http://localhost:8000/api/v2'
+}
+
+const API_BASE_URL = getApiBaseUrl()
 
 // APIクライアントクラス
 class ApiClient {
@@ -167,16 +183,16 @@ class ApiClient {
   }
 
   // デバイス関連
-  async getDevices(params?: URLSearchParams): Promise<any> {
+  async getDevices(params?: URLSearchParams): Promise<{ devices: Device[], total: number, page: number, page_size: number }> {
     const endpoint = params ? `/devices/?${params.toString()}` : '/devices/'
-    return this.get<any>(endpoint)
+    return this.get<{ devices: Device[], total: number, page: number, page_size: number }>(endpoint)
   }
 
   async getDevice(deviceId: string): Promise<Device> {
     return this.get<Device>(`/devices/${deviceId}`)
   }
 
-  async createDevice(deviceData: any): Promise<Device> {
+  async createDevice(deviceData: CreateDeviceRequest): Promise<Device> {
     return this.post<Device>('/devices', deviceData)
   }
 
@@ -188,42 +204,16 @@ class ApiClient {
     return this.delete<void>(`/devices/${deviceId}`)
   }
 
-  async getDeviceStatus(deviceId: string): Promise<any> {
-    return this.get<any>(`/devices/${deviceId}/status`)
+  async getDeviceStatus(deviceId: string): Promise<{ is_active: boolean, last_seen: string | null, status: string }> {
+    return this.get<{ is_active: boolean, last_seen: string | null, status: string }>(`/devices/${deviceId}/status`)
   }
 
-  async sendDeviceHeartbeat(deviceId: string, heartbeatData: any): Promise<Device> {
+  async sendDeviceHeartbeat(deviceId: string, heartbeatData: DeviceHeartbeat): Promise<Device> {
     return this.post<Device>(`/devices/${deviceId}/heartbeat`, heartbeatData)
   }
 
-  async getDeviceStatistics(): Promise<any> {
-    return this.get<any>('/devices/statistics/summary')
-  }
-
-  // CSIデータ関連
-  async uploadCSIData(deviceId: string, file: File): Promise<CSIData> {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('device_id', deviceId)
-
-    return this.upload<CSIData>('/csi-data/upload', formData)
-  }
-
-  async getCSIData(deviceId: string): Promise<CSIData[]> {
-    return this.get<CSIData[]>(`/csi-data/${deviceId}`)
-  }
-
-  async getLatestCSIData(deviceId: string): Promise<CSIData> {
-    return this.get<CSIData>(`/csi-data/${deviceId}/latest`)
-  }
-
-  // 呼吸解析関連
-  async getBreathingAnalysis(deviceId: string): Promise<BreathingAnalysis[]> {
-    return this.get<BreathingAnalysis[]>(`/breathing-analysis/results/${deviceId}`)
-  }
-
-  async getLatestBreathingAnalysis(deviceId: string): Promise<BreathingAnalysis> {
-    return this.get<BreathingAnalysis>(`/breathing-analysis/results/${deviceId}/latest`)
+  async getDeviceStatistics(): Promise<{ total: number, active: number, inactive: number }> {
+    return this.get<{ total: number, active: number, inactive: number }>('/devices/statistics/summary')
   }
 
   // ヘルスチェック関連
@@ -232,7 +222,7 @@ class ApiClient {
   }
 
   // CSIデータ関連
-  async uploadCSIData(deviceId: string, file: File, metadata?: any): Promise<any> {
+  async uploadCSIData(deviceId: string, file: File, metadata?: CSIUploadMetadata): Promise<CSIUploadResponse> {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('device_id', deviceId)
@@ -240,45 +230,45 @@ class ApiClient {
       formData.append('metadata', JSON.stringify(metadata))
     }
 
-    return this.upload('/csi-data/upload', formData)
+    return this.upload<CSIUploadResponse>('/csi-data/upload', formData)
   }
 
-  async getCSIDataList(params?: URLSearchParams): Promise<any> {
+  async getCSIDataList(params?: URLSearchParams): Promise<CSIDataListResponse> {
     const endpoint = params ? `/csi-data/?${params.toString()}` : '/csi-data/'
-    return this.get(endpoint)
+    return this.get<CSIDataListResponse>(endpoint)
   }
 
-  async getCSIData(csiDataId: string): Promise<any> {
-    return this.get(`/csi-data/${csiDataId}`)
+  async getCSIData(csiDataId: string): Promise<CSIData> {
+    return this.get<CSIData>(`/csi-data/${csiDataId}`)
   }
 
   async deleteCSIData(csiDataId: string): Promise<void> {
-    return this.delete(`/csi-data/${csiDataId}`)
+    return this.delete<void>(`/csi-data/${csiDataId}`)
   }
 
-  async getCSIStats(deviceId: string, days: number = 7): Promise<any> {
-    return this.get(`/csi-data/${deviceId}/stats?days=${days}`)
+  async getCSIStats(deviceId: string, days: number = 7): Promise<CSIStats> {
+    return this.get<CSIStats>(`/csi-data/${deviceId}/stats?days=${days}`)
   }
 
-  async getCSIVisualizationData(csiDataId: string, params?: URLSearchParams): Promise<any> {
+  async getCSIVisualizationData(csiDataId: string, params?: URLSearchParams): Promise<CSIVisualizationData> {
     const endpoint = params
       ? `/csi-data/${csiDataId}/visualization?${params.toString()}`
       : `/csi-data/${csiDataId}/visualization`
-    return this.get(endpoint)
+    return this.get<CSIVisualizationData>(endpoint)
   }
 
   // 呼吸解析関連
-  async getBreathingAnalysis(deviceId: string, params?: URLSearchParams): Promise<any> {
+  async getBreathingAnalysis(deviceId: string, params?: URLSearchParams): Promise<BreathingAnalysisListResponse> {
     const endpoint = params ? `/breathing-analysis/results/${deviceId}?${params.toString()}` : `/breathing-analysis/results/${deviceId}`
-    return this.get(endpoint)
+    return this.get<BreathingAnalysisListResponse>(endpoint)
   }
 
-  async getLatestBreathingAnalysis(deviceId: string): Promise<any> {
-    return this.get(`/breathing-analysis/results/${deviceId}/latest`)
+  async getLatestBreathingAnalysis(deviceId: string): Promise<BreathingAnalysis> {
+    return this.get<BreathingAnalysis>(`/breathing-analysis/results/${deviceId}/latest`)
   }
 
-  async getBreathingTrends(deviceId: string, hours: number = 24): Promise<any> {
-    return this.get(`/breathing-analysis/trends/${deviceId}?hours=${hours}`)
+  async getBreathingTrends(deviceId: string, hours: number = 24): Promise<{ trends: BreathingTrend[] }> {
+    return this.get<{ trends: BreathingTrend[] }>(`/breathing-analysis/trends/${deviceId}?hours=${hours}`)
   }
 }
 
@@ -301,11 +291,11 @@ export const api = {
   devices: {
     list: (params?: URLSearchParams) => apiClient.getDevices(params),
     get: (id: string) => apiClient.getDevice(id),
-    create: (data: any) => apiClient.createDevice(data),
+    create: (data: CreateDeviceRequest) => apiClient.createDevice(data),
     update: (id: string, data: Partial<Device>) => apiClient.updateDevice(id, data),
     delete: (id: string) => apiClient.deleteDevice(id),
     status: (id: string) => apiClient.getDeviceStatus(id),
-    heartbeat: (id: string, data: any) => apiClient.sendDeviceHeartbeat(id, data),
+    heartbeat: (id: string, data: DeviceHeartbeat) => apiClient.sendDeviceHeartbeat(id, data),
     statistics: () => apiClient.getDeviceStatistics(),
   },
   csi: {

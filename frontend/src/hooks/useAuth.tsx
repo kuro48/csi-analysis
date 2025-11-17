@@ -3,6 +3,7 @@
 import { useState, useEffect, useContext, createContext, ReactNode } from 'react'
 import { api } from '@/services/api'
 import { User } from '@/types'
+import { logger } from '@/utils/logger'
 
 interface AuthContextType {
   user: User | null
@@ -32,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const currentUser = await api.auth.getCurrentUser()
           setUser(currentUser)
         } catch (error) {
-          console.error('Failed to fetch user:', error)
+          logger.error('Failed to fetch user:', error)
           // トークンが無効な場合は削除
           localStorage.removeItem('access_token')
         }
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await api.auth.getCurrentUser()
       setUser(currentUser)
     } catch (error) {
-      console.error('Login failed:', error)
+      logger.error('Login failed:', error)
       throw error
     }
   }
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api.auth.logout()
     } catch (error) {
-      console.error('Logout failed:', error)
+      logger.error('Logout failed:', error)
     } finally {
       setUser(null)
       localStorage.removeItem('access_token')
@@ -73,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api.auth.register(username, email, password)
       // 登録後は自動ログインしない（メール認証等が必要な場合を考慮）
     } catch (error) {
-      console.error('Registration failed:', error)
+      logger.error('Registration failed:', error)
       throw error
     }
   }
@@ -86,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await api.auth.getCurrentUser()
       setUser(currentUser)
     } catch (error) {
-      console.error('Failed to refresh user:', error)
+      logger.error('Failed to refresh user:', error)
       // ユーザー情報の取得に失敗した場合はログアウト
       await logout()
     }
@@ -109,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext)
   if (!context) {
-    console.error('useAuth must be used within an AuthProvider')
+    logger.error('useAuth must be used within an AuthProvider')
     return {
       user: null,
       isLoading: false,

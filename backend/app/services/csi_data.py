@@ -161,6 +161,21 @@ class CSIDataService:
             db.commit()
             db.refresh(csi_data)
 
+            # 呼吸解析タスクをキューに登録
+            from app.services.task_queue import task_queue, TaskPriority
+            try:
+                task_id = await task_queue.enqueue_task(
+                    "csi_breathing_analysis",
+                    {
+                        "csi_data_id": str(csi_data.id),
+                        "analysis_params": {}
+                    },
+                    priority=TaskPriority.NORMAL
+                )
+                logger.info(f"Breathing analysis task queued: {task_id} for CSI data {csi_data.id}")
+            except Exception as e:
+                logger.warning(f"Failed to queue breathing analysis task: {e}")
+
             # リアルタイムCSI解析を実行
             try:
                 analysis_result = await realtime_analyzer.analyze_csi_data(device_id, file_data)
