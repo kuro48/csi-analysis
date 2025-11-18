@@ -286,6 +286,67 @@ curl -X GET "http://localhost:8000/api/v2/csi-data/DATA_ID/visualization?subcarr
 - **トランザクション管理**: 自動ガス見積もり、署名、確認
 - **コントラクトデプロイ**: `python backend/contracts/deploy_contract.py`
 
+#### 🔐 ゼロ知識証明（ZKP）システム
+
+**概要**
+実際のPCAPファイルから抽出したCSIデータを使用し、プライバシーを保護しながら呼吸パターンの検証を可能にするゼロ知識証明システムです。データを公開せずに、CSI解析の正当性を暗号的に証明できます。
+
+**主要機能**
+- **実PCAPデータ使用**: モックなし、本物のWi-Fi CSIデータから証明生成
+- **FFT周波数分析**: 各サブキャリアの周波数成分をパワースペクトルで計算
+- **コサイン類似度計算**: 最適なサブキャリアを選択（Pythagorean tripleパターン使用）
+- **Groth16プロトコル**: 効率的なZKP証明（430制約、検証約2秒）
+- **64サブキャリア全解析**: 4032ペアの類似度を計算・比較
+- **整数演算保証**: Pythagorean tripleパターンで丸め誤差を完全排除
+
+**データフロー**
+```
+PCAP (100パケット)
+  ↓ extract_real_csi_to_csv.py
+CSI抽出（64サブキャリア × 100パケット）
+  ↓ FFT処理
+周波数成分（64サブキャリア × 49周波数ビン）
+  ↓ prove_from_fft_csv_pythagorean.js
+Pythagorean tripleパターン生成
+  ↓ Groth16プロトコル
+ZKP証明（proof.json + public.json）
+  ↓ verify_csi_fft.js
+検証成功 ✅
+```
+
+**技術詳細**
+- **CSI形式**: NEXMON（16ビット符号付き整数、実部・虚部ペア）
+- **FFT処理**: 100パケット時系列 → 49周波数ビン
+- **ベクトル次元**: 4次元（最初の4周波数ビン使用）
+- **整数演算**: Pythagorean tripleパターン `[3,4,0,0]`, `[5,12,0,0]` 等で完全一致保証
+- **回路**: Circom回路定義、430制約
+- **証明時間**: 約10秒、検証時間: 約2秒
+
+**クイックスタート（zkp/ディレクトリ内）**
+```bash
+# 1. PCAP → CSI抽出 → FFT処理
+python3 scripts/extract_real_csi_to_csv.py
+
+# 2. 回路コンパイル（初回のみ）
+node scripts/compile_csi_selector.js
+
+# 3. セットアップ（初回のみ、約5分）
+node scripts/setup_csi_selector.js
+
+# 4. ZKP証明生成（約10秒）
+node scripts/prove_from_fft_csv_pythagorean.js
+
+# 5. ZKP証明検証（約2秒）
+node scripts/verify_csi_fft.js
+```
+
+**詳細ドキュメント**
+ZKPシステムの詳細は `zkp/` ディレクトリを参照:
+- `zkp/README.md` - システム全体の説明
+- `zkp/docs/REAL_CSI_ZKP_WORKFLOW.md` - 完全なワークフロー詳細
+- `zkp/docs/QUICK_START.md` - 基本的な使い方
+- `zkp/docs/CSI_SELECTOR_ZKP_GUIDE.md` - 回路の詳細説明
+
 #### 運用・管理機能
 - **自動セットアップ**: `./start.sh`でワンクリック環境構築
 - **ヘルスチェック**: `./scripts/health_check.sh`でシステム状態監視
