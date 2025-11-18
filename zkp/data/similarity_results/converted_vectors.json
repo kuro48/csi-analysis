@@ -1,0 +1,1084 @@
+[
+  {
+    "subcarrierId": 0,
+    "vector": [
+      35,
+      12,
+      0,
+      0
+    ],
+    "norm": 37,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      12,
+      35,
+      37
+    ],
+    "approximationQuality": 0.9884151316416803
+  },
+  {
+    "subcarrierId": 1,
+    "vector": [
+      0,
+      6,
+      5,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.7366659122369897
+  },
+  {
+    "subcarrierId": 2,
+    "vector": [
+      0,
+      24,
+      7,
+      0
+    ],
+    "norm": 25,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      7,
+      24,
+      25
+    ],
+    "approximationQuality": 0.8523943926260016
+  },
+  {
+    "subcarrierId": 3,
+    "vector": [
+      77,
+      0,
+      36,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      36,
+      77,
+      85
+    ],
+    "approximationQuality": 0.8394211778400992
+  },
+  {
+    "subcarrierId": 4,
+    "vector": [
+      13,
+      84,
+      0,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.9902289756181638
+  },
+  {
+    "subcarrierId": 5,
+    "vector": [
+      84,
+      0,
+      13,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.5287197749473832
+  },
+  {
+    "subcarrierId": 6,
+    "vector": [
+      5,
+      0,
+      6,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.55893180819939
+  },
+  {
+    "subcarrierId": 7,
+    "vector": [
+      40,
+      9,
+      0,
+      0
+    ],
+    "norm": 41,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      9,
+      40,
+      41
+    ],
+    "approximationQuality": 0.7470811118694318
+  },
+  {
+    "subcarrierId": 8,
+    "vector": [
+      84,
+      0,
+      13,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.8262145854976163
+  },
+  {
+    "subcarrierId": 9,
+    "vector": [
+      84,
+      0,
+      13,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.9065612764942788
+  },
+  {
+    "subcarrierId": 10,
+    "vector": [
+      24,
+      7,
+      0,
+      0
+    ],
+    "norm": 25,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      7,
+      24,
+      25
+    ],
+    "approximationQuality": 0.8526739350589946
+  },
+  {
+    "subcarrierId": 11,
+    "vector": [
+      36,
+      77,
+      0,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      36,
+      77,
+      85
+    ],
+    "approximationQuality": 0.8679451868031876
+  },
+  {
+    "subcarrierId": 12,
+    "vector": [
+      8,
+      15,
+      0,
+      0
+    ],
+    "norm": 17,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      8,
+      15,
+      17
+    ],
+    "approximationQuality": 0.9887923504051387
+  },
+  {
+    "subcarrierId": 13,
+    "vector": [
+      7,
+      24,
+      0,
+      0
+    ],
+    "norm": 25,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      7,
+      24,
+      25
+    ],
+    "approximationQuality": 0.9529119944950626
+  },
+  {
+    "subcarrierId": 14,
+    "vector": [
+      0,
+      5,
+      6,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.985297850364984
+  },
+  {
+    "subcarrierId": 15,
+    "vector": [
+      0,
+      8,
+      15,
+      0
+    ],
+    "norm": 17,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      8,
+      15,
+      17
+    ],
+    "approximationQuality": 0.946936881058178
+  },
+  {
+    "subcarrierId": 16,
+    "vector": [
+      12,
+      0,
+      35,
+      0
+    ],
+    "norm": 37,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      12,
+      35,
+      37
+    ],
+    "approximationQuality": 0.9554999990053586
+  },
+  {
+    "subcarrierId": 17,
+    "vector": [
+      6,
+      0,
+      5,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.8142595274037384
+  },
+  {
+    "subcarrierId": 18,
+    "vector": [
+      24,
+      7,
+      0,
+      0
+    ],
+    "norm": 25,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      7,
+      24,
+      25
+    ],
+    "approximationQuality": 0.9583226034170609
+  },
+  {
+    "subcarrierId": 19,
+    "vector": [
+      13,
+      84,
+      0,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.310999781385328
+  },
+  {
+    "subcarrierId": 20,
+    "vector": [
+      13,
+      84,
+      0,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.8647001216864857
+  },
+  {
+    "subcarrierId": 21,
+    "vector": [
+      84,
+      0,
+      13,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.5945229459945888
+  },
+  {
+    "subcarrierId": 22,
+    "vector": [
+      24,
+      7,
+      0,
+      0
+    ],
+    "norm": 25,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      7,
+      24,
+      25
+    ],
+    "approximationQuality": 0.8872634638028901
+  },
+  {
+    "subcarrierId": 23,
+    "vector": [
+      20,
+      21,
+      0,
+      0
+    ],
+    "norm": 29,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      20,
+      21,
+      29
+    ],
+    "approximationQuality": 0.6531348151601488
+  },
+  {
+    "subcarrierId": 24,
+    "vector": [
+      12,
+      5,
+      0,
+      0
+    ],
+    "norm": 13,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      5,
+      12,
+      13
+    ],
+    "approximationQuality": 0.7827000612049505
+  },
+  {
+    "subcarrierId": 25,
+    "vector": [
+      5,
+      0,
+      6,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.9975133045795568
+  },
+  {
+    "subcarrierId": 26,
+    "vector": [
+      0,
+      12,
+      35,
+      0
+    ],
+    "norm": 37,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      12,
+      35,
+      37
+    ],
+    "approximationQuality": 0.40442269585473783
+  },
+  {
+    "subcarrierId": 27,
+    "vector": [
+      8,
+      0,
+      15,
+      0
+    ],
+    "norm": 17,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      8,
+      15,
+      17
+    ],
+    "approximationQuality": 0.9083382896295197
+  },
+  {
+    "subcarrierId": 28,
+    "vector": [
+      21,
+      20,
+      0,
+      0
+    ],
+    "norm": 29,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      20,
+      21,
+      29
+    ],
+    "approximationQuality": 0.1646553588475777
+  },
+  {
+    "subcarrierId": 29,
+    "vector": [
+      40,
+      9,
+      0,
+      0
+    ],
+    "norm": 41,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      9,
+      40,
+      41
+    ],
+    "approximationQuality": 0.9822719317270453
+  },
+  {
+    "subcarrierId": 30,
+    "vector": [
+      9,
+      40,
+      0,
+      0
+    ],
+    "norm": 41,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      9,
+      40,
+      41
+    ],
+    "approximationQuality": 0.5672259252641358
+  },
+  {
+    "subcarrierId": 31,
+    "vector": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "norm": 0,
+    "method": "zero_vector"
+  },
+  {
+    "subcarrierId": 32,
+    "vector": [
+      6,
+      5,
+      0,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.9682874726577434
+  },
+  {
+    "subcarrierId": 33,
+    "vector": [
+      84,
+      13,
+      0,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.9863479951853565
+  },
+  {
+    "subcarrierId": 34,
+    "vector": [
+      6,
+      5,
+      0,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.9682874726577434
+  },
+  {
+    "subcarrierId": 35,
+    "vector": [
+      84,
+      13,
+      0,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.9961390722529464
+  },
+  {
+    "subcarrierId": 36,
+    "vector": [
+      5,
+      0,
+      6,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.902203994080487
+  },
+  {
+    "subcarrierId": 37,
+    "vector": [
+      6,
+      0,
+      5,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.7771180816113463
+  },
+  {
+    "subcarrierId": 38,
+    "vector": [
+      0,
+      15,
+      8,
+      0
+    ],
+    "norm": 17,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      8,
+      15,
+      17
+    ],
+    "approximationQuality": 0.9592212026109942
+  },
+  {
+    "subcarrierId": 39,
+    "vector": [
+      84,
+      0,
+      13,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.7552194933693709
+  },
+  {
+    "subcarrierId": 40,
+    "vector": [
+      0,
+      12,
+      5,
+      0
+    ],
+    "norm": 13,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      5,
+      12,
+      13
+    ],
+    "approximationQuality": 0.9757077334315277
+  },
+  {
+    "subcarrierId": 41,
+    "vector": [
+      0,
+      6,
+      5,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.7886790685979189
+  },
+  {
+    "subcarrierId": 42,
+    "vector": [
+      0,
+      12,
+      5,
+      0
+    ],
+    "norm": 13,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      5,
+      12,
+      13
+    ],
+    "approximationQuality": 0.44757629546387984
+  },
+  {
+    "subcarrierId": 43,
+    "vector": [
+      0,
+      36,
+      77,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      36,
+      77,
+      85
+    ],
+    "approximationQuality": 0.6209353029015098
+  },
+  {
+    "subcarrierId": 44,
+    "vector": [
+      0,
+      6,
+      5,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.975579886084339
+  },
+  {
+    "subcarrierId": 45,
+    "vector": [
+      21,
+      20,
+      0,
+      0
+    ],
+    "norm": 29,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      20,
+      21,
+      29
+    ],
+    "approximationQuality": 0.6082539366896238
+  },
+  {
+    "subcarrierId": 46,
+    "vector": [
+      8,
+      0,
+      15,
+      0
+    ],
+    "norm": 17,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      8,
+      15,
+      17
+    ],
+    "approximationQuality": 0.7395557635277563
+  },
+  {
+    "subcarrierId": 47,
+    "vector": [
+      8,
+      15,
+      0,
+      0
+    ],
+    "norm": 17,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      8,
+      15,
+      17
+    ],
+    "approximationQuality": 0.8055906809644585
+  },
+  {
+    "subcarrierId": 48,
+    "vector": [
+      13,
+      84,
+      0,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.6200480558951983
+  },
+  {
+    "subcarrierId": 49,
+    "vector": [
+      84,
+      13,
+      0,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.9216332514293758
+  },
+  {
+    "subcarrierId": 50,
+    "vector": [
+      0,
+      6,
+      5,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.8945870418959784
+  },
+  {
+    "subcarrierId": 51,
+    "vector": [
+      21,
+      0,
+      20,
+      0
+    ],
+    "norm": 29,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      20,
+      21,
+      29
+    ],
+    "approximationQuality": 0.9816243923978413
+  },
+  {
+    "subcarrierId": 52,
+    "vector": [
+      8,
+      0,
+      15,
+      0
+    ],
+    "norm": 17,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      8,
+      15,
+      17
+    ],
+    "approximationQuality": 0.9532906905542221
+  },
+  {
+    "subcarrierId": 53,
+    "vector": [
+      40,
+      9,
+      0,
+      0
+    ],
+    "norm": 41,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      9,
+      40,
+      41
+    ],
+    "approximationQuality": 0.8183073305108922
+  },
+  {
+    "subcarrierId": 54,
+    "vector": [
+      15,
+      0,
+      8,
+      0
+    ],
+    "norm": 17,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      8,
+      15,
+      17
+    ],
+    "approximationQuality": 0.9462507502760745
+  },
+  {
+    "subcarrierId": 55,
+    "vector": [
+      6,
+      0,
+      5,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.6134792845041863
+  },
+  {
+    "subcarrierId": 56,
+    "vector": [
+      6,
+      0,
+      5,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.7405707716441555
+  },
+  {
+    "subcarrierId": 57,
+    "vector": [
+      0,
+      15,
+      8,
+      0
+    ],
+    "norm": 17,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      8,
+      15,
+      17
+    ],
+    "approximationQuality": 0.9762547138728269
+  },
+  {
+    "subcarrierId": 58,
+    "vector": [
+      5,
+      6,
+      0,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.9831192227461293
+  },
+  {
+    "subcarrierId": 59,
+    "vector": [
+      35,
+      0,
+      12,
+      0
+    ],
+    "norm": 37,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      12,
+      35,
+      37
+    ],
+    "approximationQuality": 0.9829677775857519
+  },
+  {
+    "subcarrierId": 60,
+    "vector": [
+      5,
+      6,
+      0,
+      0
+    ],
+    "norm": 8,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      3,
+      4,
+      5
+    ],
+    "approximationQuality": 0.977621137363621
+  },
+  {
+    "subcarrierId": 61,
+    "vector": [
+      0,
+      20,
+      21,
+      0
+    ],
+    "norm": 29,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      20,
+      21,
+      29
+    ],
+    "approximationQuality": 0.8900111541283034
+  },
+  {
+    "subcarrierId": 62,
+    "vector": [
+      0,
+      12,
+      5,
+      0
+    ],
+    "norm": 13,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      5,
+      12,
+      13
+    ],
+    "approximationQuality": 0.865950414975536
+  },
+  {
+    "subcarrierId": 63,
+    "vector": [
+      13,
+      84,
+      0,
+      0
+    ],
+    "norm": 85,
+    "method": "pythagorean_approximation",
+    "matchedTriple": [
+      13,
+      84,
+      85
+    ],
+    "approximationQuality": 0.49763935181805924
+  }
+]

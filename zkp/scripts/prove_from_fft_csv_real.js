@@ -284,7 +284,7 @@ async function main() {
         console.log('\n✅ All operations successful!');
         console.log('   🎉 Real data rounding approach SUCCEEDED!');
         console.log('\nNext step: Verify the proof');
-        console.log('  node scripts/verify_csi_fft_real.js');
+        console.log('  node scripts/verify_csi_fft.js');
 
     } catch (error) {
         console.error('\n❌ Error:', error.message);
