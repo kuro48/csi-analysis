@@ -19,10 +19,10 @@ from app.schemas.csi_data import (
     SessionCreate, SessionUpdate, ProcessingStatus
 )
 from app.services.websocket import realtime_service
-from app.services.ipfs import ipfs_service
+# from app.services.ipfs import ipfs_service  # IPFS機能は現在無効化
 from app.services.pcap_analyzer import pcap_analyzer
 from app.services.realtime_csi_analyzer import realtime_analyzer
-from app.services.blockchain_service import blockchain_service
+# from app.services.blockchain_service import blockchain_service  # ブロックチェーン機能は現在無効化
 
 logger = logging.getLogger(__name__)
 
@@ -66,54 +66,19 @@ class CSIDataService:
             with open(file_path, 'wb') as f:
                 f.write(file_data)
 
-            # IPFSに統合アップロード（メタデータ含む）
+            # IPFS/ブロックチェーン統合処理（現在無効化 - 再有効化する場合は csi_data_ipfs.py を参照）
             ipfs_hash = None
-            metadata_hash = None
-            try:
-                # メタデータ構築
-                csi_metadata = {
-                    "device_id": device_id,
-                    "session_id": upload_info.session_id,
-                    "collection_start_time": upload_info.collection_start_time.isoformat() if upload_info.collection_start_time else None,
-                    "collection_duration": upload_info.collection_duration,
-                    "original_filename": upload_info.file_name,
-                    "file_size": len(file_data),
-                    "upload_timestamp": datetime.now().isoformat(),
-                    "user_id": str(user_id),
-                    "custom_metadata": upload_info.metadata
-                }
-
-                # IPFS統合アップロード
-                ipfs_result = await ipfs_service.upload_csi_data_with_metadata(
-                    file_data,
-                    csi_metadata,
-                    filename=upload_info.file_name
-                )
-                ipfs_hash = ipfs_result["combined_hash"]
-                metadata_hash = ipfs_result["metadata_hash"]
-                logger.info(f"CSI data package uploaded to IPFS: {ipfs_hash}")
-            except Exception as e:
-                logger.warning(f"IPFS upload failed, continuing without IPFS: {e}")
-
-            # ブロックチェーン記録処理
             blockchain_tx_hash = None
-            blockchain_status = "pending"
+            blockchain_status = None
             blockchain_recorded_at = None
 
-            if ipfs_hash and blockchain_service.enabled:
-                try:
-                    # ブロックチェーンにCIDを記録（非同期バックグラウンド処理）
-                    blockchain_result = await blockchain_service.record_csi_data_cid(
-                        device_id=device_id,
-                        ipfs_cid=ipfs_hash,
-                        metadata_hash=metadata_hash or ipfs_hash
-                    )
-                    blockchain_tx_hash = blockchain_result["tx_hash"]
-                    blockchain_status = blockchain_result["status"]
-                    logger.info(f"CSI data CID recorded on blockchain: {blockchain_tx_hash}")
-                except Exception as e:
-                    logger.error(f"Blockchain recording failed: {e}")
-                    blockchain_status = "failed"
+            # --- IPFS/ブロックチェーン処理をコメントアウト（将来の再利用のため保持） ---
+            # from app.services.csi_data_ipfs import upload_csi_data_to_ipfs_and_blockchain
+            # ipfs_hash, blockchain_tx_hash, blockchain_status, metadata_hash = \
+            #     await upload_csi_data_to_ipfs_and_blockchain(
+            #         device_id, file_data, upload_info, user_id
+            #     )
+            # --- ここまで ---
 
             # PCAPファイルの場合は解析処理を実行
             raw_data = None
@@ -192,8 +157,7 @@ class CSIDataService:
                     "csi_data_id": str(csi_data.id),
                     "file_name": upload_info.file_name,
                     "file_size": len(file_data),
-                    "status": "received",
-                    "ipfs_hash": ipfs_hash
+                    "status": "received"
                 }
             )
 
@@ -300,13 +264,12 @@ class CSIDataService:
         if not csi_data:
             return False
 
-        # IPFSからCSIデータパッケージ削除
-        if csi_data.ipfs_hash:
-            try:
-                await ipfs_service.delete_csi_data_package(csi_data.ipfs_hash)
-                logger.info(f"CSI data package deleted from IPFS: {csi_data.ipfs_hash}")
-            except Exception as e:
-                logger.warning(f"Failed to delete IPFS package {csi_data.ipfs_hash}: {e}")
+        # IPFS削除処理（現在無効化 - 再有効化する場合は csi_data_ipfs.py を参照）
+        # --- IPFS削除処理をコメントアウト（将来の再利用のため保持） ---
+        # if csi_data.ipfs_hash:
+        #     from app.services.csi_data_ipfs import delete_csi_data_from_ipfs
+        #     await delete_csi_data_from_ipfs(csi_data.ipfs_hash)
+        # --- ここまで ---
 
         # ローカルファイル削除
         if csi_data.file_path and Path(csi_data.file_path).exists():

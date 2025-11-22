@@ -370,3 +370,364 @@ class ZKPService:
         except Exception as e:
             logger.error(f"ZKP verification failed: {e}")
             return False
+
+    # ========== コサイン類似度計算用ZKPメソッド ==========
+
+    async def generate_cosine_similarity_proof(
+        self,
+        reference_vector: List[int],
+        candidate_vectors: List[List[int]],
+        scale: int = 10000
+    ) -> Dict[str, Any]:
+        """
+        コサイン類似度のZKP証明を生成（本番環境用）
+
+        本番環境では、全てのコサイン類似度計算をこの関数で実行します。
+        JavaScript/Python実装の代わりにこの関数を使用します。
+
+        Args:
+            reference_vector: 参照ベクトル（Pythagorean triple近似済み）[4次元]
+            candidate_vectors: 候補ベクトルリスト（最大2個）[各4次元]
+            scale: 固定小数点スケール（デフォルト: 10000）
+
+        Returns:
+            {
+                "proof": ZKP証明オブジェクト,
+                "publicSignals": 公開信号リスト,
+                "bestIndex": 最適サブキャリアインデックス,
+                "bestSimilarity": 最大類似度（整数値）,
+                "normalizedSimilarity": 正規化された類似度（0.0-1.0）
+            }
+
+        Raises:
+            ValueError: 入力データが不正な場合
+            RuntimeError: ZKP証明生成に失敗した場合
+        """
+        try:
+            # 入力検証
+            if len(candidate_vectors) > 2:
+                raise ValueError("Maximum 2 candidate vectors supported")
+
+            if len(reference_vector) != 4:
+                raise ValueError("Reference vector must have 4 dimensions")
+
+            for i, cand in enumerate(candidate_vectors):
+                if len(cand) != 4:
+                    raise ValueError(f"Candidate vector {i} must have 4 dimensions")
+
+            logger.info(f"Generating cosine similarity ZKP for {len(candidate_vectors)} candidates")
+
+            # 1. Witness生成用の入力データ準備
+            input_data = self._prepare_cosine_similarity_input(
+                reference_vector,
+                candidate_vectors,
+                scale
+            )
+
+            logger.debug(f"Cosine similarity witness input prepared")
+
+            # 2. Witness生成
+            witness_file = await self._generate_cosine_similarity_witness(input_data)
+
+            # 3. ZKP証明生成
+            proof, public_signals = await self._generate_cosine_similarity_groth16_proof(witness_file)
+
+            # 4. 結果パース
+            best_index = int(public_signals[0])
+            best_similarity = int(public_signals[1])
+
+            result = {
+                "proof": proof,
+                "publicSignals": public_signals,
+                "bestIndex": best_index,
+                "bestSimilarity": best_similarity,
+                "normalizedSimilarity": best_similarity / scale
+            }
+
+            logger.info(
+                f"Cosine similarity ZKP generated: "
+                f"bestIndex={best_index}, similarity={best_similarity/scale:.4f}"
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Cosine similarity ZKP generation failed: {e}", exc_info=True)
+            raise RuntimeError(f"Cosine similarity ZKP generation failed: {str(e)}")
+
+    async def verify_cosine_similarity_proof(
+        self,
+        proof: Dict[str, Any],
+        public_signals: List[int]
+    ) -> bool:
+        """
+        コサイン類似度ZKP証明を検証（本番環境用）
+
+        Args:
+            proof: ZKP証明オブジェクト
+            public_signals: 公開信号リスト
+
+        Returns:
+            True: 検証成功, False: 検証失敗
+        """
+        temp_proof_file = None
+        temp_public_file = None
+
+        try:
+            import uuid
+            unique_id = uuid.uuid4().hex[:8]
+            temp_proof_file = self.build_dir / f"csi_proof_{unique_id}.json"
+            temp_public_file = self.build_dir / f"csi_public_{unique_id}.json"
+
+            # 証明ファイルを一時保存
+            with open(temp_proof_file, 'w') as f:
+                json.dump(proof, f)
+
+            with open(temp_public_file, 'w') as f:
+                json.dump(public_signals, f)
+
+            # snarkjs groth16 verify 実行
+            verification_key = self.keys_dir / "csi_subcarrier_selector_verification_key.json"
+
+            if not verification_key.exists():
+                raise FileNotFoundError(
+                    f"Verification key not found: {verification_key}. "
+                    "Please run ZKP setup script first."
+                )
+
+            verify_cmd = [
+                "snarkjs", "groth16", "verify",
+                str(verification_key),
+                str(temp_public_file),
+                str(temp_proof_file)
+            ]
+
+            process = await asyncio.create_subprocess_exec(
+                *verify_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                logger.error(f"Cosine similarity verification failed: {stderr.decode()}")
+                return False
+
+            # 検証結果パース
+            is_valid = b"OK" in stdout
+
+            logger.info(f"Cosine similarity ZKP verification: {'VALID' if is_valid else 'INVALID'}")
+            return is_valid
+
+        except Exception as e:
+            logger.error(f"Cosine similarity ZKP verification failed: {e}", exc_info=True)
+            return False
+        finally:
+            # 一時ファイル削除
+            if temp_proof_file and temp_proof_file.exists():
+                temp_proof_file.unlink()
+            if temp_public_file and temp_public_file.exists():
+                temp_public_file.unlink()
+
+    def _prepare_cosine_similarity_input(
+        self,
+        reference: List[int],
+        candidates: List[List[int]],
+        scale: int
+    ) -> Dict[str, Any]:
+        """
+        コサイン類似度Witness生成用の入力データを準備
+
+        Args:
+            reference: 参照ベクトル
+            candidates: 候補ベクトルリスト
+            scale: 固定小数点スケール
+
+        Returns:
+            ZKP回路への入力データ
+        """
+        # ノルム計算
+        def calculate_norm(vec: List[int]) -> int:
+            sum_squares = sum(x**2 for x in vec)
+            return int(sum_squares ** 0.5)
+
+        # 類似度計算
+        def calculate_similarity(vec_a: List[int], vec_b: List[int]):
+            """Returns: (similarity, norm_a, norm_b, dot_product)"""
+            dot_product = sum(a * b for a, b in zip(vec_a, vec_b))
+            norm_a = calculate_norm(vec_a)
+            norm_b = calculate_norm(vec_b)
+
+            if norm_a == 0 or norm_b == 0:
+                return 0, norm_a, norm_b, dot_product
+
+            similarity = round((dot_product * scale) / (norm_a * norm_b))
+            return similarity, norm_a, norm_b, dot_product
+
+        # 各候補の類似度を計算
+        ref_norm = calculate_norm(reference)
+        candidate_data = []
+
+        for i, cand in enumerate(candidates):
+            sim, _, cand_norm, dot_prod = calculate_similarity(reference, cand)
+            candidate_data.append({
+                "vector": cand,
+                "norm": cand_norm,
+                "similarity": sim,
+                "dotProduct": dot_prod
+            })
+
+            logger.debug(
+                f"Candidate {i}: norm={cand_norm}, "
+                f"similarity={sim} ({sim/scale:.4f})"
+            )
+
+        # 候補が1つの場合は2つ目をダミーで埋める（回路仕様に合わせる）
+        while len(candidate_data) < 2:
+            candidate_data.append({
+                "vector": [0, 0, 0, 0],
+                "norm": 0,
+                "similarity": 0,
+                "dotProduct": 0
+            })
+
+        # 入力データ構築
+        input_data = {
+            "reference": reference,
+            "refNorm": ref_norm,
+            "candidates": [c["vector"] for c in candidate_data],
+            "candNorms": [c["norm"] for c in candidate_data],
+            "similarities": [c["similarity"] for c in candidate_data],
+            "dotProducts": [c["dotProduct"] for c in candidate_data]
+        }
+
+        return input_data
+
+    async def _generate_cosine_similarity_witness(
+        self, input_data: Dict[str, Any]
+    ) -> Path:
+        """
+        コサイン類似度用Witness生成
+
+        Args:
+            input_data: 入力データ
+
+        Returns:
+            生成されたWitnessファイルのパス
+        """
+        circuit_name = "csi_subcarrier_selector"
+        input_file = self.build_dir / "csi_input.json"
+        witness_file = self.build_dir / f"{circuit_name}_js" / "witness.wtns"
+        wasm_file = self.build_dir / f"{circuit_name}_js" / f"{circuit_name}.wasm"
+        generate_witness_script = self.build_dir / f"{circuit_name}_js" / "generate_witness.js"
+
+        # ファイル存在確認
+        if not wasm_file.exists():
+            raise FileNotFoundError(
+                f"WASM file not found: {wasm_file}. "
+                "Please compile the CSI selector circuit first: npm run compile:csi_selector"
+            )
+
+        if not generate_witness_script.exists():
+            raise FileNotFoundError(
+                f"Witness generation script not found: {generate_witness_script}"
+            )
+
+        # 入力データ保存
+        with open(input_file, 'w') as f:
+            json.dump(input_data, f, indent=2)
+
+        logger.debug(f"Cosine similarity input file saved: {input_file}")
+
+        # Witness生成実行
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "node",
+                str(generate_witness_script),
+                str(wasm_file),
+                str(input_file),
+                str(witness_file),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                error_msg = stderr.decode() if stderr else "Unknown error"
+                raise RuntimeError(f"Cosine similarity witness generation failed: {error_msg}")
+
+            if not witness_file.exists():
+                raise RuntimeError("Witness file was not created")
+
+            logger.info(f"Cosine similarity witness generated: {witness_file}")
+            return witness_file
+
+        except Exception as e:
+            logger.error(f"Witness generation error: {e}")
+            raise
+
+    async def _generate_cosine_similarity_groth16_proof(
+        self, witness_file: Path
+    ):
+        """
+        コサイン類似度用ZKP証明生成
+
+        Args:
+            witness_file: Witnessファイルのパス
+
+        Returns:
+            (proof, public_signals)
+        """
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        proof_file = self.build_dir / f"csi_proof_{unique_id}.json"
+        public_file = self.build_dir / f"csi_public_{unique_id}.json"
+        zkey_file = self.keys_dir / "csi_subcarrier_selector_final.zkey"
+
+        # zkeyファイル存在確認
+        if not zkey_file.exists():
+            raise FileNotFoundError(
+                f"zkey file not found: {zkey_file}. "
+                "Please run ZKP setup script first: npm run setup:csi_selector"
+            )
+
+        try:
+            # snarkjs groth16 prove 実行
+            prove_cmd = [
+                "snarkjs", "groth16", "prove",
+                str(zkey_file),
+                str(witness_file),
+                str(proof_file),
+                str(public_file)
+            ]
+
+            process = await asyncio.create_subprocess_exec(
+                *prove_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                error_msg = stderr.decode() if stderr else "Unknown error"
+                raise RuntimeError(f"Cosine similarity proof generation failed: {error_msg}")
+
+            # 証明と公開信号を読み込み
+            with open(proof_file) as f:
+                proof = json.load(f)
+
+            with open(public_file) as f:
+                public_signals = json.load(f)
+
+            logger.info("Cosine similarity ZKP proof generated successfully")
+            return proof, public_signals
+
+        except Exception as e:
+            logger.error(f"Proof generation error: {e}")
+            raise
+        finally:
+            # 一時ファイルは保持（デバッグ用・監査用）
+            pass

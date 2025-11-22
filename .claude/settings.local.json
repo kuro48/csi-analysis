@@ -52,7 +52,9 @@
       "Bash(TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjM0NzEyMjEsInN1YiI6IjgzODFmNTU0LTFkODEtNGZjMS1hZjI4LTBkNmJiYjQ0YTA5NSJ9.rGxoRPU1q9PJTvZKsEeNJeCcpsPjz7QMDEaJrwwEY0Y' curl -s -X POST 'http://localhost:8000/api/v2/csi-data/upload-test' -H \"Authorization: Bearer $TOKEN\" -F 'device_id=blockchain_test_device' -F 'file=@sample/data/csi_data_20250930_122219.pcap')",
       "Bash(chmod:*)",
       "mcp__serena__get_symbols_overview",
-      "mcp__serena__find_symbol"
+      "mcp__serena__find_symbol",
+      "mcp__serena__search_for_pattern",
+      "Bash(git -C /Users/ryunosukekurokawa/Documents/class/lab/M1/研究関連/csi-web-platform status)"
     ],
     "deny": [],
     "ask": []
