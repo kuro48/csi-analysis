@@ -53,7 +53,7 @@ services:
       - POSTGRES_DB=csi_system
       - REDIS_HOST=redis
       - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
-      - ALLOWED_ORIGINS=["http://localhost:3000", "http://127.0.0.1:3000", "http://frontend:3000"]
+      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000
       - DEBUG=True
       - BLOCKCHAIN_ENABLED=true
       - ETHEREUM_RPC_URL=http://ganache:8545
@@ -108,7 +108,7 @@ services:
       - ipfs_data:/data/ipfs
     ports:
       - "5001:5001"  # API
-      - "8080:8080"  # Gateway
+      - "8081:8080"  # Gateway (ポート競合回避のため8081に変更)
     networks:
       - csi_network
     restart: unless-stopped

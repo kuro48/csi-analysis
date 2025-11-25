@@ -99,7 +99,6 @@ class DeviceMonitor:
         """統計情報をブロードキャスト"""
         try:
             statistics = await DeviceService.get_device_statistics(db, broadcast=True)
-            logger.debug(f"Broadcasted device statistics: {statistics['total_devices']} devices")
         except Exception as e:
             logger.error(f"Error broadcasting statistics: {e}")
 

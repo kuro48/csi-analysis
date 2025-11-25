@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { apiClient } from '@/services/api'
-import CSIUploadModal from '@/components/data/CSIUploadModal'
 
 interface CSIData {
   id: string
@@ -28,7 +27,6 @@ export default function DataManagementPage() {
   const [csiDataList, setCsiDataList] = useState<CSIData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showUploadModal, setShowUploadModal] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
@@ -66,11 +64,6 @@ export default function DataManagementPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleUploadComplete = (uploadedData: any) => {
-    setShowUploadModal(false)
-    loadCSIDataList() // リストを再読み込み
   }
 
   const handleDelete = async (csiDataId: string) => {
@@ -125,20 +118,9 @@ export default function DataManagementPage() {
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">💾 データ管理</h1>
-                <p className="text-sm text-gray-500">CSIデータの管理・表示・解析</p>
-              </div>
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                CSIデータアップロード
-              </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">💾 データ管理</h1>
+              <p className="text-sm text-gray-500">CSIデータの管理・表示・解析（エッジデバイスから自動アップロード）</p>
             </div>
           </div>
         </div>
@@ -212,12 +194,7 @@ export default function DataManagementPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <p className="mt-2 text-sm text-gray-600">CSIデータがありません</p>
-                <button
-                  onClick={() => setShowUploadModal(true)}
-                  className="mt-2 text-blue-600 hover:text-blue-500 text-sm font-medium"
-                >
-                  最初のデータをアップロード
-                </button>
+                <p className="mt-1 text-xs text-gray-500">エッジデバイスからデータが送信されると表示されます</p>
               </div>
             </div>
           ) : (
@@ -349,14 +326,6 @@ export default function DataManagementPage() {
           )}
         </div>
       </div>
-
-      {/* アップロードモーダル */}
-      {showUploadModal && (
-        <CSIUploadModal
-          onClose={() => setShowUploadModal(false)}
-          onUploadComplete={handleUploadComplete}
-        />
-      )}
     </div>
   )
 }

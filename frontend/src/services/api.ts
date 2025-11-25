@@ -114,28 +114,6 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'DELETE' })
   }
 
-  // ファイルアップロード
-  async upload<T>(endpoint: string, formData: FormData): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
-
-    const headers: HeadersInit = {}
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: formData,
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    return response.json()
-  }
-
   // 認証関連
   async login(username: string, password: string) {
     const response = await this.post<{ access_token: string; token_type: string }>('/auth/login', {
@@ -222,17 +200,6 @@ class ApiClient {
   }
 
   // CSIデータ関連
-  async uploadCSIData(deviceId: string, file: File, metadata?: CSIUploadMetadata): Promise<CSIUploadResponse> {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('device_id', deviceId)
-    if (metadata) {
-      formData.append('metadata', JSON.stringify(metadata))
-    }
-
-    return this.upload<CSIUploadResponse>('/csi-data/upload', formData)
-  }
-
   async getCSIDataList(params?: URLSearchParams): Promise<CSIDataListResponse> {
     const endpoint = params ? `/csi-data/?${params.toString()}` : '/csi-data/'
     return this.get<CSIDataListResponse>(endpoint)
@@ -299,7 +266,6 @@ export const api = {
     statistics: () => apiClient.getDeviceStatistics(),
   },
   csi: {
-    upload: (deviceId: string, file: File) => apiClient.uploadCSIData(deviceId, file),
     list: (deviceId: string) => apiClient.getCSIData(deviceId),
     latest: (deviceId: string) => apiClient.getLatestCSIData(deviceId),
   },

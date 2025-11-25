@@ -25,6 +25,7 @@ class Settings:
     # デバッグ・開発設定
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     TESTING: bool = os.getenv("TESTING", "false").lower() == "true"
+    ENABLE_TEST_ENDPOINTS: bool = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() == "true"
 
     # データベース設定
     # SECURITY: DATABASE credentials must be set via environment variables

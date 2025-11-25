@@ -198,7 +198,6 @@ class TaskQueue:
                     updates[key] = value
 
         await self.redis_client.hset(task_key, mapping=updates)
-        logger.debug(f"Task {task_id} status updated to {status.value}")
 
     async def get_task_status(self, task_id: str) -> Optional[Dict]:
         """タスクステータス取得"""

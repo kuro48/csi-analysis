@@ -199,7 +199,7 @@ cat backend/contracts/build/CSIDataRegistry.json | grep "address"
 3. [SETUP_BLOCKCHAIN.md](./SETUP_BLOCKCHAIN.md) - ブロックチェーン詳細設定
 
 ### 開発者向け
-1. CSIデータのアップロード
+1. エッジデバイスからのCSIデータ自動アップロード（Webからの手動アップロード不可）
 2. 可視化グラフの確認
 3. ブロックチェーン記録の検証
 4. カスタム機能の実装

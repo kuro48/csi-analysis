@@ -79,12 +79,11 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       handleRealtimeMessage(message)
     },
     onOpen: () => {
-      console.log('WebSocket connected on', pathname)
       // 基本チャンネルに自動購読
       subscribe('dashboard')
     },
     onClose: () => {
-      console.log('WebSocket disconnected from', pathname)
+      // WebSocket disconnected
     },
     onError: (error) => {
       console.error('WebSocket error on', pathname, ':', error)
@@ -92,8 +91,6 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   })
 
   const handleRealtimeMessage = useCallback((message: any) => {
-    console.log('Received WebSocket message:', message)
-
     switch (message.type) {
       case 'device_status_update':
         setData((prev) => ({
@@ -140,19 +137,15 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         break
 
       case 'connection_established':
-        console.log('Connection established:', message)
         break
 
       case 'subscribed':
-        console.log(`Subscribed to channel: ${message.channel}`)
         break
 
       case 'unsubscribed':
-        console.log(`Unsubscribed from channel: ${message.channel}`)
         break
 
       case 'pong':
-        console.log('Pong received')
         break
 
       case 'error':
@@ -160,7 +153,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         break
 
       default:
-        console.log('Unknown message type:', message.type)
+        break
     }
   }, []) // useCallbackの依存関係配列を追加
 

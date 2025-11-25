@@ -23,7 +23,7 @@ include "../node_modules/circomlib/circuits/comparators.circom";
 
 template VectorNorm(N) {
     signal input vector[N];
-    signal output normSquared;    // ノルムの二乗を出力 (平方根は witness で計算)
+    signal output normSquared;
 
     signal squares[N];
     signal accumulator[N];

@@ -12,6 +12,7 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, get_device_auth
+from app.core.config import settings
 from app.models.user import User
 from app.models.device import Device
 from app.services.csi_data import CSIDataService, SessionService
@@ -101,7 +102,16 @@ async def upload_csi_data_test(
 ):
     """
     CSIデータアップロード（テスト用・ユーザー認証）
+
+    注意: このエンドポイントはテスト/開発環境専用です。
+    本番環境では ENABLE_TEST_ENDPOINTS=False に設定して無効化してください。
     """
+    # 本番環境ではテストエンドポイントを無効化
+    if not settings.ENABLE_TEST_ENDPOINTS:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="このエンドポイントは本番環境では利用できません"
+        )
     try:
         # ファイルデータ読み取り
         file_data = await file.read()

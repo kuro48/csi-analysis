@@ -78,21 +78,6 @@ export interface CSIDataListResponse {
   page_size: number;
 }
 
-export interface CSIUploadMetadata {
-  session_id?: string;
-  device_name?: string;
-  location?: string;
-  notes?: string;
-}
-
-export interface CSIUploadResponse {
-  id: string;
-  device_id: string;
-  file_path: string;
-  status: string;
-  message: string;
-}
-
 export interface CSIStats {
   total_samples: number;
   avg_quality: number;

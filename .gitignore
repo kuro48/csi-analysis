@@ -172,4 +172,8 @@ backup/
 token.txt
 *.token
 
+# Claude Code private configuration
 .claude
+
+# Claude Code project documentation
+claudedocs/

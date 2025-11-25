@@ -63,7 +63,7 @@ export function useDeviceRealtime({
         // これらはシステムメッセージなので処理不要
         break
       default:
-        console.debug('Unknown device message type:', type)
+        // Unknown message type
     }
   }, [
     onDeviceStatusUpdate,
@@ -87,10 +87,10 @@ export function useDeviceRealtime({
     shouldReconnect: true,
     onMessage: handleMessage,
     onOpen: () => {
-      console.log('Device realtime WebSocket connected')
+      // WebSocket connected
     },
     onClose: () => {
-      console.log('Device realtime WebSocket disconnected')
+      // WebSocket disconnected
     },
     onError: (error) => {
       console.error('Device realtime WebSocket error:', error)

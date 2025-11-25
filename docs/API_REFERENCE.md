@@ -265,6 +265,8 @@ Authorization: Bearer <access_token>
 
 新しいCSIデータをアップロードします。
 
+**⚠️ 注意**: このエンドポイントは研究用エッジデバイス専用です。Webインターフェースからの手動アップロードは不可。
+
 **エンドポイント**: `POST /api/v2/csi-data/upload`
 
 **リクエストヘッダー**:

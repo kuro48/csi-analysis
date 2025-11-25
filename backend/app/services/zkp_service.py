@@ -424,8 +424,6 @@ class ZKPService:
                 scale
             )
 
-            logger.debug(f"Cosine similarity witness input prepared")
-
             # 2. Witness生成
             witness_file = await self._generate_cosine_similarity_witness(input_data)
 
@@ -578,11 +576,6 @@ class ZKPService:
                 "dotProduct": dot_prod
             })
 
-            logger.debug(
-                f"Candidate {i}: norm={cand_norm}, "
-                f"similarity={sim} ({sim/scale:.4f})"
-            )
-
         # 候補が1つの場合は2つ目をダミーで埋める（回路仕様に合わせる）
         while len(candidate_data) < 2:
             candidate_data.append({
@@ -637,8 +630,6 @@ class ZKPService:
         # 入力データ保存
         with open(input_file, 'w') as f:
             json.dump(input_data, f, indent=2)
-
-        logger.debug(f"Cosine similarity input file saved: {input_file}")
 
         # Witness生成実行
         try:

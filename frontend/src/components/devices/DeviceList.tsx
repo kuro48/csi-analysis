@@ -260,7 +260,6 @@ export default function DeviceList({
                       <button
                         onClick={() => {
                           // 編集モーダルを開く（後で実装）
-                          console.log('Edit device:', device)
                         }}
                         className="text-sm text-blue-600 hover:text-blue-500"
                       >

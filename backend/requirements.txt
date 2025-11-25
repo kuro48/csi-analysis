@@ -1,7 +1,7 @@
 # FastAPI と関連ライブラリ
-fastapi==0.109.0
-uvicorn[standard]==0.25.0
-python-multipart==0.0.6
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.12
 
 # データベース関連
 sqlalchemy==2.0.25
@@ -9,8 +9,7 @@ alembic==1.13.1
 psycopg2-binary==2.9.9
 
 # Redis関連
-redis==5.0.1
-aioredis==2.0.1
+redis==5.2.0
 
 # 認証・セキュリティ関連
 python-jose[cryptography]==3.3.0

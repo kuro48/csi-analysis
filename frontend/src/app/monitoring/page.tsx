@@ -156,7 +156,6 @@ export default function SimpleMonitoringPage() {
         const ws = new WebSocket(wsUrl)
 
         ws.onopen = () => {
-          console.log('WebSocket接続成功')
           setWsStatus('connected')
 
           // リアルタイム監視チャンネルに購読
@@ -178,7 +177,6 @@ export default function SimpleMonitoringPage() {
         }
 
         ws.onclose = () => {
-          console.log('WebSocket接続が閉じられました')
           setWsStatus('disconnected')
         }
 

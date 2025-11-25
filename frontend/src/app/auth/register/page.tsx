@@ -44,7 +44,6 @@ export default function RegisterPage() {
         formData.password
       )
 
-      console.log('Registration successful:', response)
       setSuccess(true)
 
       // 2秒後にログインページへリダイレクト

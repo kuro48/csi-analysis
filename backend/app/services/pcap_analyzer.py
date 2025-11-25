@@ -112,7 +112,6 @@ class PCAPAnalyzer:
                         csi_packets.append(csi_data)
 
             except Exception as e:
-                self.logger.debug(f"Failed to process packet {i}: {e}")
                 continue
 
         # CSIデータを時系列データに変換
@@ -180,7 +179,6 @@ class PCAPAnalyzer:
             return CSIPacket(timestamp, csi_matrix, rssi, noise, rate, channel)
 
         except Exception as e:
-            self.logger.debug(f"Failed to extract CSI from RadioTap: {e}")
             return None
 
     def _extract_csi_from_dot11(self, packet) -> Optional[CSIPacket]:
@@ -197,7 +195,6 @@ class PCAPAnalyzer:
             return CSIPacket(timestamp, csi_matrix)
 
         except Exception as e:
-            self.logger.debug(f"Failed to extract CSI from Dot11: {e}")
             return None
 
     def _generate_mock_csi_matrix(self, n_subcarriers: int = 64) -> np.ndarray:

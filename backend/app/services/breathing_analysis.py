@@ -168,7 +168,6 @@ class BreathingAnalysisService:
             )
 
             logger.info(f"ZKP proof generated for analysis {analysis_id}")
-            logger.debug(f"ZKP commitment: {proof_data['commitment']}")
 
         except Exception as e:
             logger.error(f"Failed to generate ZKP for analysis {analysis_id}: {e}")
@@ -449,7 +448,6 @@ class AlertService:
         ).first()
 
         if existing_alert:
-            logger.debug(f"Duplicate alert skipped: {alert_data.alert_type} for {alert_data.device_id}")
             return existing_alert
 
         # アラート作成

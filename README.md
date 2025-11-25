@@ -218,10 +218,10 @@ open http://localhost:3000
    - ユーザー名: `admin`
    - パスワード: `admin123`
 
-3. **データ管理ページでPCAPファイルアップロード**
-   - 「💾 データ管理」→「CSIデータアップロード」
-   - PCAPファイル（.pcap/.pcapng）を選択
-   - デバイスID、セッション名を入力してアップロード
+3. **エッジデバイスからCSIデータ送信**
+   - 研究用エッジデバイスがCSIデータを自動的にアップロード
+   - Webインターフェースからの手動アップロードは不可（エッジデバイス専用API）
+   - 「💾 データ管理」ページでアップロードされたデータを確認
 
 4. **CSI可視化の確認**
    - 処理完了後、「グラフ表示」リンクをクリック
@@ -231,7 +231,8 @@ open http://localhost:3000
 ### 2. 開発・デバッグ
 
 ```bash
-# APIテスト（PCAPアップロード）
+# APIテスト（PCAPアップロード - エッジデバイス専用）
+# 注意: このエンドポイントはエッジデバイスからのアップロード専用です
 curl -X POST "http://localhost:8000/api/v2/csi-data/upload" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -F "file=@sample.pcap" \
@@ -242,17 +243,404 @@ curl -X GET "http://localhost:8000/api/v2/csi-data/DATA_ID/visualization?subcarr
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
+## 📡 エッジデバイスセットアップ（Raspberry Pi）
+
+このシステムは、Raspberry Pi上で動作するエッジデバイスからCSIデータを自動収集します。
+
+### エッジデバイスリポジトリ
+
+エッジデバイス用のコードは別リポジトリで管理されています：
+- **リポジトリ**: [csi-edge-device](https://github.com/kuro48/csi-edge-device.git)
+
+### 前提条件
+
+#### ハードウェア
+- **Raspberry Pi**: 3B+ / 4 / 5 推奨
+- **CSI対応WiFiアダプター**: Intel 5300 など
+- **MicroSDカード**: 16GB以上
+- **電源**: 5V 3A（Raspberry Pi 4/5の場合）
+
+#### ソフトウェア
+- **OS**: Raspberry Pi OS (Debian系)
+- **Python**: 3.7以上
+- **tcpdump**: CSIデータキャプチャ用
+- **ネットワーク**: Webプラットフォームへの接続
+
+### クイックスタート
+
+#### 1. Webプラットフォーム側の準備
+
+まず、このWebプラットフォームを起動してください：
+
+```bash
+# Webプラットフォーム起動
+cd csi-web-platform
+./start.sh
+
+# 管理者でログイン: http://localhost:3000
+# ユーザー名: admin
+# パスワード: admin123
+```
+
+#### 2. Raspberry Piへのセットアップ
+
+```bash
+# Raspberry PiにSSHログイン
+ssh pi@<raspberry_pi_ip>
+
+# エッジデバイスリポジトリをクローン
+git clone https://github.com/kuro48/csi-edge-device.git
+cd csi-edge-device
+
+# 依存関係インストール
+pip3 install -r requirements.txt
+
+# tcpdumpインストール（未インストールの場合）
+sudo apt-get update
+sudo apt-get install tcpdump
+```
+
+#### 3. デバイス登録
+
+```bash
+# デバイスをWebプラットフォームに登録
+python3 register_device.py \
+  --server http://192.168.1.100:8000 \
+  --device-id raspberry_pi_001 \
+  --device-name "Lab Raspberry Pi 001" \
+  --location lab_room_1 \
+  --username admin
+
+# パスワード入力: admin123
+```
+
+**成功すると**:
+- `config/device_config_v2.json` が自動生成されます
+- デバイストークンが設定されます
+
+#### 4. 接続テスト
+
+```bash
+# サーバー接続テスト
+python3 main.py --mode test
+```
+
+#### 5. CSIデータ収集開始
+
+```bash
+# 単発テスト（60秒収集）
+sudo python3 main.py --mode collect
+
+# スケジュール実行（常時稼働）
+sudo python3 main.py --mode schedule
+```
+
+**注意**: CSIデータ収集には`sudo`権限が必要です。
+
+### 設定ファイル詳細
+
+`config/device_config.json`:
+
+```json
+{
+  "device_id": "raspberry_pi_001",
+  "server_url": "http://192.168.1.100:8000",
+  "device_token": "device_raspberry_pi_001_abc123def456",
+  "collection_interval": 300,        // データ収集間隔（秒）
+  "collection_duration": 60,         // 1回の収集時間（秒）
+  "base_duration": 180,              // ベースライン収集時間（秒）
+  "channel_width": "80MHz",          // WiFiチャネル幅
+  "location": "lab_room_1",          // 設置場所
+  "network_interface": "wlan0",      // ネットワークインターフェース
+  "csi_port": 5500,                  // CSI取得ポート
+  "upload_timeout": 60,              // アップロードタイムアウト（秒）
+  "health_check_interval": 3600,    // ヘルスチェック間隔（秒）
+  "delete_after_upload": false      // 送信後ファイル削除フラグ
+}
+```
+
+### systemd自動起動設定
+
+常時稼働させる場合、systemdサービスとして登録します：
+
+```bash
+# サービスファイル作成
+sudo nano /etc/systemd/system/csi-edge-device.service
+```
+
+**サービスファイル内容**:
+```ini
+[Unit]
+Description=CSI Edge Device (v2)
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/csi-edge-device
+ExecStart=/usr/bin/python3 main.py --mode schedule --config config/device_config.json
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**サービス有効化**:
+```bash
+# systemdリロード
+sudo systemctl daemon-reload
+
+# サービス有効化
+sudo systemctl enable csi-edge-device.service
+
+# サービス起動
+sudo systemctl start csi-edge-device.service
+
+# ステータス確認
+sudo systemctl status csi-edge-device.service
+
+# ログ確認
+sudo journalctl -u csi-edge-device.service -f
+```
+
+### データフロー全体像
+
+```
+[Raspberry Pi]
+    ↓ tcpdump (60秒)
+[PCAPファイル生成]
+    ↓ EdgeDeviceManager
+[HTTP POST multipart/form-data]
+    ↓ Bearer device_token認証
+[Webプラットフォーム: /api/v2/csi-data/upload]
+    ↓ CSIDataService
+[PostgreSQL保存 + IPFS + Blockchain]
+    ↓ WebSocket配信
+[フロントエンド表示]
+```
+
+### 実行モード
+
+| モード | コマンド | 説明 | 用途 |
+|--------|---------|------|------|
+| **test** | `--mode test` | 接続テスト | セットアップ確認 |
+| **collect** | `--mode collect` | 単発収集（60秒） | 動作確認 |
+| **base** | `--mode base` | ベース収集（180秒） | 環境変化時 |
+| **schedule** | `--mode schedule` | 定期実行（5分間隔） | 本番運用 |
+
+### よくある問題と解決法
+
+#### 1. tcpdump権限エラー
+```bash
+# エラー: You don't have permission to capture
+# 解決: sudoで実行
+sudo python3 main.py --mode collect
+```
+
+#### 2. 認証エラー (401 Unauthorized)
+```bash
+# 原因: デバイストークンが無効
+# 確認:
+cat config/device_config.json | grep device_token
+
+# 再登録:
+python3 register_device.py --device-id raspberry_pi_001 --username admin
+```
+
+#### 3. 接続エラー (Connection refused)
+```bash
+# 原因: サーバーURL間違いまたはサーバー未起動
+# 確認:
+curl http://192.168.1.100:8000/health
+
+# 設定確認:
+cat config/device_config.json | grep server_url
+```
+
+#### 4. CSIデータ収集失敗
+```bash
+# 原因: ネットワークインターフェース不正
+# WiFiインターフェース確認:
+ifconfig
+iwconfig
+
+# 設定修正:
+nano config/device_config.json
+# "network_interface": "wlan0" など
+```
+
+#### 5. アップロードタイムアウト
+```json
+{
+  "upload_timeout": 120  // 60→120秒に変更
+}
+```
+
+### ログ管理
+
+**ログファイル場所**: `logs/edge_device_YYYYMMDD_HHMMSS.log`
+
+```bash
+# 最新ログ確認
+tail -f logs/edge_device_$(date +%Y%m%d)*.log
+
+# エラーのみ抽出
+grep ERROR logs/*.log
+
+# systemd経由のログ
+sudo journalctl -u csi-edge-device.service -f
+```
+
+### リモートデプロイ
+
+ローカルマシンからRaspberry Piへ一括デプロイ：
+
+```bash
+# ローカルマシンで実行
+cd csi-edge-device
+./deploy.sh <raspberry_pi_ip>
+
+# 例:
+./deploy.sh 192.168.1.100
+```
+
+**自動処理内容**:
+1. リモートディレクトリ作成
+2. 全ファイル転送（scp）
+3. セットアップスクリプト実行
+4. systemdサービス登録
+
+### CSI対応WiFiアダプター設定
+
+CSIデータ収集には専用のWiFiアダプターとドライバが必要です：
+
+**推奨ハードウェア**:
+- Intel WiFi Link 5300
+- Atheros AR9280/AR9380
+- Realtek RTL8812AU（一部対応）
+
+**ドライバ設定** (Intel 5300の例):
+```bash
+# CSIツールのインストール
+git clone https://github.com/dhalperi/linux-80211n-csitool.git
+cd linux-80211n-csitool
+
+# カーネルモジュールビルド
+make
+
+# モジュールロード
+sudo modprobe iwlwifi connector_log=0x1
+```
+
+詳細は各CSIツールのドキュメントを参照してください。
+
+### ベストプラクティス
+
+#### 開発環境
+```bash
+# 単発テスト実行
+sudo python3 main.py --mode collect
+
+# ログ確認
+tail -f logs/*.log
+
+# 送信後削除しない
+"delete_after_upload": false
+```
+
+#### 本番環境
+```bash
+# systemdサービス化
+sudo systemctl enable csi-edge-device.service
+
+# 自動再起動設定
+"Restart=always"
+"RestartSec=10"
+
+# 送信後削除
+"delete_after_upload": true
+```
+
 ## API仕様
 
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
 ### 主要エンドポイント
-- `POST /api/v2/csi-data/upload` - PCAPファイルアップロード
+- `POST /api/v2/csi-data/upload` - PCAPファイルアップロード（**エッジデバイス専用**）
 - `GET /api/v2/csi-data/{id}` - CSIデータ詳細取得
 - `GET /api/v2/csi-data/{id}/visualization` - 可視化データ取得
 - `GET /api/v2/devices/` - デバイス一覧取得
 - `POST /api/v2/auth/login` - ユーザーログイン
+
+**注意**: CSIデータのアップロードは研究用エッジデバイスからのみ可能です。Webインターフェースからの手動アップロード機能はありません。
+
+## 🚀 デプロイ（Mac Mini）
+
+### 💻 Mac Miniセットアップ（5分・0円）
+
+```bash
+# 1. Docker Desktop for Mac インストール
+brew install --cask docker  # 初回のみ
+
+# 2. プロジェクトセットアップ
+git clone https://github.com/kuro48/csi-web-platform.git
+cd csi-web-platform
+./start.sh
+
+# 3. アクセス確認
+# Frontend: http://Mac-MiniのIP:3000
+# Backend API: http://Mac-MiniのIP:8000
+```
+
+**IPアドレス確認**:
+```bash
+ifconfig | grep "inet " | grep -v 127.0.0.1
+```
+
+---
+
+### 🌐 外部アクセス設定
+
+**研究室外からアクセスしたい場合**:
+
+#### ngrok（最も簡単・1分で完了）
+```bash
+brew install ngrok
+ngrok http 3000  # HTTPS対応の外部URLが即座に発行
+```
+
+#### Cloudflare Tunnel（長期運用推奨・無料）
+```bash
+brew install cloudflare/cloudflare/cloudflared
+cloudflared tunnel login
+cloudflared tunnel create csi-web-platform
+# 詳細は SIMPLE_DEPLOY.md を参照
+```
+
+#### Tailscale（VPN・最もセキュア・無料）
+```bash
+brew install --cask tailscale
+# 研究室メンバーのみ安全にアクセス可能
+# 詳細は SIMPLE_DEPLOY.md を参照
+```
+
+**詳細な設定手順**: [Mac Miniデプロイガイド](docs/deployment/SIMPLE_DEPLOY.md)
+
+---
+
+### ✨ Mac Miniのメリット
+
+- ✅ **コスト0円**（既存ハードウェア活用）
+- ✅ **低消費電力**（24時間稼働で月数百円）
+- ✅ **簡単セットアップ**（5分で起動）
+- ✅ **物理アクセス**（トラブル時にすぐ対応可能）
+- ✅ **安定性**（macOSの安定したDocker環境）
+
+---
 
 ## 📊 プロジェクト状況
 
@@ -262,7 +650,7 @@ curl -X GET "http://localhost:8000/api/v2/csi-data/DATA_ID/visualization?subcarr
 - **💻 Web UI基本機能**（Next.js、認証ページ、ダッシュボード）
 - **⚡ リアルタイム機能**（WebSocket通信、リアルタイムチャート表示）
 - **📱 デバイス管理機能**（デバイス登録、ステータス監視、ハートビート）
-- **💾 CSIデータ管理**（アップロード、保存、一覧表示）
+- **💾 CSIデータ管理**（エッジデバイスからの自動アップロード、保存、一覧表示）
 - **🔍 PCAP解析機能**（Wi-Fi CSIデータ自動抽出、Scapy統合）
 - **📈 CSI可視化機能**（インタラクティブグラフ、時系列分析）
 - **⛓️ ブロックチェーン統合**（Ethereum/Ganache、スマートコントラクト、データ完全性保証）
@@ -475,6 +863,18 @@ cd backend && alembic revision --autogenerate -m "変更内容"
 
 ### プロジェクト関連
 - **エッジデバイス**: [csi-edge-device](https://github.com/kuro48/csi-edge-device.git)
+  - Raspberry Pi用CSI収集システム
+  - tcpdumpベースの自動データ収集
+  - HTTP/multipart-formでのアップロード
+  - systemd自動起動対応
+- **主要技術スタック**:
+  - **Backend**: FastAPI + SQLAlchemy + Alembic
+  - **Frontend**: Next.js 15 + React 19 + TypeScript
+  - **Database**: PostgreSQL + Redis
+  - **Blockchain**: Solidity + Web3.py + Ganache
+  - **Storage**: IPFS (Kubo)
+  - **CSI解析**: Scapy + PyShark
+  - **ZKP**: Circom + SnarkJS
 - **研究論文**: （準備中）
 
 ---

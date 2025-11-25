@@ -78,9 +78,6 @@ export function useWebSocket({
       const token = localStorage.getItem('access_token')
       const wsUrl = token ? `${urlRef.current}?token=${token}` : urlRef.current
 
-      console.log('Attempting WebSocket connection to:', wsUrl)
-      console.log('Using token:', token ? 'Token present' : 'No token')
-
       wsRef.current = new WebSocket(wsUrl, protocols)
 
       wsRef.current.onopen = (event) => {
@@ -114,13 +111,6 @@ export function useWebSocket({
       }
 
       wsRef.current.onclose = (event) => {
-        console.log('WebSocket connection closed:', {
-          code: event.code,
-          reason: event.reason,
-          wasClean: event.wasClean,
-          url: wsUrl
-        })
-
         setState((prev) => ({
           ...prev,
           readyState: WebSocket.CLOSED,
@@ -138,19 +128,9 @@ export function useWebSocket({
           // 指数バックオフ: 最初は5秒、その後10秒、15秒
           const backoffDelay = reconnectInterval * reconnectAttemptsRef.current
 
-          console.log(
-            `WebSocket connection closed (code: ${event.code}). Attempting to reconnect in ${backoffDelay}ms... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`
-          )
-
           reconnectTimeoutRef.current = setTimeout(() => {
             connect()
           }, backoffDelay)
-        } else if (event.code === 1000 || event.code === 1001) {
-          // 正常終了の場合は再接続を試行しない
-          console.log('WebSocket connection closed normally')
-        } else {
-          // 最大再接続回数に達した場合
-          console.log('WebSocket reconnection attempts exhausted')
         }
       }
     } catch (error) {
@@ -206,7 +186,6 @@ export function useWebSocket({
 
     const pingInterval = setInterval(() => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
-        console.log('Sending ping to maintain connection')
         // ping関数を直接呼ばずに、sendMessage直接呼び出し
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ type: 'ping' }))
@@ -222,11 +201,8 @@ export function useWebSocket({
   // 接続開始（enabledがtrueの時のみ）
   useEffect(() => {
     if (enabled) {
-      console.log('WebSocket connecting because enabled=true')
       connect()
     } else {
-      console.log('WebSocket disconnecting because enabled=false')
-
       // 直接切断処理を実行
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)

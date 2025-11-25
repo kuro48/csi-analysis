@@ -58,7 +58,6 @@ export function useRealtimeCSI({
     reconnectInterval: 3000,
     maxReconnectAttempts: 5,
     onOpen: () => {
-      console.log('リアルタイムCSI WebSocket接続が確立されました')
       if (isMonitoring) {
         // 必要なチャンネルに購読
         subscribe(`realtime_csi_${deviceId}`)
@@ -75,7 +74,7 @@ export function useRealtimeCSI({
       console.error('リアルタイムCSI WebSocketエラー:', error)
     },
     onClose: (event) => {
-      console.log('リアルタイムCSI WebSocket接続が閉じられました:', event.code)
+      // WebSocket closed
     }
   })
 
