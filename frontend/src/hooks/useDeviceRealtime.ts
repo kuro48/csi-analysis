@@ -102,7 +102,7 @@ export function useDeviceRealtime({
   // デバイス状態チャンネルに購読
   useEffect(() => {
     if (isConnected) {
-      subscribe('device_status', handleMessage)
+      subscribe('device_status')
 
       return () => {
         unsubscribe('device_status')
@@ -113,7 +113,7 @@ export function useDeviceRealtime({
   // 特定のデバイスを監視する関数
   const subscribeToDevice = useCallback((deviceId: string) => {
     if (isConnected) {
-      subscribe(`device_${deviceId}`, handleMessage)
+      subscribe(`device_${deviceId}`)
     }
   }, [isConnected, subscribe, handleMessage])
 

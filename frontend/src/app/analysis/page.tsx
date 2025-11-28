@@ -4,18 +4,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import MainLayout from '@/components/layout/MainLayout'
 import { ProtectedPage } from '@/components/auth/AuthGuard'
 import BreathingAnalysisChart from '@/components/charts/BreathingAnalysisChart'
-import CSIUploadModal from '@/components/data/CSIUploadModal'
 import { apiClient } from '@/services/api'
 import { useDeviceRealtime } from '@/hooks/useDeviceRealtime'
-
-interface Device {
-  id: string
-  device_id: string
-  device_name: string
-  device_type: string
-  location?: string
-  status: string
-}
+import type { Device } from '@/types'
 
 interface AnalysisData {
   timestamp: string
@@ -30,7 +21,6 @@ export default function AnalysisPage() {
   const [timeRange, setTimeRange] = useState(24) // hours
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [showUploadModal, setShowUploadModal] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
   // 統計情報
@@ -65,15 +55,33 @@ export default function AnalysisPage() {
     setError('')
 
     try {
-      const trends = await apiClient.getBreathingTrends(deviceId, hours)
+      const response = await apiClient.getBreathingTrends(deviceId, hours)
+      const trends = response.trends
 
-      setBreathingData(trends.breathing_rate || [])
-      setConfidenceData(trends.confidence || [])
+      // BreathingTrend[] を AnalysisData[] に変換
+      const breathingRateData: AnalysisData[] = trends.map(t => ({
+        timestamp: t.timestamp,
+        value: t.breathing_rate
+      }))
+
+      const confidenceScoreData: AnalysisData[] = trends.map(t => ({
+        timestamp: t.timestamp,
+        value: t.confidence_score
+      }))
+
+      setBreathingData(breathingRateData)
+      setConfidenceData(confidenceScoreData)
+
+      // 統計情報を計算
+      const avgBreathingRate = trends.length > 0
+        ? trends.reduce((sum, t) => sum + t.breathing_rate, 0) / trends.length
+        : null
+
       setAnalysisStats({
-        total_analyses: trends.data_points || 0,
-        avg_breathing_rate: trends.summary?.avg_breathing_rate || null,
+        total_analyses: trends.length,
+        avg_breathing_rate: avgBreathingRate,
         avg_confidence_score: null,
-        latest_analysis: trends.timestamps?.length > 0 ? trends.timestamps[trends.timestamps.length - 1] : null
+        latest_analysis: trends.length > 0 ? trends[trends.length - 1].timestamp : null
       })
       setLastUpdate(new Date())
 
@@ -141,15 +149,12 @@ export default function AnalysisPage() {
     setTimeRange(hours)
   }
 
-  const handleUploadComplete = (uploadedData: any) => {
-    setShowUploadModal(false)
-
-    // アップロード完了後、データを再読み込み
+  const handleDataRefresh = () => {
+    // データを再読み込み
     if (selectedDeviceId) {
-      setTimeout(() => {
-        fetchBreathingTrends(selectedDeviceId, timeRange)
-      }, 1000)
+      fetchBreathingTrends(selectedDeviceId, timeRange)
     }
+    setLastUpdate(new Date())
   }
 
   // selectedDeviceの計算をメモ化
@@ -181,10 +186,10 @@ export default function AnalysisPage() {
                 </span>
               </div>
               <button
-                onClick={() => setShowUploadModal(true)}
+                onClick={handleDataRefresh}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
               >
-                データアップロード
+                データ更新
               </button>
             </div>
           </div>
@@ -337,14 +342,6 @@ export default function AnalysisPage() {
             showConfidence={true}
           />
 
-          {/* アップロードモーダル */}
-          {showUploadModal && (
-            <CSIUploadModal
-              deviceId={selectedDeviceId}
-              onClose={() => setShowUploadModal(false)}
-              onUploadComplete={handleUploadComplete}
-            />
-          )}
         </div>
       </MainLayout>
     </ProtectedPage>

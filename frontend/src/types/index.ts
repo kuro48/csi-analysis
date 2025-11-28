@@ -23,6 +23,8 @@ export interface Device {
   location?: string;
   owner_id?: string;
   is_active: boolean;
+  status: string;
+  connection_status: string;
   last_seen?: string;
   created_at: string;
   updated_at: string;

@@ -2,7 +2,20 @@
  * API サービスファイル
  */
 
-import { ApiResponse, User, Device, CSIData, BreathingAnalysis } from '@/types'
+import {
+  ApiResponse,
+  User,
+  Device,
+  CSIData,
+  BreathingAnalysis,
+  CreateDeviceRequest,
+  DeviceHeartbeat,
+  CSIDataListResponse,
+  CSIStats,
+  CSIVisualizationData,
+  BreathingAnalysisListResponse,
+  BreathingTrend
+} from '@/types'
 
 // API Base URL
 // SECURITY: Production environments MUST set NEXT_PUBLIC_API_URL
@@ -61,13 +74,13 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
 
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     }
 
     if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`
+      headers['Authorization'] = `Bearer ${this.token}`
     }
 
     try {
@@ -222,6 +235,10 @@ class ApiClient {
       ? `/csi-data/${csiDataId}/visualization?${params.toString()}`
       : `/csi-data/${csiDataId}/visualization`
     return this.get<CSIVisualizationData>(endpoint)
+  }
+
+  async getLatestCSIData(deviceId: string): Promise<CSIData> {
+    return this.get<CSIData>(`/csi-data/${deviceId}/latest`)
   }
 
   // 呼吸解析関連

@@ -90,7 +90,7 @@ export default function DevicesPage() {
 
       const response = await api.devices.list(params)
       setDevices(response.devices)
-      setTotalPages(response.total_pages)
+      setTotalPages(Math.ceil(response.total / response.page_size))
       setTotalDevices(response.total)
 
     } catch (err: any) {
@@ -105,7 +105,14 @@ export default function DevicesPage() {
   const fetchStatistics = async () => {
     try {
       const stats = await api.devices.statistics()
-      setStatistics(stats)
+      setStatistics({
+        total_devices: stats.total,
+        online_devices: stats.active,
+        offline_devices: stats.inactive,
+        error_devices: 0,
+        by_type: {},
+        by_location: {}
+      })
     } catch (err) {
       console.error('Failed to fetch statistics:', err)
     }

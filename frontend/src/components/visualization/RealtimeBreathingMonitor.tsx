@@ -112,7 +112,7 @@ export default function RealtimeBreathingMonitor({
           <div className="flex items-center justify-between">
             <CardTitle>リアルタイム呼吸監視 - {deviceId}</CardTitle>
             <div className="flex items-center space-x-2">
-              <Badge variant={connectionStatus === 'Open' ? 'default' : 'destructive'}>
+              <Badge variant={connectionStatus === 'Open' ? 'default' : 'error'}>
                 {connectionStatus === 'Open' ? '接続中' : '切断'}
               </Badge>
               <div className="flex space-x-1">
@@ -127,7 +127,7 @@ export default function RealtimeBreathingMonitor({
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="ghost"
                   onClick={handlePauseMonitoring}
                   disabled={!isConnected}
                   className="flex items-center space-x-1"
@@ -137,7 +137,7 @@ export default function RealtimeBreathingMonitor({
                 </Button>
                 <Button
                   size="sm"
-                  variant="destructive"
+                  variant="danger"
                   onClick={handleStopMonitoring}
                   disabled={!isConnected}
                   className="flex items-center space-x-1"
@@ -190,7 +190,7 @@ export default function RealtimeBreathingMonitor({
                   {(breathingData.signal_quality * 100).toFixed(1)}%
                 </div>
                 <div className="text-sm text-gray-500">信号品質</div>
-                <Badge variant={breathingData.motion_detected ? 'destructive' : 'default'}>
+                <Badge variant={breathingData.motion_detected ? 'error' : 'default'}>
                   {breathingData.motion_detected ? '動作検出' : '安定'}
                 </Badge>
               </div>
@@ -204,7 +204,7 @@ export default function RealtimeBreathingMonitor({
                   {(breathingData.anomaly_score * 100).toFixed(1)}%
                 </div>
                 <div className="text-sm text-gray-500">異常スコア</div>
-                <Badge variant={breathingData.anomaly_score > 0.5 ? 'destructive' : 'default'}>
+                <Badge variant={breathingData.anomaly_score > 0.5 ? 'error' : 'default'}>
                   {breathingData.anomaly_score > 0.5 ? '異常' : '正常'}
                 </Badge>
               </div>

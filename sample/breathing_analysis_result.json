@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-11-26T12:45:27.493762",
+  "base_file": "test1219-noperson.pcap",
+  "person_file": "test1219-person.pcap",
+  "base_packets": 10023,
+  "person_packets": 10000,
+  "cosine_similarity": 0.0,
+  "breathing_analysis": {
+    "breathing_rate": 6.018795456109188,
+    "confidence": 0.0,
+    "dominant_frequency": 0.10031325760181979,
+    "sampling_rate": 7.486064000135805,
+    "total_samples": 10000
+  }
+}

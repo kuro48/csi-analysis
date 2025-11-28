@@ -3,16 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Activity, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
 import { apiClient } from '@/services/api'
-
-interface Device {
-  id: string
-  device_id: string
-  device_name: string
-  device_type: string
-  location: string
-  is_active: boolean
-  last_seen: string | null
-}
+import type { Device } from '@/types'
 
 // 簡易Badge コンポーネント
 const Badge = ({ children, variant = 'default', className = '' }: {
@@ -124,11 +115,11 @@ export default function SimpleMonitoringPage() {
     const fetchDevices = async () => {
       try {
         setLoading(true)
-        const response = await apiClient.get('/api/v2/devices/')
-        setDevices(response.data.devices || [])
+        const response = await apiClient.getDevices()
+        setDevices(response.devices || [])
 
         // 最初のアクティブなデバイスを選択
-        const activeDevices = response.data.devices?.filter((d: Device) => d.is_active) || []
+        const activeDevices = response.devices?.filter(d => d.is_active) || []
         if (activeDevices.length > 0 && !selectedDeviceId) {
           setSelectedDeviceId(activeDevices[0].device_id)
         }

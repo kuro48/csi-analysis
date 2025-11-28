@@ -3,25 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { apiClient } from '@/services/api'
-
-interface CSIData {
-  id: string
-  device_id: string
-  session_id?: string
-  file_path: string
-  file_size: number
-  status: string
-  created_at: string
-  updated_at: string
-}
-
-interface CSIDataListResponse {
-  csi_data: CSIData[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
-}
+import type { CSIData } from '@/types'
 
 export default function DataManagementPage() {
   const [csiDataList, setCsiDataList] = useState<CSIData[]>([])
@@ -54,9 +36,9 @@ export default function DataManagementPage() {
         params.append('status', filters.status)
       }
 
-      const response: CSIDataListResponse = await apiClient.getCSIDataList(params)
+      const response = await apiClient.getCSIDataList(params)
       setCsiDataList(response.csi_data)
-      setTotalPages(response.total_pages)
+      setTotalPages(Math.ceil(response.total / response.page_size))
       setTotal(response.total)
     } catch (err: any) {
       console.error('Failed to load CSI data list:', err)
@@ -233,7 +215,7 @@ export default function DataManagementPage() {
                           {csiData.session_id || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatFileSize(csiData.file_size)}
+                          {formatFileSize(csiData.file_size || 0)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(csiData.status)}

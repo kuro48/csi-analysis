@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-11-26T12:48:45.284904",
+  "base_file": "test1219-noperson.pcap",
+  "person_file": "test1219-person.pcap",
+  "base_packets": 10023,
+  "person_packets": 10000,
+  "cosine_similarity": 0.9563341251581837,
+  "breathing_analysis": {
+    "breathing_rate": 9.97143724818089,
+    "confidence": 1.0,
+    "dominant_frequency": 0.16619062080301486,
+    "sampling_rate": 7.486064000135805,
+    "total_samples": 10000
+  },
+  "csi_statistics": {
+    "base_amplitude_mean": 2063.7228432614484,
+    "base_amplitude_std": 5433.276157535011,
+    "person_amplitude_mean": 2050.0075604011836,
+    "person_amplitude_std": 5384.343849890845
+  }
+}
