@@ -33,9 +33,11 @@ structlog==23.2.0
 # 開発・テスト用
 pytest==7.4.4
 pytest-asyncio==0.23.2
+pytest-cov==4.1.0
 black==23.12.1
 isort==5.13.2
 flake8==7.0.0
+mypy==1.7.1
 
 # CSI解析関連（既存システムから移行）
 numpy>=1.24.0,<1.27.0

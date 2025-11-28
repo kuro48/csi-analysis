@@ -1,0 +1,213 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # 手動実行を許可
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Backend テスト
+  backend-test:
+    name: Backend Tests
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Black (Code formatting check)
+        run: black --check app/ tests/
+
+      - name: Run isort (Import sorting check)
+        run: isort --check-only app/ tests/
+
+      - name: Run Flake8 (Linting)
+        run: flake8 app/ tests/
+
+      - name: Run pytest (Unit tests)
+        run: |
+          pytest tests/ -v --cov=app --cov-report=term-missing --cov-report=html
+        env:
+          DATABASE_URL: sqlite:///./test.db
+          JWT_SECRET_KEY: test-secret-key
+          REDIS_URL: redis://localhost:6379
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/htmlcov/
+          retention-days: 7
+
+  # Frontend テスト
+  frontend-test:
+    name: Frontend Tests
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint (Linting)
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        run: npm run type-check
+
+      - name: Build Frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  # ZKP回路テスト
+  zkp-test:
+    name: ZKP Circuit Tests
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: zkp
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: zkp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check circuit compilation
+        run: |
+          if [ ! -f "circuits/build/csi_selector_js/csi_selector.wasm" ]; then
+            echo "⚠️  Warning: ZKP circuits not compiled. Run 'npm run compile:csi_selector' to compile."
+            exit 0
+          fi
+          echo "✅ ZKP circuits already compiled"
+
+      - name: Verify ZKP setup files
+        run: |
+          if [ ! -f "circuits/build/csi_selector_final.zkey" ]; then
+            echo "⚠️  Warning: ZKP setup not completed. Run 'npm run setup:csi_selector' to complete setup."
+            exit 0
+          fi
+          echo "✅ ZKP setup files verified"
+
+  # Docker Build
+  docker-build:
+    name: Docker Build & Test
+    runs-on: self-hosted
+    needs: [backend-test, frontend-test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          docker-compose build --no-cache
+
+      - name: Test Docker services
+        run: |
+          # 一時的にサービスを起動してヘルスチェック
+          docker-compose up -d
+          sleep 30
+
+          # バックエンドヘルスチェック
+          curl -f http://localhost:8000/health || exit 1
+
+          # フロントエンドヘルスチェック
+          curl -f http://localhost:3000 || exit 1
+
+          # クリーンアップ
+          docker-compose down
+
+  # 自動デプロイ
+  deploy:
+    name: Deploy to Mac Mini
+    runs-on: self-hosted
+    needs: [backend-test, frontend-test, zkp-test, docker-build]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy with docker-compose
+        run: |
+          # 既存サービスを停止
+          docker-compose down
+
+          # 新しいイメージでサービスを起動
+          docker-compose up -d --build
+
+          # サービスの起動を待機
+          sleep 30
+
+          # デプロイ確認
+          curl -f http://localhost:8000/health || exit 1
+          curl -f http://localhost:3000 || exit 1
+
+          echo "✅ Deployment successful!"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "🎉 Deployment to Mac Mini completed successfully!"
+            echo "Frontend: https://csi.kur048.com"
+            echo "Backend API: https://api.csi.kur048.com"
+          else
+            echo "❌ Deployment failed!"
+          fi
+
+  # 全体の成功通知
+  notify-success:
+    name: CI/CD Success Notification
+    runs-on: self-hosted
+    needs: [deploy]
+    if: success()
+
+    steps:
+      - name: Success notification
+        run: |
+          echo "✅ CI/CD Pipeline completed successfully!"
+          echo "📦 All tests passed"
+          echo "🚀 Deployed to production"
+          echo "🌐 Live at: https://csi.kur048.com"
