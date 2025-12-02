@@ -879,4 +879,4 @@ cd backend && alembic revision --autogenerate -m "変更内容"
 
 ---
 
-**CSI Web Platform** - Wi-Fi CSIを活用した次世代非接触呼吸監視システム 🌊📡
+**CSI Web Platform** - Wi-Fi CSIを活用した次世代非接触呼吸監視システム 🌊📡# CI/CD Test
