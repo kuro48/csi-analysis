@@ -77,7 +77,6 @@ async def list_devices(
                 id=device.id,
                 device_id=device.device_id,
                 device_name=device.device_name,
-                device_type=device.device_type,
                 location=device.location,
                 owner_id=device.owner_id,
                 is_active=device.is_active,
@@ -119,11 +118,13 @@ async def register_device(
         device = await DeviceService.create_device(db, device_data, current_user.id)
         status_info = DeviceService.get_device_status(db, device.device_id)
 
+        # デバイストークンを生成（固定フォーマット）
+        device_token = f"device_{device.device_id}_abc123def456"
+
         return DeviceResponse(
             id=device.id,
             device_id=device.device_id,
             device_name=device.device_name,
-            device_type=device.device_type,
             location=device.location,
             owner_id=device.owner_id,
             is_active=device.is_active,
@@ -131,7 +132,8 @@ async def register_device(
             created_at=device.created_at,
             updated_at=device.updated_at,
             status=status_info.status if status_info else "unknown",
-            connection_status=status_info.connection_status if status_info else "offline"
+            connection_status=status_info.connection_status if status_info else "offline",
+            device_token=device_token
         )
 
     except ValueError as e:
@@ -159,11 +161,13 @@ async def create_device(
         device = await DeviceService.create_device(db, device_data, current_user.id)
         status_info = DeviceService.get_device_status(db, device.device_id)
 
+        # デバイストークンを生成（固定フォーマット）
+        device_token = f"device_{device.device_id}_abc123def456"
+
         return DeviceResponse(
             id=device.id,
             device_id=device.device_id,
             device_name=device.device_name,
-            device_type=device.device_type,
             location=device.location,
             owner_id=device.owner_id,
             is_active=device.is_active,
@@ -171,7 +175,8 @@ async def create_device(
             created_at=device.created_at,
             updated_at=device.updated_at,
             status=status_info.status if status_info else "unknown",
-            connection_status=status_info.connection_status if status_info else "offline"
+            connection_status=status_info.connection_status if status_info else "offline",
+            device_token=device_token
         )
 
     except ValueError as e:
@@ -208,7 +213,6 @@ async def get_device(
         id=device.id,
         device_id=device.device_id,
         device_name=device.device_name,
-        device_type=device.device_type,
         location=device.location,
         owner_id=device.owner_id,
         is_active=device.is_active,
@@ -243,7 +247,6 @@ async def update_device(
         id=device.id,
         device_id=device.device_id,
         device_name=device.device_name,
-        device_type=device.device_type,
         location=device.location,
         owner_id=device.owner_id,
         is_active=device.is_active,
@@ -304,7 +307,6 @@ async def device_heartbeat(
             id=device.id,
             device_id=device.device_id,
             device_name=device.device_name,
-            device_type=device.device_type,
             location=device.location,
             owner_id=device.owner_id,
             is_active=device.is_active,

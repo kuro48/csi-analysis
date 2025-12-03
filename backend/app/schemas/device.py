@@ -12,10 +12,6 @@ import re
 class DeviceBase(BaseModel):
     """デバイスベーススキーマ"""
     device_name: str = Field(..., min_length=1, max_length=255, description="デバイス名")
-    device_type: Literal["raspberry_pi", "esp32", "other"] = Field(
-        default="raspberry_pi",
-        description="デバイスタイプ"
-    )
     location: Optional[str] = Field(None, max_length=255, description="設置場所")
 
 
@@ -56,7 +52,7 @@ class DeviceUpdate(BaseModel):
 class DeviceResponse(DeviceBase):
     """デバイス応答スキーマ"""
     id: uuid_pkg.UUID
-    device_id: str
+    device_id: str = Field(..., description="デバイスID")
     owner_id: Optional[uuid_pkg.UUID]
     is_active: bool
     last_seen: Optional[datetime]
@@ -66,6 +62,7 @@ class DeviceResponse(DeviceBase):
     # 状態情報（計算フィールド）
     status: str = Field(default="unknown", description="デバイス状態")
     connection_status: str = Field(default="offline", description="接続状態")
+    device_token: Optional[str] = Field(None, description="デバイストークン（登録時のみ）")
 
     class Config:
         from_attributes = True
@@ -73,7 +70,6 @@ class DeviceResponse(DeviceBase):
 
 class DeviceStatus(BaseModel):
     """デバイス状態スキーマ"""
-    device_id: str
     status: Literal["online", "offline", "error", "maintenance"]
     last_seen: Optional[datetime]
     connection_status: str
@@ -84,7 +80,6 @@ class DeviceStatus(BaseModel):
 
 class DeviceHeartbeat(BaseModel):
     """デバイスハートビートスキーマ"""
-    device_id: str
     status: Literal["online", "error"] = "online"
     message: Optional[str] = None
     metadata: Optional[dict] = None

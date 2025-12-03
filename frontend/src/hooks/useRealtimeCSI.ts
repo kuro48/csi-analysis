@@ -43,7 +43,7 @@ export function useRealtimeCSI({
 
   // WebSocket接続設定
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  const wsUrl = apiUrl.replace(/^https?:/, window?.location?.protocol === 'https:' ? 'wss:' : 'ws:') + '/api/v2/ws'
+  const wsUrl = apiUrl.replace(/^https?:/, window?.location?.protocol === 'https:' ? 'wss:' : 'ws:') + '/api/v2/ws/realtime'
 
   const {
     connectionStatus,
