@@ -26,16 +26,16 @@ router = APIRouter()
 
 @router.post("/upload", response_model=CSIDataResponse)
 async def upload_csi_data(
+    device_id: str = Form(..., description="デバイスID"),
     session_id: Optional[str] = Form(None, description="セッションID"),
     collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
     collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
     metadata: Optional[str] = Form(None, description="メタデータ（JSON文字列）"),
     file: UploadFile = File(..., description="CSIデータファイル"),
-    db: Session = Depends(get_db),
-    device: Device = Depends(get_device_auth)
+    db: Session = Depends(get_db)
 ):
     """
-    CSIデータアップロード（デバイス認証）
+    CSIデータアップロード（認証なし - 研究用）
     """
     try:
         # ファイルデータ読み取り
@@ -56,18 +56,21 @@ async def upload_csi_data(
             metadata=json.loads(metadata) if metadata else {}
         )
 
+        # デバイスの存在確認（オプション）
+        device = db.query(Device).filter(Device.device_id == device_id).first()
+
         # CSIデータアップロード
         csi_data = await CSIDataService.upload_csi_data(
             db=db,
-            device_id=device.device_id,
+            device_id=device_id,
             file_data=file_data,
             upload_info=upload_info,
-            user_id=device.owner_id
+            user_id=device.owner_id if device else None
         )
 
         return CSIDataResponse(
             id=csi_data.id,
-            device_id=device.device_id,
+            device_id=device_id,
             session_id=csi_data.session_id,
             file_path=csi_data.file_path,
             file_size=csi_data.file_size,
