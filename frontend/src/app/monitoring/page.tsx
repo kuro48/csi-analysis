@@ -140,9 +140,7 @@ export default function SimpleMonitoringPage() {
 
     const connectWebSocket = () => {
       try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const host = window.location.host.replace(':3000', ':8000')
-        const wsUrl = `${protocol}//${host}/api/v2/ws/realtime`
+        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/api/v2/ws/realtime'
 
         const ws = new WebSocket(wsUrl)
 
