@@ -13,7 +13,7 @@ from app.core.database import get_db
 from app.core.security import verify_token
 from app.core.config import settings
 from app.models.user import User
-from app.services.cache import get_device_cache, get_analysis_cache, get_session_cache
+from app.services.cache import  get_analysis_cache, get_session_cache
 
 # OAuth2スキーム設定
 security = HTTPBearer()
@@ -50,15 +50,6 @@ def get_redis_client() -> redis.Redis:
             _redis_client = None
 
     return _redis_client
-
-
-def get_device_cache_service():
-    """デバイスキャッシュサービスを取得"""
-    redis_client = get_redis_client()
-    if redis_client and settings.CACHE_ENABLED:
-        return get_device_cache(redis_client)
-    return None
-
 
 def get_analysis_cache_service():
     """解析キャッシュサービスを取得"""

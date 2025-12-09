@@ -21,12 +21,6 @@ api_router.include_router(
     tags=["authentication"]
 )
 
-# api_router.include_router(
-#     devices.router,
-#     prefix="/devices",
-#     tags=["devices"]
-# )
-
 api_router.include_router(
     csi_data.router,
     prefix="/csi-data",

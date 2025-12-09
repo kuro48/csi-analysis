@@ -62,7 +62,6 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
             # 解析結果をデータベースに保存
             breathing_analysis = BreathingAnalysis(
                 csi_data_id=csi_data.id,
-                device_id=csi_data.device_id,
                 breathing_rate=analysis_result["breathing_rate"],
                 confidence_score=analysis_result["confidence_score"],
                 analysis_timestamp=datetime.utcnow(),

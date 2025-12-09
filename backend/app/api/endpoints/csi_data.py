@@ -11,7 +11,7 @@ import json
 from datetime import datetime
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_device_auth
+from app.core.deps import get_current_user
 from app.core.config import settings
 from app.models.user import User
 from app.services.csi_data import CSIDataService, SessionService
@@ -25,7 +25,6 @@ router = APIRouter()
 
 @router.post("/upload", response_model=CSIDataResponse)
 async def upload_csi_data(
-    # device_id: str = Form(..., description="デバイスID"),
     session_id: Optional[str] = Form(None, description="セッションID"),
     collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
     collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
@@ -55,9 +54,6 @@ async def upload_csi_data(
             metadata=json.loads(metadata) if metadata else {}
         )
 
-        # デバイスの存在確認（オプション）
-        # device = db.query(Device).filter(Device.device_id == device_id).first()
-
         # CSIデータアップロード
         csi_data = await CSIDataService.upload_csi_data(
             db=db,
@@ -68,7 +64,6 @@ async def upload_csi_data(
 
         return CSIDataResponse(
             id=csi_data.id,
-            # device_id=device_id,
             session_id=csi_data.session_id,
             file_path=csi_data.file_path,
             file_size=csi_data.file_size,
@@ -92,7 +87,6 @@ async def upload_csi_data(
 
 @router.post("/upload-test", response_model=CSIDataResponse)
 async def upload_csi_data_test(
-    # device_id: str = Form(..., description="デバイスID"),
     session_id: Optional[str] = Form(None, description="セッションID"),
     collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
     collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
@@ -135,7 +129,6 @@ async def upload_csi_data_test(
         # CSIデータアップロード
         csi_data = await CSIDataService.upload_csi_data(
             db=db,
-            # device_id=device_id,
             file_data=file_data,
             upload_info=upload_info,
             user_id=current_user.id
@@ -143,7 +136,6 @@ async def upload_csi_data_test(
 
         return CSIDataResponse(
             id=csi_data.id,
-            # device_id=device_id,
             session_id=csi_data.session_id,
             file_path=csi_data.file_path,
             file_size=csi_data.file_size,
@@ -167,7 +159,6 @@ async def upload_csi_data_test(
 
 @router.get("/", response_model=CSIDataListResponse)
 async def list_csi_data(
-    # device_id: Optional[str] = Query(None, description="デバイスIDフィルター"),
     session_id: Optional[str] = Query(None, description="セッションIDフィルター"),
     data_status: Optional[str] = Query("all", description="ステータスフィルター"),
     start_date: Optional[str] = Query(None, description="開始日時"),
@@ -183,7 +174,6 @@ async def list_csi_data(
     try:
         # フィルター構築
         filters = CSIDataFilter(
-            # device_id=device_id,
             session_id=session_id,
             status=data_status,
             start_date=datetime.fromisoformat(start_date) if start_date else None,
@@ -197,7 +187,6 @@ async def list_csi_data(
         # レスポンス構築
         csi_responses = []
         for csi_data in csi_data_list:
-            # device = csi_data.device
 
             # JSONフィールドをパース（文字列の場合）
             raw_data = csi_data.raw_data
@@ -210,7 +199,6 @@ async def list_csi_data(
 
             csi_response = CSIDataResponse(
                 id=csi_data.id,
-                # device_id=device.device_id if device else "unknown",
                 session_id=csi_data.session_id,
                 raw_data=raw_data,
                 processed_data=processed_data,
@@ -255,8 +243,6 @@ async def get_csi_data(
             detail="CSIデータが見つかりません"
         )
 
-    # device = csi_data.device
-
     # JSONフィールドをパース（文字列の場合）
     raw_data = csi_data.raw_data
     if isinstance(raw_data, str):
@@ -268,7 +254,6 @@ async def get_csi_data(
 
     return CSIDataResponse(
         id=csi_data.id,
-        # device_id=device.device_id if device else "unknown",
         session_id=csi_data.session_id,
         raw_data=raw_data,
         processed_data=processed_data,
@@ -297,27 +282,6 @@ async def delete_csi_data(
         )
 
     return {"message": "CSIデータが正常に削除されました"}
-
-
-# @router.get("/{device_id}/stats")
-# async def get_device_csi_stats(
-#     device_id: str,
-#     days: int = Query(7, ge=1, le=365, description="統計期間（日数）"),
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_user)
-# ):
-#     """
-#     デバイスのCSI統計情報取得
-#     """
-#     stats = CSIDataService.get_device_csi_stats(db, device_id, current_user.id, days)
-#     if not stats:
-#         raise HTTPException(
-#             status_code=http_status.HTTP_404_NOT_FOUND,
-#             detail="デバイスが見つかりません"
-#         )
-
-#     return stats
-
 
 @router.get("/{csi_data_id}/visualization")
 async def get_csi_visualization_data(
@@ -388,7 +352,6 @@ async def get_csi_visualization_data(
                 "total_subcarriers": len(time_series),
                 "displayed_subcarriers": len(limited_subcarriers),
                 "time_window_applied": time_window is not None,
-                # "device_id": csi_data.device.device_id if csi_data.device else "unknown"
             }
         }
 

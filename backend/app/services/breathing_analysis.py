@@ -9,13 +9,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc, func
 import logging
 
-from app.models.breathing_analysis import BreathingAnalysis, Alert
+from app.models.breathing_analysis import BreathingAnalysis
 from app.models.csi_data import CSIData
-from app.models.device import Device
 from app.schemas.csi_data import (
     BreathingAnalysisResult, BreathingAnalysisResponse,
     BreathingAnalysisFilter, BreathingAnalysisStats,
-    AlertCreate, AlertResponse
 )
 from app.services.websocket import RealtimeDataService
 from app.services.cache import AnalysisCacheService
@@ -65,10 +63,9 @@ class BreathingAnalysisService:
         """
 
         # CSIデータの存在確認と所有者チェック
-        csi_data = db.query(CSIData).join(Device).filter(
+        csi_data = db.query(CSIData).filter(
             and_(
-                CSIData.id == csi_data_id,
-                Device.owner_id == user_id
+                CSIData.id == csi_data_id
             )
         ).first()
 
@@ -78,7 +75,6 @@ class BreathingAnalysisService:
         # 解析結果作成
         breathing_analysis = BreathingAnalysis(
             csi_data_id=csi_data_id,
-            device_id=csi_data.device_id,
             breathing_rate=analysis_data.breathing_rate,
             confidence_score=analysis_data.confidence_score,
             analysis_timestamp=analysis_data.analysis_timestamp,
@@ -94,44 +90,36 @@ class BreathingAnalysisService:
         db.refresh(breathing_analysis)
 
         # WebSocketでリアルタイム解析結果を配信
-        device = csi_data.device
-        if device:
-            await RealtimeDataService.send_breathing_analysis_update(
-                device.device_id,
-                {
-                    "analysis_id": str(breathing_analysis.id),
-                    "breathing_rate": breathing_analysis.breathing_rate,
-                    "confidence_score": breathing_analysis.confidence_score,
-                    "analysis_timestamp": breathing_analysis.analysis_timestamp.isoformat(),
-                    "quality_metrics": breathing_analysis.quality_metrics
-                }
-            )
+        await RealtimeDataService.send_breathing_analysis_update(
+            {
+                "analysis_id": str(breathing_analysis.id),
+                "breathing_rate": breathing_analysis.breathing_rate,
+                "confidence_score": breathing_analysis.confidence_score,
+                "analysis_timestamp": breathing_analysis.analysis_timestamp.isoformat(),
+                "quality_metrics": breathing_analysis.quality_metrics
+            }
+        )
 
-            # 異常値検出とアラート生成
-            await BreathingAnalysisService._check_anomalies(
-                db, breathing_analysis, device.device_id
-            )
-
-            # ZKP証明の自動生成（オプション）
-            if generate_zkp:
-                try:
-                    zkp_service = get_zkp_service()
-                    if zkp_service:
-                        logger.info(f"Generating ZKP for analysis {breathing_analysis.id}")
-                        # 非同期でZKP証明を生成（失敗してもメイン処理は継続）
-                        import asyncio
-                        asyncio.create_task(
-                            BreathingAnalysisService._generate_zkp_async(
-                                zkp_service,
-                                analysis_data,
-                                breathing_analysis.id
-                            )
+        # ZKP証明の自動生成（オプション）
+        if generate_zkp:
+            try:
+                zkp_service = get_zkp_service()
+                if zkp_service:
+                    logger.info(f"Generating ZKP for analysis {breathing_analysis.id}")
+                    # 非同期でZKP証明を生成（失敗してもメイン処理は継続）
+                    import asyncio
+                    asyncio.create_task(
+                        BreathingAnalysisService._generate_zkp_async(
+                            zkp_service,
+                            analysis_data,
+                            breathing_analysis.id
                         )
-                    else:
-                        logger.warning("ZKP service not available, skipping ZKP generation")
-                except Exception as e:
-                    logger.error(f"Failed to initiate ZKP generation: {e}")
-                    # ZKP生成失敗はメイン処理に影響させない
+                    )
+                else:
+                    logger.warning("ZKP service not available, skipping ZKP generation")
+            except Exception as e:
+                logger.error(f"Failed to initiate ZKP generation: {e}")
+                # ZKP生成失敗はメイン処理に影響させない
 
         logger.info(f"Breathing analysis created: {breathing_analysis.id}")
         return breathing_analysis
@@ -171,55 +159,6 @@ class BreathingAnalysisService:
 
         except Exception as e:
             logger.error(f"Failed to generate ZKP for analysis {analysis_id}: {e}")
-
-    @staticmethod
-    async def _check_anomalies(
-        db: Session,
-        analysis: BreathingAnalysis,
-        device_id: str
-    ):
-        """呼吸異常検出とアラート生成"""
-        alerts_to_create = []
-
-        # 呼吸数異常チェック
-        if analysis.breathing_rate:
-            if analysis.breathing_rate < 8 or analysis.breathing_rate > 40:
-                severity = "high" if (analysis.breathing_rate < 6 or analysis.breathing_rate > 50) else "medium"
-                alerts_to_create.append({
-                    "alert_type": "breathing_rate_anomaly",
-                    "severity": severity,
-                    "message": f"異常な呼吸数を検出: {analysis.breathing_rate:.1f}回/分"
-                })
-
-        # 信頼度低下チェック
-        if analysis.confidence_score and analysis.confidence_score < 0.5:
-            alerts_to_create.append({
-                "alert_type": "low_confidence",
-                "severity": "low",
-                "message": f"解析信頼度が低下: {analysis.confidence_score:.2f}"
-            })
-
-        # 品質メトリクス異常チェック
-        if analysis.quality_metrics:
-            signal_quality = analysis.quality_metrics.get("signal_quality", 1.0)
-            if signal_quality < 0.3:
-                alerts_to_create.append({
-                    "alert_type": "poor_signal_quality",
-                    "severity": "medium",
-                    "message": f"信号品質が低下: {signal_quality:.2f}"
-                })
-
-        # アラート作成
-        for alert_data in alerts_to_create:
-            await AlertService.create_alert(
-                db,
-                AlertCreate(
-                    device_id=device_id,
-                    alert_type=alert_data["alert_type"],
-                    severity=alert_data["severity"],
-                    message=alert_data["message"]
-                )
-            )
 
     @staticmethod
     def get_analysis_list(
@@ -419,118 +358,3 @@ class BreathingAnalysisService:
             cache_service.set_breathing_trends(device_id, str(user_id), hours, result)
 
         return result
-
-
-class AlertService:
-    """アラート管理サービス"""
-
-    @staticmethod
-    async def create_alert(
-        db: Session,
-        alert_data: AlertCreate
-    ) -> Alert:
-        """アラート作成"""
-
-        # デバイス存在確認
-        device = db.query(Device).filter(Device.device_id == alert_data.device_id).first()
-        if not device:
-            raise ValueError("デバイスが見つかりません")
-
-        # 重複アラートチェック（同じタイプのアラートが1時間以内にある場合はスキップ）
-        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-        existing_alert = db.query(Alert).filter(
-            and_(
-                Alert.device_id == device.id,
-                Alert.alert_type == alert_data.alert_type,
-                Alert.created_at >= one_hour_ago,
-                Alert.is_acknowledged == False
-            )
-        ).first()
-
-        if existing_alert:
-            return existing_alert
-
-        # アラート作成
-        alert = Alert(
-            device_id=device.id,
-            alert_type=alert_data.alert_type,
-            severity=alert_data.severity,
-            message=alert_data.message,
-            is_acknowledged=False
-        )
-
-        db.add(alert)
-        db.commit()
-        db.refresh(alert)
-
-        # WebSocketで通知
-        await RealtimeDataService.send_system_notification({
-            "type": "alert",
-            "alert_id": str(alert.id),
-            "device_id": alert_data.device_id,
-            "alert_type": alert.alert_type,
-            "severity": alert.severity,
-            "message": alert.message
-        })
-
-        logger.info(f"Alert created: {alert.id} ({alert.alert_type}) for device {alert_data.device_id}")
-        return alert
-
-    @staticmethod
-    def get_device_alerts(
-        db: Session,
-        device_id: str,
-        user_id: uuid.UUID,
-        include_acknowledged: bool = False,
-        limit: int = 50
-    ) -> List[Alert]:
-        """デバイスのアラート一覧取得"""
-
-        query = db.query(Alert).join(Device).filter(
-            and_(
-                Device.device_id == device_id,
-                Device.owner_id == user_id
-            )
-        )
-
-        if not include_acknowledged:
-            query = query.filter(Alert.is_acknowledged == False)
-
-        return query.order_by(desc(Alert.created_at)).limit(limit).all()
-
-    @staticmethod
-    async def acknowledge_alert(
-        db: Session,
-        alert_id: uuid.UUID,
-        user_id: uuid.UUID
-    ) -> Optional[Alert]:
-        """アラート確認"""
-
-        alert = db.query(Alert).join(Device).filter(
-            and_(
-                Alert.id == alert_id,
-                Device.owner_id == user_id
-            )
-        ).first()
-
-        if not alert:
-            return None
-
-        alert.is_acknowledged = True
-        alert.acknowledged_by = user_id
-        alert.acknowledged_at = datetime.utcnow()
-
-        db.commit()
-        db.refresh(alert)
-
-        # WebSocketで確認通知
-        device = alert.device
-        if device:
-            await RealtimeDataService.send_system_notification({
-                "type": "alert_acknowledged",
-                "alert_id": str(alert.id),
-                "device_id": device.device_id,
-                "acknowledged_by": str(user_id)
-            })
-
-        return alert

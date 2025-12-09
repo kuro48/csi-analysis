@@ -108,7 +108,6 @@ class ZKPStats(BaseModel):
 class ZKPBatchProofRequest(BaseModel):
     """ZKPバッチ証明生成リクエスト"""
 
-    # deviceId: str = Field(..., description="デバイスID")
     startTime: Optional[datetime] = Field(None, description="開始時刻")
     endTime: Optional[datetime] = Field(None, description="終了時刻")
     maxResults: int = Field(default=10, description="最大結果数", ge=1, le=100)

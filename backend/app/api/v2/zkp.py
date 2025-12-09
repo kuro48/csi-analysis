@@ -75,13 +75,6 @@ async def generate_zkp_proof(
             detail=f"Breathing analysis {analysis_id} not found",
         )
 
-    # 権限チェック（自分のデバイスの解析結果のみアクセス可能）
-    if analysis_result.device.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to access this analysis",
-        )
-
     try:
         # ZKP証明の生成
         proof_data = await zkp_service.generate_proof(
@@ -177,13 +170,6 @@ async def generate_batch_zkp_proofs(
 
             if not analysis_result:
                 logger.warning(f"Analysis {analysis_id} not found, skipping")
-                continue
-
-            # 権限チェック
-            if analysis_result.device.user_id != current_user.id:
-                logger.warning(
-                    f"User {current_user.id} doesn't have permission for analysis {analysis_id}, skipping"
-                )
                 continue
 
             # ZKP証明の生成

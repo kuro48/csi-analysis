@@ -19,12 +19,6 @@ class BreathingAnalysis(BaseModel):
         nullable=False,
         index=True
     )
-    # device_id = Column(
-    #     BaseModel.id.type,
-    #     ForeignKey("devices.id", ondelete="CASCADE"),
-    #     nullable=False,
-    #     index=True
-    # )
 
     # 解析結果
     breathing_rate = Column(Numeric(5, 2), nullable=True, index=True)  # 呼吸率検索用
@@ -46,8 +40,6 @@ class BreathingAnalysis(BaseModel):
 
     # 複合インデックス - 呼吸解析固有のクエリパターン用
     __table_args__ = (
-        # Index('idx_breathing_device_timestamp', 'device_id', 'analysis_timestamp'),  # デバイス別時系列検索用
-        # Index('idx_breathing_device_rate', 'device_id', 'breathing_rate'),  # デバイス別呼吸率検索用
         Index('idx_breathing_timestamp_rate', 'analysis_timestamp', 'breathing_rate'),  # 時系列呼吸率検索用
         Index('idx_breathing_confidence_rate', 'confidence_score', 'breathing_rate'),  # 信頼度・呼吸率相関検索用
         Index('idx_breathing_window', 'window_start', 'window_end'),  # ウィンドウ範囲検索用
@@ -55,7 +47,3 @@ class BreathingAnalysis(BaseModel):
 
     # リレーション
     csi_data = relationship("CSIData", back_populates="breathing_analyses")
-    # device = relationship("Device", back_populates="breathing_analyses")
-
-    # def __repr__(self):
-    #     return f"<BreathingAnalysis(id={self.id}, device_id={self.device_id}, rate={self.breathing_rate})>"

@@ -10,7 +10,6 @@ import uuid
 
 class CSIDataUpload(BaseModel):
     """CSIデータアップロード時のスキーマ"""
-    # device_id: Optional[str] = Field(None, description="デバイスID")
     session_id: Optional[str] = Field(None, description="セッションID")
     file_name: str = Field(..., description="ファイル名")
     collection_start_time: Optional[datetime] = Field(None, description="データ収集開始時刻")
@@ -21,7 +20,6 @@ class CSIDataUpload(BaseModel):
 class CSIDataResponse(BaseModel):
     """CSIデータレスポンススキーマ"""
     id: uuid.UUID
-    # device_id: str
     session_id: Optional[str] = None
     raw_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     processed_data: Optional[Dict[str, Any]] = None
@@ -29,11 +27,6 @@ class CSIDataResponse(BaseModel):
     file_size: Optional[int] = None
     ipfs_hash: Optional[str] = None
     status: str
-
-    # ブロックチェーン関連フィールド
-    # blockchain_tx_hash: Optional[str] = Field(None, description="ブロックチェーントランザクションハッシュ")
-    # blockchain_status: Optional[str] = Field(None, description="ブロックチェーン記録状態")
-    # blockchain_recorded_at: Optional[datetime] = Field(None, description="ブロックチェーン記録完了時刻")
 
     created_at: datetime
     updated_at: datetime
@@ -44,7 +37,6 @@ class CSIDataResponse(BaseModel):
 
 class CSIDataFilter(BaseModel):
     """CSIデータフィルタースキーマ"""
-    # device_id: Optional[str] = Field(None, description="デバイスID")
     session_id: Optional[str] = Field(None, description="セッションID")
     status: Optional[str] = Field("all", description="ステータス")
     start_date: Optional[datetime] = Field(None, description="開始日時")
@@ -72,7 +64,6 @@ class ProcessingStatus(BaseModel):
 # セッション関連スキーマ
 class SessionCreate(BaseModel):
     """セッション作成スキーマ"""
-    # device_id: str = Field(..., description="デバイスID")
     session_name: Optional[str] = Field(None, description="セッション名")
     start_time: datetime = Field(..., description="開始時刻")
     metadata: Optional[Dict[str, Any]] = Field(None, description="メタデータ")
@@ -90,7 +81,6 @@ class SessionUpdate(BaseModel):
 class SessionResponse(BaseModel):
     """セッションレスポンススキーマ"""
     id: uuid.UUID
-    # device_id: str
     session_name: Optional[str]
     start_time: datetime
     end_time: Optional[datetime]
@@ -133,7 +123,6 @@ class BreathingAnalysisResponse(BaseModel):
     """呼吸解析レスポンススキーマ"""
     id: uuid.UUID
     csi_data_id: uuid.UUID
-    # device_id: str
     breathing_rate: Optional[float]
     confidence_score: Optional[float]
     analysis_timestamp: datetime
@@ -153,7 +142,6 @@ class BreathingAnalysisResponse(BaseModel):
 
 class BreathingAnalysisFilter(BaseModel):
     """呼吸解析フィルタースキーマ"""
-    # device_id: Optional[str] = Field(None, description="デバイスID")
     start_date: Optional[datetime] = Field(None, description="開始日時")
     end_date: Optional[datetime] = Field(None, description="終了日時")
     min_confidence: Optional[float] = Field(None, description="最小信頼度")
@@ -176,36 +164,12 @@ class BreathingAnalysisListResponse(BaseModel):
 
 class BreathingAnalysisStats(BaseModel):
     """呼吸解析統計スキーマ"""
-    # device_id: str
     total_analyses: int
     avg_breathing_rate: Optional[float]
     avg_confidence_score: Optional[float]
     latest_analysis: Optional[datetime]
     analysis_period_start: Optional[datetime]
     analysis_period_end: Optional[datetime]
-
-
-# アラート関連スキーマ
-class AlertCreate(BaseModel):
-    """アラート作成スキーマ"""
-    # device_id: str = Field(..., description="デバイスID")
-    alert_type: str = Field(..., description="アラート種別")
-    severity: str = Field("medium", description="重要度")
-    message: Optional[str] = Field(None, description="アラートメッセージ")
-
-
-class AlertResponse(BaseModel):
-    """アラートレスポンススキーマ"""
-    id: uuid.UUID
-    # device_id: str
-    alert_type: str
-    severity: str
-    message: Optional[str]
-    is_acknowledged: bool
-    acknowledged_by: Optional[str]
-    acknowledged_at: Optional[datetime]
-    created_at: datetime
-    updated_at: datetime
 
     class Config:
         from_attributes = True

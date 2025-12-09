@@ -16,7 +16,7 @@ echo "Creating database tables..."
 python -c "
 from app.core.database import Base, engine
 # クラスを明示的にインポート
-from app.models import User, CSIData, Session, BreathingAnalysis, Alert
+from app.models import User, CSIData, Session, BreathingAnalysis
 
 # 全てのテーブルを作成
 Base.metadata.create_all(bind=engine)

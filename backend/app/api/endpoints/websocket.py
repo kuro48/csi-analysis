@@ -82,12 +82,6 @@ def is_channel_accessible(channel: str, user: User) -> bool:
     if channel.startswith("admin_"):
         # 管理者専用チャンネル
         return user.is_superuser
-    elif channel.startswith("device_"):
-        # デバイス関連チャンネル（デバイス所有者のみ）
-        device_id = channel.replace("device_", "")
-        # 実際の実装では、デバイス所有権をチェック
-        # 簡略化版では全ユーザーに許可
-        return True
     elif channel.startswith("system_"):
         # システム関連チャンネル（管理者のみ）
         return user.is_superuser
