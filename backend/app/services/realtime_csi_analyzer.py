@@ -49,7 +49,7 @@ class RealtimeCSIAnalyzer:
         self.overlap_ratio = 0.5   # オーバーラップ比率
         self.breathing_freq_range = (0.1, 0.5)  # 呼吸周波数範囲（Hz）
 
-    async def analyze_csi_data(self, device_id: str, raw_data: bytes) -> Optional[CSIAnalysisResult]:
+    async def analyze_csi_data(self, raw_data: bytes) -> Optional[CSIAnalysisResult]:
         """CSIデータをリアルタイム解析"""
         try:
             # CSIデータを解析形式に変換
@@ -58,20 +58,20 @@ class RealtimeCSIAnalyzer:
                 return None
 
             # デバイス別バッファに追加
-            if device_id not in self.analysis_buffer:
-                self.analysis_buffer[device_id] = []
-                self.analysis_windows[device_id] = []
-                self.breathing_history[device_id] = []
+            # if device_id not in self.analysis_buffer:
+            #     self.analysis_buffer[device_id] = []
+            #     self.analysis_windows[device_id] = []
+            #     self.breathing_history[device_id] = []
 
-            self.analysis_buffer[device_id].append({
-                'timestamp': datetime.utcnow(),
-                'data': csi_matrix
-            })
+            # self.analysis_buffer[device_id].append({
+            #     'timestamp': datetime.utcnow(),
+            #     'data': csi_matrix
+            # })
 
-            # バッファサイズ制限
-            max_buffer_size = int(self.window_size * self.sampling_rate / 10)  # 大まかな推定
-            if len(self.analysis_buffer[device_id]) > max_buffer_size:
-                self.analysis_buffer[device_id] = self.analysis_buffer[device_id][-max_buffer_size:]
+            # # バッファサイズ制限
+            # max_buffer_size = int(self.window_size * self.sampling_rate / 10)  # 大まかな推定
+            # if len(self.analysis_buffer[device_id]) > max_buffer_size:
+            #     self.analysis_buffer[device_id] = self.analysis_buffer[device_id][-max_buffer_size:]
 
             # 解析実行
             analysis_result = await self._perform_analysis(device_id)

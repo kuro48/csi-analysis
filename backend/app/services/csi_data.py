@@ -110,7 +110,7 @@ class CSIDataService:
 
             # データベースレコード作成
             csi_data = CSIData(
-                device_id=device.id,
+                # device_id=device.id,
                 session_id=upload_info.session_id,
                 raw_data=raw_data if raw_data is None else json.dumps(raw_data) if not isinstance(raw_data, str) else raw_data,
                 processed_data=processed_data if processed_data is None else json.dumps(processed_data) if not isinstance(processed_data, str) else processed_data,
