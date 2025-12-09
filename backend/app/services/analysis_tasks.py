@@ -4,16 +4,17 @@ CSI解析バッチタスクハンドラー
 
 import asyncio
 import logging
-import numpy as np
-from typing import Dict, Any
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import Any, Dict
 
-from app.services.task_queue import task_queue, TaskPriority
+import numpy as np
+
 from app.core.database import SessionLocal
-from app.models.csi_data import CSIData
 from app.models.breathing_analysis import BreathingAnalysis
+from app.models.csi_data import CSIData
 from app.services.ipfs import ipfs_service
+from app.services.task_queue import TaskPriority, task_queue
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
                 metadata = package["metadata"]
             else:
                 # ローカルファイルから取得
-                with open(csi_data.file_path, 'rb') as f:
+                with open(csi_data.file_path, "rb") as f:
                     file_data = f.read()
                 metadata = {}
 
@@ -67,13 +68,13 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
                 confidence_score=analysis_result["confidence_score"],
                 analysis_timestamp=datetime.utcnow(),
                 window_start=None,  # 実際の実装では解析ウィンドウの開始時刻を設定
-                window_end=None,    # 実際の実装では解析ウィンドウの終了時刻を設定
+                window_end=None,  # 実際の実装では解析ウィンドウの終了時刻を設定
                 time_domain_data={
                     "breathing_pattern": analysis_result.get("breathing_pattern", []),
-                    "algorithm_version": analysis_result.get("algorithm_version", "1.0.0")
+                    "algorithm_version": analysis_result.get("algorithm_version", "1.0.0"),
                 },
                 frequency_domain_data=None,  # 実際の実装では周波数域データを設定
-                quality_metrics=analysis_result.get("quality_metrics", {})
+                quality_metrics=analysis_result.get("quality_metrics", {}),
             )
 
             db.add(breathing_analysis)
@@ -83,12 +84,14 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
             # 解析結果をIPFSにも保存
             ipfs_hash = None
             try:
-                ipfs_result = await ipfs_service.upload_json({
-                    "analysis_id": str(breathing_analysis.id),
-                    "csi_data_id": csi_data_id,
-                    "analysis_result": analysis_result,
-                    "created_at": datetime.utcnow().isoformat()
-                })
+                ipfs_result = await ipfs_service.upload_json(
+                    {
+                        "analysis_id": str(breathing_analysis.id),
+                        "csi_data_id": csi_data_id,
+                        "analysis_result": analysis_result,
+                        "created_at": datetime.utcnow().isoformat(),
+                    }
+                )
                 ipfs_hash = ipfs_result
                 await ipfs_service.pin_file(ipfs_hash)
 
@@ -107,7 +110,7 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
                 "confidence_score": analysis_result["confidence_score"],
                 "ipfs_hash": ipfs_hash,
                 "processing_time": analysis_result["processing_time"],
-                "status": "completed"
+                "status": "completed",
             }
 
         finally:
@@ -136,6 +139,7 @@ async def perform_breathing_analysis(file_data: bytes, params: Dict) -> Dict[str
 
     # ランダムな結果生成（実際の実装では真の解析結果）
     import random
+
     breathing_rate = round(random.uniform(12.0, 25.0), 1)
     confidence_score = round(random.uniform(0.7, 0.99), 2)
 
@@ -159,8 +163,8 @@ async def perform_breathing_analysis(file_data: bytes, params: Dict) -> Dict[str
         "quality_metrics": {
             "signal_quality": round(random.uniform(0.6, 0.95), 2),
             "noise_level": round(random.uniform(0.05, 0.2), 2),
-            "stability": round(random.uniform(0.7, 0.95), 2)
-        }
+            "stability": round(random.uniform(0.7, 0.95), 2),
+        },
     }
 
     return analysis_result
@@ -191,26 +195,15 @@ async def batch_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]:
             # 個別解析タスクをキューに追加
             task_id = await task_queue.enqueue_task(
                 "csi_breathing_analysis",
-                {
-                    "csi_data_id": csi_data_id,
-                    "analysis_params": analysis_params
-                },
-                priority=TaskPriority.NORMAL
+                {"csi_data_id": csi_data_id, "analysis_params": analysis_params},
+                priority=TaskPriority.NORMAL,
             )
 
-            results.append({
-                "csi_data_id": csi_data_id,
-                "task_id": task_id,
-                "status": "queued"
-            })
+            results.append({"csi_data_id": csi_data_id, "task_id": task_id, "status": "queued"})
 
         except Exception as e:
             failed_count += 1
-            results.append({
-                "csi_data_id": csi_data_id,
-                "status": "failed",
-                "error": str(e)
-            })
+            results.append({"csi_data_id": csi_data_id, "status": "failed", "error": str(e)})
 
     return {
         "batch_id": str(uuid.uuid4()),
@@ -218,7 +211,7 @@ async def batch_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]:
         "queued_items": len(csi_data_ids) - failed_count,
         "failed_items": failed_count,
         "results": results,
-        "status": "batch_queued"
+        "status": "batch_queued",
     }
 
 
@@ -241,7 +234,7 @@ async def system_maintenance_task(payload: Dict[str, Any]) -> Dict[str, Any]:
     maintenance_results = {
         "maintenance_type": maintenance_type,
         "started_at": start_time.isoformat(),
-        "tasks_completed": []
+        "tasks_completed": [],
     }
 
     try:
@@ -266,11 +259,13 @@ async def system_maintenance_task(payload: Dict[str, Any]) -> Dict[str, Any]:
             maintenance_results["tasks_completed"].append("general_maintenance")
 
         end_time = datetime.utcnow()
-        maintenance_results.update({
-            "completed_at": end_time.isoformat(),
-            "duration": (end_time - start_time).total_seconds(),
-            "status": "completed"
-        })
+        maintenance_results.update(
+            {
+                "completed_at": end_time.isoformat(),
+                "duration": (end_time - start_time).total_seconds(),
+                "status": "completed",
+            }
+        )
 
         logger.info(f"System maintenance completed: {maintenance_type}")
         return maintenance_results

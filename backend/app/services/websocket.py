@@ -2,12 +2,13 @@
 WebSocket接続管理とリアルタイムデータサービス
 """
 
-from typing import Dict, List, Optional, Any
-from fastapi import WebSocket, WebSocketDisconnect
-import json
 import asyncio
-from datetime import datetime
+import json
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +171,7 @@ class RealtimeDataService:
             "type": "device_status_update",
             "device_id": device_id,
             "data": status_data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         # デバイス固有のチャンネルとダッシュボードチャンネルにブロードキャスト
@@ -183,7 +184,7 @@ class RealtimeDataService:
             "type": "breathing_analysis_update",
             "device_id": device_id,
             "data": analysis_data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         # デバイス固有のチャンネルとダッシュボードチャンネルにブロードキャスト
@@ -196,7 +197,7 @@ class RealtimeDataService:
             "type": "csi_analysis_realtime",
             "device_id": device_id,
             "data": analysis_data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         # リアルタイムチャンネル、デバイス固有チャンネル、ダッシュボードにブロードキャスト
@@ -207,11 +208,7 @@ class RealtimeDataService:
 
     async def broadcast_system_notification(self, notification_data: dict):
         """システム通知をブロードキャスト"""
-        message = {
-            "type": "system_notification",
-            "data": notification_data,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        message = {"type": "system_notification", "data": notification_data, "timestamp": datetime.utcnow().isoformat()}
 
         # 全接続にブロードキャスト
         await self.manager.broadcast_to_all(message)

@@ -2,9 +2,10 @@
 ZKP関連のPydanticスキーマ
 """
 
-from pydantic import BaseModel, Field
-from typing import Dict, List, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class ZKPProofRequest(BaseModel):
@@ -93,15 +94,9 @@ class ZKPVerifyResponse(BaseModel):
 class ZKPStats(BaseModel):
     """ZKP統計情報"""
 
-    totalProofsGenerated: int = Field(
-        ..., description="生成された証明の総数"
-    )
-    averageGenerationTime: float = Field(
-        ..., description="平均証明生成時間（秒）"
-    )
-    averageVerificationTime: float = Field(
-        ..., description="平均検証時間（秒）"
-    )
+    totalProofsGenerated: int = Field(..., description="生成された証明の総数")
+    averageGenerationTime: float = Field(..., description="平均証明生成時間（秒）")
+    averageVerificationTime: float = Field(..., description="平均検証時間（秒）")
     successRate: float = Field(..., description="成功率（0.0-1.0）")
 
 

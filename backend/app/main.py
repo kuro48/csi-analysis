@@ -1,13 +1,15 @@
+import logging
 from typing import Dict
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.routes import api_router
 from app.core.config import settings
 from app.core.errors import setup_error_handlers
-from app.api.routes import api_router
-from app.services.task_queue import task_queue
 from app.services.analysis_tasks import register_task_handlers
-import logging
+from app.services.task_queue import task_queue
 
 # アプリケーション初期化
 app = FastAPI(
@@ -69,6 +71,7 @@ async def startup_event():
         logger.error(error_msg)
         print(f"❌ {error_msg}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -76,12 +79,7 @@ async def startup_event():
 def _validate_security_settings():
     """起動時のセキュリティ設定検証"""
     # JWT秘密鍵の検証
-    unsafe_secrets = [
-        "your-super-secret-jwt-key-change-in-production",
-        "secret",
-        "changeme",
-        "default"
-    ]
+    unsafe_secrets = ["your-super-secret-jwt-key-change-in-production", "secret", "changeme", "default"]
 
     if settings.JWT_SECRET_KEY in unsafe_secrets or len(settings.JWT_SECRET_KEY) < 32:
         error_msg = (
@@ -121,25 +119,15 @@ async def root() -> Dict[str, str]:
         "version": settings.VERSION,
         "docs_url": "/docs",
         "redoc_url": "/redoc",
-        "api_prefix": settings.API_V2_PREFIX
+        "api_prefix": settings.API_V2_PREFIX,
     }
 
 
 @app.get("/health")
 async def health_check() -> Dict[str, str]:
     """基本ヘルスチェックエンドポイント（後方互換性）"""
-    return {
-        "status": "healthy",
-        "service": settings.PROJECT_NAME,
-        "version": settings.VERSION
-    }
+    return {"status": "healthy", "service": settings.PROJECT_NAME, "version": settings.VERSION}
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")

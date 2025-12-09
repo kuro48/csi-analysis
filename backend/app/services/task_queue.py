@@ -4,11 +4,12 @@
 
 import asyncio
 import json
-import uuid
 import logging
+import uuid
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Callable, Any
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
 import redis.asyncio as redis
 
 from app.core.config import settings
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class TaskStatus(Enum):
     """タスクステータス"""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -27,6 +29,7 @@ class TaskStatus(Enum):
 
 class TaskPriority(Enum):
     """タスク優先度"""
+
     LOW = 1
     NORMAL = 2
     HIGH = 3
@@ -43,7 +46,7 @@ class Task:
         payload: Dict[str, Any],
         priority: TaskPriority = TaskPriority.NORMAL,
         max_retries: int = 3,
-        retry_delay: int = 60
+        retry_delay: int = 60,
     ):
         self.task_id = task_id
         self.task_type = task_type
@@ -74,11 +77,11 @@ class Task:
             "completed_at": self.completed_at.isoformat() if self.completed_at else "",
             "retries": self.retries,
             "error_message": self.error_message or "",
-            "result": json.dumps(self.result) if self.result is not None else ""
+            "result": json.dumps(self.result) if self.result is not None else "",
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'Task':
+    def from_dict(cls, data: Dict) -> "Task":
         """辞書からタスクを復元"""
         task = cls(
             task_id=data["task_id"],
@@ -86,12 +89,18 @@ class Task:
             payload=json.loads(data["payload"]),
             priority=TaskPriority(int(data["priority"])),
             max_retries=int(data["max_retries"]),
-            retry_delay=int(data["retry_delay"])
+            retry_delay=int(data["retry_delay"]),
         )
         task.status = TaskStatus(data["status"])
         task.created_at = datetime.fromisoformat(data["created_at"])
-        task.started_at = datetime.fromisoformat(data["started_at"]) if data["started_at"] and data["started_at"] != "" else None
-        task.completed_at = datetime.fromisoformat(data["completed_at"]) if data["completed_at"] and data["completed_at"] != "" else None
+        task.started_at = (
+            datetime.fromisoformat(data["started_at"]) if data["started_at"] and data["started_at"] != "" else None
+        )
+        task.completed_at = (
+            datetime.fromisoformat(data["completed_at"])
+            if data["completed_at"] and data["completed_at"] != ""
+            else None
+        )
         task.retries = int(data["retries"])
         task.error_message = data["error_message"] or None
         task.result = json.loads(data["result"]) if data["result"] and data["result"] != "" else None
@@ -110,11 +119,7 @@ class TaskQueue:
     async def connect(self):
         """Redis接続"""
         try:
-            self.redis_client = redis.from_url(
-                settings.REDIS_URL,
-                encoding="utf-8",
-                decode_responses=True
-            )
+            self.redis_client = redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
             await self.redis_client.ping()
             logger.info("Task queue connected to Redis")
         except Exception as e:
@@ -138,7 +143,7 @@ class TaskQueue:
         payload: Dict[str, Any],
         priority: TaskPriority = TaskPriority.NORMAL,
         max_retries: int = 3,
-        retry_delay: int = 60
+        retry_delay: int = 60,
     ) -> str:
         """タスクをキューに追加"""
         task_id = str(uuid.uuid4())
@@ -148,7 +153,7 @@ class TaskQueue:
             payload=payload,
             priority=priority,
             max_retries=max_retries,
-            retry_delay=retry_delay
+            retry_delay=retry_delay,
         )
 
         # Redisにタスクを保存
@@ -226,18 +231,12 @@ class TaskQueue:
             queue_key = f"queue:{task.priority.name.lower()}"
             await self.redis_client.lpush(queue_key, task.task_id)
 
-            await self.update_task_status(
-                task.task_id,
-                TaskStatus.PENDING,
-                retries=task.retries
-            )
+            await self.update_task_status(task.task_id, TaskStatus.PENDING, retries=task.retries)
 
             logger.info(f"Task {task.task_id} retried ({task.retries}/{task.max_retries})")
         else:
             await self.update_task_status(
-                task.task_id,
-                TaskStatus.FAILED,
-                error_message=f"Max retries ({task.max_retries}) exceeded"
+                task.task_id, TaskStatus.FAILED, error_message=f"Max retries ({task.max_retries}) exceeded"
             )
             logger.error(f"Task {task.task_id} failed after {task.max_retries} retries")
 
@@ -245,9 +244,7 @@ class TaskQueue:
         """タスク処理"""
         if task.task_type not in self.task_handlers:
             await self.update_task_status(
-                task.task_id,
-                TaskStatus.FAILED,
-                error_message=f"No handler for task type: {task.task_type}"
+                task.task_id, TaskStatus.FAILED, error_message=f"No handler for task type: {task.task_type}"
             )
             return
 
@@ -259,11 +256,7 @@ class TaskQueue:
             # ハンドラー実行
             result = await handler(task.payload)
 
-            await self.update_task_status(
-                task.task_id,
-                TaskStatus.COMPLETED,
-                result=result
-            )
+            await self.update_task_status(task.task_id, TaskStatus.COMPLETED, result=result)
 
             logger.info(f"Task {task.task_id} completed successfully")
 
@@ -271,11 +264,7 @@ class TaskQueue:
             error_message = f"Task execution failed: {str(e)}"
             logger.error(f"Task {task.task_id} error: {error_message}")
 
-            await self.update_task_status(
-                task.task_id,
-                TaskStatus.FAILED,
-                error_message=error_message
-            )
+            await self.update_task_status(task.task_id, TaskStatus.FAILED, error_message=error_message)
 
             # リトライ判定
             await self.retry_task(task)
@@ -326,10 +315,7 @@ class TaskQueue:
 
     async def get_queue_stats(self) -> Dict:
         """キュー統計情報"""
-        stats = {
-            "queues": {},
-            "total_pending": 0
-        }
+        stats = {"queues": {}, "total_pending": 0}
 
         for priority in TaskPriority:
             queue_key = f"queue:{priority.name.lower()}"

@@ -5,22 +5,19 @@ CSIデータIPFS/ブロックチェーン統合サービス（将来の再利用
 現在は使用されていませんが、コードは保持されています。
 """
 
-import uuid
 import logging
-from typing import Dict, Any, Optional, Tuple
+import uuid
 from datetime import datetime
+from typing import Any, Dict, Optional, Tuple
 
-from app.services.ipfs import ipfs_service
 from app.services.blockchain_service import blockchain_service
+from app.services.ipfs import ipfs_service
 
 logger = logging.getLogger(__name__)
 
 
 async def upload_csi_data_to_ipfs_and_blockchain(
-    device_id: str,
-    file_data: bytes,
-    upload_info: Any,  # CSIDataUpload型
-    user_id: uuid.UUID
+    device_id: str, file_data: bytes, upload_info: Any, user_id: uuid.UUID  # CSIDataUpload型
 ) -> Tuple[Optional[str], Optional[str], Optional[str], str]:
     """
     CSIデータをIPFS/ブロックチェーンにアップロード
@@ -43,20 +40,20 @@ async def upload_csi_data_to_ipfs_and_blockchain(
         csi_metadata = {
             "device_id": device_id,
             "session_id": upload_info.session_id,
-            "collection_start_time": upload_info.collection_start_time.isoformat() if upload_info.collection_start_time else None,
+            "collection_start_time": (
+                upload_info.collection_start_time.isoformat() if upload_info.collection_start_time else None
+            ),
             "collection_duration": upload_info.collection_duration,
             "original_filename": upload_info.file_name,
             "file_size": len(file_data),
             "upload_timestamp": datetime.now().isoformat(),
             "user_id": str(user_id),
-            "custom_metadata": upload_info.metadata
+            "custom_metadata": upload_info.metadata,
         }
 
         # IPFS統合アップロード
         ipfs_result = await ipfs_service.upload_csi_data_with_metadata(
-            file_data,
-            csi_metadata,
-            filename=upload_info.file_name
+            file_data, csi_metadata, filename=upload_info.file_name
         )
         ipfs_hash = ipfs_result["combined_hash"]
         metadata_hash = ipfs_result["metadata_hash"]
@@ -72,9 +69,7 @@ async def upload_csi_data_to_ipfs_and_blockchain(
         try:
             # ブロックチェーンにCIDを記録（非同期バックグラウンド処理）
             blockchain_result = await blockchain_service.record_csi_data_cid(
-                device_id=device_id,
-                ipfs_cid=ipfs_hash,
-                metadata_hash=metadata_hash or ipfs_hash
+                device_id=device_id, ipfs_cid=ipfs_hash, metadata_hash=metadata_hash or ipfs_hash
             )
             blockchain_tx_hash = blockchain_result["tx_hash"]
             blockchain_status = blockchain_result["status"]

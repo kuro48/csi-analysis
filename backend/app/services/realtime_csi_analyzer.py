@@ -2,13 +2,14 @@
 リアルタイムCSI解析サービス
 """
 
-import numpy as np
-import json
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime
 import asyncio
+import json
 import logging
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 from app.services.websocket import realtime_service
 
@@ -16,22 +17,24 @@ from app.services.websocket import realtime_service
 @dataclass
 class BreathingData:
     """呼吸データ"""
+
     timestamp: datetime
     breathing_rate: float  # 呼吸数（回/分）
-    amplitude: float      # 振幅
-    confidence: float     # 信頼度
+    amplitude: float  # 振幅
+    confidence: float  # 信頼度
     raw_signal: List[float]  # 生信号
 
 
 @dataclass
 class CSIAnalysisResult:
     """CSI解析結果"""
+
     device_id: str
     timestamp: datetime
     breathing_data: BreathingData
     signal_quality: float  # 信号品質
     motion_detected: bool  # 動作検出
-    anomaly_score: float   # 異常スコア
+    anomaly_score: float  # 異常スコア
 
 
 class RealtimeCSIAnalyzer:
@@ -45,8 +48,8 @@ class RealtimeCSIAnalyzer:
 
         # 解析パラメータ
         self.sampling_rate = 1000  # Hz
-        self.window_size = 30      # 秒
-        self.overlap_ratio = 0.5   # オーバーラップ比率
+        self.window_size = 30  # 秒
+        self.overlap_ratio = 0.5  # オーバーラップ比率
         self.breathing_freq_range = (0.1, 0.5)  # 呼吸周波数範囲（Hz）
 
     async def analyze_csi_data(self, device_id: str, raw_data: bytes) -> Optional[CSIAnalysisResult]:
@@ -63,10 +66,7 @@ class RealtimeCSIAnalyzer:
                 self.analysis_windows[device_id] = []
                 self.breathing_history[device_id] = []
 
-            self.analysis_buffer[device_id].append({
-                'timestamp': datetime.utcnow(),
-                'data': csi_matrix
-            })
+            self.analysis_buffer[device_id].append({"timestamp": datetime.utcnow(), "data": csi_matrix})
 
             # バッファサイズ制限
             max_buffer_size = int(self.window_size * self.sampling_rate / 10)  # 大まかな推定
@@ -119,7 +119,7 @@ class RealtimeCSIAnalyzer:
 
             # 64サブキャリアずつに分割
             num_samples = len(float_array) // 64
-            csi_matrix = float_array[:num_samples * 64].reshape(num_samples, 64)
+            csi_matrix = float_array[: num_samples * 64].reshape(num_samples, 64)
 
             return csi_matrix
 
@@ -135,8 +135,8 @@ class RealtimeCSIAnalyzer:
                 return None
 
             # 時系列データ抽出
-            timestamps = [item['timestamp'] for item in buffer]
-            csi_matrices = [item['data'] for item in buffer]
+            timestamps = [item["timestamp"] for item in buffer]
+            csi_matrices = [item["data"] for item in buffer]
 
             # CSI振幅時系列を抽出
             amplitude_series = self._extract_amplitude_series(csi_matrices)
@@ -159,7 +159,7 @@ class RealtimeCSIAnalyzer:
                 breathing_data=breathing_data,
                 signal_quality=signal_quality,
                 motion_detected=motion_detected,
-                anomaly_score=anomaly_score
+                anomaly_score=anomaly_score,
             )
 
             # 履歴に追加
@@ -204,7 +204,7 @@ class RealtimeCSIAnalyzer:
                     breathing_rate=0.0,
                     amplitude=0.0,
                     confidence=0.0,
-                    raw_signal=amplitude_series.tolist()
+                    raw_signal=amplitude_series.tolist(),
                 )
 
             # 前処理：ハイパスフィルタで低周波成分除去
@@ -228,18 +228,12 @@ class RealtimeCSIAnalyzer:
                 breathing_rate=breathing_rate,
                 amplitude=amplitude,
                 confidence=confidence,
-                raw_signal=filtered_signal.tolist()[-50:]  # 最新50サンプル
+                raw_signal=filtered_signal.tolist()[-50:],  # 最新50サンプル
             )
 
         except Exception as e:
             self.logger.error(f"呼吸解析エラー: {e}")
-            return BreathingData(
-                timestamp=timestamp,
-                breathing_rate=0.0,
-                amplitude=0.0,
-                confidence=0.0,
-                raw_signal=[]
-            )
+            return BreathingData(timestamp=timestamp, breathing_rate=0.0, amplitude=0.0, confidence=0.0, raw_signal=[])
 
     def _highpass_filter(self, signal: np.ndarray, cutoff: float) -> np.ndarray:
         """簡単なハイパスフィルタ"""
@@ -249,7 +243,7 @@ class RealtimeCSIAnalyzer:
             if len(signal) < window_size:
                 return signal
 
-            moving_avg = np.convolve(signal, np.ones(window_size)/window_size, mode='same')
+            moving_avg = np.convolve(signal, np.ones(window_size) / window_size, mode="same")
             return signal - moving_avg
 
         except Exception:
@@ -407,7 +401,7 @@ class RealtimeCSIAnalyzer:
                 "signal_quality": result.signal_quality,
                 "motion_detected": result.motion_detected,
                 "anomaly_score": result.anomaly_score,
-                "raw_signal": result.breathing_data.raw_signal[-20:]  # 最新20サンプル
+                "raw_signal": result.breathing_data.raw_signal[-20:],  # 最新20サンプル
             }
 
             await realtime_service.broadcast_csi_analysis(result.device_id, message_data)

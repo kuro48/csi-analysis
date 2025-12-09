@@ -3,18 +3,20 @@ PCAP解析サービス
 Wi-Fi CSIデータをPCAPファイルから抽出・解析する
 """
 
+import json
 import logging
 import struct
-from typing import Dict, List, Optional, Tuple, Any
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
-import json
 
 try:
-    from scapy.all import rdpcap, Dot11, RadioTap
+    from scapy.all import Dot11, RadioTap, rdpcap
     from scapy.layers.dot11 import Dot11Beacon, Dot11ProbeReq, Dot11ProbeResp
+
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
@@ -26,9 +28,15 @@ logger = logging.getLogger(__name__)
 class CSIPacket:
     """CSIパケットデータクラス"""
 
-    def __init__(self, timestamp: float, csi_matrix: np.ndarray,
-                 rssi: float = 0.0, noise: float = 0.0,
-                 rate: int = 0, channel: int = 0):
+    def __init__(
+        self,
+        timestamp: float,
+        csi_matrix: np.ndarray,
+        rssi: float = 0.0,
+        noise: float = 0.0,
+        rate: int = 0,
+        channel: int = 0,
+    ):
         self.timestamp = timestamp
         self.csi_matrix = csi_matrix  # Complex CSI matrix
         self.rssi = rssi
@@ -49,13 +57,13 @@ class CSIPacket:
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換"""
         return {
-            'timestamp': self.timestamp,
-            'amplitude': self.amplitude.tolist(),
-            'phase': self.phase.tolist(),
-            'rssi': self.rssi,
-            'noise': self.noise,
-            'rate': self.rate,
-            'channel': self.channel
+            "timestamp": self.timestamp,
+            "amplitude": self.amplitude.tolist(),
+            "phase": self.phase.tolist(),
+            "rssi": self.rssi,
+            "noise": self.noise,
+            "rate": self.rate,
+            "channel": self.channel,
         }
 
 
@@ -91,10 +99,10 @@ class PCAPAnalyzer:
         packets = rdpcap(file_path)
         csi_packets = []
         metadata = {
-            'total_packets': len(packets),
-            'analysis_method': 'scapy',
-            'file_size': Path(file_path).stat().st_size,
-            'analysis_timestamp': datetime.now().isoformat()
+            "total_packets": len(packets),
+            "analysis_method": "scapy",
+            "file_size": Path(file_path).stat().st_size,
+            "analysis_timestamp": datetime.now().isoformat(),
         }
 
         for i, packet in enumerate(packets):
@@ -118,15 +126,15 @@ class PCAPAnalyzer:
         time_series_data = self._convert_to_time_series(csi_packets)
 
         return {
-            'csi_packets': [p.to_dict() for p in csi_packets],
-            'time_series': time_series_data,
-            'metadata': metadata,
-            'summary': {
-                'total_csi_packets': len(csi_packets),
-                'duration_seconds': self._calculate_duration(csi_packets),
-                'average_sampling_rate': self._calculate_sampling_rate(csi_packets),
-                'channel_info': self._extract_channel_info(csi_packets)
-            }
+            "csi_packets": [p.to_dict() for p in csi_packets],
+            "time_series": time_series_data,
+            "metadata": metadata,
+            "summary": {
+                "total_csi_packets": len(csi_packets),
+                "duration_seconds": self._calculate_duration(csi_packets),
+                "average_sampling_rate": self._calculate_sampling_rate(csi_packets),
+                "channel_info": self._extract_channel_info(csi_packets),
+            },
         }
 
     def _analyze_with_binary_parser(self, file_path: str) -> Dict[str, Any]:
@@ -142,23 +150,23 @@ class PCAPAnalyzer:
         time_series_data = self._convert_to_time_series(mock_csi_packets)
 
         metadata = {
-            'total_packets': 100,
-            'analysis_method': 'binary_parser',
-            'file_size': file_size,
-            'analysis_timestamp': datetime.now().isoformat(),
-            'note': 'Mock data generated for demonstration'
+            "total_packets": 100,
+            "analysis_method": "binary_parser",
+            "file_size": file_size,
+            "analysis_timestamp": datetime.now().isoformat(),
+            "note": "Mock data generated for demonstration",
         }
 
         return {
-            'csi_packets': [p.to_dict() for p in mock_csi_packets],
-            'time_series': time_series_data,
-            'metadata': metadata,
-            'summary': {
-                'total_csi_packets': len(mock_csi_packets),
-                'duration_seconds': self._calculate_duration(mock_csi_packets),
-                'average_sampling_rate': self._calculate_sampling_rate(mock_csi_packets),
-                'channel_info': self._extract_channel_info(mock_csi_packets)
-            }
+            "csi_packets": [p.to_dict() for p in mock_csi_packets],
+            "time_series": time_series_data,
+            "metadata": metadata,
+            "summary": {
+                "total_csi_packets": len(mock_csi_packets),
+                "duration_seconds": self._calculate_duration(mock_csi_packets),
+                "average_sampling_rate": self._calculate_sampling_rate(mock_csi_packets),
+                "channel_info": self._extract_channel_info(mock_csi_packets),
+            },
         }
 
     def _extract_csi_from_radiotap(self, packet) -> Optional[CSIPacket]:
@@ -168,10 +176,10 @@ class PCAPAnalyzer:
             timestamp = float(packet.time)
 
             # RadioTapからRSSI、ノイズ、レートを抽出
-            rssi = getattr(radiotap, 'dBm_AntSignal', 0)
-            noise = getattr(radiotap, 'dBm_AntNoise', 0)
-            rate = getattr(radiotap, 'Rate', 0)
-            channel = getattr(radiotap, 'Channel', 0)
+            rssi = getattr(radiotap, "dBm_AntSignal", 0)
+            noise = getattr(radiotap, "dBm_AntNoise", 0)
+            rate = getattr(radiotap, "Rate", 0)
+            channel = getattr(radiotap, "Channel", 0)
 
             # モックCSIマトリックス（実際の実装では適切な抽出を行う）
             csi_matrix = self._generate_mock_csi_matrix()
@@ -234,24 +242,24 @@ class PCAPAnalyzer:
         subcarrier_data = {}
 
         for sc in range(n_subcarriers):
-            subcarrier_data[f'subcarrier_{sc}'] = {
-                'timestamps': timestamps,
-                'amplitudes': [amp[sc] for amp in amplitudes],
-                'phases': [phase[sc] for phase in phases]
+            subcarrier_data[f"subcarrier_{sc}"] = {
+                "timestamps": timestamps,
+                "amplitudes": [amp[sc] for amp in amplitudes],
+                "phases": [phase[sc] for phase in phases],
             }
 
         return {
-            'timestamps': timestamps,
-            'rssi': rssi_values,
-            'subcarrier_data': subcarrier_data,
-            'summary_stats': {
-                'n_subcarriers': n_subcarriers,
-                'n_samples': len(timestamps),
-                'time_range': {
-                    'start': min(timestamps) if timestamps else 0,
-                    'end': max(timestamps) if timestamps else 0
-                }
-            }
+            "timestamps": timestamps,
+            "rssi": rssi_values,
+            "subcarrier_data": subcarrier_data,
+            "summary_stats": {
+                "n_subcarriers": n_subcarriers,
+                "n_samples": len(timestamps),
+                "time_range": {
+                    "start": min(timestamps) if timestamps else 0,
+                    "end": max(timestamps) if timestamps else 0,
+                },
+            },
         }
 
     def _calculate_duration(self, csi_packets: List[CSIPacket]) -> float:
@@ -282,10 +290,7 @@ class PCAPAnalyzer:
         if not channels:
             return {}
 
-        return {
-            'primary_channel': max(set(channels), key=channels.count),
-            'all_channels': list(set(channels))
-        }
+        return {"primary_channel": max(set(channels), key=channels.count), "all_channels": list(set(channels))}
 
 
 # サービスインスタンス

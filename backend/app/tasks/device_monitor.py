@@ -6,13 +6,14 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
 from typing import List
+
+from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.models.device import Device
-from app.services.websocket import RealtimeDataService
 from app.services.device import DeviceService
+from app.services.websocket import RealtimeDataService
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +70,7 @@ class DeviceMonitor:
         offline_threshold = now - timedelta(minutes=5)  # 5分以上応答がない場合オフライン
 
         # 最近アクティブだったが、現在オフラインと思われるデバイスを取得
-        devices = db.query(Device).filter(
-            Device.is_active == True,
-            Device.last_seen < offline_threshold
-        ).all()
+        devices = db.query(Device).filter(Device.is_active == True, Device.last_seen < offline_threshold).all()
 
         for device in devices:
             # 前回の状態を取得
@@ -80,18 +78,20 @@ class DeviceMonitor:
 
             # 状態が変更された場合のみ通知
             if previous_status and previous_status.status != "offline":
-                await RealtimeDataService.broadcast_device_status({
-                    "id": str(device.id),
-                    "device_id": device.device_id,
-                    "device_name": device.device_name,
-                    "device_type": device.device_type,
-                    "location": device.location,
-                    "status": "offline",
-                    "connection_status": "disconnected",
-                    "last_seen": device.last_seen.isoformat() if device.last_seen else None,
-                    "is_active": device.is_active,
-                    "previous_status": previous_status.status
-                })
+                await RealtimeDataService.broadcast_device_status(
+                    {
+                        "id": str(device.id),
+                        "device_id": device.device_id,
+                        "device_name": device.device_name,
+                        "device_type": device.device_type,
+                        "location": device.location,
+                        "status": "offline",
+                        "connection_status": "disconnected",
+                        "last_seen": device.last_seen.isoformat() if device.last_seen else None,
+                        "is_active": device.is_active,
+                        "previous_status": previous_status.status,
+                    }
+                )
 
                 logger.info(f"Device {device.device_id} went offline")
 

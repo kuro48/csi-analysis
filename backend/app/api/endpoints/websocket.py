@@ -2,18 +2,19 @@
 WebSocket リアルタイム通信エンドポイント
 """
 
-from fastapi import WebSocket, WebSocketDisconnect, Depends, HTTPException, status
-from fastapi.routing import APIRouter
+import asyncio
 import json
+import logging
 import uuid
 from typing import Optional
-import asyncio
-import logging
 
-from app.services.websocket import manager, RealtimeDataService
-from app.core.security import verify_token
+from fastapi import Depends, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi.routing import APIRouter
+
 from app.core.database import get_db
+from app.core.security import verify_token
 from app.models.user import User
+from app.services.websocket import RealtimeDataService, manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ async def get_current_user_websocket(websocket: WebSocket) -> Optional[User]:
         # データベースからユーザーを取得（実際の実装）
         try:
             from app.core.database import SessionLocal
+
             db = SessionLocal()
             try:
                 user = db.query(User).filter(User.id == uuid.UUID(user_id_str)).first()
@@ -127,12 +129,8 @@ async def websocket_endpoint(websocket: WebSocket):
             "type": "connection_established",
             "connection_id": connection_id,
             "authenticated": True,
-            "user": {
-                "id": str(user.id),
-                "username": user.username,
-                "is_superuser": user.is_superuser
-            },
-            "timestamp": "2024-12-01T00:00:00"  # 実際は datetime.utcnow().isoformat()
+            "user": {"id": str(user.id), "username": user.username, "is_superuser": user.is_superuser},
+            "timestamp": "2024-12-01T00:00:00",  # 実際は datetime.utcnow().isoformat()
         }
         await manager.send_personal_message(welcome_message, connection_id)
 
@@ -156,17 +154,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     break
                 except json.JSONDecodeError:
                     # 無効なJSONの場合はエラーメッセージを送信
-                    error_message = {
-                        "type": "error",
-                        "message": "Invalid JSON format"
-                    }
+                    error_message = {"type": "error", "message": "Invalid JSON format"}
                     await manager.send_personal_message(error_message, connection_id)
                 except Exception as e:
                     # その他のエラー
-                    error_message = {
-                        "type": "error",
-                        "message": f"Server error: {str(e)}"
-                    }
+                    error_message = {"type": "error", "message": f"Server error: {str(e)}"}
                     await manager.send_personal_message(error_message, connection_id)
         finally:
             # Pingタスクをキャンセル
@@ -194,17 +186,10 @@ async def handle_websocket_message(connection_id: str, message: dict, user: User
         channel = message.get("channel")
         if channel and is_channel_accessible(channel, user):
             await manager.subscribe_to_channel(connection_id, channel)
-            response = {
-                "type": "subscribed",
-                "channel": channel,
-                "message": f"Successfully subscribed to {channel}"
-            }
+            response = {"type": "subscribed", "channel": channel, "message": f"Successfully subscribed to {channel}"}
             await manager.send_personal_message(response, connection_id)
         else:
-            response = {
-                "type": "error",
-                "message": f"Access denied to channel: {channel}"
-            }
+            response = {"type": "error", "message": f"Access denied to channel: {channel}"}
             await manager.send_personal_message(response, connection_id)
 
     elif message_type == "unsubscribe":
@@ -215,16 +200,13 @@ async def handle_websocket_message(connection_id: str, message: dict, user: User
             response = {
                 "type": "unsubscribed",
                 "channel": channel,
-                "message": f"Successfully unsubscribed from {channel}"
+                "message": f"Successfully unsubscribed from {channel}",
             }
             await manager.send_personal_message(response, connection_id)
 
     elif message_type == "ping":
         # ヘルスチェック
-        response = {
-            "type": "pong",
-            "timestamp": "2024-12-01T00:00:00"  # 実際は datetime.utcnow().isoformat()
-        }
+        response = {"type": "pong", "timestamp": "2024-12-01T00:00:00"}  # 実際は datetime.utcnow().isoformat()
         await manager.send_personal_message(response, connection_id)
 
     elif message_type == "get_status":
@@ -234,16 +216,13 @@ async def handle_websocket_message(connection_id: str, message: dict, user: User
             "connection_id": connection_id,
             "authenticated": user is not None,
             "is_superuser": user.is_superuser if user else False,
-            "active_connections": manager.get_connection_count()
+            "active_connections": manager.get_connection_count(),
         }
         await manager.send_personal_message(response, connection_id)
 
     else:
         # 未知のメッセージタイプ
-        response = {
-            "type": "error",
-            "message": f"Unknown message type: {message_type}"
-        }
+        response = {"type": "error", "message": f"Unknown message type: {message_type}"}
         await manager.send_personal_message(response, connection_id)
 
 
@@ -254,11 +233,7 @@ async def test_broadcast(message: dict):
     テスト用ブロードキャストエンドポイント
     開発・デバッグ時のみ使用
     """
-    await manager.broadcast_to_all({
-        "type": "test_message",
-        "data": message,
-        "timestamp": "2024-12-01T00:00:00"
-    })
+    await manager.broadcast_to_all({"type": "test_message", "data": message, "timestamp": "2024-12-01T00:00:00"})
     return {"message": "Test broadcast sent"}
 
 
@@ -267,12 +242,10 @@ async def test_channel_broadcast(channel: str, message: dict):
     """
     テスト用チャンネルブロードキャストエンドポイント
     """
-    await manager.broadcast_to_channel({
-        "type": "test_channel_message",
-        "channel": channel,
-        "data": message,
-        "timestamp": "2024-12-01T00:00:00"
-    }, channel)
+    await manager.broadcast_to_channel(
+        {"type": "test_channel_message", "channel": channel, "data": message, "timestamp": "2024-12-01T00:00:00"},
+        channel,
+    )
     return {"message": f"Test broadcast sent to channel: {channel}"}
 
 
@@ -284,7 +257,6 @@ async def get_websocket_stats():
     return {
         "active_connections": manager.get_connection_count(),
         "channels": {
-            channel: manager.get_channel_subscriber_count(channel)
-            for channel in manager.channel_subscribers.keys()
-        }
+            channel: manager.get_channel_subscriber_count(channel) for channel in manager.channel_subscribers.keys()
+        },
     }

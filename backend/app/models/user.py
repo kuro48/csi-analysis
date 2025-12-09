@@ -2,13 +2,15 @@
 ユーザーモデル
 """
 
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Boolean, Column, DateTime, String
 from sqlalchemy.orm import relationship
+
 from app.models.base import BaseModel
 
 
 class User(BaseModel):
     """ユーザーテーブル"""
+
     __tablename__ = "users"
 
     # 基本情報

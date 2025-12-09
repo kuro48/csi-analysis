@@ -2,11 +2,12 @@
 ヘルスチェック関連エンドポイント
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-import redis
 import logging
+
+import redis
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -14,6 +15,7 @@ from app.core.deps import get_redis_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
 
 @router.get("/")
 async def health_check():
@@ -24,8 +26,9 @@ async def health_check():
         "status": "healthy",
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
-        "environment": "development" if settings.DEBUG else "production"
+        "environment": "development" if settings.DEBUG else "production",
     }
+
 
 @router.get("/database")
 async def database_health(db: Session = Depends(get_db)):
@@ -40,24 +43,17 @@ async def database_health(db: Session = Depends(get_db)):
                 "status": "healthy",
                 "database": "postgresql",
                 "connected": True,
-                "response_time_ms": 0  # 実際の測定は省略
+                "response_time_ms": 0,  # 実際の測定は省略
             }
         else:
-            raise HTTPException(
-                status_code=503,
-                detail="Database connection test failed"
-            )
+            raise HTTPException(status_code=503, detail="Database connection test failed")
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         raise HTTPException(
             status_code=503,
-            detail={
-                "status": "unhealthy",
-                "database": "postgresql",
-                "connected": False,
-                "error": str(e)
-            }
+            detail={"status": "unhealthy", "database": "postgresql", "connected": False, "error": str(e)},
         )
+
 
 @router.get("/redis")
 async def redis_health():
@@ -71,7 +67,7 @@ async def redis_health():
                 "status": "unavailable",
                 "cache": "redis",
                 "connected": False,
-                "message": "Redis is disabled or not configured"
+                "message": "Redis is disabled or not configured",
             }
 
         # Redis接続テスト
@@ -88,13 +84,10 @@ async def redis_health():
                 "cache": "redis",
                 "connected": True,
                 "ping": True,
-                "read_write_test": test_value == b"test_value"
+                "read_write_test": test_value == b"test_value",
             }
         else:
-            raise HTTPException(
-                status_code=503,
-                detail="Redis ping failed"
-            )
+            raise HTTPException(status_code=503, detail="Redis ping failed")
     except redis.ConnectionError as e:
         logger.error(f"Redis connection failed: {e}")
         raise HTTPException(
@@ -103,17 +96,11 @@ async def redis_health():
                 "status": "unhealthy",
                 "cache": "redis",
                 "connected": False,
-                "error": f"Connection error: {str(e)}"
-            }
+                "error": f"Connection error: {str(e)}",
+            },
         )
     except Exception as e:
         logger.error(f"Redis health check failed: {e}")
         raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "unhealthy",
-                "cache": "redis",
-                "connected": False,
-                "error": str(e)
-            }
+            status_code=503, detail={"status": "unhealthy", "cache": "redis", "connected": False, "error": str(e)}
         )

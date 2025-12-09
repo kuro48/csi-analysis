@@ -2,19 +2,20 @@
 FastAPI Dependency関数
 """
 
+import uuid
+from typing import Optional
+
 import redis
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-from typing import Optional
-import uuid
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import verify_token
-from app.core.config import settings
-from app.models.user import User
 from app.models.device import Device
-from app.services.cache import get_device_cache, get_analysis_cache, get_session_cache
+from app.models.user import User
+from app.services.cache import get_analysis_cache, get_device_cache, get_session_cache
 
 # OAuth2スキーム設定
 security = HTTPBearer()
@@ -37,7 +38,7 @@ def get_redis_client() -> redis.Redis:
                 decode_responses=False,  # バイナリデータ対応のため
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                retry_on_timeout=True
+                retry_on_timeout=True,
             )
 
             # 接続テスト
@@ -46,6 +47,7 @@ def get_redis_client() -> redis.Redis:
         except redis.ConnectionError as e:
             # Redis が利用できない場合はログ出力のみ
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(f"Redis connection failed: {e}. Cache will be disabled.")
             _redis_client = None
@@ -78,8 +80,7 @@ def get_session_cache_service():
 
 
 def get_current_user(
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> User:
     """現在のユーザーを取得（認証必須）"""
     credentials_exception = HTTPException(
@@ -100,10 +101,7 @@ def get_current_user(
         raise credentials_exception
 
     # データベースからユーザーを取得
-    user = db.query(User).filter(
-        User.id == user_id,
-        User.is_active == True
-    ).first()
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
 
     if user is None:
         raise credentials_exception
@@ -111,36 +109,26 @@ def get_current_user(
     return user
 
 
-def get_current_active_user(
-    current_user: User = Depends(get_current_user)
-) -> User:
+def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     """現在のアクティブユーザーを取得"""
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="非アクティブユーザーです"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="非アクティブユーザーです")
     return current_user
 
 
-def get_current_superuser(
-    current_user: User = Depends(get_current_user)
-) -> User:
+def get_current_superuser(current_user: User = Depends(get_current_user)) -> User:
     """現在のスーパーユーザーを取得"""
     if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="スーパーユーザー権限が必要です"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="スーパーユーザー権限が必要です")
     return current_user
 
 
 def get_device_auth(
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> Device:
     """デバイス認証（デバイス専用トークン）"""
     import logging
+
     logger = logging.getLogger(__name__)
 
     credentials_exception = HTTPException(
@@ -171,10 +159,7 @@ def get_device_auth(
         logger.info(f"Extracted device_id: {device_id}, token_hash: {token_hash}")
 
         # データベースからデバイスを取得
-        device = db.query(Device).filter(
-            Device.device_id == device_id,
-            Device.is_active == True
-        ).first()
+        device = db.query(Device).filter(Device.device_id == device_id, Device.is_active == True).first()
 
         if not device:
             logger.warning(f"Device not found or inactive: {device_id}")

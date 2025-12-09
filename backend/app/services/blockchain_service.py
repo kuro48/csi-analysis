@@ -2,17 +2,17 @@
 ブロックチェーンサービス - Web3.py統合
 """
 
-import logging
-import json
 import asyncio
-from typing import Dict, Any, Optional, List
-from pathlib import Path
+import json
+import logging
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from web3 import Web3
-from web3.exceptions import ContractLogicError, TimeExhausted
 from eth_account import Account
 from eth_typing import Address
+from web3 import Web3
+from web3.exceptions import ContractLogicError, TimeExhausted
 
 from app.core.config import settings
 
@@ -96,15 +96,12 @@ class BlockchainService:
                 logger.warning(f"Contract ABI file not found: {abi_path}")
                 return
 
-            with open(abi_path, 'r') as f:
+            with open(abi_path, "r") as f:
                 contract_data = json.load(f)
-                abi = contract_data.get('abi', contract_data)
+                abi = contract_data.get("abi", contract_data)
 
             # コントラクトインスタンスを作成
-            self.contract = self.w3.eth.contract(
-                address=Web3.to_checksum_address(settings.CONTRACT_ADDRESS),
-                abi=abi
-            )
+            self.contract = self.w3.eth.contract(address=Web3.to_checksum_address(settings.CONTRACT_ADDRESS), abi=abi)
 
             logger.info(f"Contract loaded at: {settings.CONTRACT_ADDRESS}")
 
@@ -112,12 +109,7 @@ class BlockchainService:
             logger.error(f"Failed to load contract: {e}")
             raise
 
-    async def record_csi_data_cid(
-        self,
-        device_id: str,
-        ipfs_cid: str,
-        metadata_hash: str
-    ) -> Dict[str, Any]:
+    async def record_csi_data_cid(self, device_id: str, ipfs_cid: str, metadata_hash: str) -> Dict[str, Any]:
         """
         CSIデータのCIDをブロックチェーンに記録
 
@@ -135,26 +127,18 @@ class BlockchainService:
         """
         if not self.enabled or not self.contract:
             logger.warning("Blockchain service is disabled or contract not loaded")
-            return {
-                "tx_hash": None,
-                "status": "disabled",
-                "block_number": None
-            }
+            return {"tx_hash": None, "status": "disabled", "block_number": None}
 
         try:
             # トランザクションを構築
-            function = self.contract.functions.recordCSIData(
-                device_id,
-                ipfs_cid,
-                metadata_hash
-            )
+            function = self.contract.functions.recordCSIData(device_id, ipfs_cid, metadata_hash)
 
             # アカウントアドレス取得
             from_address = self.account.address if self.account else self.account_address
 
             # ガス見積もり
             try:
-                gas_estimate = function.estimate_gas({'from': from_address})
+                gas_estimate = function.estimate_gas({"from": from_address})
                 gas_limit = int(gas_estimate * 1.2)  # 20%のバッファ
             except Exception as e:
                 logger.warning(f"Gas estimation failed, using default: {e}")
@@ -162,10 +146,10 @@ class BlockchainService:
 
             # トランザクション構築
             tx_params = {
-                'from': from_address,
-                'gas': gas_limit,
-                'gasPrice': settings.GAS_PRICE,
-                'nonce': self.w3.eth.get_transaction_count(from_address),
+                "from": from_address,
+                "gas": gas_limit,
+                "gasPrice": settings.GAS_PRICE,
+                "nonce": self.w3.eth.get_transaction_count(from_address),
             }
 
             # トランザクション送信
@@ -187,7 +171,7 @@ class BlockchainService:
                 "status": "pending",
                 "block_number": None,
                 "device_id": device_id,
-                "ipfs_cid": ipfs_cid
+                "ipfs_cid": ipfs_cid,
             }
 
         except ContractLogicError as e:
@@ -197,10 +181,7 @@ class BlockchainService:
             logger.error(f"Failed to record CID on blockchain: {e}")
             raise RuntimeError(f"ブロックチェーン記録に失敗しました: {e}")
 
-    async def get_csi_data_by_cid(
-        self,
-        ipfs_cid: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_csi_data_by_cid(self, ipfs_cid: str) -> Optional[Dict[str, Any]]:
         """
         CIDからブロックチェーン上のデータ情報を取得
 
@@ -231,7 +212,7 @@ class BlockchainService:
                 "metadata_hash": result[2],
                 "timestamp": result[3],
                 "recorder": result[4],
-                "exists": result[5] if len(result) > 5 else True
+                "exists": result[5] if len(result) > 5 else True,
             }
 
         except ContractLogicError as e:
@@ -241,10 +222,7 @@ class BlockchainService:
             logger.error(f"Failed to get CID from blockchain: {e}")
             return None
 
-    async def get_transaction_status(
-        self,
-        tx_hash: str
-    ) -> Dict[str, Any]:
+    async def get_transaction_status(self, tx_hash: str) -> Dict[str, Any]:
         """
         トランザクション状態を確認
 
@@ -268,46 +246,31 @@ class BlockchainService:
                 receipt = self.w3.eth.get_transaction_receipt(tx_hash)
 
                 current_block = self.w3.eth.block_number
-                confirmations = current_block - receipt['blockNumber']
+                confirmations = current_block - receipt["blockNumber"]
 
-                status = "confirmed" if receipt['status'] == 1 else "failed"
+                status = "confirmed" if receipt["status"] == 1 else "failed"
 
                 return {
                     "status": status,
-                    "block_number": receipt['blockNumber'],
+                    "block_number": receipt["blockNumber"],
                     "confirmations": confirmations,
-                    "gas_used": receipt['gasUsed'],
-                    "tx_hash": tx_hash
+                    "gas_used": receipt["gasUsed"],
+                    "tx_hash": tx_hash,
                 }
 
             except Exception:
                 # レシートがない場合はpending
                 try:
                     tx = self.w3.eth.get_transaction(tx_hash)
-                    return {
-                        "status": "pending",
-                        "block_number": None,
-                        "confirmations": 0,
-                        "tx_hash": tx_hash
-                    }
+                    return {"status": "pending", "block_number": None, "confirmations": 0, "tx_hash": tx_hash}
                 except Exception:
-                    return {
-                        "status": "not_found",
-                        "tx_hash": tx_hash
-                    }
+                    return {"status": "not_found", "tx_hash": tx_hash}
 
         except Exception as e:
             logger.error(f"Failed to get transaction status: {e}")
-            return {
-                "status": "error",
-                "error": str(e),
-                "tx_hash": tx_hash
-            }
+            return {"status": "error", "error": str(e), "tx_hash": tx_hash}
 
-    async def verify_cid_exists(
-        self,
-        ipfs_cid: str
-    ) -> bool:
+    async def verify_cid_exists(self, ipfs_cid: str) -> bool:
         """
         CIDがブロックチェーンに記録されているか確認
 
@@ -327,10 +290,7 @@ class BlockchainService:
             logger.error(f"Failed to verify CID: {e}")
             return False
 
-    async def get_device_cids(
-        self,
-        device_id: str
-    ) -> List[str]:
+    async def get_device_cids(self, device_id: str) -> List[str]:
         """
         デバイスIDから関連するCIDリストを取得
 
@@ -350,10 +310,7 @@ class BlockchainService:
             logger.error(f"Failed to get device CIDs: {e}")
             return []
 
-    async def get_device_record_count(
-        self,
-        device_id: str
-    ) -> int:
+    async def get_device_record_count(self, device_id: str) -> int:
         """
         デバイスの記録件数を取得
 
@@ -373,11 +330,7 @@ class BlockchainService:
             logger.error(f"Failed to get device record count: {e}")
             return 0
 
-    async def wait_for_transaction_receipt(
-        self,
-        tx_hash: str,
-        timeout: int = None
-    ) -> Optional[Dict[str, Any]]:
+    async def wait_for_transaction_receipt(self, tx_hash: str, timeout: int = None) -> Optional[Dict[str, Any]]:
         """
         トランザクションレシートを待機
 
@@ -394,24 +347,18 @@ class BlockchainService:
         timeout = timeout or settings.TX_TIMEOUT
 
         try:
-            receipt = self.w3.eth.wait_for_transaction_receipt(
-                tx_hash,
-                timeout=timeout
-            )
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout)
 
             return {
-                "tx_hash": self.w3.to_hex(receipt['transactionHash']),
-                "block_number": receipt['blockNumber'],
-                "gas_used": receipt['gasUsed'],
-                "status": "confirmed" if receipt['status'] == 1 else "failed"
+                "tx_hash": self.w3.to_hex(receipt["transactionHash"]),
+                "block_number": receipt["blockNumber"],
+                "gas_used": receipt["gasUsed"],
+                "status": "confirmed" if receipt["status"] == 1 else "failed",
             }
 
         except TimeExhausted:
             logger.warning(f"Transaction timeout: {tx_hash}")
-            return {
-                "tx_hash": tx_hash,
-                "status": "timeout"
-            }
+            return {"tx_hash": tx_hash, "status": "timeout"}
         except Exception as e:
             logger.error(f"Failed to wait for transaction receipt: {e}")
             return None
@@ -424,10 +371,7 @@ class BlockchainService:
             Dict: コントラクト情報
         """
         if not self.enabled or not self.contract:
-            return {
-                "enabled": False,
-                "connected": False
-            }
+            return {"enabled": False, "connected": False}
 
         try:
             info = self.contract.functions.getContractInfo().call()
@@ -439,16 +383,12 @@ class BlockchainService:
                 "owner": info[0],
                 "total_records": info[1],
                 "current_block": info[2],
-                "chain_id": self.w3.eth.chain_id
+                "chain_id": self.w3.eth.chain_id,
             }
 
         except Exception as e:
             logger.error(f"Failed to get contract info: {e}")
-            return {
-                "enabled": True,
-                "connected": self.w3.is_connected(),
-                "error": str(e)
-            }
+            return {"enabled": True, "connected": self.w3.is_connected(), "error": str(e)}
 
     def is_connected(self) -> bool:
         """

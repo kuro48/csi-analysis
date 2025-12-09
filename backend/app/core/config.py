@@ -4,6 +4,7 @@
 
 import os
 from typing import List
+
 from dotenv import load_dotenv
 
 # 環境変数読み込み
@@ -16,10 +17,7 @@ class Settings:
     # アプリケーション基本設定
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "CSI Respiratory Monitoring System")
     VERSION: str = os.getenv("VERSION", "2.5.0")
-    DESCRIPTION: str = os.getenv(
-        "DESCRIPTION",
-        "Wi-Fi CSI based respiratory monitoring platform"
-    )
+    DESCRIPTION: str = os.getenv("DESCRIPTION", "Wi-Fi CSI based respiratory monitoring platform")
     API_V2_PREFIX: str = os.getenv("API_V2_PREFIX", "/api/v2")
 
     # デバッグ・開発設定
@@ -46,8 +44,8 @@ class Settings:
     # キャッシュ設定
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
     CACHE_DEFAULT_TTL: int = int(os.getenv("CACHE_DEFAULT_TTL", "300"))  # 5分
-    CACHE_DEVICE_TTL: int = int(os.getenv("CACHE_DEVICE_TTL", "600"))    # 10分
-    CACHE_ANALYSIS_TTL: int = int(os.getenv("CACHE_ANALYSIS_TTL", "120")) # 2分
+    CACHE_DEVICE_TTL: int = int(os.getenv("CACHE_DEVICE_TTL", "600"))  # 10分
+    CACHE_ANALYSIS_TTL: int = int(os.getenv("CACHE_ANALYSIS_TTL", "120"))  # 2分
     CACHE_SESSION_TTL: int = int(os.getenv("CACHE_SESSION_TTL", "1800"))  # 30分
 
     # JWT設定
@@ -55,19 +53,18 @@ class Settings:
     # Never use default values in production
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
-        os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "1440")  # 24時間
-    )
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24時間
 
     # CORS設定
     # 環境変数から読み込み、未設定時は開発環境用のローカルホストのみ許可
-    ALLOWED_ORIGINS: List[str] = os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000"
-    ).split(",") if os.getenv("ALLOWED_ORIGINS") else [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+    ALLOWED_ORIGINS: List[str] = (
+        os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+        if os.getenv("ALLOWED_ORIGINS")
+        else [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    )
 
     # IPFS設定（既存システム連携用）
     IPFS_HOST: str = os.getenv("IPFS_HOST", "localhost")
@@ -78,30 +75,19 @@ class Settings:
     BLOCKCHAIN_ENABLED: bool = os.getenv("BLOCKCHAIN_ENABLED", "true").lower() == "true"
     BLOCKCHAIN_NODE_HOST: str = os.getenv("BLOCKCHAIN_NODE_HOST", "ganache")
     BLOCKCHAIN_NODE_PORT: int = int(os.getenv("BLOCKCHAIN_NODE_PORT", "8545"))
-    ETHEREUM_RPC_URL: str = os.getenv(
-        "ETHEREUM_RPC_URL",
-        "http://ganache:8545"  # Docker環境用
-    )
+    ETHEREUM_RPC_URL: str = os.getenv("ETHEREUM_RPC_URL", "http://ganache:8545")  # Docker環境用
 
     # スマートコントラクト設定
     CONTRACT_ADDRESS: str = os.getenv(
-        "CONTRACT_ADDRESS",
-        "0x0000000000000000000000000000000000000000"  # デプロイ後に更新
+        "CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000"  # デプロイ後に更新
     )
-    CONTRACT_ABI_PATH: str = os.getenv(
-        "CONTRACT_ABI_PATH",
-        "/app/contracts/build/CSIDataRegistry.json"
-    )
+    CONTRACT_ABI_PATH: str = os.getenv("CONTRACT_ABI_PATH", "/app/contracts/build/CSIDataRegistry.json")
 
     # アカウント設定（注意: 本番環境では環境変数から読み込む）
     BLOCKCHAIN_ACCOUNT_ADDRESS: str = os.getenv(
-        "BLOCKCHAIN_ACCOUNT_ADDRESS",
-        "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"  # Ganache default account
+        "BLOCKCHAIN_ACCOUNT_ADDRESS", "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"  # Ganache default account
     )
-    BLOCKCHAIN_PRIVATE_KEY: str = os.getenv(
-        "BLOCKCHAIN_PRIVATE_KEY",
-        ""  # 空の場合はGanacheのunlocked accountを使用
-    )
+    BLOCKCHAIN_PRIVATE_KEY: str = os.getenv("BLOCKCHAIN_PRIVATE_KEY", "")  # 空の場合はGanacheのunlocked accountを使用
 
     # ガス設定
     GAS_LIMIT: int = int(os.getenv("GAS_LIMIT", "3000000"))
@@ -121,6 +107,7 @@ class Settings:
 
 # 設定インスタンス
 settings = Settings()
+
 
 # セキュリティ検証: 本番環境では必須環境変数をチェック
 def validate_security_settings():
@@ -154,6 +141,7 @@ def validate_security_settings():
             print("This is acceptable in development, but MUST be fixed for production.")
     else:
         print("✅ Security settings validated successfully")
+
 
 # アプリケーション起動時に検証を実行
 validate_security_settings()

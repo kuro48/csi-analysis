@@ -3,12 +3,13 @@ IPFS サービス - HTTP API直接実装
 """
 
 import asyncio
+import io
 import json
 import logging
-from typing import Dict, Optional, Tuple, Union
 from datetime import datetime
+from typing import Dict, Optional, Tuple, Union
+
 import httpx
-import io
 
 from app.core.config import settings
 
@@ -51,20 +52,14 @@ class IPFSService:
             client = await self._get_http_client()
 
             # ファイルをmultipart/form-dataとして送信
-            files = {
-                'file': (filename or 'file', file_data, 'application/octet-stream')
-            }
+            files = {"file": (filename or "file", file_data, "application/octet-stream")}
 
-            response = await client.post(
-                f"{self._api_url}/add",
-                files=files,
-                params={'pin': 'true'}
-            )
+            response = await client.post(f"{self._api_url}/add", files=files, params={"pin": "true"})
             response.raise_for_status()
 
             # レスポンスからハッシュ値を取得
             result = response.json()
-            ipfs_hash = result['Hash']
+            ipfs_hash = result["Hash"]
 
             logger.info(f"File uploaded to IPFS: {ipfs_hash}")
             return ipfs_hash
@@ -86,8 +81,8 @@ class IPFSService:
         """
         try:
             # JSONをバイナリに変換
-            json_data = json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8')
-            return await self.upload_file(json_data, filename or 'data.json')
+            json_data = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+            return await self.upload_file(json_data, filename or "data.json")
 
         except Exception as e:
             logger.error(f"IPFS JSON upload failed: {e}")
@@ -106,10 +101,7 @@ class IPFSService:
         try:
             client = await self._get_http_client()
 
-            response = await client.post(
-                f"{self._api_url}/cat",
-                params={'arg': ipfs_hash}
-            )
+            response = await client.post(f"{self._api_url}/cat", params={"arg": ipfs_hash})
             response.raise_for_status()
 
             logger.info(f"File retrieved from IPFS: {ipfs_hash}")
@@ -131,7 +123,7 @@ class IPFSService:
         """
         try:
             file_data = await self.get_file(ipfs_hash)
-            return json.loads(file_data.decode('utf-8'))
+            return json.loads(file_data.decode("utf-8"))
 
         except Exception as e:
             logger.error(f"IPFS JSON retrieval failed: {e}")
@@ -150,10 +142,7 @@ class IPFSService:
         try:
             client = await self._get_http_client()
 
-            response = await client.post(
-                f"{self._api_url}/pin/add",
-                params={'arg': ipfs_hash}
-            )
+            response = await client.post(f"{self._api_url}/pin/add", params={"arg": ipfs_hash})
             response.raise_for_status()
 
             logger.info(f"File pinned: {ipfs_hash}")
@@ -176,10 +165,7 @@ class IPFSService:
         try:
             client = await self._get_http_client()
 
-            response = await client.post(
-                f"{self._api_url}/pin/rm",
-                params={'arg': ipfs_hash}
-            )
+            response = await client.post(f"{self._api_url}/pin/rm", params={"arg": ipfs_hash})
             response.raise_for_status()
 
             logger.info(f"File unpinned: {ipfs_hash}")
@@ -202,19 +188,16 @@ class IPFSService:
         try:
             client = await self._get_http_client()
 
-            response = await client.post(
-                f"{self._api_url}/object/stat",
-                params={'arg': ipfs_hash}
-            )
+            response = await client.post(f"{self._api_url}/object/stat", params={"arg": ipfs_hash})
             response.raise_for_status()
 
             info = response.json()
 
             return {
-                'hash': ipfs_hash,
-                'size': info.get('CumulativeSize', 0),
-                'links': info.get('NumLinks', 0),
-                'retrieved_at': datetime.utcnow().isoformat()
+                "hash": ipfs_hash,
+                "size": info.get("CumulativeSize", 0),
+                "links": info.get("NumLinks", 0),
+                "retrieved_at": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
@@ -243,10 +226,7 @@ class IPFSService:
             return False
 
     async def upload_csi_data_with_metadata(
-        self,
-        file_data: bytes,
-        metadata: Dict,
-        filename: str = None
+        self, file_data: bytes, metadata: Dict, filename: str = None
     ) -> Dict[str, str]:
         """
         CSIデータとメタデータを統合してIPFSにアップロード
@@ -269,7 +249,7 @@ class IPFSService:
                 "ipfs_data_hash": data_hash,
                 "file_size": len(file_data),
                 "upload_timestamp": datetime.utcnow().isoformat(),
-                "content_type": "application/octet-stream"
+                "content_type": "application/octet-stream",
             }
 
             # 3. メタデータをIPFSにアップロード
@@ -281,7 +261,7 @@ class IPFSService:
                 "data_hash": data_hash,
                 "metadata_hash": metadata_hash,
                 "filename": filename,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat(),
             }
 
             # 5. 統合オブジェクトをアップロード
@@ -294,11 +274,7 @@ class IPFSService:
 
             logger.info(f"CSI data package uploaded to IPFS: {combined_hash}")
 
-            return {
-                "data_hash": data_hash,
-                "metadata_hash": metadata_hash,
-                "combined_hash": combined_hash
-            }
+            return {"data_hash": data_hash, "metadata_hash": metadata_hash, "combined_hash": combined_hash}
 
         except Exception as e:
             logger.error(f"CSI data IPFS upload failed: {e}")
@@ -331,11 +307,7 @@ class IPFSService:
                 "combined_info": combined_object,
                 "file_data": file_data,
                 "metadata": metadata,
-                "ipfs_hashes": {
-                    "data": data_hash,
-                    "metadata": metadata_hash,
-                    "combined": combined_hash
-                }
+                "ipfs_hashes": {"data": data_hash, "metadata": metadata_hash, "combined": combined_hash},
             }
 
             logger.info(f"CSI data package retrieved from IPFS: {combined_hash}")

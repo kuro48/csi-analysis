@@ -4,10 +4,11 @@ ZKP API エンドポイント
 CSI呼吸解析のZero-Knowledge Proof生成・検証API
 """
 
+import logging
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Optional
-import logging
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
@@ -18,8 +19,8 @@ from app.schemas.zkp import (
     ZKPVerifyRequest,
     ZKPVerifyResponse,
 )
-from app.services.zkp_service import ZKPService
 from app.services.breathing_analysis import BreathingAnalysisService
+from app.services.zkp_service import ZKPService
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +127,7 @@ async def verify_zkp_proof(
     logger.info("Verifying ZKP proof")
 
     try:
-        is_valid = await zkp_service.verify_proof(
-            proof=request.proof, public_signals=request.publicSignals
-        )
+        is_valid = await zkp_service.verify_proof(proof=request.proof, public_signals=request.publicSignals)
 
         return ZKPVerifyResponse(
             isValid=is_valid,
@@ -163,9 +162,7 @@ async def generate_batch_zkp_proofs(
     Returns:
         ZKP証明データのリスト
     """
-    logger.info(
-        f"Generating batch ZKP for {len(request.analysisIds)} analyses by user {current_user.id}"
-    )
+    logger.info(f"Generating batch ZKP for {len(request.analysisIds)} analyses by user {current_user.id}")
 
     results = []
     breathing_service = BreathingAnalysisService(db)
@@ -181,9 +178,7 @@ async def generate_batch_zkp_proofs(
 
             # 権限チェック
             if analysis_result.device.user_id != current_user.id:
-                logger.warning(
-                    f"User {current_user.id} doesn't have permission for analysis {analysis_id}, skipping"
-                )
+                logger.warning(f"User {current_user.id} doesn't have permission for analysis {analysis_id}, skipping")
                 continue
 
             # ZKP証明の生成

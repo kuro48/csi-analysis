@@ -5,15 +5,15 @@ CSI呼吸解析結果からZero-Knowledge Proofを生成するサービス
 """
 
 import asyncio
+import hashlib
 import json
+import logging
 import os
 import subprocess
 import tempfile
-import hashlib
 from datetime import datetime
-from typing import Dict, List, Optional, Any
 from pathlib import Path
-import logging
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -49,18 +49,12 @@ class ZKPService:
         zkey_file = self.keys_dir / "breathing_verifier.zkey"
 
         if not wasm_file.exists():
-            raise FileNotFoundError(
-                f"WASM file not found: {wasm_file}. Please run 'npm run compile' in zkp directory."
-            )
+            raise FileNotFoundError(f"WASM file not found: {wasm_file}. Please run 'npm run compile' in zkp directory.")
 
         if not zkey_file.exists():
-            raise FileNotFoundError(
-                f"zKey file not found: {zkey_file}. Please run 'npm run setup' in zkp directory."
-            )
+            raise FileNotFoundError(f"zKey file not found: {zkey_file}. Please run 'npm run setup' in zkp directory.")
 
-    def _calculate_poseidon_commitment(
-        self, csi_data: List[int], salt: int
-    ) -> str:
+    def _calculate_poseidon_commitment(self, csi_data: List[int], salt: int) -> str:
         """
         PoseidonハッシュによるCSIデータのコミットメント計算
 
@@ -78,7 +72,7 @@ class ZKPService:
         # 現在はSHA256でシミュレート
         data_str = ",".join(map(str, csi_data)) + f",{salt}"
         hash_obj = hashlib.sha256(data_str.encode())
-        return str(int.from_bytes(hash_obj.digest()[:8], byteorder='big'))
+        return str(int.from_bytes(hash_obj.digest()[:8], byteorder="big"))
 
     def _prepare_circuit_input(
         self,
@@ -106,7 +100,7 @@ class ZKPService:
         # CSIデータを64サンプルに調整（パディングまたは切り捨て）
         if len(csi_data) < 64:
             # 不足分をゼロパディング
-            padded_data = np.pad(csi_data, (0, 64 - len(csi_data)), mode='constant')
+            padded_data = np.pad(csi_data, (0, 64 - len(csi_data)), mode="constant")
         else:
             # 64サンプルに切り捨て
             padded_data = csi_data[:64]
@@ -116,7 +110,7 @@ class ZKPService:
 
         # ソルトの生成
         if salt is None:
-            salt = int.from_bytes(os.urandom(4), byteorder='big')
+            salt = int.from_bytes(os.urandom(4), byteorder="big")
 
         # コミットメント計算
         commitment = self._calculate_poseidon_commitment(csi_data_int, salt)
@@ -136,9 +130,7 @@ class ZKPService:
 
         return input_data
 
-    async def _run_node_script(
-        self, script_name: str, input_data: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+    async def _run_node_script(self, script_name: str, input_data: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Node.jsスクリプトの実行
 
@@ -233,9 +225,7 @@ class ZKPService:
 
             # 2. Witnessの計算
             logger.info("Calculating witness...")
-            wasm_file = (
-                self.build_dir / "breathing_verifier_js" / "breathing_verifier.wasm"
-            )
+            wasm_file = self.build_dir / "breathing_verifier_js" / "breathing_verifier.wasm"
             input_file = self.build_dir / "input.json"
             witness_file = self.build_dir / "witness.wtns"
 
@@ -315,9 +305,7 @@ class ZKPService:
             logger.error(f"ZKP generation failed: {e}")
             raise
 
-    async def verify_proof(
-        self, proof: Dict, public_signals: List[str]
-    ) -> bool:
+    async def verify_proof(self, proof: Dict, public_signals: List[str]) -> bool:
         """
         証明の検証
 
@@ -374,10 +362,7 @@ class ZKPService:
     # ========== コサイン類似度計算用ZKPメソッド ==========
 
     async def generate_cosine_similarity_proof(
-        self,
-        reference_vector: List[int],
-        candidate_vectors: List[List[int]],
-        scale: int = 10000
+        self, reference_vector: List[int], candidate_vectors: List[List[int]], scale: int = 10000
     ) -> Dict[str, Any]:
         """
         コサイン類似度のZKP証明を生成（本番環境用）
@@ -418,11 +403,7 @@ class ZKPService:
             logger.info(f"Generating cosine similarity ZKP for {len(candidate_vectors)} candidates")
 
             # 1. Witness生成用の入力データ準備
-            input_data = self._prepare_cosine_similarity_input(
-                reference_vector,
-                candidate_vectors,
-                scale
-            )
+            input_data = self._prepare_cosine_similarity_input(reference_vector, candidate_vectors, scale)
 
             # 2. Witness生成
             witness_file = await self._generate_cosine_similarity_witness(input_data)
@@ -439,12 +420,11 @@ class ZKPService:
                 "publicSignals": public_signals,
                 "bestIndex": best_index,
                 "bestSimilarity": best_similarity,
-                "normalizedSimilarity": best_similarity / scale
+                "normalizedSimilarity": best_similarity / scale,
             }
 
             logger.info(
-                f"Cosine similarity ZKP generated: "
-                f"bestIndex={best_index}, similarity={best_similarity/scale:.4f}"
+                f"Cosine similarity ZKP generated: " f"bestIndex={best_index}, similarity={best_similarity/scale:.4f}"
             )
 
             return result
@@ -453,11 +433,7 @@ class ZKPService:
             logger.error(f"Cosine similarity ZKP generation failed: {e}", exc_info=True)
             raise RuntimeError(f"Cosine similarity ZKP generation failed: {str(e)}")
 
-    async def verify_cosine_similarity_proof(
-        self,
-        proof: Dict[str, Any],
-        public_signals: List[int]
-    ) -> bool:
+    async def verify_cosine_similarity_proof(self, proof: Dict[str, Any], public_signals: List[int]) -> bool:
         """
         コサイン類似度ZKP証明を検証（本番環境用）
 
@@ -473,15 +449,16 @@ class ZKPService:
 
         try:
             import uuid
+
             unique_id = uuid.uuid4().hex[:8]
             temp_proof_file = self.build_dir / f"csi_proof_{unique_id}.json"
             temp_public_file = self.build_dir / f"csi_public_{unique_id}.json"
 
             # 証明ファイルを一時保存
-            with open(temp_proof_file, 'w') as f:
+            with open(temp_proof_file, "w") as f:
                 json.dump(proof, f)
 
-            with open(temp_public_file, 'w') as f:
+            with open(temp_public_file, "w") as f:
                 json.dump(public_signals, f)
 
             # snarkjs groth16 verify 実行
@@ -489,21 +466,20 @@ class ZKPService:
 
             if not verification_key.exists():
                 raise FileNotFoundError(
-                    f"Verification key not found: {verification_key}. "
-                    "Please run ZKP setup script first."
+                    f"Verification key not found: {verification_key}. " "Please run ZKP setup script first."
                 )
 
             verify_cmd = [
-                "snarkjs", "groth16", "verify",
+                "snarkjs",
+                "groth16",
+                "verify",
                 str(verification_key),
                 str(temp_public_file),
-                str(temp_proof_file)
+                str(temp_proof_file),
             ]
 
             process = await asyncio.create_subprocess_exec(
-                *verify_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *verify_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             stdout, stderr = await process.communicate()
@@ -529,10 +505,7 @@ class ZKPService:
                 temp_public_file.unlink()
 
     def _prepare_cosine_similarity_input(
-        self,
-        reference: List[int],
-        candidates: List[List[int]],
-        scale: int
+        self, reference: List[int], candidates: List[List[int]], scale: int
     ) -> Dict[str, Any]:
         """
         コサイン類似度Witness生成用の入力データを準備
@@ -545,10 +518,11 @@ class ZKPService:
         Returns:
             ZKP回路への入力データ
         """
+
         # ノルム計算
         def calculate_norm(vec: List[int]) -> int:
             sum_squares = sum(x**2 for x in vec)
-            return int(sum_squares ** 0.5)
+            return int(sum_squares**0.5)
 
         # 類似度計算
         def calculate_similarity(vec_a: List[int], vec_b: List[int]):
@@ -569,21 +543,11 @@ class ZKPService:
 
         for i, cand in enumerate(candidates):
             sim, _, cand_norm, dot_prod = calculate_similarity(reference, cand)
-            candidate_data.append({
-                "vector": cand,
-                "norm": cand_norm,
-                "similarity": sim,
-                "dotProduct": dot_prod
-            })
+            candidate_data.append({"vector": cand, "norm": cand_norm, "similarity": sim, "dotProduct": dot_prod})
 
         # 候補が1つの場合は2つ目をダミーで埋める（回路仕様に合わせる）
         while len(candidate_data) < 2:
-            candidate_data.append({
-                "vector": [0, 0, 0, 0],
-                "norm": 0,
-                "similarity": 0,
-                "dotProduct": 0
-            })
+            candidate_data.append({"vector": [0, 0, 0, 0], "norm": 0, "similarity": 0, "dotProduct": 0})
 
         # 入力データ構築
         input_data = {
@@ -592,14 +556,12 @@ class ZKPService:
             "candidates": [c["vector"] for c in candidate_data],
             "candNorms": [c["norm"] for c in candidate_data],
             "similarities": [c["similarity"] for c in candidate_data],
-            "dotProducts": [c["dotProduct"] for c in candidate_data]
+            "dotProducts": [c["dotProduct"] for c in candidate_data],
         }
 
         return input_data
 
-    async def _generate_cosine_similarity_witness(
-        self, input_data: Dict[str, Any]
-    ) -> Path:
+    async def _generate_cosine_similarity_witness(self, input_data: Dict[str, Any]) -> Path:
         """
         コサイン類似度用Witness生成
 
@@ -623,12 +585,10 @@ class ZKPService:
             )
 
         if not generate_witness_script.exists():
-            raise FileNotFoundError(
-                f"Witness generation script not found: {generate_witness_script}"
-            )
+            raise FileNotFoundError(f"Witness generation script not found: {generate_witness_script}")
 
         # 入力データ保存
-        with open(input_file, 'w') as f:
+        with open(input_file, "w") as f:
             json.dump(input_data, f, indent=2)
 
         # Witness生成実行
@@ -640,7 +600,7 @@ class ZKPService:
                 str(input_file),
                 str(witness_file),
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
 
             stdout, stderr = await process.communicate()
@@ -659,9 +619,7 @@ class ZKPService:
             logger.error(f"Witness generation error: {e}")
             raise
 
-    async def _generate_cosine_similarity_groth16_proof(
-        self, witness_file: Path
-    ):
+    async def _generate_cosine_similarity_groth16_proof(self, witness_file: Path):
         """
         コサイン類似度用ZKP証明生成
 
@@ -672,6 +630,7 @@ class ZKPService:
             (proof, public_signals)
         """
         import uuid
+
         unique_id = uuid.uuid4().hex[:8]
         proof_file = self.build_dir / f"csi_proof_{unique_id}.json"
         public_file = self.build_dir / f"csi_public_{unique_id}.json"
@@ -680,24 +639,23 @@ class ZKPService:
         # zkeyファイル存在確認
         if not zkey_file.exists():
             raise FileNotFoundError(
-                f"zkey file not found: {zkey_file}. "
-                "Please run ZKP setup script first: npm run setup:csi_selector"
+                f"zkey file not found: {zkey_file}. " "Please run ZKP setup script first: npm run setup:csi_selector"
             )
 
         try:
             # snarkjs groth16 prove 実行
             prove_cmd = [
-                "snarkjs", "groth16", "prove",
+                "snarkjs",
+                "groth16",
+                "prove",
                 str(zkey_file),
                 str(witness_file),
                 str(proof_file),
-                str(public_file)
+                str(public_file),
             ]
 
             process = await asyncio.create_subprocess_exec(
-                *prove_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *prove_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             stdout, stderr = await process.communicate()

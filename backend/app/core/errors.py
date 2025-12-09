@@ -4,13 +4,13 @@
 アプリケーション全体で一貫したエラー処理を提供
 """
 
+import uuid
 from enum import Enum
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
+import structlog
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
-import uuid
-import structlog
-
 
 logger = structlog.get_logger()
 
@@ -139,7 +139,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
             "message": exc.message,
             "request_id": exc.request_id,
             # 本番環境ではdetailsを返さない（セキュリティ対策）
-            **({ "details": exc.details } if request.app.state.config.DEBUG else {}),
+            **({"details": exc.details} if request.app.state.config.DEBUG else {}),
         },
     )
 

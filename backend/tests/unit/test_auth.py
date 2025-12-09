@@ -1,6 +1,7 @@
 """
 認証エンドポイントのテスト
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -46,10 +47,7 @@ class TestAuthLogin:
         client.post("/api/v2/auth/register", json=test_user_data)
 
         # ログイン
-        login_data = {
-            "username": test_user_data["username"],
-            "password": test_user_data["password"]
-        }
+        login_data = {"username": test_user_data["username"], "password": test_user_data["password"]}
         response = client.post("/api/v2/auth/login", data=login_data)
         assert response.status_code == 200
         data = response.json()
@@ -62,19 +60,13 @@ class TestAuthLogin:
         client.post("/api/v2/auth/register", json=test_user_data)
 
         # 間違ったパスワードでログイン
-        login_data = {
-            "username": test_user_data["username"],
-            "password": "wrongpassword"
-        }
+        login_data = {"username": test_user_data["username"], "password": "wrongpassword"}
         response = client.post("/api/v2/auth/login", data=login_data)
         assert response.status_code == 401
 
     def test_login_nonexistent_user(self, client: TestClient):
         """存在しないユーザーでのログインは失敗"""
-        login_data = {
-            "username": "nonexistent",
-            "password": "somepassword"
-        }
+        login_data = {"username": "nonexistent", "password": "somepassword"}
         response = client.post("/api/v2/auth/login", data=login_data)
         assert response.status_code == 401
 

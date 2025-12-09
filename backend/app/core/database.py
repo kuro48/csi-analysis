@@ -3,19 +3,17 @@
 """
 
 import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
 
 # 環境変数読み込み
 load_dotenv()
 
 # データベースURL構築
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://csi_user:csi_password@localhost:5432/csi_system"
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://csi_user:csi_password@localhost:5432/csi_system")
 
 # SQLAlchemy エンジン作成
 engine = create_engine(
@@ -23,7 +21,7 @@ engine = create_engine(
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,
-    echo=os.getenv("DEBUG", "false").lower() == "true"  # DEBUGモードでSQL表示
+    echo=os.getenv("DEBUG", "false").lower() == "true",  # DEBUGモードでSQL表示
 )
 
 # セッション作成
@@ -49,4 +47,5 @@ def init_db():
     データベース初期化（テーブル作成）
     """
     import app.models  # モデルをインポートしてテーブル作成
+
     Base.metadata.create_all(bind=engine)

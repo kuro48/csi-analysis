@@ -4,20 +4,26 @@
 
 import hashlib
 import json
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, desc, asc
-from typing import Optional, List, Tuple
-from datetime import datetime, timedelta, timezone
 import uuid
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional, Tuple
+
+from sqlalchemy import and_, asc, desc, func, or_
+from sqlalchemy.orm import Session
 
 from app.models.device import Device
 from app.models.user import User
 from app.schemas.device import (
-    DeviceCreate, DeviceUpdate, DeviceFilter, DeviceSort,
-    DevicePagination, DeviceStatus, DeviceHeartbeat
+    DeviceCreate,
+    DeviceFilter,
+    DeviceHeartbeat,
+    DevicePagination,
+    DeviceSort,
+    DeviceStatus,
+    DeviceUpdate,
 )
-from app.services.websocket import realtime_service
 from app.services.cache import DeviceCacheService
+from app.services.websocket import realtime_service
 
 
 class DeviceService:
@@ -39,7 +45,7 @@ class DeviceService:
             location=device_data.location,
             owner_id=owner_id,
             is_active=True,
-            last_seen=datetime.now(timezone.utc)
+            last_seen=datetime.now(timezone.utc),
         )
 
         db.add(db_device)
@@ -47,18 +53,21 @@ class DeviceService:
         db.refresh(db_device)
 
         # WebSocketで新規デバイス作成を通知
-        await realtime_service.broadcast_device_status_update(db_device.device_id, {
-            "type": "device_created",
-            "id": str(db_device.id),
-            "device_id": db_device.device_id,
-            "device_name": db_device.device_name,
-            "device_type": db_device.device_type,
-            "location": db_device.location,
-            "status": "offline",
-            "connection_status": "disconnected",
-            "last_seen": db_device.last_seen.isoformat() if db_device.last_seen else None,
-            "created_at": db_device.created_at.isoformat()
-        })
+        await realtime_service.broadcast_device_status_update(
+            db_device.device_id,
+            {
+                "type": "device_created",
+                "id": str(db_device.id),
+                "device_id": db_device.device_id,
+                "device_name": db_device.device_name,
+                "device_type": db_device.device_type,
+                "location": db_device.location,
+                "status": "offline",
+                "connection_status": "disconnected",
+                "last_seen": db_device.last_seen.isoformat() if db_device.last_seen else None,
+                "created_at": db_device.created_at.isoformat(),
+            },
+        )
 
         return db_device
 
@@ -90,24 +99,24 @@ class DeviceService:
         filters: DeviceFilter = None,
         sort: DeviceSort = None,
         pagination: DevicePagination = None,
-        cache_service: Optional[DeviceCacheService] = None
+        cache_service: Optional[DeviceCacheService] = None,
     ) -> Tuple[List[Device], int]:
         """デバイス一覧取得（キャッシュ対応）"""
 
         # キャッシュキー生成
         if cache_service and user_id:
             filter_dict = {
-                'user_id': str(user_id),
-                'filters': filters.dict() if filters else {},
-                'sort': sort.dict() if sort else {},
-                'pagination': pagination.dict() if pagination else {}
+                "user_id": str(user_id),
+                "filters": filters.dict() if filters else {},
+                "sort": sort.dict() if sort else {},
+                "pagination": pagination.dict() if pagination else {},
             }
             filters_hash = hashlib.md5(json.dumps(filter_dict, sort_keys=True).encode()).hexdigest()
 
             # キャッシュから取得を試行
             cached_data = cache_service.get_devices_list(str(user_id), filters_hash)
             if cached_data:
-                return cached_data['devices'], cached_data['total_count']
+                return cached_data["devices"], cached_data["total_count"]
 
         query = db.query(Device)
 
@@ -131,12 +140,7 @@ class DeviceService:
 
                 if filters.status == "online":
                     # インデックス活用：is_active, last_seen順でフィルタ
-                    query = query.filter(
-                        and_(
-                            Device.is_active == True,
-                            Device.last_seen > cutoff_time
-                        )
-                    )
+                    query = query.filter(and_(Device.is_active == True, Device.last_seen > cutoff_time))
                 elif filters.status == "offline":
                     # インデックス活用を考慮した最適化
                     query = query.filter(
@@ -144,11 +148,8 @@ class DeviceService:
                             Device.is_active == False,
                             and_(
                                 Device.is_active == True,
-                                or_(
-                                    Device.last_seen < cutoff_time,
-                                    Device.last_seen.is_(None)
-                                )
-                            )
+                                or_(Device.last_seen < cutoff_time, Device.last_seen.is_(None)),
+                            ),
                         )
                     )
 
@@ -163,7 +164,7 @@ class DeviceService:
                     or_(
                         Device.device_name.ilike(search_term),
                         Device.device_id.ilike(search_term),
-                        Device.location.ilike(search_term)
+                        Device.location.ilike(search_term),
                     )
                 )
 
@@ -187,23 +188,15 @@ class DeviceService:
                     now = datetime.now(timezone.utc)
                     cutoff_time = now - timedelta(minutes=5)
                     if filters.status == "online":
-                        count_query = count_query.filter(
-                            and_(
-                                Device.is_active == True,
-                                Device.last_seen > cutoff_time
-                            )
-                        )
+                        count_query = count_query.filter(and_(Device.is_active == True, Device.last_seen > cutoff_time))
                     elif filters.status == "offline":
                         count_query = count_query.filter(
                             or_(
                                 Device.is_active == False,
                                 and_(
                                     Device.is_active == True,
-                                    or_(
-                                        Device.last_seen < cutoff_time,
-                                        Device.last_seen.is_(None)
-                                    )
-                                )
+                                    or_(Device.last_seen < cutoff_time, Device.last_seen.is_(None)),
+                                ),
                             )
                         )
                 if filters.location:
@@ -214,7 +207,7 @@ class DeviceService:
                         or_(
                             Device.device_name.ilike(search_term),
                             Device.device_id.ilike(search_term),
-                            Device.location.ilike(search_term)
+                            Device.location.ilike(search_term),
                         )
                     )
 
@@ -254,18 +247,25 @@ class DeviceService:
         # キャッシュに保存
         if cache_service and user_id:
             cache_data = {
-                'devices': [device.dict() if hasattr(device, 'dict') else {
-                    'id': str(device.id),
-                    'device_id': device.device_id,
-                    'device_name': device.device_name,
-                    'device_type': device.device_type,
-                    'location': device.location,
-                    'is_active': device.is_active,
-                    'last_seen': device.last_seen.isoformat() if device.last_seen else None,
-                    'created_at': device.created_at.isoformat(),
-                    'updated_at': device.updated_at.isoformat()
-                } for device in devices],
-                'total_count': total_count
+                "devices": [
+                    (
+                        device.dict()
+                        if hasattr(device, "dict")
+                        else {
+                            "id": str(device.id),
+                            "device_id": device.device_id,
+                            "device_name": device.device_name,
+                            "device_type": device.device_type,
+                            "location": device.location,
+                            "is_active": device.is_active,
+                            "last_seen": device.last_seen.isoformat() if device.last_seen else None,
+                            "created_at": device.created_at.isoformat(),
+                            "updated_at": device.updated_at.isoformat(),
+                        }
+                    )
+                    for device in devices
+                ],
+                "total_count": total_count,
             }
             cache_service.set_devices_list(str(user_id), filters_hash, cache_data)
 
@@ -273,10 +273,7 @@ class DeviceService:
 
     @staticmethod
     async def update_device(
-        db: Session,
-        device_uuid: uuid.UUID,
-        device_update: DeviceUpdate,
-        user_id: uuid.UUID = None
+        db: Session, device_uuid: uuid.UUID, device_update: DeviceUpdate, user_id: uuid.UUID = None
     ) -> Optional[Device]:
         """デバイス更新"""
         # デバイス取得（所有者チェック含む）
@@ -295,18 +292,20 @@ class DeviceService:
 
         # WebSocketでデバイス更新を通知
         status = DeviceService.get_device_status(db, device.device_id)
-        await realtime_service.notify_device_updated({
-            "id": str(device.id),
-            "device_id": device.device_id,
-            "device_name": device.device_name,
-            "device_type": device.device_type,
-            "location": device.location,
-            "status": status.status if status else "offline",
-            "connection_status": status.connection_status if status else "disconnected",
-            "last_seen": device.last_seen.isoformat() if device.last_seen else None,
-            "is_active": device.is_active,
-            "updated_at": device.updated_at.isoformat()
-        })
+        await realtime_service.notify_device_updated(
+            {
+                "id": str(device.id),
+                "device_id": device.device_id,
+                "device_name": device.device_name,
+                "device_type": device.device_type,
+                "location": device.location,
+                "status": status.status if status else "offline",
+                "connection_status": status.connection_status if status else "disconnected",
+                "last_seen": device.last_seen.isoformat() if device.last_seen else None,
+                "is_active": device.is_active,
+                "updated_at": device.updated_at.isoformat(),
+            }
+        )
 
         return device
 
@@ -328,10 +327,7 @@ class DeviceService:
         return True
 
     @staticmethod
-    async def update_heartbeat(
-        db: Session,
-        heartbeat_data: DeviceHeartbeat
-    ) -> Optional[Device]:
+    async def update_heartbeat(db: Session, heartbeat_data: DeviceHeartbeat) -> Optional[Device]:
         """デバイスハートビート更新"""
         device = DeviceService.get_device(db, heartbeat_data.device_id)
         if not device:
@@ -350,7 +346,7 @@ class DeviceService:
             device.metadata = {
                 **(device.metadata or {}),
                 **heartbeat_data.metadata,
-                "last_heartbeat": device.last_seen.isoformat()
+                "last_heartbeat": device.last_seen.isoformat(),
             }
 
         db.commit()
@@ -369,24 +365,26 @@ class DeviceService:
                 "connection_status": current_status.connection_status if current_status else "disconnected",
                 "last_seen": device.last_seen.isoformat(),
                 "message": heartbeat_data.message,
-                "metadata": heartbeat_data.metadata
-            }
+                "metadata": heartbeat_data.metadata,
+            },
         )
 
         # 状態が変更された場合は状態変更通知
         if (not previous_status) or (current_status and previous_status.status != current_status.status):
-            await realtime_service.broadcast_device_status({
-                "id": str(device.id),
-                "device_id": device.device_id,
-                "device_name": device.device_name,
-                "device_type": device.device_type,
-                "location": device.location,
-                "status": current_status.status if current_status else "offline",
-                "connection_status": current_status.connection_status if current_status else "disconnected",
-                "last_seen": device.last_seen.isoformat(),
-                "is_active": device.is_active,
-                "previous_status": previous_status.status if previous_status else "offline"
-            })
+            await realtime_service.broadcast_device_status(
+                {
+                    "id": str(device.id),
+                    "device_id": device.device_id,
+                    "device_name": device.device_name,
+                    "device_type": device.device_type,
+                    "location": device.location,
+                    "status": current_status.status if current_status else "offline",
+                    "connection_status": current_status.connection_status if current_status else "disconnected",
+                    "last_seen": device.last_seen.isoformat(),
+                    "is_active": device.is_active,
+                    "previous_status": previous_status.status if previous_status else "offline",
+                }
+            )
 
         return device
 
@@ -424,7 +422,7 @@ class DeviceService:
             status=status,
             last_seen=device.last_seen,
             connection_status=connection_status,
-            last_heartbeat=device.last_seen
+            last_heartbeat=device.last_seen,
         )
 
     @staticmethod
@@ -474,7 +472,7 @@ class DeviceService:
             "by_type": by_type,
             "by_location": by_location,
             "last_updated": now.isoformat(),
-            "recent_activity": []  # 後で実装
+            "recent_activity": [],  # 後で実装
         }
 
         # WebSocketで統計情報をブロードキャスト

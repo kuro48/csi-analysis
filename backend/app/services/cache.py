@@ -3,12 +3,13 @@ Redisキャッシュサービス
 """
 
 import json
-import redis
-from typing import Any, Optional, Union, Dict, List
-from datetime import timedelta
 import logging
-import uuid
 import pickle
+import uuid
+from datetime import timedelta
+from typing import Any, Dict, List, Optional, Union
+
+import redis
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class CacheService:
         try:
             # JSON serializable な値は JSON で
             json.dumps(value, default=str)
-            return json.dumps(value, default=str).encode('utf-8')
+            return json.dumps(value, default=str).encode("utf-8")
         except (TypeError, ValueError):
             # JSON serializable でない値は pickle で
             return pickle.dumps(value)
@@ -40,7 +41,7 @@ class CacheService:
         """値をデシリアライズ"""
         try:
             # JSON として読み込めるかチェック
-            return json.loads(value.decode('utf-8'))
+            return json.loads(value.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             # pickle として読み込み
             return pickle.loads(value)
@@ -132,8 +133,8 @@ class DeviceCacheService(CacheService):
     def __init__(self, redis_client: redis.Redis):
         super().__init__(redis_client)
         self.device_ttl = 600  # 10分
-        self.stats_ttl = 300   # 5分
-        self.list_ttl = 180    # 3分
+        self.stats_ttl = 300  # 5分
+        self.list_ttl = 180  # 3分
 
     def get_device(self, device_id: str, user_id: str) -> Optional[Dict]:
         """デバイス情報をキャッシュから取得"""
@@ -152,11 +153,7 @@ class DeviceCacheService(CacheService):
 
     def invalidate_user_devices(self, user_id: str) -> int:
         """ユーザーのデバイス関連キャッシュを無効化"""
-        patterns = [
-            f"device:{user_id}:*",
-            f"devices_list:{user_id}:*",
-            f"device_stats:{user_id}:*"
-        ]
+        patterns = [f"device:{user_id}:*", f"devices_list:{user_id}:*", f"device_stats:{user_id}:*"]
 
         total_deleted = 0
         for pattern in patterns:
@@ -191,8 +188,8 @@ class AnalysisCacheService(CacheService):
     def __init__(self, redis_client: redis.Redis):
         super().__init__(redis_client)
         self.trends_ttl = 120  # 2分（リアルタイム性重視）
-        self.stats_ttl = 300   # 5分
-        self.analysis_ttl = 600 # 10分
+        self.stats_ttl = 300  # 5分
+        self.analysis_ttl = 600  # 10分
 
     def get_breathing_trends(self, device_id: str, user_id: str, hours: int) -> Optional[Dict]:
         """呼吸トレンドデータをキャッシュから取得"""
@@ -209,7 +206,7 @@ class AnalysisCacheService(CacheService):
         patterns = [
             f"breathing_trends:{user_id}:{device_id}:*",
             f"analysis_stats:{user_id}:{device_id}:*",
-            f"latest_analysis:{user_id}:{device_id}"
+            f"latest_analysis:{user_id}:{device_id}",
         ]
 
         total_deleted = 0
@@ -272,13 +269,16 @@ def get_cache_service(redis_client: redis.Redis) -> CacheService:
     """汎用キャッシュサービス取得"""
     return CacheService(redis_client)
 
+
 def get_device_cache(redis_client: redis.Redis) -> DeviceCacheService:
     """デバイスキャッシュサービス取得"""
     return DeviceCacheService(redis_client)
 
+
 def get_analysis_cache(redis_client: redis.Redis) -> AnalysisCacheService:
     """解析キャッシュサービス取得"""
     return AnalysisCacheService(redis_client)
+
 
 def get_session_cache(redis_client: redis.Redis) -> SessionCacheService:
     """セッションキャッシュサービス取得"""

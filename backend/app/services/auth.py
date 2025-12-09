@@ -2,14 +2,15 @@
 認証関連のサービス機能
 """
 
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
+from app.core.security import get_password_hash, verify_password
 from app.models.user import User
 from app.schemas.user import UserCreate
-from app.core.security import verify_password, get_password_hash
 
 
 class AuthService:
@@ -18,12 +19,7 @@ class AuthService:
     @staticmethod
     def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
         """ユーザー認証"""
-        user = db.query(User).filter(
-            and_(
-                User.username == username,
-                User.is_active == True
-            )
-        ).first()
+        user = db.query(User).filter(and_(User.username == username, User.is_active == True)).first()
 
         if not user:
             return None
@@ -44,7 +40,7 @@ class AuthService:
             email=user_create.email,
             password_hash=hashed_password,
             is_active=True,
-            is_superuser=False
+            is_superuser=False,
         )
 
         db.add(db_user)
