@@ -46,8 +46,6 @@ async def create_analysis_result(
             frequency_domain_data=analysis.frequency_domain_data,
             time_domain_data=analysis.time_domain_data,
             quality_metrics=analysis.quality_metrics,
-            ipfs_hash=analysis.ipfs_hash,
-            blockchain_tx_hash=analysis.blockchain_tx_hash,
             created_at=analysis.created_at,
             updated_at=analysis.updated_at
         )

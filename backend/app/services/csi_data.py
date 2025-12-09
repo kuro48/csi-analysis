@@ -49,12 +49,6 @@ class CSIDataService:
             with open(file_path, 'wb') as f:
                 f.write(file_data)
 
-            # IPFS/ブロックチェーン統合処理（現在無効化 - 再有効化する場合は csi_data_ipfs.py を参照）
-            ipfs_hash = None
-            blockchain_tx_hash = None
-            blockchain_status = None
-            blockchain_recorded_at = None
-
             # PCAPファイルの場合は解析処理を実行
             raw_data = None
             processed_data = None
@@ -80,10 +74,6 @@ class CSIDataService:
                 file_path=str(file_path),
                 file_size=len(file_data),
                 status="processed" if processed_data else "received",
-                ipfs_hash=ipfs_hash,
-                blockchain_tx_hash=blockchain_tx_hash,
-                blockchain_status=blockchain_status,
-                blockchain_recorded_at=blockchain_recorded_at
             )
 
             db.add(csi_data)
