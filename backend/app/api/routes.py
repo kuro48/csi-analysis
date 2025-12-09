@@ -34,18 +34,6 @@ api_router.include_router(
 )
 
 api_router.include_router(
-    websocket.router,
-    prefix="/ws",
-    tags=["websocket"]
-)
-
-# api_router.include_router(
-#     ipfs.router,
-#     prefix="/ipfs",
-#     tags=["ipfs"]
-# )
-
-api_router.include_router(
     tasks.router,
     prefix="/tasks",
     tags=["task-management"]

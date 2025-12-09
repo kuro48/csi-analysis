@@ -13,16 +13,11 @@ import json
 import logging
 
 from app.models.csi_data import CSIData, Session as DataSession
-from app.models.device import Device
 from app.schemas.csi_data import (
     CSIDataUpload, CSIDataResponse, CSIDataFilter,
     SessionCreate, SessionUpdate, ProcessingStatus
 )
-from app.services.websocket import realtime_service
-# from app.services.ipfs import ipfs_service  # IPFS機能は現在無効化
 from app.services.pcap_analyzer import pcap_analyzer
-from app.services.realtime_csi_analyzer import realtime_analyzer
-# from app.services.blockchain_service import blockchain_service  # ブロックチェーン機能は現在無効化
 
 logger = logging.getLogger(__name__)
 
@@ -33,24 +28,11 @@ class CSIDataService:
     @staticmethod
     async def upload_csi_data(
         db: Session,
-        # device_id: str,
         file_data: bytes,
         upload_info: CSIDataUpload,
         user_id: uuid.UUID
     ) -> CSIData:
         """CSIデータアップロード処理"""
-
-        # デバイスの存在確認と所有者チェック
-        # device = db.query(Device).filter(
-        #     and_(
-        #         Device.device_id == device_id,
-        #         Device.owner_id == user_id
-        #     )
-        # ).first()
-
-        # if not device:
-        #     device_id = ""
-        #     device.id = ""
 
         # ファイル保存処理
         upload_dir = Path("uploads") / "csi_data"  / datetime.now().strftime("%Y/%m/%d")
@@ -73,14 +55,6 @@ class CSIDataService:
             blockchain_status = None
             blockchain_recorded_at = None
 
-            # --- IPFS/ブロックチェーン処理をコメントアウト（将来の再利用のため保持） ---
-            # from app.services.csi_data_ipfs import upload_csi_data_to_ipfs_and_blockchain
-            # ipfs_hash, blockchain_tx_hash, blockchain_status, metadata_hash = \
-            #     await upload_csi_data_to_ipfs_and_blockchain(
-            #         device_id, file_data, upload_info, user_id
-            #     )
-            # --- ここまで ---
-
             # PCAPファイルの場合は解析処理を実行
             raw_data = None
             processed_data = None
@@ -92,16 +66,6 @@ class CSIDataService:
                     raw_data = analysis_result.get('csi_packets')
                     processed_data = analysis_result.get('time_series')
 
-                    # 解析成功の通知
-                    # await realtime_service.broadcast_device_status_update(
-                    #     device_id,
-                    #     {
-                    #         "type": "pcap_analysis_completed",
-                    #         "csi_data_id": None,  # まだ作成前
-                    #         "packets_found": len(raw_data) if raw_data else 0,
-                    #         "analysis_metadata": analysis_result.get('metadata')
-                    #     }
-                    # )
                     logger.info(f"PCAP analysis completed: {len(raw_data) if raw_data else 0} CSI packets found")
 
                 except Exception as e:
@@ -110,7 +74,6 @@ class CSIDataService:
 
             # データベースレコード作成
             csi_data = CSIData(
-                # device_id=device.id,
                 session_id=upload_info.session_id,
                 raw_data=raw_data if raw_data is None else json.dumps(raw_data) if not isinstance(raw_data, str) else raw_data,
                 processed_data=processed_data if processed_data is None else json.dumps(processed_data) if not isinstance(processed_data, str) else processed_data,
@@ -142,27 +105,7 @@ class CSIDataService:
             except Exception as e:
                 logger.warning(f"Failed to queue breathing analysis task: {e}")
 
-            # リアルタイムCSI解析を実行
-            try:
-                analysis_result = await realtime_analyzer.analyze_csi_data(device_id, file_data)
-                if analysis_result:
-                    logger.info(f"Real-time CSI analysis completed for device {device_id}")
-            except Exception as e:
-                logger.error(f"Real-time CSI analysis failed for device {device_id}: {e}")
-
-            # WebSocketでアップロード完了を通知
-            await realtime_service.broadcast_device_status_update(
-                device_id,
-                {
-                    "type": "csi_data_uploaded",
-                    "csi_data_id": str(csi_data.id),
-                    "file_name": upload_info.file_name,
-                    "file_size": len(file_data),
-                    "status": "received"
-                }
-            )
-
-            logger.info(f"CSI data uploaded successfully: {csi_data.id} for device {device_id}")
+            logger.info(f"CSI data uploaded successfully: {csi_data.id}")
             return csi_data
 
         except Exception as e:
@@ -170,54 +113,6 @@ class CSIDataService:
             if file_path.exists():
                 file_path.unlink()
             raise e
-
-    @staticmethod
-    def get_csi_data_list(
-        db: Session,
-        user_id: uuid.UUID,
-        filters: CSIDataFilter = None,
-        page: int = 1,
-        page_size: int = 20
-    ) -> Tuple[List[CSIData], int]:
-        """CSIデータ一覧取得"""
-
-        query = db.query(CSIData).join(Device).filter(Device.owner_id == user_id)
-
-        # フィルター適用
-        if filters:
-            if filters.device_id:
-                query = query.filter(Device.device_id == filters.device_id)
-            if filters.session_id:
-                query = query.filter(CSIData.session_id == filters.session_id)
-            if filters.status and filters.status != "all":
-                query = query.filter(CSIData.status == filters.status)
-            if filters.start_date:
-                query = query.filter(CSIData.created_at >= filters.start_date)
-            if filters.end_date:
-                query = query.filter(CSIData.created_at <= filters.end_date)
-
-        # 総件数取得
-        total_count = query.count()
-
-        # ページネーション適用
-        offset = (page - 1) * page_size
-        csi_data_list = query.order_by(desc(CSIData.created_at)).offset(offset).limit(page_size).all()
-
-        return csi_data_list, total_count
-
-    @staticmethod
-    def get_csi_data_by_id(
-        db: Session,
-        csi_data_id: uuid.UUID,
-        user_id: uuid.UUID
-    ) -> Optional[CSIData]:
-        """特定CSIデータ取得"""
-        return db.query(CSIData).join(Device).filter(
-            and_(
-                CSIData.id == csi_data_id,
-                Device.owner_id == user_id
-            )
-        ).first()
 
     @staticmethod
     async def update_processing_status(
@@ -238,19 +133,6 @@ class CSIDataService:
 
         db.commit()
         db.refresh(csi_data)
-
-        # WebSocketで状態更新を通知
-        device = db.query(Device).filter(Device.id == csi_data.device_id).first()
-        if device:
-            await realtime_service.broadcast_device_status_update(
-                device.device_id,
-                {
-                    "type": "csi_data_processing_update",
-                    "csi_data_id": str(csi_data.id),
-                    "status": status,
-                    "error_message": error_message
-                }
-            )
 
         return csi_data
 
@@ -283,66 +165,6 @@ class CSIDataService:
         db.delete(csi_data)
         db.commit()
         return True
-
-    @staticmethod
-    def get_device_csi_stats(
-        db: Session,
-        device_id: str,
-        user_id: uuid.UUID,
-        days: int = 7
-    ) -> Dict[str, Any]:
-        """デバイスのCSI統計情報取得"""
-        device = db.query(Device).filter(
-            and_(
-                Device.device_id == device_id,
-                Device.owner_id == user_id
-            )
-        ).first()
-
-        if not device:
-            return {}
-
-        # 期間指定
-        start_date = datetime.utcnow() - timedelta(days=days)
-
-        # 基本統計
-        total_data = db.query(CSIData).filter(
-            and_(
-                CSIData.device_id == device.id,
-                CSIData.created_at >= start_date
-            )
-        ).count()
-
-        status_stats = db.query(
-            CSIData.status,
-            func.count(CSIData.id).label('count')
-        ).filter(
-            and_(
-                CSIData.device_id == device.id,
-                CSIData.created_at >= start_date
-            )
-        ).group_by(CSIData.status).all()
-
-        # セッション統計
-        total_sessions = db.query(DataSession).filter(
-            and_(
-                DataSession.device_id == device.id,
-                DataSession.created_at >= start_date
-            )
-        ).count()
-
-        return {
-            "device_id": device_id,
-            "period_days": days,
-            "total_csi_data": total_data,
-            "total_sessions": total_sessions,
-            "status_breakdown": {stat.status: stat.count for stat in status_stats},
-            "last_upload": db.query(func.max(CSIData.created_at)).filter(
-                CSIData.device_id == device.id
-            ).scalar()
-        }
-
-
 class SessionService:
     """データ収集セッション管理サービス"""
 
@@ -353,19 +175,8 @@ class SessionService:
         user_id: uuid.UUID
     ) -> DataSession:
         """セッション作成"""
-        # デバイス存在確認
-        device = db.query(Device).filter(
-            and_(
-                Device.device_id == session_data.device_id,
-                Device.owner_id == user_id
-            )
-        ).first()
-
-        if not device:
-            raise ValueError(f"デバイス '{session_data.device_id}' が見つかりません")
 
         session = DataSession(
-            device_id=device.id,
             session_name=session_data.session_name,
             start_time=session_data.start_time,
             status="active",
@@ -376,16 +187,6 @@ class SessionService:
         db.commit()
         db.refresh(session)
 
-        # WebSocketで新セッション開始を通知
-        await realtime_service.broadcast_device_status_update(
-            session_data.device_id,
-            {
-                "type": "session_started",
-                "session_id": str(session.id),
-                "session_name": session.session_name,
-                "start_time": session.start_time.isoformat()
-            }
-        )
 
         return session
 
@@ -396,10 +197,9 @@ class SessionService:
         user_id: uuid.UUID
     ) -> Optional[DataSession]:
         """セッション終了"""
-        session = db.query(DataSession).join(Device).filter(
+        session = db.query(DataSession).filter(
             and_(
                 DataSession.id == session_id,
-                Device.owner_id == user_id
             )
         ).first()
 
@@ -416,32 +216,4 @@ class SessionService:
         db.commit()
         db.refresh(session)
 
-        # WebSocketでセッション終了を通知
-        device = db.query(Device).filter(Device.id == session.device_id).first()
-        if device:
-            await realtime_service.broadcast_device_status_update(
-                device.device_id,
-                {
-                    "type": "session_ended",
-                    "session_id": str(session.id),
-                    "duration": session.duration,
-                    "end_time": end_time.isoformat()
-                }
-            )
-
         return session
-
-    @staticmethod
-    def get_device_sessions(
-        db: Session,
-        device_id: str,
-        user_id: uuid.UUID,
-        limit: int = 10
-    ) -> List[DataSession]:
-        """デバイスのセッション一覧取得"""
-        return db.query(DataSession).join(Device).filter(
-            and_(
-                Device.device_id == device_id,
-                Device.owner_id == user_id
-            )
-        ).order_by(desc(DataSession.created_at)).limit(limit).all()

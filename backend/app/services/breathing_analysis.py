@@ -15,7 +15,6 @@ from app.schemas.csi_data import (
     BreathingAnalysisResult, BreathingAnalysisResponse,
     BreathingAnalysisFilter, BreathingAnalysisStats,
 )
-from app.services.websocket import RealtimeDataService
 from app.services.cache import AnalysisCacheService
 
 logger = logging.getLogger(__name__)
@@ -89,17 +88,6 @@ class BreathingAnalysisService:
         db.commit()
         db.refresh(breathing_analysis)
 
-        # WebSocketでリアルタイム解析結果を配信
-        await RealtimeDataService.send_breathing_analysis_update(
-            {
-                "analysis_id": str(breathing_analysis.id),
-                "breathing_rate": breathing_analysis.breathing_rate,
-                "confidence_score": breathing_analysis.confidence_score,
-                "analysis_timestamp": breathing_analysis.analysis_timestamp.isoformat(),
-                "quality_metrics": breathing_analysis.quality_metrics
-            }
-        )
-
         # ZKP証明の自動生成（オプション）
         if generate_zkp:
             try:
@@ -170,12 +158,10 @@ class BreathingAnalysisService:
     ) -> Tuple[List[BreathingAnalysis], int]:
         """呼吸解析結果一覧取得"""
 
-        query = db.query(BreathingAnalysis).join(Device).filter(Device.owner_id == user_id)
+        query = db.query(BreathingAnalysis)
 
         # フィルター適用
         if filters:
-            if filters.device_id:
-                query = query.filter(Device.device_id == filters.device_id)
             if filters.start_date:
                 query = query.filter(BreathingAnalysis.analysis_timestamp >= filters.start_date)
             if filters.end_date:
@@ -191,170 +177,3 @@ class BreathingAnalysisService:
         analyses = query.order_by(desc(BreathingAnalysis.analysis_timestamp)).offset(offset).limit(page_size).all()
 
         return analyses, total_count
-
-    @staticmethod
-    def get_latest_analysis(
-        db: Session,
-        device_id: str,
-        user_id: uuid.UUID
-    ) -> Optional[BreathingAnalysis]:
-        """最新の呼吸解析結果取得"""
-        return db.query(BreathingAnalysis).join(Device).filter(
-            and_(
-                Device.device_id == device_id,
-                Device.owner_id == user_id
-            )
-        ).order_by(desc(BreathingAnalysis.analysis_timestamp)).first()
-
-    @staticmethod
-    def get_device_analysis_stats(
-        db: Session,
-        device_id: str,
-        user_id: uuid.UUID,
-        days: int = 7
-    ) -> BreathingAnalysisStats:
-        """デバイスの呼吸解析統計情報取得（最適化版）"""
-
-        device = db.query(Device).filter(
-            and_(
-                Device.device_id == device_id,
-                Device.owner_id == user_id
-            )
-        ).first()
-
-        if not device:
-            raise ValueError("デバイスが見つかりません")
-
-        # 期間指定
-        start_date = datetime.utcnow() - timedelta(days=days)
-
-        # 統計計算（SQL集約関数活用で効率化）
-        stats_query = db.query(
-            func.count(BreathingAnalysis.id).label('total_analyses'),
-            func.avg(BreathingAnalysis.breathing_rate).label('avg_breathing_rate'),
-            func.avg(BreathingAnalysis.confidence_score).label('avg_confidence_score'),
-            func.min(BreathingAnalysis.analysis_timestamp).label('period_start'),
-            func.max(BreathingAnalysis.analysis_timestamp).label('period_end')
-        ).filter(
-            and_(
-                BreathingAnalysis.device_id == device.id,
-                BreathingAnalysis.analysis_timestamp >= start_date
-            )
-        ).first()
-
-        if not stats_query or stats_query.total_analyses == 0:
-            return BreathingAnalysisStats(
-                device_id=device_id,
-                total_analyses=0,
-                avg_breathing_rate=None,
-                avg_confidence_score=None,
-                latest_analysis=None,
-                analysis_period_start=None,
-                analysis_period_end=None
-            )
-
-        # 最新解析日時（別途取得）
-        latest_analysis = db.query(func.max(BreathingAnalysis.analysis_timestamp)).filter(
-            and_(
-                BreathingAnalysis.device_id == device.id,
-                BreathingAnalysis.analysis_timestamp >= start_date
-            )
-        ).scalar()
-
-        return BreathingAnalysisStats(
-            device_id=device_id,
-            total_analyses=int(stats_query.total_analyses),
-            avg_breathing_rate=float(stats_query.avg_breathing_rate) if stats_query.avg_breathing_rate else None,
-            avg_confidence_score=float(stats_query.avg_confidence_score) if stats_query.avg_confidence_score else None,
-            latest_analysis=latest_analysis,
-            analysis_period_start=stats_query.period_start,
-            analysis_period_end=stats_query.period_end
-        )
-
-    @staticmethod
-    def get_breathing_trends(
-        db: Session,
-        device_id: str,
-        user_id: uuid.UUID,
-        hours: int = 24,
-        cache_service: Optional[AnalysisCacheService] = None
-    ) -> Dict[str, Any]:
-        """呼吸トレンドデータ取得（最適化版・キャッシュ対応）"""
-
-        # キャッシュから取得を試行
-        if cache_service:
-            cached_data = cache_service.get_breathing_trends(device_id, str(user_id), hours)
-            if cached_data:
-                return cached_data
-
-        # デバイス検索の最適化：device_idインデックス活用
-        device = db.query(Device).filter(
-            and_(
-                Device.device_id == device_id,
-                Device.owner_id == user_id
-            )
-        ).first()
-
-        if not device:
-            raise ValueError("デバイスが見つかりません")
-
-        # 時間範囲
-        start_time = datetime.utcnow() - timedelta(hours=hours)
-
-        # クエリ最適化：必要カラムのみ取得し、インデックスを効果的に活用
-        # device_idとanalysis_timestampの複合インデックスを活用
-        analyses = db.query(
-            BreathingAnalysis.analysis_timestamp,
-            BreathingAnalysis.breathing_rate,
-            BreathingAnalysis.confidence_score
-        ).filter(
-            and_(
-                BreathingAnalysis.device_id == device.id,
-                BreathingAnalysis.analysis_timestamp >= start_time
-            )
-        ).order_by(BreathingAnalysis.analysis_timestamp).all()
-
-        # チャート用データ構築
-        breathing_rate_data = []
-        confidence_data = []
-        timestamps = []
-
-        for analysis in analyses:
-            timestamp_str = analysis.analysis_timestamp.isoformat()
-            timestamps.append(timestamp_str)
-
-            breathing_rate_data.append({
-                "timestamp": timestamp_str,
-                "value": analysis.breathing_rate
-            })
-
-            confidence_data.append({
-                "timestamp": timestamp_str,
-                "value": analysis.confidence_score
-            })
-
-        result = {
-            "device_id": device_id,
-            "period_hours": hours,
-            "data_points": len(analyses),
-            "timestamps": timestamps,
-            "breathing_rate": breathing_rate_data,
-            "confidence": confidence_data,
-            "summary": {
-                "avg_breathing_rate": sum(
-                    [a.breathing_rate for a in analyses if a.breathing_rate]
-                ) / len([a.breathing_rate for a in analyses if a.breathing_rate]) if analyses else None,
-                "min_breathing_rate": min(
-                    [a.breathing_rate for a in analyses if a.breathing_rate]
-                ) if analyses else None,
-                "max_breathing_rate": max(
-                    [a.breathing_rate for a in analyses if a.breathing_rate]
-                ) if analyses else None
-            }
-        }
-
-        # キャッシュに保存
-        if cache_service:
-            cache_service.set_breathing_trends(device_id, str(user_id), hours, result)
-
-        return result
