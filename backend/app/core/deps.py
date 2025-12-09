@@ -34,8 +34,6 @@ def get_redis_client() -> redis.Redis:
                 db=settings.REDIS_DB,
                 password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
                 decode_responses=False,  # バイナリデータ対応のため
-                socket_connect_timeout=5,
-                socket_timeout=5,
                 retry_on_timeout=True
             )
 

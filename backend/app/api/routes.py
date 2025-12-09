@@ -3,7 +3,7 @@ APIルーター統合モジュール
 """
 
 from fastapi import APIRouter
-from app.api.endpoints import health, auth, csi_data, breathing_analysis, websocket, tasks
+from app.api.endpoints import health, auth, csi_data, breathing_analysis, tasks
 from app.api.v2 import zkp
 
 api_router = APIRouter()
