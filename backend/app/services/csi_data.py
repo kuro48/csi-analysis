@@ -33,7 +33,7 @@ class CSIDataService:
     @staticmethod
     async def upload_csi_data(
         db: Session,
-        device_id: str,
+        # device_id: str,
         file_data: bytes,
         upload_info: CSIDataUpload,
         user_id: uuid.UUID
@@ -41,19 +41,19 @@ class CSIDataService:
         """CSIデータアップロード処理"""
 
         # デバイスの存在確認と所有者チェック
-        device = db.query(Device).filter(
-            and_(
-                Device.device_id == device_id,
-                Device.owner_id == user_id
-            )
-        ).first()
+        # device = db.query(Device).filter(
+        #     and_(
+        #         Device.device_id == device_id,
+        #         Device.owner_id == user_id
+        #     )
+        # ).first()
 
-        if not device:
-            device_id = ""
-            device.id = ""
+        # if not device:
+        #     device_id = ""
+        #     device.id = ""
 
         # ファイル保存処理
-        upload_dir = Path("uploads") / "csi_data" / device_id / datetime.now().strftime("%Y/%m/%d")
+        upload_dir = Path("uploads") / "csi_data"  / datetime.now().strftime("%Y/%m/%d")
         upload_dir.mkdir(parents=True, exist_ok=True)
 
         # ユニークなファイル名生成
@@ -93,15 +93,15 @@ class CSIDataService:
                     processed_data = analysis_result.get('time_series')
 
                     # 解析成功の通知
-                    await realtime_service.broadcast_device_status_update(
-                        device_id,
-                        {
-                            "type": "pcap_analysis_completed",
-                            "csi_data_id": None,  # まだ作成前
-                            "packets_found": len(raw_data) if raw_data else 0,
-                            "analysis_metadata": analysis_result.get('metadata')
-                        }
-                    )
+                    # await realtime_service.broadcast_device_status_update(
+                    #     device_id,
+                    #     {
+                    #         "type": "pcap_analysis_completed",
+                    #         "csi_data_id": None,  # まだ作成前
+                    #         "packets_found": len(raw_data) if raw_data else 0,
+                    #         "analysis_metadata": analysis_result.get('metadata')
+                    #     }
+                    # )
                     logger.info(f"PCAP analysis completed: {len(raw_data) if raw_data else 0} CSI packets found")
 
                 except Exception as e:
