@@ -49,7 +49,8 @@ class CSIDataService:
         ).first()
 
         if not device:
-            raise ValueError(f"デバイス '{device_id}' が見つからないか、アクセス権限がありません")
+            device_id = ""
+            device.id = ""
 
         # ファイル保存処理
         upload_dir = Path("uploads") / "csi_data" / device_id / datetime.now().strftime("%Y/%m/%d")

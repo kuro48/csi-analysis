@@ -57,7 +57,7 @@ async def upload_csi_data(
         )
 
         # デバイスの存在確認（オプション）
-        device = db.query(Device).filter(Device.device_id == device_id).first()
+        # device = db.query(Device).filter(Device.device_id == device_id).first()
 
         # CSIデータアップロード
         csi_data = await CSIDataService.upload_csi_data(
