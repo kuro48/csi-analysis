@@ -69,43 +69,6 @@ class Settings:
         "http://127.0.0.1:3000",
     ]
 
-
-    # Blockchain設定（拡張版）
-    BLOCKCHAIN_ENABLED: bool = os.getenv("BLOCKCHAIN_ENABLED", "true").lower() == "true"
-    BLOCKCHAIN_NODE_HOST: str = os.getenv("BLOCKCHAIN_NODE_HOST", "ganache")
-    BLOCKCHAIN_NODE_PORT: int = int(os.getenv("BLOCKCHAIN_NODE_PORT", "8545"))
-    ETHEREUM_RPC_URL: str = os.getenv(
-        "ETHEREUM_RPC_URL",
-        "http://ganache:8545"  # Docker環境用
-    )
-
-    # スマートコントラクト設定
-    CONTRACT_ADDRESS: str = os.getenv(
-        "CONTRACT_ADDRESS",
-        "0x0000000000000000000000000000000000000000"  # デプロイ後に更新
-    )
-    CONTRACT_ABI_PATH: str = os.getenv(
-        "CONTRACT_ABI_PATH",
-        "/app/contracts/build/CSIDataRegistry.json"
-    )
-
-    # アカウント設定（注意: 本番環境では環境変数から読み込む）
-    BLOCKCHAIN_ACCOUNT_ADDRESS: str = os.getenv(
-        "BLOCKCHAIN_ACCOUNT_ADDRESS",
-        "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"  # Ganache default account
-    )
-    BLOCKCHAIN_PRIVATE_KEY: str = os.getenv(
-        "BLOCKCHAIN_PRIVATE_KEY",
-        ""  # 空の場合はGanacheのunlocked accountを使用
-    )
-
-    # ガス設定
-    GAS_LIMIT: int = int(os.getenv("GAS_LIMIT", "3000000"))
-    GAS_PRICE: int = int(os.getenv("GAS_PRICE", "20000000000"))  # 20 Gwei
-
-    # トランザクションタイムアウト
-    TX_TIMEOUT: int = int(os.getenv("TX_TIMEOUT", "120"))  # 秒
-
     # セキュリティ・レート制限設定
     RATE_LIMIT_LOGIN: str = os.getenv("RATE_LIMIT_LOGIN", "5/minute")
     RATE_LIMIT_API: str = os.getenv("RATE_LIMIT_API", "100/minute")

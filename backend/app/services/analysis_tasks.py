@@ -13,7 +13,6 @@ from app.services.task_queue import task_queue, TaskPriority
 from app.core.database import SessionLocal
 from app.models.csi_data import CSIData
 from app.models.breathing_analysis import BreathingAnalysis
-from app.services.ipfs import ipfs_service
 
 logger = logging.getLogger(__name__)
 
@@ -45,16 +44,10 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
 
             # ファイルデータ読み込み（ローカルまたはIPFS）
             file_data = None
-            if csi_data.ipfs_hash:
-                # IPFSから取得
-                package = await ipfs_service.retrieve_csi_data_package(csi_data.ipfs_hash)
-                file_data = package["file_data"]
-                metadata = package["metadata"]
-            else:
-                # ローカルファイルから取得
-                with open(csi_data.file_path, 'rb') as f:
-                    file_data = f.read()
-                metadata = {}
+            # ローカルファイルから取得
+            with open(csi_data.file_path, 'rb') as f:
+                file_data = f.read()
+            metadata = {}
 
             # 呼吸解析実行（模擬実装）
             analysis_result = await perform_breathing_analysis(file_data, analysis_params)
@@ -79,32 +72,12 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
             db.commit()
             db.refresh(breathing_analysis)
 
-            # 解析結果をIPFSにも保存
-            ipfs_hash = None
-            try:
-                ipfs_result = await ipfs_service.upload_json({
-                    "analysis_id": str(breathing_analysis.id),
-                    "csi_data_id": csi_data_id,
-                    "analysis_result": analysis_result,
-                    "created_at": datetime.utcnow().isoformat()
-                })
-                ipfs_hash = ipfs_result
-                await ipfs_service.pin_file(ipfs_hash)
-
-                # IPFS情報をデータベースに更新
-                breathing_analysis.ipfs_hash = ipfs_hash
-                db.commit()
-
-            except Exception as e:
-                logger.warning(f"Failed to save analysis result to IPFS: {e}")
-
             logger.info(f"Breathing analysis completed: {breathing_analysis.id}")
 
             return {
                 "analysis_id": str(breathing_analysis.id),
                 "breathing_rate": analysis_result["breathing_rate"],
                 "confidence_score": analysis_result["confidence_score"],
-                "ipfs_hash": ipfs_hash,
                 "processing_time": analysis_result["processing_time"],
                 "status": "completed"
             }

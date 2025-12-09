@@ -15,7 +15,6 @@ from app.schemas.csi_data import (
     BreathingAnalysisResult, BreathingAnalysisResponse,
     BreathingAnalysisFilter, BreathingAnalysisStats,
 )
-from app.services.cache import AnalysisCacheService
 
 logger = logging.getLogger(__name__)
 
