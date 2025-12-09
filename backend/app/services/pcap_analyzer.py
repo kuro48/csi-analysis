@@ -43,8 +43,8 @@ class PCAPAnalyzer:
             解析結果辞書
         """
 
-        my_reader = get_reader("path/to/file.pcap")
-        csi_data = my_reader.read_file("path/to/file.pcap", scaled=True)
+        my_reader = get_reader(file_path)
+        csi_data = my_reader.read_file(file_path, scaled=True)
         si_matrix, no_frames, no_subcarriers = csitools.get_CSI(csi_data)
         print(si_matrix)
         print(no_frames)
