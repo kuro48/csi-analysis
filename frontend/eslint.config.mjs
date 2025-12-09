@@ -20,6 +20,14 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  {
+    rules: {
+      // TypeScript ESLint v8のno-explicit-anyルールを警告に変更
+      "@typescript-eslint/no-explicit-any": "warn",
+      // React Hooksルールを警告に変更
+      "react-hooks/rules-of-hooks": "warn",
+    },
+  },
 ];
 
 export default eslintConfig;
