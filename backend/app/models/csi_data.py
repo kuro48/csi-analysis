@@ -64,11 +64,11 @@ class CSIData(BaseModel):
     )
 
     # リレーション
-    device = relationship("Device", back_populates="csi_data")
+    # device = relationship("Device", back_populates="csi_data")
     breathing_analyses = relationship("BreathingAnalysis", back_populates="csi_data", cascade="all, delete-orphan")
 
-    def __repr__(self):
-        return f"<CSIData(id={self.id}, device_id={self.device_id}, status='{self.status}')>"
+    # def __repr__(self):
+    #     return f"<CSIData(id={self.id}, device_id={self.device_id}, status='{self.status}')>"
 
 
 class Session(BaseModel):

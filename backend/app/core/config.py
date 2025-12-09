@@ -69,10 +69,6 @@ class Settings:
         "http://127.0.0.1:3000",
     ]
 
-    # IPFS設定（既存システム連携用）
-    IPFS_HOST: str = os.getenv("IPFS_HOST", "localhost")
-    IPFS_PORT: int = int(os.getenv("IPFS_PORT", "5001"))
-    IPFS_GATEWAY_PORT: int = int(os.getenv("IPFS_GATEWAY_PORT", "8080"))
 
     # Blockchain設定（拡張版）
     BLOCKCHAIN_ENABLED: bool = os.getenv("BLOCKCHAIN_ENABLED", "true").lower() == "true"

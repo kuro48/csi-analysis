@@ -2,7 +2,7 @@
 呼吸解析結果モデル
 """
 
-from sqlalchemy import Column, String, Boolean, Numeric, DateTime, ForeignKey, Text, Index
+from sqlalchemy import Column, String, Boolean, Numeric, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from app.models.base import BaseModel
@@ -59,46 +59,3 @@ class BreathingAnalysis(BaseModel):
 
     # def __repr__(self):
     #     return f"<BreathingAnalysis(id={self.id}, device_id={self.device_id}, rate={self.breathing_rate})>"
-
-
-# class Alert(BaseModel):
-#     """アラート/通知テーブル"""
-#     __tablename__ = "alerts"
-
-#     # デバイス関連
-#     device_id = Column(
-#         BaseModel.id.type,
-#         ForeignKey("devices.id", ondelete="CASCADE"),
-#         nullable=False,
-#         index=True
-#     )
-
-#     # アラート情報
-#     alert_type = Column(String(100), nullable=False, index=True)  # breathing_anomaly, device_offline, etc.
-#     severity = Column(String(50), default="medium", nullable=False, index=True)  # 重要度検索用
-#     message = Column(Text, nullable=True)
-
-#     # 確認状態
-#     is_acknowledged = Column(Boolean, default=False, nullable=False, index=True)  # 未確認アラート検索用
-#     acknowledged_by = Column(
-#         BaseModel.id.type,
-#         ForeignKey("users.id", ondelete="SET NULL"),
-#         nullable=True,
-#         index=True  # 確認者検索用
-#     )
-#     acknowledged_at = Column(DateTime(timezone=True), nullable=True, index=True)  # 確認日時検索用
-
-#     # 複合インデックス - アラート固有のクエリパターン用
-#     __table_args__ = (
-#         Index('idx_alert_device_created', 'device_id', 'created_at'),  # デバイス別時系列検索用
-#         Index('idx_alert_type_severity', 'alert_type', 'severity'),  # タイプ・重要度検索用
-#         Index('idx_alert_acknowledged_created', 'is_acknowledged', 'created_at'),  # 未確認アラート検索用
-#         Index('idx_alert_severity_created', 'severity', 'created_at'),  # 重要度別時系列検索用
-#     )
-
-#     # リレーション
-#     device = relationship("Device", back_populates="alerts")
-#     acknowledged_user = relationship("User")
-
-#     def __repr__(self):
-#         return f"<Alert(id={self.id}, type='{self.alert_type}', severity='{self.severity}')>"
