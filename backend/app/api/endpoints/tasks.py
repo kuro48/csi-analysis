@@ -53,9 +53,7 @@ async def queue_breathing_analysis(
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"タスクのキューへの追加に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"タスクのキューへの追加に失敗しました: {str(e)}")
 
 
 @router.post("/analysis/batch")
@@ -73,9 +71,7 @@ async def queue_batch_analysis(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CSIデータIDリストが空です")
 
         if len(csi_data_ids) > 100:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="一度に処理できるCSIデータは100件までです"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="一度に処理できるCSIデータは100件までです")
 
         # 優先度の変換
         priority_map = {
@@ -137,9 +133,7 @@ async def get_task_status(task_id: str, current_user: User = Depends(get_current
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"タスクステータス取得に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"タスクステータス取得に失敗しました: {str(e)}")
 
 
 @router.get("/queue/stats")
@@ -157,9 +151,7 @@ async def get_queue_stats(current_user: User = Depends(get_current_user)):
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"キュー統計情報取得に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"キュー統計情報取得に失敗しました: {str(e)}")
 
 
 @router.post("/maintenance")
@@ -176,9 +168,7 @@ async def queue_maintenance_task(
     try:
         valid_types = ["cleanup_old_files", "ipfs_gc", "database_optimize", "general"]
         if maintenance_type not in valid_types:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=f"無効なメンテナンス種別です。有効な値: {valid_types}"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"無効なメンテナンス種別です。有効な値: {valid_types}")
 
         # メンテナンスタスクをキューに追加
         task_id = await task_queue.enqueue_task(
@@ -220,9 +210,7 @@ async def start_workers(
             return {"message": "ワーカーは既に実行中です", "active_workers": len(task_queue.worker_tasks)}
 
         if num_workers < 1 or num_workers > 10:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="ワーカー数は1-10の範囲で指定してください"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ワーカー数は1-10の範囲で指定してください")
 
         # タスクハンドラー登録
         register_task_handlers()
@@ -239,9 +227,7 @@ async def start_workers(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"ワーカー開始に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"ワーカー開始に失敗しました: {str(e)}")
 
 
 @router.post("/workers/stop")
@@ -263,6 +249,4 @@ async def stop_workers(current_user: User = Depends(get_current_user)):
         return {"message": "全ワーカーを停止しました", "active_workers": 0, "status": "stopped"}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"ワーカー停止に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"ワーカー停止に失敗しました: {str(e)}")

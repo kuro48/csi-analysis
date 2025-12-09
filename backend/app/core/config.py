@@ -78,9 +78,7 @@ class Settings:
     ETHEREUM_RPC_URL: str = os.getenv("ETHEREUM_RPC_URL", "http://ganache:8545")  # Docker環境用
 
     # スマートコントラクト設定
-    CONTRACT_ADDRESS: str = os.getenv(
-        "CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000"  # デプロイ後に更新
-    )
+    CONTRACT_ADDRESS: str = os.getenv("CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000")  # デプロイ後に更新
     CONTRACT_ABI_PATH: str = os.getenv("CONTRACT_ABI_PATH", "/app/contracts/build/CSIDataRegistry.json")
 
     # アカウント設定（注意: 本番環境では環境変数から読み込む）

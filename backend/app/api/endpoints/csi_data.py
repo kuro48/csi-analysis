@@ -115,9 +115,7 @@ async def upload_csi_data_test(
     """
     # 本番環境ではテストエンドポイントを無効化
     if not settings.ENABLE_TEST_ENDPOINTS:
-        raise HTTPException(
-            status_code=http_status.HTTP_404_NOT_FOUND, detail="このエンドポイントは本番環境では利用できません"
-        )
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="このエンドポイントは本番環境では利用できません")
     try:
         # ファイルデータ読み取り
         file_data = await file.read()

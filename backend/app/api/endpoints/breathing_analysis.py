@@ -63,9 +63,7 @@ async def create_analysis_result(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"解析結果作成に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"解析結果作成に失敗しました: {str(e)}")
 
 
 @router.get("/results/{device_id}", response_model=BreathingAnalysisListResponse)
@@ -127,9 +125,7 @@ async def get_device_analysis_results(
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"解析結果一覧取得に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"解析結果一覧取得に失敗しました: {str(e)}")
 
 
 @router.get("/results/{device_id}/latest", response_model=BreathingAnalysisResponse)
@@ -179,6 +175,4 @@ async def get_breathing_trends(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"トレンドデータ取得に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"トレンドデータ取得に失敗しました: {str(e)}")

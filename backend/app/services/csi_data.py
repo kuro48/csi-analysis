@@ -113,12 +113,16 @@ class CSIDataService:
                 raw_data=(
                     raw_data
                     if raw_data is None
-                    else json.dumps(raw_data) if not isinstance(raw_data, str) else raw_data
+                    else json.dumps(raw_data)
+                    if not isinstance(raw_data, str)
+                    else raw_data
                 ),
                 processed_data=(
                     processed_data
                     if processed_data is None
-                    else json.dumps(processed_data) if not isinstance(processed_data, str) else processed_data
+                    else json.dumps(processed_data)
+                    if not isinstance(processed_data, str)
+                    else processed_data
                 ),
                 file_path=str(file_path),
                 file_size=len(file_data),

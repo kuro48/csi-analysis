@@ -62,9 +62,7 @@ async def upload_to_ipfs(
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSアップロードに失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSアップロードに失敗しました: {str(e)}")
 
 
 @router.get("/download/{ipfs_hash}")
@@ -87,9 +85,7 @@ async def download_from_ipfs(ipfs_hash: str, current_user: User = Depends(get_cu
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSファイル取得に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSファイル取得に失敗しました: {str(e)}")
 
 
 @router.get("/info/{ipfs_hash}")
@@ -108,9 +104,7 @@ async def get_ipfs_file_info(ipfs_hash: str, current_user: User = Depends(get_cu
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSファイル情報取得に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSファイル情報取得に失敗しました: {str(e)}")
 
 
 @router.post("/pin/{ipfs_hash}")
@@ -129,9 +123,7 @@ async def pin_ipfs_file(ipfs_hash: str, current_user: User = Depends(get_current
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSピン留めに失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSピン留めに失敗しました: {str(e)}")
 
 
 @router.delete("/pin/{ipfs_hash}")
@@ -150,9 +142,7 @@ async def unpin_ipfs_file(ipfs_hash: str, current_user: User = Depends(get_curre
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSピン留め解除に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"IPFSピン留め解除に失敗しました: {str(e)}")
 
 
 @router.get("/csi-data/{csi_data_id}/ipfs")
@@ -187,6 +177,4 @@ async def get_csi_data_from_ipfs(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"CSIデータのIPFS取得に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"CSIデータのIPFS取得に失敗しました: {str(e)}")

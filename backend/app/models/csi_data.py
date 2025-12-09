@@ -33,9 +33,7 @@ class CSIData(BaseModel):
     status = Column(String(50), default="received", nullable=False, index=True)  # ステータス検索用
 
     # ブロックチェーン関連フィールド
-    blockchain_tx_hash = Column(
-        String(66), nullable=True, index=True, comment="ブロックチェーントランザクションハッシュ"
-    )
+    blockchain_tx_hash = Column(String(66), nullable=True, index=True, comment="ブロックチェーントランザクションハッシュ")
     blockchain_status = Column(
         String(20),
         default="pending",

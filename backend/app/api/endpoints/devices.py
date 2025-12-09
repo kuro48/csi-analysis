@@ -129,9 +129,7 @@ async def register_device(
     except ValueError as e:
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"デバイス作成に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"デバイス作成に失敗しました: {str(e)}")
 
 
 @router.post("/", response_model=DeviceResponse)
@@ -166,9 +164,7 @@ async def create_device(
     except ValueError as e:
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"デバイス作成に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"デバイス作成に失敗しました: {str(e)}")
 
 
 @router.get("/{device_uuid}", response_model=DeviceResponse)
@@ -278,9 +274,7 @@ async def device_heartbeat(device_id: str, heartbeat_data: DeviceHeartbeat, db: 
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"ハートビート処理に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"ハートビート処理に失敗しました: {str(e)}")
 
 
 @router.get("/{device_id}/status", response_model=DeviceStatus)
@@ -297,9 +291,7 @@ async def get_device_status(
 
     status_info = DeviceService.get_device_status(db, device_id)
     if not status_info:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="デバイス状態の取得に失敗しました"
-        )
+        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="デバイス状態の取得に失敗しました")
 
     return status_info
 
@@ -313,6 +305,4 @@ async def get_device_statistics(db: Session = Depends(get_db), current_user: Use
         statistics = await DeviceService.get_device_statistics(db, current_user.id, broadcast=False)
         return statistics
     except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"統計情報の取得に失敗しました: {str(e)}"
-        )
+        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"統計情報の取得に失敗しました: {str(e)}")
