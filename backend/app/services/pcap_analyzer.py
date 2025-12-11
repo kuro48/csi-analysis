@@ -32,10 +32,335 @@ logger = logging.getLogger(__name__)
 class PCAPAnalyzer:
     """PCAP解析クラス"""
 
+    # チャネル設定（80MHz Wi-Fi 5/6）
+    CHANNEL_CONFIGS = {
+        '80MHz': {
+            'guard_bands': [
+                (-128, -122),  # 下側ガードバンド
+                (122, 127)     # 上側ガードバンド
+            ],
+            'pilots': [-103, -75, -39, -11, 11, 39, 75, 103]  # パイロットサブキャリア
+        }
+    }
+
+    # サンプリング設定
+    DOWNSAMPLE_INTERVAL_S = 0.01  # 10ms = 100Hz サンプリング
+
+    # 周波数ビン設定
+    FREQUENCY_BIN_STEP = 0.01  # 0.01Hz刻み
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def analyze_pcap_file(self, file_path: str) -> Dict[str, Any]:
+    def contains_nan_or_inf(self, array: np.ndarray) -> bool:
+        """
+        配列にNaNまたはInfが含まれているかチェック
+
+        Args:
+            array: チェック対象の配列
+
+        Returns:
+            NaNまたはInfが含まれている場合True
+        """
+        arr = np.asarray(array)
+        return np.isnan(arr).any() or np.isinf(arr).any()
+
+    def normalize_signal(self, signal: np.ndarray) -> np.ndarray:
+        """
+        信号を正規化（平均0、標準偏差1）
+
+        Args:
+            signal: 正規化対象の信号
+
+        Returns:
+            正規化された信号
+        """
+        if len(signal) == 0:
+            return signal
+
+        # NaNとInfを0に置き換え
+        signal = np.nan_to_num(signal, nan=0.0, posinf=0.0, neginf=0.0)
+
+        mean = np.mean(signal)
+        std = np.std(signal)
+
+        if std == 0:
+            return signal - mean
+
+        return (signal - mean) / std
+
+    def drop_invalid_rows(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        NaN、Infを含む行を削除
+
+        Args:
+            df: クリーニング対象のDataFrame
+
+        Returns:
+            クリーニング済みのDataFrame
+        """
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        # 数値列を取得
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+
+        if len(numeric_cols) == 0:
+            return df
+
+        # NaNを含む行を削除
+        df_cleaned = df.dropna(subset=numeric_cols, how='any')
+
+        # Infまたは-Infを含む行を削除
+        df_cleaned = df_cleaned[~df_cleaned[numeric_cols].isin([np.inf, -np.inf]).any(axis=1)]
+
+        return df_cleaned
+
+    def make_bins(self, max_val: float, step: float) -> List[float]:
+        """
+        周波数ビンを作成
+
+        Args:
+            max_val: 最大値
+            step: ステップ幅
+
+        Returns:
+            ビンのリスト
+        """
+        if step <= 0:
+            raise ValueError("ステップは正の値である必要があります")
+
+        num_steps = int(max_val / step)
+        return [i * step for i in range(num_steps + 1)]
+
+    def remove_unnecessary_subcarriers(
+        self,
+        df: pd.DataFrame,
+        channel_width: str = '80MHz'
+    ) -> pd.DataFrame:
+        """
+        ガードバンドとパイロットサブキャリアを削除
+
+        Args:
+            df: 処理対象のDataFrame
+            channel_width: チャネル幅（デフォルト: '80MHz'）
+
+        Returns:
+            不要なサブキャリアを削除したDataFrame
+        """
+        if df is None or df.empty:
+            return df
+
+        if channel_width not in self.CHANNEL_CONFIGS:
+            self.logger.warning(f"未サポートのチャネル幅: {channel_width}")
+            return df
+
+        # サブキャリア列を取得（数字の列名）
+        subcarrier_cols = [col for col in df.columns if col.lstrip('-').isdigit()]
+
+        if not subcarrier_cols:
+            self.logger.warning("サブキャリア列が見つかりません")
+            return df
+
+        original_count = len(subcarrier_cols)
+
+        # DC成分（0番）を削除
+        if '0' in df.columns:
+            df = df.drop(columns=['0'])
+            self.logger.debug("DC成分（サブキャリア0）を削除")
+
+        # 設定を取得
+        config = self.CHANNEL_CONFIGS[channel_width]
+
+        # ガードバンドを削除
+        for start, end in config['guard_bands']:
+            guard_cols = [
+                str(i) for i in range(start, end + 1)
+                if str(i) in df.columns
+            ]
+            if guard_cols:
+                df = df.drop(columns=guard_cols)
+                self.logger.debug(f"ガードバンド削除: {start}～{end} ({len(guard_cols)}列)")
+
+        # パイロットサブキャリアを削除
+        pilot_cols = [str(i) for i in config['pilots'] if str(i) in df.columns]
+        if pilot_cols:
+            df = df.drop(columns=pilot_cols)
+            self.logger.debug(f"パイロット削除: {len(pilot_cols)}列")
+
+        remaining_count = len([col for col in df.columns if col.lstrip('-').isdigit()])
+        self.logger.info(
+            f"不要サブキャリア削除: {original_count}列 → {remaining_count}列 "
+            f"({original_count - remaining_count}列削除)"
+        )
+
+        return df
+
+    def apply_fourier_transform(
+        self,
+        df: pd.DataFrame,
+        sampling_interval: float,
+        time_col: str = 'timestamp'
+    ) -> pd.DataFrame:
+        """
+        各サブキャリアにフーリエ変換を適用
+
+        Args:
+            df: 入力DataFrame
+            sampling_interval: サンプリング間隔（秒）
+            time_col: タイムスタンプ列名
+
+        Returns:
+            FFT結果のDataFrame（列: frequency, サブキャリア番号...）
+        """
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        # 数値列（サブキャリア）を取得
+        data_cols = [
+            col for col in df.columns
+            if col != time_col and pd.api.types.is_numeric_dtype(df[col])
+        ]
+
+        if not data_cols:
+            self.logger.warning("FFT適用可能な列が見つかりません")
+            return pd.DataFrame()
+
+        all_fft_results = []
+
+        for col in data_cols:
+            signal = df[col].values
+
+            if len(signal) < 2:
+                self.logger.debug(f"サブキャリア {col}: データ不足 (長さ={len(signal)})")
+                continue
+
+            # FFT実行
+            N = len(signal)
+            yf = np.fft.fft(signal)
+            xf = np.fft.fftfreq(N, d=sampling_interval)
+
+            # 正の周波数のみ抽出
+            positive_mask = xf > 0
+            xf_positive = xf[positive_mask]
+            yf_positive_abs = np.abs(yf[positive_mask])
+
+            # DataFrame作成
+            fft_df = pd.DataFrame({
+                'frequency': xf_positive,
+                col: yf_positive_abs
+            })
+            all_fft_results.append(fft_df.set_index('frequency'))
+
+        if not all_fft_results:
+            self.logger.warning("FFT結果が空です")
+            return pd.DataFrame()
+
+        # 全サブキャリアのFFT結果を結合
+        merged_fft_df = pd.concat(all_fft_results, axis=1).reset_index()
+
+        self.logger.info(
+            f"FFT完了: {len(data_cols)}サブキャリア, "
+            f"{len(merged_fft_df)}周波数ポイント"
+        )
+
+        return self.drop_invalid_rows(merged_fft_df)
+
+    def average_magnitude_by_frequency_bins(
+        self,
+        df: pd.DataFrame,
+        bins: List[float],
+        freq_col: str = 'frequency'
+    ) -> pd.DataFrame:
+        """
+        周波数ビンごとに振幅を平均化
+
+        Args:
+            df: FFT結果のDataFrame
+            bins: 周波数ビンのリスト
+            freq_col: 周波数列名
+
+        Returns:
+            ビンごとに平均化されたDataFrame
+        """
+        if df is None or df.empty or freq_col not in df.columns:
+            return pd.DataFrame()
+
+        df = df.copy()
+
+        # 周波数をビンに分割
+        df['freq_interval'] = pd.cut(
+            df[freq_col],
+            bins=bins,
+            right=False,
+            include_lowest=True
+        )
+
+        # 数値列を取得
+        data_cols = [
+            col for col in df.columns
+            if col not in [freq_col, 'freq_interval']
+            and pd.api.types.is_numeric_dtype(df[col])
+        ]
+
+        if not data_cols:
+            self.logger.warning("平均化可能な列が見つかりません")
+            return pd.DataFrame()
+
+        # ビンごとに平均
+        try:
+            grouped_df = df.groupby('freq_interval', observed=False).mean(numeric_only=True).reset_index()
+        except TypeError:
+            grouped_df = df.groupby('freq_interval', observed=False)[data_cols].mean().reset_index()
+
+        # frequency列を削除（ビン平均後は不要）
+        if 'frequency' in grouped_df.columns:
+            grouped_df = grouped_df.drop(columns=['frequency'], errors='ignore')
+
+        self.logger.info(f"周波数ビン平均化完了: {len(grouped_df)}ビン")
+
+        return grouped_df
+
+    def _convert_csi_to_dataframe(
+        self,
+        csi_matrix: np.ndarray,
+        timestamps: np.ndarray,
+        no_subcarriers: int
+    ) -> pd.DataFrame:
+        """
+        CSIKitのマトリックスをDataFrame形式に変換
+
+        Args:
+            csi_matrix: CSIマトリックス (frames, subcarriers, rx, tx)
+            timestamps: タイムスタンプ配列
+            no_subcarriers: サブキャリア数
+
+        Returns:
+            変換されたDataFrame（列: timestamp, 0, 1, 2, ...）
+        """
+        # 最初のRX/TXペア（0,0）のデータを抽出
+        csi_matrix_first = csi_matrix[:, :, 0, 0]
+        csi_matrix_squeezed = np.squeeze(csi_matrix_first)
+
+        # DataFrameに変換
+        # 各行がフレーム、各列がサブキャリア
+        df_data = {}
+
+        # タイムスタンプ列を追加
+        df_data['timestamp'] = pd.to_datetime(timestamps, unit='s')
+
+        # サブキャリア列を追加（列名は "0", "1", "2", ...）
+        for subcarrier_idx in range(no_subcarriers):
+            col_name = str(subcarrier_idx)
+            df_data[col_name] = csi_matrix_squeezed[:, subcarrier_idx]
+
+        df = pd.DataFrame(df_data)
+
+        self.logger.info(f"DataFrame作成完了: shape={df.shape}")
+
+        return df
+
+    def analyze_pcap_file(self, file_path: str) -> pd.DataFrame:
         """
         PCAPファイルを解析してCSIデータを抽出
 
@@ -43,25 +368,61 @@ class PCAPAnalyzer:
             file_path: PCAPファイルのパス
 
         Returns:
-            解析結果辞書
+            周波数ビン平均化後のFFT結果DataFrame
+            列: ['freq_interval', サブキャリア番号...]
         """
-
+        # CSIKitでPCAPファイルを読み込み
         my_reader = get_reader(file_path)
         csi_data = my_reader.read_file(file_path, scaled=True)
         csi_matrix, no_frames, no_subcarriers = csitools.get_CSI(csi_data)
 
-        csi_matrix_first = csi_matrix[:, :, 0, 0]
-        csi_matrix_squeezed = np.squeeze(csi_matrix_first)
+        self.logger.info(f"CSIデータ読み込み完了: {no_frames}フレーム, {no_subcarriers}サブキャリア")
 
-        for x in range(no_frames):
-            csi_matrix_squeezed[x] = lowpass(csi_matrix_squeezed[x], 10, 100, 5)
-            csi_matrix_squeezed[x] = hampel(csi_matrix_squeezed[x], 10, 3)
-            csi_matrix_squeezed[x] = running_mean(csi_matrix_squeezed[x], 10)
+        # CSIマトリックスをDataFrame形式に変換
+        df = self._convert_csi_to_dataframe(csi_matrix, csi_data.timestamps, no_subcarriers)
 
-        BatchGraph.plot_heatmap(csi_matrix_squeezed, csi_data.timestamps)
-        print(csi_matrix)
-        print(no_frames)
-        print(no_subcarriers)
+        # 無効データを除去
+        df = self.drop_invalid_rows(df)
+
+        if df.empty:
+            self.logger.warning("有効なデータが存在しません")
+            return pd.DataFrame()
+
+        self.logger.info(f"データクリーニング後: {len(df)}行")
+
+        # 不要なサブキャリアを削除（ガードバンド、パイロット、DC）
+        df = self.remove_unnecessary_subcarriers(df, channel_width='80MHz')
+
+        # サブキャリア列数を取得
+        subcarrier_cols = [col for col in df.columns if col.lstrip('-').isdigit()]
+        remaining_subcarriers = len(subcarrier_cols)
+
+        # フーリエ変換を適用
+        fft_df = self.apply_fourier_transform(df, self.DOWNSAMPLE_INTERVAL_S)
+
+        if fft_df.empty:
+            self.logger.warning("FFT結果が空です")
+            return pd.DataFrame()
+
+        # 周波数ビンを作成
+        max_freq = fft_df['frequency'].max()
+        bins = self.make_bins(max_freq, self.FREQUENCY_BIN_STEP)
+
+        # 周波数ビンごとに平均化
+        binned_fft_df = self.average_magnitude_by_frequency_bins(fft_df, bins)
+
+        # 処理結果をログ出力
+        self.logger.info(
+            f"解析完了 - フレーム数: {no_frames}, "
+            f"サブキャリア: {no_subcarriers} → {remaining_subcarriers}, "
+            f"有効行: {len(df)}, "
+            f"FFT周波数ポイント: {len(fft_df)}, "
+            f"周波数ビン: {len(binned_fft_df)}, "
+            f"最大周波数: {max_freq:.2f}Hz"
+        )
+
+        # 周波数ビン平均化後のDataFrameを返す
+        return binned_fft_df
 
         # try:
         #     packets = rdpcap(file_path)
