@@ -27,6 +27,15 @@ class Settings:
     TESTING: bool = os.getenv("TESTING", "false").lower() == "true"
     ENABLE_TEST_ENDPOINTS: bool = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() == "true"
 
+    # 研究モード設定
+    # RESEARCH_MODE=true: CSIデータを保存（研究・分析用）
+    # RESEARCH_MODE=false: CSIデータを保存せず、ZKP証明のみ保存（本番環境・プライバシー重視）
+    RESEARCH_MODE: bool = os.getenv("RESEARCH_MODE", "true").lower() == "true"
+
+    # ZKP設定
+    ZKP_AUTO_GENERATE: bool = os.getenv("ZKP_AUTO_GENERATE", "true").lower() == "true"  # 自動ZKP証明生成
+    ZKP_DATA_RETENTION_HOURS: int = int(os.getenv("ZKP_DATA_RETENTION_HOURS", "0"))  # 0=即削除、>0=時間後削除
+
     # データベース設定
     # SECURITY: DATABASE credentials must be set via environment variables
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")

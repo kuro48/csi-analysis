@@ -5,7 +5,10 @@ Wi-Fi CSIデータをPCAPファイルから抽出・解析する
 
 from CSIKit.reader import get_reader
 from CSIKit.util import csitools
-
+from CSIKit.tools.batch_graph import BatchGraph
+from CSIKit.filters.passband import lowpass
+from CSIKit.filters.statistical import running_mean
+from CSIKit.util.filters import hampel
 
 import logging
 import struct
@@ -45,8 +48,18 @@ class PCAPAnalyzer:
 
         my_reader = get_reader(file_path)
         csi_data = my_reader.read_file(file_path, scaled=True)
-        si_matrix, no_frames, no_subcarriers = csitools.get_CSI(csi_data)
-        print(si_matrix)
+        csi_matrix, no_frames, no_subcarriers = csitools.get_CSI(csi_data)
+
+        csi_matrix_first = csi_matrix[:, :, 0, 0]
+        csi_matrix_squeezed = np.squeeze(csi_matrix_first)
+
+        for x in range(no_frames):
+            csi_matrix_squeezed[x] = lowpass(csi_matrix_squeezed[x], 10, 100, 5)
+            csi_matrix_squeezed[x] = hampel(csi_matrix_squeezed[x], 10, 3)
+            csi_matrix_squeezed[x] = running_mean(csi_matrix_squeezed[x], 10)
+
+        BatchGraph.plot_heatmap(csi_matrix_squeezed, csi_data.timestamps)
+        print(csi_matrix)
         print(no_frames)
         print(no_subcarriers)
 

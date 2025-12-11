@@ -25,14 +25,16 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
         payload: タスクペイロード
             - csi_data_id: CSIデータID
             - analysis_params: 解析パラメータ
+            - generate_zkp: ZKP証明を自動生成するかどうか（オプション）
 
     Returns:
         解析結果辞書
     """
     csi_data_id = payload.get("csi_data_id")
     analysis_params = payload.get("analysis_params", {})
+    generate_zkp = payload.get("generate_zkp", False)
 
-    logger.info(f"Starting breathing analysis for CSI data: {csi_data_id}")
+    logger.info(f"Starting breathing analysis for CSI data: {csi_data_id} (generate_zkp={generate_zkp})")
 
     try:
         # データベースからCSIデータ取得
@@ -42,12 +44,30 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
             if not csi_data:
                 raise ValueError(f"CSI data not found: {csi_data_id}")
 
-            # ファイルデータ読み込み（ローカルまたはIPFS）
+            # ファイルデータまたはprocessed_dataから解析データを取得
             file_data = None
-            # ローカルファイルから取得
-            with open(csi_data.file_path, 'rb') as f:
-                file_data = f.read()
-            metadata = {}
+            if csi_data.file_path:
+                # RESEARCH_MODE: ファイルから読み込み
+                try:
+                    with open(csi_data.file_path, 'rb') as f:
+                        file_data = f.read()
+                    logger.info(f"Loaded file data from: {csi_data.file_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to load file, using processed_data instead: {e}")
+                    # ファイル読み込み失敗時はprocessed_dataを使用
+                    file_data = None
+
+            if file_data is None and csi_data.processed_data:
+                # 本番モード: processed_dataから解析データを取得
+                logger.info("Using processed_data for analysis (PRODUCTION MODE)")
+                # processed_dataを使用した解析（詳細は実装依存）
+                # ここでは模擬的にファイルデータとして扱う
+                import json
+                processed_data_str = csi_data.processed_data if isinstance(csi_data.processed_data, str) else json.dumps(csi_data.processed_data)
+                file_data = processed_data_str.encode('utf-8')
+
+            if file_data is None:
+                raise ValueError("No data available for analysis (neither file_path nor processed_data)")
 
             # 呼吸解析実行（模擬実装）
             analysis_result = await perform_breathing_analysis(file_data, analysis_params)
@@ -74,11 +94,51 @@ async def csi_breathing_analysis_task(payload: Dict[str, Any]) -> Dict[str, Any]
 
             logger.info(f"Breathing analysis completed: {breathing_analysis.id}")
 
+            # ZKP証明の自動生成
+            zkp_proof_id = None
+            if generate_zkp:
+                try:
+                    from app.services.breathing_analysis import get_zkp_service
+                    from app.schemas.csi_data import BreathingAnalysisResult
+
+                    zkp_service = get_zkp_service()
+                    if zkp_service:
+                        logger.info(f"Generating ZKP proof for breathing analysis {breathing_analysis.id}")
+
+                        # BreathingAnalysisResultスキーマを作成
+                        analysis_result_schema = BreathingAnalysisResult(
+                            breathing_rate=breathing_analysis.breathing_rate,
+                            confidence_score=breathing_analysis.confidence_score,
+                            analysis_timestamp=breathing_analysis.analysis_timestamp,
+                            window_start=breathing_analysis.window_start,
+                            window_end=breathing_analysis.window_end,
+                            time_domain_data=breathing_analysis.time_domain_data,
+                            frequency_domain_data=breathing_analysis.frequency_domain_data,
+                            quality_metrics=breathing_analysis.quality_metrics
+                        )
+
+                        # ZKP証明生成（非同期）
+                        from app.services.breathing_analysis import BreathingAnalysisService
+                        asyncio.create_task(
+                            BreathingAnalysisService._generate_zkp_async(
+                                zkp_service,
+                                analysis_result_schema,
+                                breathing_analysis.id
+                            )
+                        )
+                        logger.info(f"ZKP generation task created for analysis {breathing_analysis.id}")
+                    else:
+                        logger.warning("ZKP service not available, skipping ZKP generation")
+                except Exception as e:
+                    logger.error(f"Failed to initiate ZKP generation: {e}")
+                    # ZKP生成失敗はメイン処理に影響させない
+
             return {
                 "analysis_id": str(breathing_analysis.id),
                 "breathing_rate": analysis_result["breathing_rate"],
                 "confidence_score": analysis_result["confidence_score"],
                 "processing_time": analysis_result["processing_time"],
+                "zkp_generated": generate_zkp,
                 "status": "completed"
             }
 
@@ -221,6 +281,54 @@ async def system_maintenance_task(payload: Dict[str, Any]) -> Dict[str, Any]:
             # 古いファイルクリーンアップ
             await asyncio.sleep(1)  # 模擬処理
             maintenance_results["tasks_completed"].append("old_files_cleaned")
+
+        elif maintenance_type == "cleanup_zkp_data":
+            # ZKP証明生成後のCSIデータクリーンアップ（本番モード用）
+            from app.core.config import settings
+            from pathlib import Path
+
+            db = SessionLocal()
+            try:
+                # ZKP_DATA_RETENTION_HOURSが0の場合は即座に削除、それ以外は指定時間後に削除
+                if settings.ZKP_DATA_RETENTION_HOURS >= 0:
+                    retention_time = datetime.utcnow() - timedelta(hours=settings.ZKP_DATA_RETENTION_HOURS)
+
+                    # ZKP証明が生成されているCSIデータを取得
+                    from sqlalchemy import exists
+                    from app.models.breathing_analysis import BreathingAnalysis
+
+                    csi_data_to_cleanup = db.query(CSIData).join(
+                        BreathingAnalysis
+                    ).filter(
+                        CSIData.created_at < retention_time,
+                        CSIData.file_path.isnot(None),
+                        BreathingAnalysis.zkp_proof.isnot(None)  # ZKP証明が存在する
+                    ).all()
+
+                    cleaned_count = 0
+                    for csi_data in csi_data_to_cleanup:
+                        try:
+                            # ファイル削除
+                            if csi_data.file_path and Path(csi_data.file_path).exists():
+                                Path(csi_data.file_path).unlink()
+                                logger.info(f"Deleted CSI file: {csi_data.file_path}")
+
+                            # データベースレコードのfile_pathとraw_dataをクリア
+                            csi_data.file_path = None
+                            csi_data.raw_data = None
+                            csi_data.file_size = None
+
+                            cleaned_count += 1
+                        except Exception as e:
+                            logger.warning(f"Failed to cleanup CSI data {csi_data.id}: {e}")
+
+                    db.commit()
+                    maintenance_results["cleaned_count"] = cleaned_count
+                    maintenance_results["tasks_completed"].append(f"zkp_data_cleaned_{cleaned_count}_items")
+                    logger.info(f"Cleaned up {cleaned_count} CSI data items after ZKP generation")
+
+            finally:
+                db.close()
 
         elif maintenance_type == "ipfs_gc":
             # IPFS ガベージコレクション
