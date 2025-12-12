@@ -177,3 +177,4 @@ token.txt
 
 # Claude Code project documentation
 claudedocs/
+.playwright-mcp/

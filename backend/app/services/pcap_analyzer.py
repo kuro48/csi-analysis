@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import json
+import asyncio
 
 try:
     from scapy.all import rdpcap
@@ -48,6 +49,18 @@ class PCAPAnalyzer:
 
     # 周波数ビン設定
     FREQUENCY_BIN_STEP = 0.01  # 0.01Hz刻み
+
+    # 呼吸周波数帯域（Hz）
+    BREATHING_MIN_FREQ = 0.15  # 9 bpm
+    BREATHING_MAX_FREQ = 0.4   # 24 bpm
+
+    # ZKP設定
+    ZKP_VECTOR_DIM = 4  # ZKP回路で要求される次元数
+    ZKP_SCALE = 10000   # 固定小数点スケール
+
+    # 全DataFrame ZKP回路用の設定
+    MAX_FREQ_POINTS = 5000  # 最大周波数ポイント数
+    MAX_SUBCARRIERS = 256   # 最大サブキャリア数
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -321,6 +334,382 @@ class PCAPAnalyzer:
 
         return grouped_df
 
+    def prepare_zkp_vectors_from_fft(
+        self,
+        fft_df: pd.DataFrame,
+        num_subcarriers: int = ZKP_VECTOR_DIM,
+        freq_col: str = 'frequency'
+    ) -> Tuple[List[int], List[List[int]]]:
+        """
+        FFT DataFrameから ZKP用の4次元ベクトルを準備
+
+        Args:
+            fft_df: FFT結果のDataFrame
+            num_subcarriers: 選択するサブキャリア数（デフォルト: 4）
+            freq_col: 周波数列名
+
+        Returns:
+            (reference_vector, candidate_vectors)
+            - reference_vector: 参照ベクトル（4次元、整数）
+            - candidate_vectors: 候補ベクトルリスト（各4次元、整数）
+        """
+        if fft_df is None or fft_df.empty:
+            self.logger.warning("FFT DataFrameが空です")
+            return [0, 0, 0, 0], [[0, 0, 0, 0]]
+
+        # 呼吸周波数帯域のデータを抽出
+        breathing_mask = (
+            (fft_df[freq_col] >= self.BREATHING_MIN_FREQ) &
+            (fft_df[freq_col] <= self.BREATHING_MAX_FREQ)
+        )
+        breathing_df = fft_df[breathing_mask]
+
+        if breathing_df.empty:
+            self.logger.warning("呼吸周波数帯域にデータがありません")
+            return [0, 0, 0, 0], [[0, 0, 0, 0]]
+
+        # サブキャリア列を取得
+        subcarrier_cols = [
+            col for col in breathing_df.columns
+            if col != freq_col and col != 'freq_interval'
+            and pd.api.types.is_numeric_dtype(breathing_df[col])
+        ]
+
+        if len(subcarrier_cols) < num_subcarriers:
+            self.logger.warning(
+                f"サブキャリア数が不足: {len(subcarrier_cols)} < {num_subcarriers}"
+            )
+            # 不足分をゼロパディング
+            pass
+
+        # 各サブキャリアの呼吸帯域での平均振幅を計算
+        subcarrier_power = {}
+        for col in subcarrier_cols:
+            avg_amplitude = breathing_df[col].mean()
+            if not np.isnan(avg_amplitude):
+                subcarrier_power[col] = avg_amplitude
+
+        # SNRが高い上位N個のサブキャリアを選択
+        sorted_subcarriers = sorted(
+            subcarrier_power.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:num_subcarriers]
+
+        # 選択されたサブキャリアのリスト
+        selected_cols = [col for col, _ in sorted_subcarriers]
+
+        # 不足分をゼロパディング
+        while len(selected_cols) < num_subcarriers:
+            selected_cols.append(None)
+
+        self.logger.info(f"選択されたサブキャリア: {[c for c in selected_cols if c is not None]}")
+
+        # 参照ベクトルを作成（呼吸帯域の平均振幅）
+        reference_vector = []
+        for col in selected_cols:
+            if col is not None:
+                value = breathing_df[col].mean()
+                # 整数化（ZKP_SCALEでスケーリング）
+                int_value = int(value * self.ZKP_SCALE)
+                reference_vector.append(int_value)
+            else:
+                reference_vector.append(0)
+
+        # 候補ベクトルを作成（各周波数ポイントでのベクトル）
+        # トップ2つの周波数ポイントを候補とする
+        candidate_vectors = []
+
+        # 各サブキャリアの合計パワーで周波数ポイントをランク付け
+        breathing_df_copy = breathing_df.copy()
+        breathing_df_copy['total_power'] = breathing_df_copy[selected_cols[:len([c for c in selected_cols if c is not None])]].sum(axis=1)
+        top_freq_points = breathing_df_copy.nlargest(2, 'total_power')
+
+        for idx, row in top_freq_points.iterrows():
+            candidate_vec = []
+            for col in selected_cols:
+                if col is not None:
+                    value = row[col]
+                    int_value = int(value * self.ZKP_SCALE) if not np.isnan(value) else 0
+                    candidate_vec.append(int_value)
+                else:
+                    candidate_vec.append(0)
+            candidate_vectors.append(candidate_vec)
+
+        # 候補ベクトルが1つの場合は2つ目をダミーで追加
+        while len(candidate_vectors) < 2:
+            candidate_vectors.append([0, 0, 0, 0])
+
+        self.logger.info(
+            f"ZKPベクトル準備完了: "
+            f"reference={reference_vector}, "
+            f"candidates={len(candidate_vectors)}"
+        )
+
+        return reference_vector, candidate_vectors
+
+    def prepare_full_dataframe_for_zkp(
+        self,
+        fft_df: pd.DataFrame,
+        freq_col: str = 'frequency'
+    ) -> Dict[str, Any]:
+        """
+        FFT DataFrameを全DataFrame ZKP回路用の入力形式に変換
+
+        Args:
+            fft_df: FFT結果のDataFrame（周波数ビン平均化前のもの）
+            freq_col: 周波数列名
+
+        Returns:
+            {
+                "csi_amplitude": List[List[int]],  # [5000][256]
+                "frequency_bins": List[int],       # [5000]
+                "num_freq_points": int,
+                "num_subcarriers": int
+            }
+        """
+        if fft_df is None or fft_df.empty:
+            self.logger.warning("FFT DataFrameが空です")
+            return {
+                "csi_amplitude": [[0] * self.MAX_SUBCARRIERS] * self.MAX_FREQ_POINTS,
+                "frequency_bins": [0] * self.MAX_FREQ_POINTS,
+                "num_freq_points": 0,
+                "num_subcarriers": 0
+            }
+
+        # サブキャリア列を取得
+        subcarrier_cols = [
+            col for col in fft_df.columns
+            if col != freq_col and col != 'freq_interval'
+            and pd.api.types.is_numeric_dtype(fft_df[col])
+        ]
+
+        actual_freq_points = min(len(fft_df), self.MAX_FREQ_POINTS)
+        actual_subcarriers = min(len(subcarrier_cols), self.MAX_SUBCARRIERS)
+
+        self.logger.info(
+            f"DataFrame変換: {actual_freq_points}周波数ポイント × "
+            f"{actual_subcarriers}サブキャリア"
+        )
+
+        # 周波数ビンを整数化（Hz × 10000）
+        frequency_bins = []
+        for i in range(actual_freq_points):
+            freq_value = fft_df[freq_col].iloc[i]
+            freq_int = int(freq_value * self.ZKP_SCALE)
+            frequency_bins.append(freq_int)
+
+        # 不足分をゼロパディング
+        while len(frequency_bins) < self.MAX_FREQ_POINTS:
+            frequency_bins.append(0)
+
+        # CSI振幅を整数化
+        csi_amplitude = []
+        for i in range(actual_freq_points):
+            row = []
+            for col in subcarrier_cols[:actual_subcarriers]:
+                value = fft_df[col].iloc[i]
+                int_value = int(value) if not np.isnan(value) else 0
+                row.append(int_value)
+
+            # サブキャリア数をMAX_SUBCARRIERSまでパディング
+            while len(row) < self.MAX_SUBCARRIERS:
+                row.append(0)
+
+            csi_amplitude.append(row)
+
+        # 周波数ポイント数をMAX_FREQ_POINTSまでパディング
+        while len(csi_amplitude) < self.MAX_FREQ_POINTS:
+            csi_amplitude.append([0] * self.MAX_SUBCARRIERS)
+
+        self.logger.info(
+            f"ZKP入力データ準備完了: "
+            f"shape=({len(csi_amplitude)}, {len(csi_amplitude[0])})"
+        )
+
+        return {
+            "csi_amplitude": csi_amplitude,
+            "frequency_bins": frequency_bins,
+            "num_freq_points": actual_freq_points,
+            "num_subcarriers": actual_subcarriers
+        }
+
+    async def analyze_and_generate_zkp(
+        self,
+        file_path: str,
+        zkp_service: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        PCAPファイルを解析してZKP証明を生成
+
+        Args:
+            file_path: PCAPファイルのパス
+            zkp_service: ZKPServiceインスタンス（Noneの場合は新規作成）
+
+        Returns:
+            {
+                "fft_dataframe": FFT DataFrame,
+                "zkp_proof": ZKP証明データ,
+                "selected_subcarriers": 選択されたサブキャリア,
+                "best_similarity": 最適類似度
+            }
+        """
+        # FFT解析を実行
+        fft_df = self.analyze_pcap_file(file_path)
+
+        if fft_df.empty:
+            self.logger.error("FFT解析に失敗しました")
+            return {
+                "fft_dataframe": pd.DataFrame(),
+                "zkp_proof": None,
+                "error": "FFT analysis failed"
+            }
+
+        # ZKP用ベクトルを準備
+        reference_vec, candidate_vecs = self.prepare_zkp_vectors_from_fft(fft_df)
+
+        # ZKPServiceがない場合はインポートして作成
+        if zkp_service is None:
+            from app.services.zkp_service import ZKPService
+            zkp_service = ZKPService()
+
+        # ZKP証明を生成
+        try:
+            zkp_result = await zkp_service.generate_cosine_similarity_proof(
+                reference_vector=reference_vec,
+                candidate_vectors=candidate_vecs,
+                scale=self.ZKP_SCALE
+            )
+
+            self.logger.info(
+                f"ZKP証明生成完了: "
+                f"bestIndex={zkp_result['bestIndex']}, "
+                f"similarity={zkp_result['normalizedSimilarity']:.4f}"
+            )
+
+            return {
+                "fft_dataframe": fft_df,
+                "zkp_proof": zkp_result["proof"],
+                "public_signals": zkp_result["publicSignals"],
+                "best_index": zkp_result["bestIndex"],
+                "best_similarity": zkp_result["normalizedSimilarity"],
+                "reference_vector": reference_vec,
+                "candidate_vectors": candidate_vecs
+            }
+
+        except Exception as e:
+            self.logger.error(f"ZKP証明生成に失敗: {e}", exc_info=True)
+            return {
+                "fft_dataframe": fft_df,
+                "zkp_proof": None,
+                "error": str(e)
+            }
+
+    async def analyze_and_generate_full_zkp(
+        self,
+        file_path: str,
+        zkp_service: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        PCAPファイルを解析して全DataFrame ZKP証明を生成
+
+        警告: この処理は非常に時間がかかります（30分～数時間）
+
+        Args:
+            file_path: PCAPファイルのパス
+            zkp_service: ZKPServiceインスタンス（Noneの場合は新規作成）
+
+        Returns:
+            {
+                "binned_fft_dataframe": ビン平均化後のDataFrame,
+                "fft_dataframe": ビン平均化前のFFT DataFrame,
+                "zkp_proof": ZKP証明データ,
+                "best_subcarrier_indices": 最適サブキャリアインデックス,
+                "breathing_frequency": 呼吸周波数,
+                "confidence_score": 信頼度スコア
+            }
+        """
+        self.logger.warning("全DataFrame ZKP証明生成を開始します（非常に時間がかかる可能性があります）")
+
+        # CSIKitでPCAPファイルを読み込み
+        my_reader = get_reader(file_path)
+        csi_data = my_reader.read_file(file_path, scaled=True)
+        csi_matrix, no_frames, no_subcarriers = csitools.get_CSI(csi_data)
+
+        self.logger.info(f"CSIデータ読み込み完了: {no_frames}フレーム, {no_subcarriers}サブキャリア")
+
+        # CSIマトリックスをDataFrame形式に変換
+        df = self._convert_csi_to_dataframe(csi_matrix, csi_data.timestamps, no_subcarriers)
+
+        # 無効データを除去
+        df = self.drop_invalid_rows(df)
+
+        if df.empty:
+            self.logger.warning("有効なデータが存在しません")
+            return {
+                "error": "No valid data"
+            }
+
+        # 不要なサブキャリアを削除
+        df = self.remove_unnecessary_subcarriers(df, channel_width='80MHz')
+
+        # フーリエ変換を適用（ビン平均化前）
+        fft_df = self.apply_fourier_transform(df, self.DOWNSAMPLE_INTERVAL_S)
+
+        if fft_df.empty:
+            self.logger.warning("FFT結果が空です")
+            return {
+                "error": "FFT failed"
+            }
+
+        # ビン平均化も実行（互換性のため）
+        max_freq = fft_df['frequency'].max()
+        bins = self.make_bins(max_freq, self.FREQUENCY_BIN_STEP)
+        binned_fft_df = self.average_magnitude_by_frequency_bins(fft_df, bins)
+
+        # 全DataFrame ZKP用の入力データを準備
+        zkp_input = self.prepare_full_dataframe_for_zkp(fft_df)
+
+        # ZKPServiceがない場合はインポートして作成
+        if zkp_service is None:
+            from app.services.zkp_service import ZKPService
+            zkp_service = ZKPService()
+
+        # ZKP証明を生成
+        try:
+            self.logger.info("全DataFrame ZKP証明生成を開始...")
+            zkp_result = await zkp_service.generate_full_dataframe_proof(
+                csi_amplitude=zkp_input["csi_amplitude"],
+                frequency_bins=zkp_input["frequency_bins"],
+                num_freq_points=zkp_input["num_freq_points"],
+                num_subcarriers=zkp_input["num_subcarriers"]
+            )
+
+            self.logger.info(
+                f"全DataFrame ZKP証明生成完了: "
+                f"breathing_frequency={zkp_result.get('breathing_frequency', 0) / 10000:.4f}Hz"
+            )
+
+            return {
+                "binned_fft_dataframe": binned_fft_df,
+                "fft_dataframe": fft_df,
+                "zkp_proof": zkp_result.get("proof"),
+                "public_signals": zkp_result.get("publicSignals"),
+                "best_subcarrier_indices": zkp_result.get("best_subcarrier_indices"),
+                "breathing_frequency": zkp_result.get("breathing_frequency"),
+                "confidence_score": zkp_result.get("confidence_score"),
+                "zkp_input": zkp_input
+            }
+
+        except Exception as e:
+            self.logger.error(f"全DataFrame ZKP証明生成に失敗: {e}", exc_info=True)
+            return {
+                "binned_fft_dataframe": binned_fft_df,
+                "fft_dataframe": fft_df,
+                "zkp_proof": None,
+                "error": str(e)
+            }
+
     def _convert_csi_to_dataframe(
         self,
         csi_matrix: np.ndarray,
@@ -420,6 +809,7 @@ class PCAPAnalyzer:
             f"周波数ビン: {len(binned_fft_df)}, "
             f"最大周波数: {max_freq:.2f}Hz"
         )
+
 
         # 周波数ビン平均化後のDataFrameを返す
         return binned_fft_df

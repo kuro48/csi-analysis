@@ -2,29 +2,177 @@
 CSIデータ関連エンドポイント
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status as http_status, File, UploadFile, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, File, UploadFile, Form, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional, List
 import uuid
 import math
 import json
+import logging
 from datetime import datetime
+from pathlib import Path
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.config import settings
 from app.models.user import User
+from app.models.csi_data import CSIData
+from app.models.base_csi import BaseCSI
 from app.services.csi_data import CSIDataService, SessionService
+from app.services.pcap_analyzer import PcapAnalyzer
+from app.services.zkp_service import ZKPService
+from app.services.base_csi import BaseCSIService
 from app.schemas.csi_data import (
     CSIDataUpload, CSIDataResponse, CSIDataListResponse, CSIDataFilter,
     SessionCreate, SessionUpdate, SessionResponse, ProcessingStatus
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+async def _process_and_generate_zkp_background(
+    csi_data_id: uuid.UUID,
+    file_path: str,
+    db_session_maker,
+    user_id: Optional[uuid.UUID] = None,
+    base_csi_id: Optional[uuid.UUID] = None
+):
+    """
+    バックグラウンドでPCAP解析とZKP証明生成を実行
+    オプションでベースCSIとのコサイン類似度比較も実行
+
+    Args:
+        csi_data_id: CSIデータID
+        file_path: PCAPファイルパス
+        db_session_maker: データベースセッションファクトリ
+        user_id: ユーザーID（ベースCSI比較用）
+        base_csi_id: ベースCSI ID（指定されない場合は最新のアクティブなベースCSIを使用）
+    """
+    db = None
+    try:
+        # データベースセッション作成
+        db = db_session_maker()
+
+        logger.info(f"Starting background processing for CSI data {csi_data_id}")
+
+        # ステータスを「処理中」に更新
+        csi_data = db.query(CSIData).filter_by(id=csi_data_id).first()
+        if csi_data:
+            csi_data.status = "processing"
+            db.commit()
+
+        # PcapAnalyzerとZKPServiceのインスタンス作成
+        analyzer = PcapAnalyzer()
+        zkp_service = ZKPService(auto_compile=settings.ZKP_AUTO_COMPILE)
+
+        logger.info(f"Analyzing PCAP file and generating ZKP proof: {file_path}")
+
+        # 全DataFrame解析+ZKP証明生成を実行
+        result = await analyzer.analyze_and_generate_full_zkp(
+            file_path=file_path,
+            zkp_service=zkp_service
+        )
+
+        # ベースCSIとの比較（常に実行）
+        base_csi_comparison = None
+        try:
+            # グローバルベースCSIを取得（user_id = None）
+            if base_csi_id:
+                base_csi = BaseCSIService.get_base_csi_by_id(db, base_csi_id, user_id=None)
+            else:
+                # 最新のアクティブなベースCSIを取得（user_id = None でグローバル）
+                base_csis, _ = BaseCSIService.get_base_csi_list(
+                    db=db,
+                    user_id=None,
+                    include_expired=False,
+                    page=1,
+                    page_size=1
+                )
+                base_csi = base_csis[0] if base_csis else None
+
+            if base_csi:
+                logger.info(f"Comparing with base CSI: {base_csi.id} ({base_csi.name})")
+
+                # リファレンスベクトルとキャンディデートベクトルを取得
+                reference_vector = base_csi.reference_vector
+                fft_df = result["fft_dataframe"]
+
+                # アップロードされたCSIから候補ベクトルを抽出
+                _, candidate_vectors = analyzer.prepare_zkp_vectors_from_fft(fft_df)
+
+                # コサイン類似度ZKP証明を生成
+                similarity_result = zkp_service.generate_cosine_similarity_proof(
+                    reference_vector=reference_vector,
+                    candidate_vectors=candidate_vectors
+                )
+
+                base_csi_comparison = {
+                    "base_csi_id": str(base_csi.id),
+                    "base_csi_name": base_csi.name,
+                    "similarity_score": similarity_result["similarity_score"],
+                    "best_candidate_index": similarity_result["best_candidate_index"],
+                    "zkp_proof": similarity_result.get("proof", {}),
+                    "public_signals": similarity_result.get("public_signals", [])
+                }
+
+                logger.info(
+                    f"Base CSI comparison completed: similarity={similarity_result['similarity_score']:.4f}, "
+                    f"best_index={similarity_result['best_candidate_index']}"
+                )
+            else:
+                logger.warning("No base CSI found for comparison")
+
+        except Exception as e:
+            logger.warning(f"Base CSI comparison failed: {e}", exc_info=True)
+            # 比較失敗はエラーとして扱わず、通常の処理を継続
+
+        # 結果をデータベースに保存
+        if csi_data:
+            csi_data.status = "completed"
+
+            # processed_dataに解析結果とZKP証明を保存
+            processed_data = {
+                "fft_dataframe": result["fft_dataframe"].to_dict() if hasattr(result["fft_dataframe"], "to_dict") else {},
+                "zkp_proof": result.get("zkp_proof", {}),
+                "breathing_frequency_hz": result.get("breathing_frequency_hz", 0),
+                "confidence_score": result.get("confidence_score", 0),
+                "best_subcarrier_indices": result.get("best_subcarrier_indices", [])
+            }
+
+            # ベースCSI比較結果を追加
+            if base_csi_comparison:
+                processed_data["base_csi_comparison"] = base_csi_comparison
+
+            csi_data.processed_data = processed_data
+            db.commit()
+
+            logger.info(
+                f"Background processing completed for CSI data {csi_data_id}: "
+                f"breathing_freq={result.get('breathing_frequency_hz', 0):.4f}Hz, "
+                f"confidence={result.get('confidence_score', 0):.2f}"
+            )
+
+    except Exception as e:
+        logger.error(f"Background processing failed for CSI data {csi_data_id}: {e}", exc_info=True)
+
+        # エラーステータスに更新
+        if db and csi_data:
+            csi_data.status = "error"
+            csi_data.processed_data = {
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+            db.commit()
+
+    finally:
+        if db:
+            db.close()
 
 
 @router.post("/upload", response_model=CSIDataResponse)
 async def upload_csi_data(
+    background_tasks: BackgroundTasks,
     session_id: Optional[str] = Form(None, description="セッションID"),
     collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
     collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
@@ -34,6 +182,14 @@ async def upload_csi_data(
 ):
     """
     CSIデータアップロード（認証なし - 研究用）
+
+    アップロード後、自動的にPCAP解析とZKP証明生成を実行します。
+    処理はバックグラウンドで実行されるため、アップロードレスポンスは即座に返されます。
+    処理状態は status フィールドで確認できます:
+    - "uploaded": アップロード完了、処理待機中
+    - "processing": PCAP解析中
+    - "completed": 解析とZKP証明生成完了
+    - "error": エラー発生
     """
     try:
         # ファイルデータ読み取り
@@ -59,8 +215,19 @@ async def upload_csi_data(
             db=db,
             file_data=file_data,
             upload_info=upload_info,
-            user_id= None
+            user_id=None
         )
+
+        # バックグラウンドタスクでPCAP解析+ZKP証明生成を実行
+        from app.core.database import SessionLocal
+        background_tasks.add_task(
+            _process_and_generate_zkp_background,
+            csi_data_id=csi_data.id,
+            file_path=csi_data.file_path,
+            db_session_maker=SessionLocal
+        )
+
+        logger.info(f"CSI data uploaded: {csi_data.id}, background processing scheduled")
 
         return CSIDataResponse(
             id=csi_data.id,
@@ -87,6 +254,7 @@ async def upload_csi_data(
 
 @router.post("/upload-test", response_model=CSIDataResponse)
 async def upload_csi_data_test(
+    background_tasks: BackgroundTasks,
     session_id: Optional[str] = Form(None, description="セッションID"),
     collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
     collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
@@ -97,6 +265,12 @@ async def upload_csi_data_test(
 ):
     """
     CSIデータアップロード（テスト用・ユーザー認証）
+
+    アップロード後、自動的にPCAP解析とZKP証明生成を実行します。
+    処理はバックグラウンドで実行されるため、アップロードレスポンスは即座に返されます。
+
+    グローバルベースCSI（最新のアクティブなもの）と自動的に比較され、
+    コサイン類似度がZKP証明とともに計算されます。
 
     注意: このエンドポイントはテスト/開発環境専用です。
     本番環境では ENABLE_TEST_ENDPOINTS=False に設定して無効化してください。
@@ -133,6 +307,17 @@ async def upload_csi_data_test(
             upload_info=upload_info,
             user_id=current_user.id
         )
+
+        # バックグラウンドタスクでPCAP解析+ZKP証明生成+ベースCSI比較を実行
+        from app.core.database import SessionLocal
+        background_tasks.add_task(
+            _process_and_generate_zkp_background,
+            csi_data_id=csi_data.id,
+            file_path=csi_data.file_path,
+            db_session_maker=SessionLocal
+        )
+
+        logger.info(f"CSI data uploaded (test): {csi_data.id}, background processing scheduled")
 
         return CSIDataResponse(
             id=csi_data.id,

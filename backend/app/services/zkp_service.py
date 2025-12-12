@@ -23,12 +23,13 @@ logger = logging.getLogger(__name__)
 class ZKPService:
     """ZKP証明生成サービス"""
 
-    def __init__(self, zkp_dir: Optional[str] = None):
+    def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True):
         """
         初期化
 
         Args:
             zkp_dir: zkpディレクトリのパス（デフォルトはプロジェクトルート/zkp）
+            auto_compile: 自動コンパイルを有効にするか（デフォルト: True）
         """
         if zkp_dir is None:
             # デフォルトはプロジェクトルートから相対パス
@@ -39,24 +40,166 @@ class ZKPService:
         self.zkp_dir = Path(zkp_dir)
         self.build_dir = self.zkp_dir / "build"
         self.keys_dir = self.zkp_dir / "keys"
+        self.auto_compile = auto_compile
 
-        # 必要なファイルの存在チェック
+        # 必要なファイルの存在チェック（自動コンパイルあり）
         self._check_setup()
 
     def _check_setup(self) -> None:
-        """ZKP環境のセットアップが完了しているか確認"""
-        wasm_file = self.build_dir / "breathing_verifier_js" / "breathing_verifier.wasm"
-        zkey_file = self.keys_dir / "breathing_verifier.zkey"
+        """ZKP環境のセットアップが完了しているか確認（自動コンパイル対応）"""
+        # 全DataFrame用回路のチェック（優先度高）
+        full_wasm = self.build_dir / "csi_full_dataframe_analyzer_js" / "csi_full_dataframe_analyzer.wasm"
+        full_zkey = self.keys_dir / "csi_full_dataframe_analyzer_final.zkey"
 
-        if not wasm_file.exists():
-            raise FileNotFoundError(
-                f"WASM file not found: {wasm_file}. Please run 'npm run compile' in zkp directory."
-            )
+        if not full_wasm.exists() or not full_zkey.exists():
+            if self.auto_compile:
+                logger.warning("Full DataFrame circuit files not found. Starting auto-compilation...")
+                try:
+                    self._auto_compile_full_circuit()
+                except Exception as e:
+                    logger.error(f"Auto-compilation failed: {e}")
+                    raise FileNotFoundError(
+                        f"Full DataFrame circuit not found and auto-compilation failed: {e}\n"
+                        f"Please manually run: cd zkp && npm run compile:full && npm run setup:full"
+                    )
+            else:
+                raise FileNotFoundError(
+                    f"Full DataFrame circuit files not found: {full_wasm}, {full_zkey}\n"
+                    f"Please run: cd zkp && npm run compile:full && npm run setup:full"
+                )
 
-        if not zkey_file.exists():
-            raise FileNotFoundError(
-                f"zKey file not found: {zkey_file}. Please run 'npm run setup' in zkp directory."
+        logger.info("Full DataFrame ZKP circuit is ready")
+
+    def _auto_compile_full_circuit(self) -> None:
+        """
+        全DataFrame用ZKP回路の自動コンパイルとセットアップ
+
+        警告: この処理には数十分〜数時間かかる可能性があります
+        """
+        import subprocess
+        import sys
+
+        logger.warning("Starting automatic compilation of full DataFrame circuit. This may take a long time...")
+
+        # 1. npmパッケージのインストール確認
+        node_modules = self.zkp_dir / "node_modules"
+        if not node_modules.exists():
+            logger.info("Installing npm packages...")
+            result = subprocess.run(
+                ["npm", "install"],
+                cwd=str(self.zkp_dir),
+                capture_output=True,
+                text=True
             )
+            if result.returncode != 0:
+                raise RuntimeError(f"npm install failed: {result.stderr}")
+
+        # 2. 回路のコンパイル
+        circuit_file = self.zkp_dir / "circuits" / "csi_full_dataframe_analyzer.circom"
+        if not circuit_file.exists():
+            raise FileNotFoundError(f"Circuit file not found: {circuit_file}")
+
+        logger.info("Compiling full DataFrame circuit (this may take several minutes)...")
+        compile_cmd = [
+            "circom",
+            str(circuit_file),
+            "--r1cs",
+            "--wasm",
+            "--sym",
+            "--c",
+            "-o", str(self.build_dir)
+        ]
+
+        result = subprocess.run(
+            compile_cmd,
+            cwd=str(self.zkp_dir),
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(f"Circuit compilation failed: {result.stderr}")
+
+        logger.info("Circuit compilation completed")
+
+        # 3. Trusted Setup（zkey生成）
+        logger.warning("Starting Trusted Setup (this may take 30 minutes to several hours)...")
+
+        # Powers of Tau ファイルの確認
+        ptau_file = self.keys_dir / "powersOfTau28_hez_final_16.ptau"
+        if not ptau_file.exists():
+            logger.info("Downloading Powers of Tau file...")
+            ptau_url = "https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_16.ptau"
+            import urllib.request
+            try:
+                urllib.request.urlretrieve(ptau_url, str(ptau_file))
+            except Exception as e:
+                raise RuntimeError(f"Failed to download Powers of Tau file: {e}")
+
+        r1cs_file = self.build_dir / "csi_full_dataframe_analyzer.r1cs"
+        zkey_0 = self.keys_dir / "csi_full_dataframe_analyzer_0000.zkey"
+        zkey_final = self.keys_dir / "csi_full_dataframe_analyzer_final.zkey"
+        vkey_file = self.keys_dir / "csi_full_dataframe_analyzer_verification_key.json"
+
+        # Setup
+        setup_cmd = [
+            "snarkjs", "groth16", "setup",
+            str(r1cs_file),
+            str(ptau_file),
+            str(zkey_0)
+        ]
+
+        result = subprocess.run(
+            setup_cmd,
+            cwd=str(self.zkp_dir),
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(f"Groth16 setup failed: {result.stderr}")
+
+        # Contribute
+        contribute_cmd = [
+            "snarkjs", "zkey", "contribute",
+            str(zkey_0),
+            str(zkey_final),
+            "--name=Auto-generated contribution",
+            "-v"
+        ]
+
+        # エントロピー入力を自動化（echo使用）
+        result = subprocess.run(
+            contribute_cmd,
+            cwd=str(self.zkp_dir),
+            input="random_entropy_12345\n",
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(f"zkey contribution failed: {result.stderr}")
+
+        # Export verification key
+        export_cmd = [
+            "snarkjs", "zkey", "export", "verificationkey",
+            str(zkey_final),
+            str(vkey_file)
+        ]
+
+        result = subprocess.run(
+            export_cmd,
+            cwd=str(self.zkp_dir),
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(f"Verification key export failed: {result.stderr}")
+
+        logger.info("Trusted Setup completed successfully")
+        logger.info(f"Circuit files ready at: {self.build_dir}")
+        logger.info(f"Keys ready at: {self.keys_dir}")
 
     def _calculate_poseidon_commitment(
         self, csi_data: List[int], salt: int
@@ -722,3 +865,342 @@ class ZKPService:
         finally:
             # 一時ファイルは保持（デバッグ用・監査用）
             pass
+
+    # ========== 全DataFrame解析用ZKPメソッド ==========
+
+    async def generate_full_dataframe_proof(
+        self,
+        csi_amplitude: List[List[int]],
+        frequency_bins: List[int],
+        num_freq_points: int,
+        num_subcarriers: int
+    ) -> Dict[str, Any]:
+        """
+        全DataFrame解析のZKP証明を生成（大規模回路・時間がかかります）
+
+        警告: この回路は5000×256の入力を処理するため、証明生成に30分～数時間かかる可能性があります
+
+        Args:
+            csi_amplitude: CSI振幅データ [5000][256]（ゼロパディング済み）
+            frequency_bins: 周波数ビン [5000]（Hz × 10000のスケール）
+            num_freq_points: 実際の周波数ポイント数
+            num_subcarriers: 実際のサブキャリア数
+
+        Returns:
+            {
+                "proof": ZKP証明オブジェクト,
+                "publicSignals": 公開信号リスト,
+                "bestSubcarrierIndices": 最適サブキャリアインデックス[4],
+                "breathingFrequency": 呼吸周波数（Hz × 10000）,
+                "confidenceScore": 信頼度スコア（10000スケール）,
+                "peakAmplitude": ピーク振幅
+            }
+
+        Raises:
+            ValueError: 入力データが不正な場合
+            RuntimeError: ZKP証明生成に失敗した場合
+        """
+        try:
+            # 入力検証
+            if len(csi_amplitude) != 5000:
+                raise ValueError(f"csi_amplitude must have 5000 rows, got {len(csi_amplitude)}")
+
+            for i, row in enumerate(csi_amplitude):
+                if len(row) != 256:
+                    raise ValueError(f"csi_amplitude row {i} must have 256 columns, got {len(row)}")
+
+            if len(frequency_bins) != 5000:
+                raise ValueError(f"frequency_bins must have 5000 elements, got {len(frequency_bins)}")
+
+            logger.warning(
+                f"Starting full DataFrame ZKP generation with {num_freq_points} frequency points "
+                f"and {num_subcarriers} subcarriers. This may take 30 minutes to several hours."
+            )
+
+            # 1. Witness生成用の入力データ準備
+            input_data = self._prepare_full_dataframe_input(
+                csi_amplitude,
+                frequency_bins,
+                num_freq_points,
+                num_subcarriers
+            )
+
+            # 2. Witness生成
+            witness_file = await self._generate_full_dataframe_witness(input_data)
+
+            # 3. ZKP証明生成
+            proof, public_signals = await self._generate_full_dataframe_groth16_proof(witness_file)
+
+            # 4. 結果パース
+            # 公開信号の順序: [best_subcarrier_indices[4], breathing_frequency, confidence_score, peak_amplitude]
+            best_subcarrier_indices = [int(public_signals[i]) for i in range(4)]
+            breathing_frequency = int(public_signals[4])
+            confidence_score = int(public_signals[5])
+            peak_amplitude = int(public_signals[6])
+
+            result = {
+                "proof": proof,
+                "publicSignals": public_signals,
+                "bestSubcarrierIndices": best_subcarrier_indices,
+                "breathingFrequency": breathing_frequency,
+                "breathingFrequencyHz": breathing_frequency / 10000.0,  # 実際のHz値
+                "confidenceScore": confidence_score,
+                "normalizedConfidence": confidence_score / 10000.0,  # 0.0-1.0スケール
+                "peakAmplitude": peak_amplitude
+            }
+
+            logger.info(
+                f"Full DataFrame ZKP generated successfully: "
+                f"breathing_freq={breathing_frequency / 10000.0:.4f}Hz, "
+                f"confidence={confidence_score / 10000.0:.2f}, "
+                f"best_subcarriers={best_subcarrier_indices}"
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Full DataFrame ZKP generation failed: {e}", exc_info=True)
+            raise RuntimeError(f"Full DataFrame ZKP generation failed: {str(e)}")
+
+    def _prepare_full_dataframe_input(
+        self,
+        csi_amplitude: List[List[int]],
+        frequency_bins: List[int],
+        num_freq_points: int,
+        num_subcarriers: int
+    ) -> Dict[str, Any]:
+        """
+        全DataFrame解析用Witness生成用の入力データを準備
+
+        Args:
+            csi_amplitude: CSI振幅データ [5000][256]
+            frequency_bins: 周波数ビン [5000]
+            num_freq_points: 実際の周波数ポイント数
+            num_subcarriers: 実際のサブキャリア数
+
+        Returns:
+            ZKP回路への入力データ
+        """
+        input_data = {
+            "csi_amplitude": csi_amplitude,
+            "frequency_bins": frequency_bins,
+            "num_freq_points": num_freq_points,
+            "num_subcarriers": num_subcarriers
+        }
+
+        logger.info(
+            f"Prepared full DataFrame input: {num_freq_points} freq points, "
+            f"{num_subcarriers} subcarriers (padded to 5000×256)"
+        )
+
+        return input_data
+
+    async def _generate_full_dataframe_witness(
+        self, input_data: Dict[str, Any]
+    ) -> Path:
+        """
+        全DataFrame解析用Witness生成
+
+        警告: 大規模回路のため、Witness生成にも時間がかかります（数分～数十分）
+
+        Args:
+            input_data: 入力データ
+
+        Returns:
+            生成されたWitnessファイルのパス
+        """
+        circuit_name = "csi_full_dataframe_analyzer"
+        input_file = self.build_dir / "full_dataframe_input.json"
+        witness_file = self.build_dir / f"{circuit_name}_js" / "witness.wtns"
+        wasm_file = self.build_dir / f"{circuit_name}_js" / f"{circuit_name}.wasm"
+        generate_witness_script = self.build_dir / f"{circuit_name}_js" / "generate_witness.js"
+
+        # ファイル存在確認
+        if not wasm_file.exists():
+            raise FileNotFoundError(
+                f"WASM file not found: {wasm_file}. "
+                "Please compile the full DataFrame circuit first: npm run compile:full"
+            )
+
+        if not generate_witness_script.exists():
+            raise FileNotFoundError(
+                f"Witness generation script not found: {generate_witness_script}"
+            )
+
+        # 入力データ保存
+        logger.info("Saving full DataFrame input data...")
+        with open(input_file, 'w') as f:
+            json.dump(input_data, f, indent=2)
+
+        logger.info("Input data saved. Starting witness generation (this may take several minutes)...")
+
+        # Witness生成実行
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "node",
+                str(generate_witness_script),
+                str(wasm_file),
+                str(input_file),
+                str(witness_file),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                error_msg = stderr.decode() if stderr else "Unknown error"
+                raise RuntimeError(f"Full DataFrame witness generation failed: {error_msg}")
+
+            if not witness_file.exists():
+                raise RuntimeError("Witness file was not created")
+
+            logger.info(f"Full DataFrame witness generated successfully: {witness_file}")
+            return witness_file
+
+        except Exception as e:
+            logger.error(f"Witness generation error: {e}")
+            raise
+
+    async def _generate_full_dataframe_groth16_proof(
+        self, witness_file: Path
+    ):
+        """
+        全DataFrame解析用ZKP証明生成
+
+        警告: 大規模回路のため、証明生成に30分～数時間かかる可能性があります
+
+        Args:
+            witness_file: Witnessファイルのパス
+
+        Returns:
+            (proof, public_signals)
+        """
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        proof_file = self.build_dir / f"full_dataframe_proof_{unique_id}.json"
+        public_file = self.build_dir / f"full_dataframe_public_{unique_id}.json"
+        zkey_file = self.keys_dir / "csi_full_dataframe_analyzer_final.zkey"
+
+        # zkeyファイル存在確認
+        if not zkey_file.exists():
+            raise FileNotFoundError(
+                f"zkey file not found: {zkey_file}. "
+                "Please run ZKP setup script first: npm run setup:full"
+            )
+
+        logger.warning("Starting proof generation. This may take 30 minutes to several hours...")
+
+        try:
+            # snarkjs groth16 prove 実行
+            prove_cmd = [
+                "snarkjs", "groth16", "prove",
+                str(zkey_file),
+                str(witness_file),
+                str(proof_file),
+                str(public_file)
+            ]
+
+            process = await asyncio.create_subprocess_exec(
+                *prove_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                error_msg = stderr.decode() if stderr else "Unknown error"
+                raise RuntimeError(f"Full DataFrame proof generation failed: {error_msg}")
+
+            # 証明と公開信号を読み込み
+            with open(proof_file) as f:
+                proof = json.load(f)
+
+            with open(public_file) as f:
+                public_signals = json.load(f)
+
+            logger.info("Full DataFrame ZKP proof generated successfully")
+            return proof, public_signals
+
+        except Exception as e:
+            logger.error(f"Proof generation error: {e}")
+            raise
+        finally:
+            # 一時ファイルは保持（デバッグ用・監査用）
+            pass
+
+    async def verify_full_dataframe_proof(
+        self,
+        proof: Dict[str, Any],
+        public_signals: List[int]
+    ) -> bool:
+        """
+        全DataFrame解析ZKP証明を検証
+
+        Args:
+            proof: ZKP証明オブジェクト
+            public_signals: 公開信号リスト
+
+        Returns:
+            True: 検証成功, False: 検証失敗
+        """
+        temp_proof_file = None
+        temp_public_file = None
+
+        try:
+            import uuid
+            unique_id = uuid.uuid4().hex[:8]
+            temp_proof_file = self.build_dir / f"full_dataframe_verify_proof_{unique_id}.json"
+            temp_public_file = self.build_dir / f"full_dataframe_verify_public_{unique_id}.json"
+
+            # 証明ファイルを一時保存
+            with open(temp_proof_file, 'w') as f:
+                json.dump(proof, f)
+
+            with open(temp_public_file, 'w') as f:
+                json.dump(public_signals, f)
+
+            # snarkjs groth16 verify 実行
+            verification_key = self.keys_dir / "csi_full_dataframe_analyzer_verification_key.json"
+
+            if not verification_key.exists():
+                raise FileNotFoundError(
+                    f"Verification key not found: {verification_key}. "
+                    "Please run ZKP setup script first: npm run setup:full"
+                )
+
+            verify_cmd = [
+                "snarkjs", "groth16", "verify",
+                str(verification_key),
+                str(temp_public_file),
+                str(temp_proof_file)
+            ]
+
+            process = await asyncio.create_subprocess_exec(
+                *verify_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                logger.error(f"Full DataFrame verification failed: {stderr.decode()}")
+                return False
+
+            # 検証結果パース
+            is_valid = b"OK" in stdout
+
+            logger.info(f"Full DataFrame ZKP verification: {'VALID' if is_valid else 'INVALID'}")
+            return is_valid
+
+        except Exception as e:
+            logger.error(f"Full DataFrame ZKP verification failed: {e}", exc_info=True)
+            return False
+        finally:
+            # 一時ファイル削除
+            if temp_proof_file and temp_proof_file.exists():
+                temp_proof_file.unlink()
+            if temp_public_file and temp_public_file.exists():
+                temp_public_file.unlink()
