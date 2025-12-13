@@ -1342,10 +1342,7 @@ class ZKPService:
 
         try:
             # 検証キーパス
-            vkey_path = os.path.join(
-                self.zkp_dir,
-                "build/csi_full_similarity_final.vkey.json"
-            )
+            vkey_path = str(self.keys_dir / "csi_full_similarity_verification_key.json")
 
             if not os.path.exists(vkey_path):
                 raise FileNotFoundError(f"Verification key not found: {vkey_path}")
