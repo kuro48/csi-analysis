@@ -56,6 +56,10 @@ class ZKPService:
         self.auto_compile = auto_compile
         self.temp_dir = Path(tempfile.gettempdir())
 
+        # 出力ディレクトリを先に用意（初回のcircom/snarkjs実行で "invalid output path" を避ける）
+        self.build_dir.mkdir(parents=True, exist_ok=True)
+        self.keys_dir.mkdir(parents=True, exist_ok=True)
+
         # 必要なファイルの存在チェック（自動コンパイルあり）
         self._check_setup()
 
@@ -1364,4 +1368,3 @@ class ZKPService:
             raise RuntimeError(f"Proof verification failed: {str(e)}")
 
     # ========== 全DataFrame解析用ZKPメソッド ==========
-
