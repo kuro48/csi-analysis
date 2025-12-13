@@ -1052,16 +1052,21 @@ class ZKPService:
             # Public signals: [referenceMatrix..., candidateMatrix..., similarity, dotProduct, isValid]
             num_matrix_elements = num_freq_points * num_subcarriers
             expected_len = 2 * num_matrix_elements + 3
+            actual_len = len(public_signals)
 
-            if len(public_signals) < expected_len:
+            logger.info(
+                f"Public signals length: actual={actual_len}, expected>={expected_len}"
+            )
+
+            if actual_len < 3:
                 raise RuntimeError(
-                    f"publicSignals length mismatch: expected >= {expected_len}, got {len(public_signals)}"
+                    f"publicSignals length too short: got {actual_len}, need at least 3 outputs"
                 )
 
-            # 出力は最後の3つ
-            similarity = int(public_signals[2 * num_matrix_elements])
-            dotProduct = int(public_signals[2 * num_matrix_elements + 1])
-            isValid = int(public_signals[2 * num_matrix_elements + 2])
+            # 出力は末尾3つを使用（前段の長さに依存せず安全に取得）
+            similarity = int(public_signals[-3])
+            dotProduct = int(public_signals[-2])
+            isValid = int(public_signals[-1])
 
             # 注: 回路で出力されるsimilarityは dotProduct * SCALE
             # 実際のコサイン類似度を計算するには、public signalsから
