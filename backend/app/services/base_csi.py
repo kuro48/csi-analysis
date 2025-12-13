@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models.base_csi import BaseCSI
 from app.schemas.base_csi import BaseCSIRegister, BaseCSIUpdate
-from app.services.pcap_analyzer import PcapAnalyzer
+from app.services.pcap_analyzer import PCAPAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,6 @@ class BaseCSIService:
         pcap_file_data: bytes,
         pcap_filename: str,
         register_info: BaseCSIRegister,
-        user_id: Optional[uuid.UUID] = None,
         storage_dir: str = "/data/base_csi"
     ) -> BaseCSI:
         """
@@ -60,33 +59,26 @@ class BaseCSIService:
             logger.info(f"Base CSI PCAP saved: {pcap_path}")
 
             # PCAP解析
-            analyzer = PcapAnalyzer()
+            analyzer = PCAPAnalyzer()
             fft_df = analyzer.analyze_pcap_file(str(pcap_path))
 
-            # 呼吸周波数帯域から4次元ベクトルを抽出
-            reference_vector, candidate_vectors = analyzer.prepare_zkp_vectors_from_fft(fft_df)
+            # freq_interval列をJSON化可能な形式に変換
+            fft_df_copy = fft_df.copy()
+            if 'freq_interval' in fft_df_copy.columns:
+                fft_df_copy['freq_interval'] = fft_df_copy['freq_interval'].astype(str)
 
-            # 呼吸解析結果の取得（簡易版 - 周波数帯域のピーク検出）
-            breathing_freq_hz, confidence_score, best_subcarriers = BaseCSIService._analyze_breathing_pattern(
-                fft_df
-            )
+            # NaN値をNoneに変換（JSONのnullになる）
+            import numpy as np
+            fft_df_copy = fft_df_copy.replace({np.nan: None})
 
-            # 有効期限設定
-            expires_at = None
-            if register_info.expires_in_days is not None:
-                expires_at = datetime.utcnow() + timedelta(days=register_info.expires_in_days)
+            # 有効期限設定（常に30日）
+            expires_at = datetime.utcnow() + timedelta(days=30)
 
             # ベースCSIレコード作成
             base_csi = BaseCSI(
                 id=pcap_id,
-                user_id=user_id,
                 name=register_info.name,
-                description=register_info.description,
-                fft_dataframe=fft_df.to_dict(),
-                breathing_frequency_hz=breathing_freq_hz,
-                confidence_score=confidence_score,
-                best_subcarrier_indices=best_subcarriers,
-                reference_vector=reference_vector,
+                fft_dataframe=fft_df_copy.to_dict(),
                 source_pcap_path=str(pcap_path),
                 source_pcap_size=len(pcap_file_data),
                 expires_at=expires_at
@@ -103,58 +95,6 @@ class BaseCSIService:
         except Exception as e:
             logger.error(f"Failed to register base CSI: {e}", exc_info=True)
             raise ValueError(f"ベースCSI登録に失敗しました: {str(e)}")
-
-    @staticmethod
-    def _analyze_breathing_pattern(fft_df) -> Tuple[float, float, List[int]]:
-        """
-        呼吸パターンを簡易解析
-
-        Args:
-            fft_df: FFT DataFrame
-
-        Returns:
-            (呼吸周波数Hz, 信頼度スコア, 最適サブキャリアインデックス[4])
-        """
-        import pandas as pd
-        import numpy as np
-
-        # 呼吸周波数帯域のフィルタ（0.15-0.4Hz）
-        breathing_min = 0.15
-        breathing_max = 0.4
-
-        freq_col = 'frequency'
-        breathing_mask = (fft_df[freq_col] >= breathing_min) & (fft_df[freq_col] <= breathing_max)
-        breathing_df = fft_df[breathing_mask]
-
-        if breathing_df.empty:
-            return 0.0, 0.0, [0, 0, 0, 0]
-
-        # サブキャリアごとのパワーを計算
-        subcarrier_cols = [col for col in breathing_df.columns if col != freq_col]
-        subcarrier_power = {}
-
-        for sc in subcarrier_cols:
-            power = breathing_df[sc].sum()
-            subcarrier_power[sc] = power
-
-        # 上位4つのサブキャリアを選択
-        sorted_scs = sorted(subcarrier_power.items(), key=lambda x: x[1], reverse=True)[:4]
-        best_subcarriers = [int(sc[0]) if sc[0].isdigit() else 0 for sc in sorted_scs]
-
-        # 上位サブキャリアの平均振幅を計算
-        top_sc_cols = [sc[0] for sc in sorted_scs]
-        avg_amplitude = breathing_df[top_sc_cols].mean(axis=1)
-
-        # ピーク周波数を検出
-        peak_idx = avg_amplitude.idxmax()
-        breathing_freq_hz = breathing_df.loc[peak_idx, freq_col]
-
-        # 信頼度スコア（簡易版: ピーク/平均の比率）
-        peak_amplitude = avg_amplitude.max()
-        mean_amplitude = avg_amplitude.mean()
-        confidence_score = min(peak_amplitude / (mean_amplitude + 1e-6), 1.0)
-
-        return float(breathing_freq_hz), float(confidence_score), best_subcarriers
 
     @staticmethod
     def get_base_csi_list(
@@ -249,15 +189,6 @@ class BaseCSIService:
         # 更新
         if update_info.name is not None:
             base_csi.name = update_info.name
-
-        if update_info.description is not None:
-            base_csi.description = update_info.description
-
-        if update_info.expires_in_days is not None:
-            if update_info.expires_in_days > 0:
-                base_csi.expires_at = datetime.utcnow() + timedelta(days=update_info.expires_in_days)
-            else:
-                base_csi.expires_at = None
 
         db.commit()
         db.refresh(base_csi)

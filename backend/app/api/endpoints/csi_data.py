@@ -19,7 +19,7 @@ from app.models.user import User
 from app.models.csi_data import CSIData
 from app.models.base_csi import BaseCSI
 from app.services.csi_data import CSIDataService, SessionService
-from app.services.pcap_analyzer import PcapAnalyzer
+from app.services.pcap_analyzer import PCAPAnalyzer
 from app.services.zkp_service import ZKPService
 from app.services.base_csi import BaseCSIService
 from app.schemas.csi_data import (
@@ -63,16 +63,22 @@ async def _process_and_generate_zkp_background(
             db.commit()
 
         # PcapAnalyzerとZKPServiceのインスタンス作成
-        analyzer = PcapAnalyzer()
+        analyzer = PCAPAnalyzer()
         zkp_service = ZKPService(auto_compile=settings.ZKP_AUTO_COMPILE)
 
-        logger.info(f"Analyzing PCAP file and generating ZKP proof: {file_path}")
+        logger.info(f"Analyzing PCAP file: {file_path}")
 
-        # 全DataFrame解析+ZKP証明生成を実行
-        result = await analyzer.analyze_and_generate_full_zkp(
-            file_path=file_path,
-            zkp_service=zkp_service
-        )
+        # PCAP解析を実行（FFT変換まで）
+        binned_fft_df = analyzer.analyze_pcap_file(file_path)
+
+        if binned_fft_df.empty:
+            raise ValueError("PCAP解析に失敗しました: データが空です")
+
+        # 基本的な結果を作成
+        result = {
+            "binned_fft_dataframe": binned_fft_df,
+            "fft_dataframe": binned_fft_df  # ビン平均化後のデータを使用
+        }
 
         # ベースCSIとの比較（常に実行）
         base_csi_comparison = None
@@ -94,31 +100,50 @@ async def _process_and_generate_zkp_background(
             if base_csi:
                 logger.info(f"Comparing with base CSI: {base_csi.id} ({base_csi.name})")
 
-                # リファレンスベクトルとキャンディデートベクトルを取得
-                reference_vector = base_csi.reference_vector
-                fft_df = result["fft_dataframe"]
+                # ベースCSIのFFTデータからDataFrameを復元
+                import pandas as pd
+                base_fft_df = pd.DataFrame(base_csi.fft_dataframe)
 
-                # アップロードされたCSIから候補ベクトルを抽出
-                _, candidate_vectors = analyzer.prepare_zkp_vectors_from_fft(fft_df)
+                # ベースCSIから全データを抽出（呼吸周波数帯域のみ）
+                base_data = analyzer.extract_full_subcarrier_vectors(
+                    base_fft_df,
+                    freq_col='freq_interval',
+                    use_binned=True
+                )
+                reference_matrix = base_data["csi_matrix"]
 
-                # コサイン類似度ZKP証明を生成
-                similarity_result = zkp_service.generate_cosine_similarity_proof(
-                    reference_vector=reference_vector,
-                    candidate_vectors=candidate_vectors
+                # アップロードされたCSIから全データを抽出
+                upload_fft_df = result["fft_dataframe"]
+                upload_data = analyzer.extract_full_subcarrier_vectors(
+                    upload_fft_df,
+                    freq_col='freq_interval',
+                    use_binned=True
+                )
+                candidate_matrix = upload_data["csi_matrix"]
+
+                # 全データを使ったコサイン類似度ZKP証明を生成
+                similarity_result = await zkp_service.generate_full_cosine_similarity_proof(
+                    reference_matrix=reference_matrix,
+                    candidate_matrix=candidate_matrix
                 )
 
                 base_csi_comparison = {
                     "base_csi_id": str(base_csi.id),
                     "base_csi_name": base_csi.name,
-                    "similarity_score": similarity_result["similarity_score"],
-                    "best_candidate_index": similarity_result["best_candidate_index"],
+                    "similarity_score": similarity_result["normalizedSimilarity"],
                     "zkp_proof": similarity_result.get("proof", {}),
-                    "public_signals": similarity_result.get("public_signals", [])
+                    "public_signals": similarity_result.get("publicSignals", []),
+                    "is_valid": similarity_result.get("isValid", False),
+                    "data_dimensions": {
+                        "num_freq_points": base_data["num_freq_points"],
+                        "num_subcarriers": base_data["num_subcarriers"],
+                        "total_dimensions": base_data["num_freq_points"] * base_data["num_subcarriers"]
+                    }
                 }
 
                 logger.info(
-                    f"Base CSI comparison completed: similarity={similarity_result['similarity_score']:.4f}, "
-                    f"best_index={similarity_result['best_candidate_index']}"
+                    f"Base CSI comparison completed: similarity={similarity_result['normalizedSimilarity']:.4f}, "
+                    f"dimensions={base_data['num_freq_points']}×{base_data['num_subcarriers']}"
                 )
             else:
                 logger.warning("No base CSI found for comparison")
@@ -131,13 +156,28 @@ async def _process_and_generate_zkp_background(
         if csi_data:
             csi_data.status = "completed"
 
-            # processed_dataに解析結果とZKP証明を保存
+            # DataFrameをJSON化（Interval型を文字列に変換、NaN値を処理）
+            fft_df = result["fft_dataframe"]
+            if hasattr(fft_df, "to_dict"):
+                import pandas as pd
+                import numpy as np
+
+                fft_df_copy = fft_df.copy()
+
+                # freq_interval列がInterval型の場合は文字列に変換
+                if "freq_interval" in fft_df_copy.columns:
+                    fft_df_copy["freq_interval"] = fft_df_copy["freq_interval"].astype(str)
+
+                # NaN, inf, -infをNoneに置き換え（JSONで有効な値に変換）
+                fft_df_copy = fft_df_copy.replace([np.nan, np.inf, -np.inf], None)
+
+                fft_dict = fft_df_copy.to_dict()
+            else:
+                fft_dict = {}
+
+            # processed_dataに解析結果を保存
             processed_data = {
-                "fft_dataframe": result["fft_dataframe"].to_dict() if hasattr(result["fft_dataframe"], "to_dict") else {},
-                "zkp_proof": result.get("zkp_proof", {}),
-                "breathing_frequency_hz": result.get("breathing_frequency_hz", 0),
-                "confidence_score": result.get("confidence_score", 0),
-                "best_subcarrier_indices": result.get("best_subcarrier_indices", [])
+                "fft_dataframe": fft_dict
             }
 
             # ベースCSI比較結果を追加
@@ -147,21 +187,37 @@ async def _process_and_generate_zkp_background(
             csi_data.processed_data = processed_data
             db.commit()
 
-            logger.info(
-                f"Background processing completed for CSI data {csi_data_id}: "
-                f"breathing_freq={result.get('breathing_frequency_hz', 0):.4f}Hz, "
-                f"confidence={result.get('confidence_score', 0):.2f}"
-            )
+            if base_csi_comparison:
+                logger.info(
+                    f"Background processing completed for CSI data {csi_data_id}: "
+                    f"similarity={base_csi_comparison['similarity_score']:.4f}"
+                )
+            else:
+                logger.info(f"Background processing completed for CSI data {csi_data_id}")
 
-    except Exception as e:
-        logger.error(f"Background processing failed for CSI data {csi_data_id}: {e}", exc_info=True)
+    except ValueError as e:
+        # PCAP解析失敗などの検証エラー
+        logger.error(f"Validation error in background processing for CSI data {csi_data_id}: {e}", exc_info=True)
 
-        # エラーステータスに更新
         if db and csi_data:
             csi_data.status = "error"
             csi_data.processed_data = {
                 "error": str(e),
-                "error_type": type(e).__name__
+                "error_type": "ValidationError",
+                "error_category": "pcap_analysis_failed"
+            }
+            db.commit()
+
+    except Exception as e:
+        # その他の予期しないエラー
+        logger.error(f"Background processing failed for CSI data {csi_data_id}: {e}", exc_info=True)
+
+        if db and csi_data:
+            csi_data.status = "error"
+            csi_data.processed_data = {
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "error_category": "processing_failed"
             }
             db.commit()
 
@@ -251,97 +307,6 @@ async def upload_csi_data(
             detail=f"CSIデータアップロードに失敗しました: {str(e)}"
         )
 
-
-@router.post("/upload-test", response_model=CSIDataResponse)
-async def upload_csi_data_test(
-    background_tasks: BackgroundTasks,
-    session_id: Optional[str] = Form(None, description="セッションID"),
-    collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
-    collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
-    metadata: Optional[str] = Form(None, description="メタデータ（JSON文字列）"),
-    file: UploadFile = File(..., description="CSIデータファイル"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    CSIデータアップロード（テスト用・ユーザー認証）
-
-    アップロード後、自動的にPCAP解析とZKP証明生成を実行します。
-    処理はバックグラウンドで実行されるため、アップロードレスポンスは即座に返されます。
-
-    グローバルベースCSI（最新のアクティブなもの）と自動的に比較され、
-    コサイン類似度がZKP証明とともに計算されます。
-
-    注意: このエンドポイントはテスト/開発環境専用です。
-    本番環境では ENABLE_TEST_ENDPOINTS=False に設定して無効化してください。
-    """
-    # 本番環境ではテストエンドポイントを無効化
-    if not settings.ENABLE_TEST_ENDPOINTS:
-        raise HTTPException(
-            status_code=http_status.HTTP_404_NOT_FOUND,
-            detail="このエンドポイントは本番環境では利用できません"
-        )
-    try:
-        # ファイルデータ読み取り
-        file_data = await file.read()
-
-        if len(file_data) == 0:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail="アップロードファイルが空です"
-            )
-
-        # アップロード情報構築
-        upload_info = CSIDataUpload(
-            file_name=file.filename or "unknown",
-            session_id=session_id,
-            collection_start_time=datetime.fromisoformat(collection_start_time.replace('Z', '+00:00')) if collection_start_time else None,
-            collection_duration=collection_duration,
-            metadata=json.loads(metadata) if metadata else {}
-        )
-
-        # CSIデータアップロード
-        csi_data = await CSIDataService.upload_csi_data(
-            db=db,
-            file_data=file_data,
-            upload_info=upload_info,
-            user_id=current_user.id
-        )
-
-        # バックグラウンドタスクでPCAP解析+ZKP証明生成+ベースCSI比較を実行
-        from app.core.database import SessionLocal
-        background_tasks.add_task(
-            _process_and_generate_zkp_background,
-            csi_data_id=csi_data.id,
-            file_path=csi_data.file_path,
-            db_session_maker=SessionLocal
-        )
-
-        logger.info(f"CSI data uploaded (test): {csi_data.id}, background processing scheduled")
-
-        return CSIDataResponse(
-            id=csi_data.id,
-            session_id=csi_data.session_id,
-            file_path=csi_data.file_path,
-            file_size=csi_data.file_size,
-            status=csi_data.status,
-            ipfs_hash=csi_data.ipfs_hash,
-            created_at=csi_data.created_at,
-            updated_at=csi_data.updated_at
-        )
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"CSIデータアップロードに失敗しました: {str(e)}"
-        )
-
-
 @router.get("/", response_model=CSIDataListResponse)
 async def list_csi_data(
     session_id: Optional[str] = Query(None, description="セッションIDフィルター"),
@@ -350,8 +315,7 @@ async def list_csi_data(
     end_date: Optional[str] = Query(None, description="終了日時"),
     page: int = Query(1, ge=1, description="ページ番号"),
     page_size: int = Query(20, ge=1, le=100, description="1ページあたりの件数"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     CSIデータ一覧取得
@@ -366,7 +330,7 @@ async def list_csi_data(
         )
 
         csi_data_list, total_count = CSIDataService.get_csi_data_list(
-            db, current_user.id, filters, page, page_size
+            db, filters, page, page_size
         )
 
         # レスポンス構築

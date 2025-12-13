@@ -9,6 +9,28 @@ from app.services.task_queue import task_queue
 from app.services.analysis_tasks import register_task_handlers
 import logging
 
+
+def configure_logging() -> None:
+    """アプリケーション共通のログ出力を設定"""
+    log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+
+    if not root_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+        )
+        root_logger.addHandler(handler)
+
+
+configure_logging()
+
+# healthチェックのログを除外するフィルタ
+class HealthCheckFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/health" not in record.getMessage()
+
 # アプリケーション初期化
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -40,6 +62,9 @@ logger = logging.getLogger(__name__)
 async def startup_event():
     """アプリケーション起動時の初期化処理"""
     try:
+        # uvicornのアクセスログからhealthチェックを除外
+        logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
+
         print("⏳ Starting application initialization...")
         logger.info("Starting application initialization...")
 

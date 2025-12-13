@@ -11,15 +11,11 @@ import uuid
 class BaseCSIRegister(BaseModel):
     """ベースCSI登録リクエスト"""
     name: str = Field(..., description="ベースCSI名（例: 正常呼吸パターン1）")
-    description: Optional[str] = Field(None, description="説明")
-    expires_in_days: Optional[int] = Field(None, description="有効期限（日数）。Noneの場合は無期限")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "name": "正常呼吸パターン - 安静時",
-                "description": "被験者Aの安静時の正常な呼吸パターン",
-                "expires_in_days": 30
+                "name": "正常呼吸パターン - 安静時"
             }
         }
 
@@ -27,13 +23,7 @@ class BaseCSIRegister(BaseModel):
 class BaseCSIResponse(BaseModel):
     """ベースCSIレスポンス"""
     id: str
-    user_id: Optional[str]
     name: str
-    description: Optional[str]
-    breathing_frequency_hz: Optional[float]
-    confidence_score: Optional[float]
-    best_subcarrier_indices: Optional[List[int]]
-    reference_vector: List[int]
     source_pcap_path: Optional[str]
     source_pcap_size: Optional[int]
     expires_at: Optional[str]
@@ -46,13 +36,7 @@ class BaseCSIResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "id": "123e4567-e89b-12d3-a456-426614174000",
-                "user_id": "123e4567-e89b-12d3-a456-426614174001",
                 "name": "正常呼吸パターン - 安静時",
-                "description": "被験者Aの安静時の正常な呼吸パターン",
-                "breathing_frequency_hz": 0.25,
-                "confidence_score": 0.92,
-                "best_subcarrier_indices": [120, 145, 89, 201],
-                "reference_vector": [8500, 7200, 9100, 8800],
                 "source_pcap_path": "/data/pcap/base_csi_123.pcap",
                 "source_pcap_size": 1048576,
                 "expires_at": "2024-12-31T23:59:59",
@@ -86,15 +70,11 @@ class BaseCSIListResponse(BaseModel):
 class BaseCSIUpdate(BaseModel):
     """ベースCSI更新リクエスト"""
     name: Optional[str] = Field(None, description="ベースCSI名")
-    description: Optional[str] = Field(None, description="説明")
-    expires_in_days: Optional[int] = Field(None, description="有効期限（日数）。Noneの場合は無期限")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "name": "正常呼吸パターン - 安静時（更新版）",
-                "description": "更新された説明",
-                "expires_in_days": 60
+                "name": "正常呼吸パターン - 安静時（更新版）"
             }
         }
 

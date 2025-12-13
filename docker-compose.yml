@@ -55,8 +55,10 @@ services:
       - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
       - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000
       - DEBUG=True
+      - ZKP_AUTO_COMPILE=TRUE
     volumes:
       - ./backend:/app
+      - ./zkp:/zkp
       - csi_uploads:/app/uploads
     ports:
       - "8000:8000"

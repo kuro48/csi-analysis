@@ -12,8 +12,8 @@ import logging
 from app.models.breathing_analysis import BreathingAnalysis
 from app.models.csi_data import CSIData
 from app.schemas.csi_data import (
-    BreathingAnalysisResult, BreathingAnalysisResponse,
-    BreathingAnalysisFilter, BreathingAnalysisStats,
+    BreathingAnalysisResult,
+    BreathingAnalysisFilter,
 )
 
 logger = logging.getLogger(__name__)

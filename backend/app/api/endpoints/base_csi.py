@@ -24,18 +24,18 @@ logger = logging.getLogger(__name__)
 
 @router.post("/register", response_model=BaseCSIResponse)
 async def register_base_csi(
-    name: str = Form(..., description="ベースCSI名"),
-    description: Optional[str] = Form(None, description="説明"),
-    expires_in_days: Optional[int] = Form(None, description="有効期限（日数）"),
     file: UploadFile = File(..., description="PCAPファイル"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
-    ベースCSIを登録
+    ベースCSIを登録（認証不要）
 
-    PCAPファイルから呼吸パターンを解析し、ベースCSIとして登録します。
+    PCAPファイルから呼吸パターンを解析し、グローバルベースCSIとして登録します。
     登録されたベースCSIは、後続のアップロードCSIと比較する際の基準として使用されます。
+
+    - name: ファイル名から自動設定
+
+    注意: このエンドポイントは認証不要のため、本番環境では適切なアクセス制御を実装してください。
     """
     try:
         # ファイルデータ読み取り
@@ -47,20 +47,17 @@ async def register_base_csi(
                 detail="アップロードファイルが空です"
             )
 
-        # 登録情報構築
+        # 登録情報構築（ファイル名を使用、有効期限30日）
         register_info = BaseCSIRegister(
-            name=name,
-            description=description,
-            expires_in_days=expires_in_days
+            name=file.filename or "base_csi.pcap"
         )
 
-        # ベースCSI登録
+        # ベースCSI登録（グローバルベースCSIとしてuser_id=Noneで登録）
         base_csi = await BaseCSIService.register_base_csi(
             db=db,
             pcap_file_data=file_data,
             pcap_filename=file.filename or "unknown.pcap",
-            register_info=register_info,
-            user_id=current_user.id
+            register_info=register_info
         )
 
         return BaseCSIResponse(**base_csi.to_dict())
@@ -83,8 +80,7 @@ async def list_base_csis(
     include_expired: bool = False,
     page: int = 1,
     page_size: int = 20,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     ベースCSI一覧取得
@@ -94,7 +90,6 @@ async def list_base_csis(
     try:
         base_csis, total_count = BaseCSIService.get_base_csi_list(
             db=db,
-            user_id=current_user.id,
             include_expired=include_expired,
             page=page,
             page_size=page_size
@@ -124,8 +119,7 @@ async def list_base_csis(
 @router.get("/{base_csi_id}", response_model=BaseCSIResponse)
 async def get_base_csi(
     base_csi_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     特定のベースCSIを取得
@@ -133,7 +127,6 @@ async def get_base_csi(
     base_csi = BaseCSIService.get_base_csi_by_id(
         db=db,
         base_csi_id=base_csi_id,
-        user_id=current_user.id
     )
 
     if base_csi is None:
@@ -149,8 +142,7 @@ async def get_base_csi(
 async def update_base_csi(
     base_csi_id: uuid.UUID,
     update_info: BaseCSIUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     ベースCSI情報を更新
@@ -158,8 +150,7 @@ async def update_base_csi(
     base_csi = BaseCSIService.update_base_csi(
         db=db,
         base_csi_id=base_csi_id,
-        update_info=update_info,
-        user_id=current_user.id
+        update_info=update_info
     )
 
     if base_csi is None:
@@ -174,16 +165,14 @@ async def update_base_csi(
 @router.delete("/{base_csi_id}")
 async def delete_base_csi(
     base_csi_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     ベースCSIを削除
     """
     success = BaseCSIService.delete_base_csi(
         db=db,
-        base_csi_id=base_csi_id,
-        user_id=current_user.id
+        base_csi_id=base_csi_id
     )
 
     if not success:
@@ -197,17 +186,11 @@ async def delete_base_csi(
 
 @router.post("/cleanup-expired")
 async def cleanup_expired_base_csis(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     有効期限切れのベースCSIを削除（管理者のみ）
     """
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=http_status.HTTP_403_FORBIDDEN,
-            detail="この操作には管理者権限が必要です"
-        )
 
     count = BaseCSIService.cleanup_expired_base_csis(db)
 
