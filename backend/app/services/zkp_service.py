@@ -122,11 +122,11 @@ class ZKPService:
                 "circuit_file": "csi_full_similarity.circom",
                 "display_name": "Full Similarity"
             },
-            {
-                "name": "breathing_verifier",
-                "circuit_file": "breathing_verifier.circom",
-                "display_name": "Breathing Verifier"
-            }
+            # {
+            #     "name": "breathing_verifier",
+            #     "circuit_file": "breathing_verifier.circom",
+            #     "display_name": "Breathing Verifier"
+            # }
         ]
 
         logger.warning("Starting automatic compilation of ZKP circuits. This may take a long time...")
@@ -151,12 +151,7 @@ class ZKPService:
 
             # 既にコンパイル済みかチェック
             wasm_file = self.build_dir / f"{circuit_name}_js" / f"{circuit_name}.wasm"
-
-            # breathing_verifierはzkeyファイル名が異なる
-            if circuit_name == "breathing_verifier":
-                zkey_file = self.keys_dir / f"{circuit_name}.zkey"
-            else:
-                zkey_file = self.keys_dir / f"{circuit_name}_final.zkey"
+            zkey_file = self.keys_dir / f"{circuit_name}.zkey"
 
             if wasm_file.exists() and zkey_file.exists():
                 logger.info(f"{circuit_info['display_name']} circuit already compiled, skipping...")
@@ -294,21 +289,56 @@ class ZKPService:
         """
         PoseidonハッシュによるCSIデータのコミットメント計算
 
-        Note: 実際の実装では circomlibjs を使用してPoseidonハッシュを計算する必要があります。
-        現在はプレースホルダーとしてSHA256を使用しています。
-
         Args:
             csi_data: CSI振幅データ（64サンプル）
             salt: ソルト値
 
         Returns:
-            コミットメント値（文字列）
+            コミットメント値（10進文字列）
         """
-        # TODO: circomlibjs の poseidon を使用した実装に置き換える
-        # 現在はSHA256でシミュレート
-        data_str = ",".join(map(str, csi_data)) + f",{salt}"
-        hash_obj = hashlib.sha256(data_str.encode())
-        return str(int.from_bytes(hash_obj.digest()[:8], byteorder='big'))
+        return self._poseidon_hash(csi_data + [salt])
+
+    def _poseidon_hash(self, inputs: List[int]) -> str:
+        """
+        circomlib の Poseidon 実装を Node.js 経由で呼び出してハッシュを計算
+
+        Args:
+            inputs: 整数配列
+
+        Returns:
+            Poseidonハッシュ（10進文字列）
+        """
+        script_path = self.zkp_dir / "scripts" / "poseidon_hash.js"
+        if not script_path.exists():
+            raise FileNotFoundError(f"Poseidon script not found: {script_path}")
+
+        # 入力をJSONで一時ファイル化（BigInt安全のため文字列にして渡す）
+        tmp_input = self.temp_dir / f"poseidon_input_{uuid.uuid4()}.json"
+        with open(tmp_input, "w") as f:
+            json.dump([str(v) for v in inputs], f)
+
+        try:
+            result = subprocess.run(
+                ["node", str(script_path), str(tmp_input)],
+                cwd=str(self.zkp_dir),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Poseidon hash failed: {result.stderr.strip() or result.stdout.strip()}"
+                )
+
+            output = result.stdout.strip()
+            if not output:
+                raise RuntimeError("Poseidon hash returned empty output")
+
+            return output
+        finally:
+            if tmp_input.exists():
+                tmp_input.unlink()
 
     def _prepare_circuit_input(
         self,
