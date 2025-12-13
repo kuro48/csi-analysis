@@ -1023,20 +1023,24 @@ class ZKPService:
             if len(reference_matrix[0]) != len(candidate_matrix[0]):
                 raise ValueError("Reference and candidate must have same number of subcarriers")
 
-            num_freq_points = len(reference_matrix)
-            num_subcarriers = len(reference_matrix[0])
+            original_freq_points = len(reference_matrix)
+            original_subcarriers = len(reference_matrix[0])
 
             logger.info(
                 f"Generating full cosine similarity ZKP: "
-                f"{num_freq_points} freq points × {num_subcarriers} subcarriers"
+                f"{original_freq_points} freq points × {original_subcarriers} subcarriers (before resize)"
             )
 
-            # 1. Witness生成用の入力データ準備
+            # 1. Witness生成用の入力データ準備（内部で期待サイズにリサイズ）
             input_data = self._prepare_full_cosine_similarity_input(
                 reference_matrix,
                 candidate_matrix,
                 scale
             )
+
+            # 回路の期待サイズ（リサイズ後の実サイズ）
+            num_freq_points = len(input_data["referenceMatrix"])
+            num_subcarriers = len(input_data["referenceMatrix"][0])
 
             # 2. Witness生成
             witness_file = await self._generate_full_cosine_similarity_witness(input_data)
@@ -1047,6 +1051,12 @@ class ZKPService:
             # 4. 結果パース
             # Public signals: [referenceMatrix..., candidateMatrix..., similarity, dotProduct, isValid]
             num_matrix_elements = num_freq_points * num_subcarriers
+            expected_len = 2 * num_matrix_elements + 3
+
+            if len(public_signals) < expected_len:
+                raise RuntimeError(
+                    f"publicSignals length mismatch: expected >= {expected_len}, got {len(public_signals)}"
+                )
 
             # 出力は最後の3つ
             similarity = int(public_signals[2 * num_matrix_elements])
