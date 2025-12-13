@@ -174,4 +174,5 @@ template CosineSimilarityFullData(NUM_FREQ_POINTS, NUM_SUBCARRIERS, SCALE) {
  *
  * 総次元数: 25 × 200 = 5000
  */
-component main {public [referenceMatrix, candidateMatrix]} = CosineSimilarityFullData(25, 200, 10000);
+// 類似度・内積・有効フラグも検証側で使うため public に含める
+component main {public [referenceMatrix, candidateMatrix, similarity, dotProduct, isValid]} = CosineSimilarityFullData(25, 200, 10000);
