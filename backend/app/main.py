@@ -7,6 +7,7 @@ from app.core.errors import setup_error_handlers
 from app.api.routes import api_router
 from app.services.task_queue import task_queue
 from app.services.analysis_tasks import register_task_handlers
+from app.services.zkp_service import ZKPService
 import logging
 
 
@@ -71,6 +72,17 @@ async def startup_event():
         # セキュリティ設定の検証
         _validate_security_settings()
         print("✅ Security settings validated")
+
+        # ZKP回路のセットアップ（必要なら自動コンパイル）
+        if settings.ZKP_AUTO_COMPILE:
+            print("⏳ Checking ZKP circuits (auto-compile enabled)...")
+            try:
+                ZKPService(auto_compile=True)
+                print("✅ ZKP circuits ready (auto-compile checked)")
+            except Exception as e:
+                logger.error(f"ZKP circuit setup failed: {e}", exc_info=True)
+                print(f"❌ ZKP circuit setup failed: {e}")
+                # エラーは継続（開発用途のため）
 
         # タスクキューに接続
         print("⏳ Connecting to task queue...")

@@ -34,7 +34,8 @@ class Settings:
 
     # ZKP設定
     ZKP_AUTO_GENERATE: bool = os.getenv("ZKP_AUTO_GENERATE", "true").lower() == "true"  # 自動ZKP証明生成
-    ZKP_AUTO_COMPILE: bool = os.getenv("ZKP_AUTO_COMPILE", "true").lower() == "true"  # 自動コンパイル（初回起動時のみ）
+    # zkp_auto_compile は常に有効（環境変数を無視して強制ON）
+    ZKP_AUTO_COMPILE: bool = True  # 自動コンパイル（初回起動時のみ）
     ZKP_DATA_RETENTION_HOURS: int = int(os.getenv("ZKP_DATA_RETENTION_HOURS", "0"))  # 0=即削除、>0=時間後削除
 
     # データベース設定
