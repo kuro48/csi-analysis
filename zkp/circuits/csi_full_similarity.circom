@@ -1,6 +1,8 @@
 pragma circom 2.0.0;
 
 include "../node_modules/circomlib/circuits/comparators.circom";
+include "../node_modules/circomlib/circuits/multiplexers.circom";
+include "../node_modules/circomlib/circuits/bitify.circom";
 
 /**
  * 全サブキャリア × 全周波数ポイントのコサイン類似度計算回路
@@ -18,24 +20,10 @@ include "../node_modules/circomlib/circuits/comparators.circom";
  * - candidateMatrix[NUM_FREQ_POINTS][NUM_SUBCARRIERS]: 候補CSIデータ（アップロード）
  *
  * 出力:
- * - similarity: コサイン類似度（0～SCALE）
+ * - similarities[NUM_SUBCARRIERS]: 各サブキャリアの similarity (dot * SCALE / (normA*normB) を近似)
+ * - minSimilarity: 最小類似度
+ * - minIndex: 最小類似度のサブキャリア index
  */
-
-/**
- * 2次元配列を1次元にフラット化
- */
-template Flatten2D(ROWS, COLS) {
-    signal input matrix[ROWS][COLS];
-    signal output flattened[ROWS * COLS];
-
-    var idx = 0;
-    for (var i = 0; i < ROWS; i++) {
-        for (var j = 0; j < COLS; j++) {
-            flattened[idx] <== matrix[i][j];
-            idx++;
-        }
-    }
-}
 
 /**
  * ベクトルノルムの二乗を計算
@@ -89,12 +77,48 @@ template DotProduct(N) {
  *
  * dotProduct * SCALE を similarity として出力（正規化は外部で実施）
  */
-template SubcarrierCosine(NUM_FREQ_POINTS, SCALE) {
+template InvSqrtApprox(iterations) {
+    signal input x;
+    signal input scale;
+    signal output invSqrt; // 固定小数点 (scale) で 1/sqrt(x) を近似
+
+    // 初期値: x がゼロの場合を避けるため、下限を設ける（非常に粗いが安全側）
+    // 初期値 y0 = 1 (scale 表現) とする
+    signal y[iterations + 1];
+    y[0] <== scale; // 1.0 を scale で表現
+
+    for (var i = 0; i < iterations; i++) {
+        // Newton-Raphson: y_{n+1} = y_n * (1.5 - 0.5 * x * y_n^2)
+        // ただし固定小数点なのでスケール調整
+        // y_n^2 / scale でスケール戻し
+        signal y2;
+        y2 <== (y[i] * y[i]) / scale;
+
+        signal xy2;
+        xy2 <== (x * y2) / scale;
+
+        signal half_xy2;
+        half_xy2 <== xy2 / 2;
+
+        signal term;
+        term <== (3 * scale) / 2 - half_xy2; // 1.5*scale - 0.5*x*y^2
+
+        signal y_next;
+        y_next <== (y[i] * term) / scale;
+        y[i + 1] <== y_next;
+    }
+
+    invSqrt <== y[iterations];
+}
+
+template SubcarrierCosine(NUM_FREQ_POINTS, SCALE, ITER) {
     signal input ref[NUM_FREQ_POINTS];
     signal input cand[NUM_FREQ_POINTS];
 
-    signal output similarity;  // dotProduct * SCALE
+    signal output similarity;  // 近似 cos(sim) * SCALE
     signal output dotProduct;
+    signal output normA;
+    signal output normB;
     signal output isValid;
 
     // ノルム計算
@@ -124,8 +148,16 @@ template SubcarrierCosine(NUM_FREQ_POINTS, SCALE) {
 
     isValid <== normACheck.out * normBCheck.out;
 
-    // similarity = dotProduct * SCALE (ゼロベクトルなら 0)
-    similarity <== dotProduct * SCALE * isValid;
+    // 逆平方根近似
+    component invSqrt = InvSqrtApprox(ITER);
+    invSqrt.x <== normCalcA.normSquared * normCalcB.normSquared; // (normA^2)*(normB^2)
+    invSqrt.scale <== SCALE;
+
+    // cos ≈ dot / (normA*normB) = dot * invSqrt(normA^2*normB^2)
+    signal cos_approx;
+    cos_approx <== (dotProduct * invSqrt.invSqrt) / SCALE;
+
+    similarity <== cos_approx * SCALE * isValid;
 }
 
 /**
@@ -138,7 +170,7 @@ template SubcarrierCosine(NUM_FREQ_POINTS, SCALE) {
  *
  * 総次元数: 25 × 245 = 6125
  */
-template CosineSimilarityFullData(NUM_FREQ_POINTS, NUM_SUBCARRIERS, SCALE) {
+template CosineSimilarityFullData(NUM_FREQ_POINTS, NUM_SUBCARRIERS, SCALE, ITER) {
     signal input referenceMatrix[NUM_FREQ_POINTS][NUM_SUBCARRIERS];
     signal input candidateMatrix[NUM_FREQ_POINTS][NUM_SUBCARRIERS];
 
@@ -151,7 +183,7 @@ template CosineSimilarityFullData(NUM_FREQ_POINTS, NUM_SUBCARRIERS, SCALE) {
     signal minIdx[NUM_SUBCARRIERS];
 
     for (var sc = 0; sc < NUM_SUBCARRIERS; sc++) {
-        component subcos = SubcarrierCosine(NUM_FREQ_POINTS, SCALE);
+        component subcos = SubcarrierCosine(NUM_FREQ_POINTS, SCALE, ITER);
         for (var f = 0; f < NUM_FREQ_POINTS; f++) {
             subcos.ref[f] <== referenceMatrix[f][sc];
             subcos.cand[f] <== candidateMatrix[f][sc];
@@ -177,4 +209,4 @@ template CosineSimilarityFullData(NUM_FREQ_POINTS, NUM_SUBCARRIERS, SCALE) {
     minIndex <== minIdx[NUM_SUBCARRIERS - 1];
 }
 
-component main {public [referenceMatrix, candidateMatrix, similarities, minSimilarity, minIndex]} = CosineSimilarityFullData(25, 245, 10000);
+component main {public [referenceMatrix, candidateMatrix, similarities, minSimilarity, minIndex]} = CosineSimilarityFullData(25, 245, 10000, 2);

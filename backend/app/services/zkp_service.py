@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 class ZKPService:
     """ZKP証明生成サービス"""
 
+    EXPECTED_FREQ_POINTS = 25
+    EXPECTED_SUBCARRIERS = 245
+    DEFAULT_SCALE = 10000
+
     def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True):
         """
         初期化
@@ -92,15 +96,7 @@ class ZKPService:
             logger.info("Full Similarity ZKP circuit is ready")
 
     def _auto_compile_circuits(self) -> None:
-        """
-        ZKP回路の自動コンパイルとセットアップ
-
-        対象回路:
-        - csi_full_similarity: 全サブキャリア類似度計算
-        - breathing_verifier: 呼吸検証
-
-        警告: この処理には10分〜60分かかる可能性があります
-        """
+        """ZKP回路の自動コンパイルとセットアップ（full_similarity のみ）"""
         import subprocess
         import sys
 
@@ -622,10 +618,11 @@ class ZKPService:
         self,
         reference_matrix: List[List[int]],
         candidate_matrix: List[List[int]],
-        scale: int = 10000
+        scale: int = DEFAULT_SCALE
     ) -> Dict[str, Any]:
         """
         全サブキャリア × 全周波数ポイントのコサイン類似度ZKP証明を生成
+        （サブキャリアごとに類似度を計算し、最小類似度のサブキャリアを選択）
 
         Args:
             reference_matrix: 参照CSIデータ [周波数ポイント][サブキャリア]
@@ -636,12 +633,13 @@ class ZKPService:
             {
                 "proof": ZKP証明オブジェクト,
                 "publicSignals": 公開信号リスト,
-                "similarity": 類似度（整数値）,
-                "normalizedSimilarity": 正規化された類似度（0.0-1.0）,
-                "normA_squared": 参照ベクトルのノルム二乗,
-                "normB_squared": 候補ベクトルのノルム二乗,
-                "dotProduct": 内積,
-                "isValid": 有効性フラグ
+                "similarities": 各サブキャリアの similarity (dotProduct * scale),
+                "selectedSubcarrierIndex": 最小類似度のサブキャリア index,
+                "selectedSubcarrierSimilarity": 正規化済み類似度（0.0-1.0）,
+                "similarity": 最小サブキャリアの similarity (dotProduct * scale),
+                "normalizedSimilarity": 正規化済み類似度,
+                "dotProduct": dotProduct の概算値,
+                "isValid": 有効性フラグ（ゼロベクトルでない場合 True）
             }
 
         Raises:
@@ -689,8 +687,7 @@ class ZKPService:
             # 1. Witness生成用の入力データ準備（内部で期待サイズにリサイズ）
             input_data = self._prepare_full_cosine_similarity_input(
                 reference_matrix,
-                candidate_matrix,
-                scale
+                candidate_matrix
             )
 
             # 回路の期待サイズ（リサイズ後の実サイズ）
@@ -760,9 +757,10 @@ class ZKPService:
             logger.info("=" * 80)
             logger.info(f"✅ Full Cosine Similarity ZKP Proof Generation COMPLETED")
             logger.info(f"   Total Time: {total_time:.3f} seconds")
-            logger.info(f"   Similarity: {similarity / (scale * scale):.4f}")
-            logger.info(f"   Dot Product: {dotProduct}")
-            logger.info(f"   Is Valid: {bool(isValid)}")
+            logger.info(f"   Selected Subcarrier: {selected_sub_index}")
+            logger.info(f"   Similarity (normalized): {normalized_similarity:.4f}")
+            logger.info(f"   Dot Product (approx): {dot_product}")
+            logger.info(f"   Is Valid: {bool(selected_sub_similarity and selected_sub_similarity > 0)}")
             logger.info("=" * 80)
 
             return result
@@ -774,8 +772,7 @@ class ZKPService:
     def _prepare_full_cosine_similarity_input(
         self,
         reference_matrix: List[List[int]],
-        candidate_matrix: List[List[int]],
-        scale: int
+        candidate_matrix: List[List[int]]
     ) -> Dict[str, Any]:
         """
         全データコサイン類似度Witness生成用の入力データを準備
@@ -783,15 +780,10 @@ class ZKPService:
         Args:
             reference_matrix: 参照CSIデータ [周波数ポイント][サブキャリア]
             candidate_matrix: 候補CSIデータ [周波数ポイント][サブキャリア]
-            scale: 固定小数点スケール
 
         Returns:
             ZKP回路への入力データ
         """
-        # 回路の期待サイズ
-        EXPECTED_FREQ_POINTS = 25
-        EXPECTED_SUBCARRIERS = 245
-
         # マトリックスを期待サイズにリサイズ（パディングまたはトリミング）
         def resize_matrix(matrix: List[List[int]], target_rows: int, target_cols: int) -> List[List[int]]:
             resized = []
@@ -815,12 +807,12 @@ class ZKPService:
         logger.info(
             f"Input matrix sizes - Reference: {ref_rows}×{ref_cols}, "
             f"Candidate: {cand_rows}×{cand_cols}, "
-            f"Expected: {EXPECTED_FREQ_POINTS}×{EXPECTED_SUBCARRIERS}"
+            f"Expected: {self.EXPECTED_FREQ_POINTS}×{self.EXPECTED_SUBCARRIERS}"
         )
 
         # マトリックスをリサイズ
-        reference_matrix = resize_matrix(reference_matrix, EXPECTED_FREQ_POINTS, EXPECTED_SUBCARRIERS)
-        candidate_matrix = resize_matrix(candidate_matrix, EXPECTED_FREQ_POINTS, EXPECTED_SUBCARRIERS)
+        reference_matrix = resize_matrix(reference_matrix, self.EXPECTED_FREQ_POINTS, self.EXPECTED_SUBCARRIERS)
+        candidate_matrix = resize_matrix(candidate_matrix, self.EXPECTED_FREQ_POINTS, self.EXPECTED_SUBCARRIERS)
 
         # 入力データ構築（マトリックスのみ）
         input_data = {
@@ -847,8 +839,7 @@ class ZKPService:
         """
         input_data = self._prepare_full_cosine_similarity_input(
             reference_matrix,
-            candidate_matrix,
-            scale
+            candidate_matrix
         )
 
         ref = np.array(input_data["referenceMatrix"], dtype=np.float64).flatten()
@@ -874,16 +865,14 @@ class ZKPService:
     def select_lowest_similarity_subcarrier(
         self,
         reference_matrix: List[List[int]],
-        candidate_matrix: List[List[int]],
-        scale: int = 10000
+        candidate_matrix: List[List[int]]
     ) -> Dict[str, Any]:
         """
         サブキャリア単位でコサイン類似度を計算し、最も低いサブキャリアを返す
         """
         input_data = self._prepare_full_cosine_similarity_input(
             reference_matrix,
-            candidate_matrix,
-            scale
+            candidate_matrix
         )
 
         ref = np.array(input_data["referenceMatrix"], dtype=np.float64)
