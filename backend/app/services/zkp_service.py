@@ -727,8 +727,7 @@ class ZKPService:
                 # フォールバック: Python計算
                 per_sub = self.select_lowest_similarity_subcarrier(
                     reference_matrix=reference_matrix,
-                    candidate_matrix=candidate_matrix,
-                    scale=scale
+                    candidate_matrix=candidate_matrix
                 )
                 similarities = [int(s * scale * scale) for s in per_sub.get("similarities", [])]
                 selected_sub_index = per_sub.get("lowest_index")
