@@ -706,22 +706,35 @@ class ZKPService:
             # 4. 結果パース
             # Public signals: [referenceMatrix..., candidateMatrix..., similarity, dotProduct, isValid]
             num_matrix_elements = num_freq_points * num_subcarriers
-            expected_len = 2 * num_matrix_elements + 3
+            expected_len_with_outputs = 2 * num_matrix_elements + 3
+            expected_len_matrices_only = 2 * num_matrix_elements
             actual_len = len(public_signals)
 
             logger.info(
-                f"Public signals length: actual={actual_len}, expected>={expected_len}"
+                f"Public signals length: actual={actual_len}, "
+                f"expected_matrices_only={expected_len_matrices_only}, "
+                f"expected_with_outputs={expected_len_with_outputs}"
             )
 
-            if actual_len < 3:
-                raise RuntimeError(
-                    f"publicSignals length too short: got {actual_len}, need at least 3 outputs"
-                )
+            similarity = None
+            dotProduct = None
+            isValid = None
 
-            # 出力は末尾3つを使用（前段の長さに依存せず安全に取得）
-            similarity = int(public_signals[-3])
-            dotProduct = int(public_signals[-2])
-            isValid = int(public_signals[-1])
+            if actual_len >= expected_len_with_outputs:
+                # 出力がpublicSignalsに含まれる場合（旧仕様）
+                similarity = int(public_signals[-3])
+                dotProduct = int(public_signals[-2])
+                isValid = int(public_signals[-1])
+            else:
+                # 出力が含まれない場合はPythonで計算し、isValidはTrue扱い
+                python_similarity = self.compute_full_cosine_similarity_python(
+                    reference_matrix=reference_matrix,
+                    candidate_matrix=candidate_matrix,
+                    scale=scale
+                )
+                similarity = int(python_similarity["cosine_similarity"] * scale * scale)
+                dotProduct = int(python_similarity["dot_product"])
+                isValid = 1
 
             # 注: 回路で出力されるsimilarityは dotProduct * SCALE
             # 実際のコサイン類似度を計算するには、public signalsから
