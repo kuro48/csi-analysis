@@ -130,10 +130,6 @@ async def _process_and_generate_zkp_background(
                     reference_matrix=reference_matrix,
                     candidate_matrix=candidate_matrix
                 )
-                lowest_subcarrier = zkp_service.select_lowest_similarity_subcarrier(
-                    reference_matrix=reference_matrix,
-                    candidate_matrix=candidate_matrix
-                )
 
                 base_csi_comparison = {
                     "base_csi_id": str(base_csi.id),
@@ -143,9 +139,14 @@ async def _process_and_generate_zkp_background(
                     "public_signals": similarity_result.get("publicSignals", []),
                     "is_valid": similarity_result.get("isValid", False),
                     "python_similarity": python_similarity.get("cosine_similarity"),
+                    "selected_subcarrier": {
+                        "index": similarity_result.get("selectedSubcarrierIndex"),
+                        "similarity": similarity_result.get("selectedSubcarrierSimilarity")
+                    },
+                    # 互換性のため旧フィールド名も残す
                     "lowest_similarity_subcarrier": {
-                        "index": lowest_subcarrier.get("lowest_index"),
-                        "similarity": lowest_subcarrier.get("lowest_similarity")
+                        "index": similarity_result.get("selectedSubcarrierIndex"),
+                        "similarity": similarity_result.get("selectedSubcarrierSimilarity")
                     },
                     "data_dimensions": {
                         "num_freq_points": base_data["num_freq_points"],

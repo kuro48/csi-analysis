@@ -704,10 +704,10 @@ class ZKPService:
             proof, public_signals = await self._generate_full_cosine_similarity_groth16_proof(witness_file)
 
             # 4. 結果パース
-            # Public signals: [referenceMatrix..., candidateMatrix..., similarity, dotProduct, isValid]
+            # Public signals: [referenceMatrix..., candidateMatrix..., similarities[NUM_SUB], minSimilarity, minIndex]
             num_matrix_elements = num_freq_points * num_subcarriers
-            expected_len_with_outputs = 2 * num_matrix_elements + 3
             expected_len_matrices_only = 2 * num_matrix_elements
+            expected_len_with_outputs = 2 * num_matrix_elements + num_subcarriers + 2
             actual_len = len(public_signals)
 
             logger.info(
@@ -716,38 +716,43 @@ class ZKPService:
                 f"expected_with_outputs={expected_len_with_outputs}"
             )
 
-            similarity = None
-            dotProduct = None
-            isValid = None
+            similarities: List[float] = []
+            selected_sub_index = None
+            selected_sub_similarity = None
 
             if actual_len >= expected_len_with_outputs:
-                # 出力がpublicSignalsに含まれる場合（旧仕様）
-                similarity = int(public_signals[-3])
-                dotProduct = int(public_signals[-2])
-                isValid = int(public_signals[-1])
+                start_sim = 2 * num_matrix_elements
+                end_sim = start_sim + num_subcarriers
+                similarities = [int(x) for x in public_signals[start_sim:end_sim]]
+                selected_sub_similarity = int(public_signals[-2])
+                selected_sub_index = int(public_signals[-1])
             else:
-                # 出力が含まれない場合はPythonで計算し、isValidはTrue扱い
-                python_similarity = self.compute_full_cosine_similarity_python(
+                # フォールバック: Python計算
+                per_sub = self.select_lowest_similarity_subcarrier(
                     reference_matrix=reference_matrix,
                     candidate_matrix=candidate_matrix,
                     scale=scale
                 )
-                similarity = int(python_similarity["cosine_similarity"] * scale * scale)
-                dotProduct = int(python_similarity["dot_product"])
-                isValid = 1
+                similarities = [int(s * scale * scale) for s in per_sub.get("similarities", [])]
+                selected_sub_index = per_sub.get("lowest_index")
+                selected_sub_similarity = per_sub.get("lowest_similarity", 0) * scale * scale
 
             # 注: 回路で出力されるsimilarityは dotProduct * SCALE
-            # 実際のコサイン類似度を計算するには、public signalsから
-            # normA_squaredとnormB_squaredを計算する必要がある
-            # ここでは簡易的に、similarityを正規化して返す
+            # ここでは選択サブキャリアの similarity を正規化して返す
+
+            normalized_similarity = (selected_sub_similarity / (scale * scale)) if selected_sub_similarity is not None else 0.0
+            dot_product = int(selected_sub_similarity / scale) if selected_sub_similarity is not None else 0
 
             result = {
                 "proof": proof,
                 "publicSignals": public_signals,
-                "similarity": similarity,
-                "normalizedSimilarity": similarity / (scale * scale),  # dotProduct * SCALE を正規化
-                "dotProduct": dotProduct,
-                "isValid": bool(isValid)
+                "similarities": similarities,
+                "selectedSubcarrierIndex": selected_sub_index,
+                "selectedSubcarrierSimilarity": normalized_similarity,
+                "similarity": selected_sub_similarity,
+                "normalizedSimilarity": normalized_similarity,
+                "dotProduct": dot_product,
+                "isValid": bool(selected_sub_similarity and selected_sub_similarity > 0)
             }
 
             total_time = time.time() - total_start_time

@@ -85,83 +85,47 @@ template DotProduct(N) {
 }
 
 /**
- * コサイン類似度計算（完全回路内計算版）
+ * サブキャリア毎のコサイン類似度計算
  *
- * 入力:
- * - referenceMatrix, candidateMatrix (秘密入力)
- *
- * 回路内で計算:
- * - normA², normB²（ノルムの二乗）
- * - 内積
- * - 類似度（近似値、整数演算のみ）
- *
- * 出力:
- * - similarity: コサイン類似度（0～SCALE）
- * - dotProduct: 内積
- * - isValid: 有効な計算かどうか
+ * dotProduct * SCALE を similarity として出力（正規化は外部で実施）
  */
-template CosineSimilarityFullData(NUM_FREQ_POINTS, NUM_SUBCARRIERS, SCALE) {
-    var TOTAL_DIM = NUM_FREQ_POINTS * NUM_SUBCARRIERS;
+template SubcarrierCosine(NUM_FREQ_POINTS, SCALE) {
+    signal input ref[NUM_FREQ_POINTS];
+    signal input cand[NUM_FREQ_POINTS];
 
-    signal input referenceMatrix[NUM_FREQ_POINTS][NUM_SUBCARRIERS];
-    signal input candidateMatrix[NUM_FREQ_POINTS][NUM_SUBCARRIERS];
+    signal output similarity;  // dotProduct * SCALE
+    signal output dotProduct;
+    signal output isValid;
 
-    signal output similarity;        // コサイン類似度（0～SCALE）
-    signal output dotProduct;        // 内積
-    signal output isValid;           // 有効な計算かどうか
-
-    // ===== ステップ1: 2次元配列を1次元にフラット化 =====
-    component flattenRef = Flatten2D(NUM_FREQ_POINTS, NUM_SUBCARRIERS);
-    component flattenCand = Flatten2D(NUM_FREQ_POINTS, NUM_SUBCARRIERS);
-
+    // ノルム計算
+    component normCalcA = VectorNormSquared(NUM_FREQ_POINTS);
+    component normCalcB = VectorNormSquared(NUM_FREQ_POINTS);
     for (var i = 0; i < NUM_FREQ_POINTS; i++) {
-        for (var j = 0; j < NUM_SUBCARRIERS; j++) {
-            flattenRef.matrix[i][j] <== referenceMatrix[i][j];
-            flattenCand.matrix[i][j] <== candidateMatrix[i][j];
-        }
+        normCalcA.vector[i] <== ref[i];
+        normCalcB.vector[i] <== cand[i];
     }
 
-    // ===== ステップ2: ノルムの二乗を計算 =====
-    component normCalcA = VectorNormSquared(TOTAL_DIM);
-    component normCalcB = VectorNormSquared(TOTAL_DIM);
-
-    for (var i = 0; i < TOTAL_DIM; i++) {
-        normCalcA.vector[i] <== flattenRef.flattened[i];
-        normCalcB.vector[i] <== flattenCand.flattened[i];
-    }
-
-    signal normA_squared;
-    signal normB_squared;
-    normA_squared <== normCalcA.normSquared;
-    normB_squared <== normCalcB.normSquared;
-
-    // ===== ステップ3: 内積計算 =====
-    component dotCalc = DotProduct(TOTAL_DIM);
-    for (var i = 0; i < TOTAL_DIM; i++) {
-        dotCalc.vectorA[i] <== flattenRef.flattened[i];
-        dotCalc.vectorB[i] <== flattenCand.flattened[i];
+    // 内積
+    component dotCalc = DotProduct(NUM_FREQ_POINTS);
+    for (var j = 0; j < NUM_FREQ_POINTS; j++) {
+        dotCalc.vectorA[j] <== ref[j];
+        dotCalc.vectorB[j] <== cand[j];
     }
     dotProduct <== dotCalc.dotProduct;
 
-    // ===== ステップ4: ゼロベクトルチェック =====
+    // ゼロベクトルチェック
     component normACheck = GreaterThan(128);
-    normACheck.in[0] <== normA_squared;
+    normACheck.in[0] <== normCalcA.normSquared;
     normACheck.in[1] <== 0;
 
     component normBCheck = GreaterThan(128);
-    normBCheck.in[0] <== normB_squared;
+    normBCheck.in[0] <== normCalcB.normSquared;
     normBCheck.in[1] <== 0;
 
     isValid <== normACheck.out * normBCheck.out;
 
-    // ===== ステップ5: 類似度計算（近似） =====
-    // similarity = (dotProduct * SCALE) / sqrt(normA_squared * normB_squared)
-    // 回路内では除算と平方根が難しいため、witnessで計算して検証する形に戻す
-    // または、類似度をpublic outputとして出力し、外部で検証する
-
-    // ここでは簡易的に、dotProduct * SCALE を出力として使用
-    // 実際の類似度は外部で計算: dotProduct * SCALE / sqrt(normA_squared * normB_squared)
-    similarity <== dotProduct * SCALE;
+    // similarity = dotProduct * SCALE (ゼロベクトルなら 0)
+    similarity <== dotProduct * SCALE * isValid;
 }
 
 /**
@@ -169,9 +133,48 @@ template CosineSimilarityFullData(NUM_FREQ_POINTS, NUM_SUBCARRIERS, SCALE) {
  *
  * パラメータ設定:
  * - NUM_FREQ_POINTS: 25 (呼吸周波数帯域 0.15～0.4Hz、0.01Hz刻み)
- * - NUM_SUBCARRIERS: 200 (ガードバンド、パイロット削除後の有効サブキャリア)
+ * - NUM_SUBCARRIERS: 245 (サブキャリア数)
  * - SCALE: 10000 (固定小数点スケール)
  *
- * 総次元数: 25 × 200 = 5000
+ * 総次元数: 25 × 245 = 6125
  */
-component main {public [referenceMatrix, candidateMatrix]} = CosineSimilarityFullData(25, 245, 10000);
+template CosineSimilarityFullData(NUM_FREQ_POINTS, NUM_SUBCARRIERS, SCALE) {
+    signal input referenceMatrix[NUM_FREQ_POINTS][NUM_SUBCARRIERS];
+    signal input candidateMatrix[NUM_FREQ_POINTS][NUM_SUBCARRIERS];
+
+    signal output similarities[NUM_SUBCARRIERS];
+    signal output minSimilarity;
+    signal output minIndex;
+
+    // サブキャリアごとの計算
+    signal minSim[NUM_SUBCARRIERS];
+    signal minIdx[NUM_SUBCARRIERS];
+
+    for (var sc = 0; sc < NUM_SUBCARRIERS; sc++) {
+        component subcos = SubcarrierCosine(NUM_FREQ_POINTS, SCALE);
+        for (var f = 0; f < NUM_FREQ_POINTS; f++) {
+            subcos.ref[f] <== referenceMatrix[f][sc];
+            subcos.cand[f] <== candidateMatrix[f][sc];
+        }
+        similarities[sc] <== subcos.similarity;
+
+        if (sc == 0) {
+            minSim[0] <== similarities[0];
+            minIdx[0] <== 0;
+        } else {
+            component lt = LessThan();
+            lt.in[0] <== similarities[sc];
+            lt.in[1] <== minSim[sc - 1];
+
+            // min similarity
+            minSim[sc] <== lt.out * similarities[sc] + (1 - lt.out) * minSim[sc - 1];
+            // min index
+            minIdx[sc] <== lt.out * sc + (1 - lt.out) * minIdx[sc - 1];
+        }
+    }
+
+    minSimilarity <== minSim[NUM_SUBCARRIERS - 1];
+    minIndex <== minIdx[NUM_SUBCARRIERS - 1];
+}
+
+component main {public [referenceMatrix, candidateMatrix, similarities, minSimilarity, minIndex]} = CosineSimilarityFullData(25, 245, 10000);
