@@ -32,7 +32,6 @@ class CSIDataService:
         db: Session,
         file_data: bytes,
         upload_info: CSIDataUpload,
-        user_id: uuid.UUID
     ) -> CSIData:
         """
         CSIデータアップロード処理
@@ -115,22 +114,6 @@ class CSIDataService:
             db.commit()
             db.refresh(csi_data)
 
-            # 呼吸解析タスクをキューに登録
-            from app.services.task_queue import task_queue, TaskPriority
-            try:
-                task_id = await task_queue.enqueue_task(
-                    "csi_breathing_analysis",
-                    {
-                        "csi_data_id": str(csi_data.id),
-                        "analysis_params": {},
-                        "generate_zkp": settings.ZKP_AUTO_GENERATE  # ZKP自動生成設定を渡す
-                    },
-                    priority=TaskPriority.NORMAL
-                )
-                logger.info(f"Breathing analysis task queued: {task_id} for CSI data {csi_data.id} (generate_zkp={settings.ZKP_AUTO_GENERATE})")
-            except Exception as e:
-                logger.warning(f"Failed to queue breathing analysis task: {e}")
-
             logger.info(f"CSI data uploaded successfully: {csi_data.id} (RESEARCH_MODE={settings.RESEARCH_MODE})")
             return csi_data
 
@@ -166,13 +149,43 @@ class CSIDataService:
         return csi_data
 
     @staticmethod
+    def get_csi_data_by_id(
+        db: Session,
+        csi_data_id: uuid.UUID
+    ) -> Optional[CSIData]:
+        """CSIデータをIDで取得"""
+        return db.query(CSIData).filter(CSIData.id == csi_data_id).first()
+
+    @staticmethod
+    def get_csi_data_list(
+        db: Session,
+        filters: CSIDataFilter,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[CSIData], int]:
+        """CSIデータ一覧取得（簡易フィルタのみ）"""
+        query = db.query(CSIData)
+
+        if filters.session_id:
+            query = query.filter(CSIData.session_id == filters.session_id)
+        if filters.status and filters.status != "all":
+            query = query.filter(CSIData.status == filters.status)
+        if filters.start_date:
+            query = query.filter(CSIData.created_at >= filters.start_date)
+        if filters.end_date:
+            query = query.filter(CSIData.created_at <= filters.end_date)
+
+        total_count = query.count()
+        csi_data_list = query.order_by(desc(CSIData.created_at)).offset((page - 1) * page_size).limit(page_size).all()
+        return csi_data_list, total_count
+
+    @staticmethod
     async def delete_csi_data(
         db: Session,
-        csi_data_id: uuid.UUID,
-        user_id: uuid.UUID
+        csi_data_id: uuid.UUID
     ) -> bool:
         """CSIデータ削除"""
-        csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id, user_id)
+        csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id)
         if not csi_data:
             return False
 
@@ -200,8 +213,7 @@ class SessionService:
     @staticmethod
     async def create_session(
         db: Session,
-        session_data: SessionCreate,
-        user_id: uuid.UUID
+        session_data: SessionCreate
     ) -> DataSession:
         """セッション作成"""
 
@@ -222,8 +234,7 @@ class SessionService:
     @staticmethod
     async def end_session(
         db: Session,
-        session_id: uuid.UUID,
-        user_id: uuid.UUID
+        session_id: uuid.UUID
     ) -> Optional[DataSession]:
         """セッション終了"""
         session = db.query(DataSession).filter(

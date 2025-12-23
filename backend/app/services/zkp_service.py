@@ -9,13 +9,10 @@ import json
 import os
 import subprocess
 import tempfile
-import hashlib
 import uuid
-from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 import logging
-
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -65,19 +62,12 @@ class ZKPService:
 
     def _check_setup(self) -> None:
         """ZKP環境のセットアップが完了しているか確認（自動コンパイル対応）"""
-        # 全サブキャリア類似度回路のチェック
         full_sim_wasm = self.build_dir / "csi_full_similarity_js" / "csi_full_similarity.wasm"
         full_sim_zkey = self.keys_dir / "csi_full_similarity_final.zkey"
 
-        # 呼吸検証回路のチェック
-        breathing_wasm = self.build_dir / "breathing_verifier_js" / "breathing_verifier.wasm"
-        breathing_zkey = self.keys_dir / "breathing_verifier.zkey"
-
-        # 少なくとも1つの回路が利用可能かチェック
         has_full_similarity = full_sim_wasm.exists() and full_sim_zkey.exists()
-        has_breathing_verifier = breathing_wasm.exists() and breathing_zkey.exists()
 
-        if not has_full_similarity and not has_breathing_verifier:
+        if not has_full_similarity:
             if self.auto_compile:
                 logger.warning("ZKP circuit files not found. Starting auto-compilation...")
                 try:
@@ -100,8 +90,6 @@ class ZKPService:
 
         if has_full_similarity:
             logger.info("Full Similarity ZKP circuit is ready")
-        if has_breathing_verifier:
-            logger.info("Breathing Verifier ZKP circuit is ready")
 
     def _auto_compile_circuits(self) -> None:
         """
@@ -121,12 +109,7 @@ class ZKPService:
                 "name": "csi_full_similarity",
                 "circuit_file": "csi_full_similarity.circom",
                 "display_name": "Full Similarity"
-            },
-            # {
-            #     "name": "breathing_verifier",
-            #     "circuit_file": "breathing_verifier.circom",
-            #     "display_name": "Breathing Verifier"
-            # }
+            }
         ]
 
         logger.warning("Starting automatic compilation of ZKP circuits. This may take a long time...")
@@ -151,7 +134,7 @@ class ZKPService:
 
             # 既にコンパイル済みかチェック
             wasm_file = self.build_dir / f"{circuit_name}_js" / f"{circuit_name}.wasm"
-            zkey_file = self.keys_dir / f"{circuit_name}.zkey"
+            zkey_file = self.keys_dir / "csi_full_similarity_final.zkey"
 
             if wasm_file.exists() and zkey_file.exists():
                 logger.info(f"{circuit_info['display_name']} circuit already compiled, skipping...")
@@ -282,334 +265,6 @@ class ZKPService:
         logger.info(f"  WASM: {self.build_dir / circuit_name}_js/{circuit_name}.wasm")
         logger.info(f"  zkey: {zkey_final}")
         logger.info(f"  vkey: {vkey_file}")
-
-    def _calculate_poseidon_commitment(
-        self, csi_data: List[int], salt: int
-    ) -> str:
-        """
-        PoseidonハッシュによるCSIデータのコミットメント計算
-
-        Args:
-            csi_data: CSI振幅データ（64サンプル）
-            salt: ソルト値
-
-        Returns:
-            コミットメント値（10進文字列）
-        """
-        return self._poseidon_hash(csi_data + [salt])
-
-    def _poseidon_hash(self, inputs: List[int]) -> str:
-        """
-        circomlib の Poseidon 実装を Node.js 経由で呼び出してハッシュを計算
-
-        Args:
-            inputs: 整数配列
-
-        Returns:
-            Poseidonハッシュ（10進文字列）
-        """
-        script_path = self.zkp_dir / "scripts" / "poseidon_hash.js"
-        if not script_path.exists():
-            raise FileNotFoundError(f"Poseidon script not found: {script_path}")
-
-        # 入力をJSONで一時ファイル化（BigInt安全のため文字列にして渡す）
-        tmp_input = self.temp_dir / f"poseidon_input_{uuid.uuid4()}.json"
-        with open(tmp_input, "w") as f:
-            json.dump([str(v) for v in inputs], f)
-
-        try:
-            result = subprocess.run(
-                ["node", str(script_path), str(tmp_input)],
-                cwd=str(self.zkp_dir),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"Poseidon hash failed: {result.stderr.strip() or result.stdout.strip()}"
-                )
-
-            output = result.stdout.strip()
-            if not output:
-                raise RuntimeError("Poseidon hash returned empty output")
-
-            return output
-        finally:
-            if tmp_input.exists():
-                tmp_input.unlink()
-
-    def _prepare_circuit_input(
-        self,
-        breathing_rate: float,
-        confidence_score: float,
-    ) -> Dict[str, Any]:
-        """
-        回路入力データの準備（breathing_verifier.circom用）
-
-        Args:
-            breathing_rate: 呼吸数（回/分）
-            confidence_score: 信頼度スコア（0.0-1.0）
-
-        Returns:
-            回路入力データ
-        """
-        # 現在の breathing_verifier.circom は breathingRate と confidenceScore のみを受け取る
-        # シンプルな検証回路のため、CSIデータやコミットメントは不要
-
-        # 回路入力データの構築（公開入力のみ）
-        input_data = {
-            "breathingRate": int(breathing_rate),
-            "confidenceScore": int(confidence_score * 100),  # 0-100スケール
-        }
-
-        return input_data
-
-    async def _run_node_script(
-        self, script_name: str, input_data: Optional[Dict] = None
-    ) -> Dict[str, Any]:
-        """
-        Node.jsスクリプトの実行
-
-        Args:
-            script_name: スクリプト名（compile, prove, verify）
-            input_data: 入力データ（proveの場合に使用）
-
-        Returns:
-            実行結果
-        """
-        script_path = self.zkp_dir / "scripts" / f"{script_name}.js"
-
-        if not script_path.exists():
-            raise FileNotFoundError(f"Script not found: {script_path}")
-
-        # 一時ディレクトリで実行
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir_path = Path(tmpdir)
-
-            # 入力データをファイルに保存（proveの場合）
-            if input_data and script_name == "prove":
-                input_file = self.build_dir / "input.json"
-                with open(input_file, "w") as f:
-                    json.dump(input_data, f, indent=2)
-
-            # スクリプト実行
-            cmd = ["node", str(script_path)]
-
-            try:
-                process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    cwd=str(self.zkp_dir),
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-
-                stdout, stderr = await process.communicate()
-
-                if process.returncode != 0:
-                    error_msg = stderr.decode()
-                    logger.error(f"Node script failed: {error_msg}")
-                    raise RuntimeError(f"Script execution failed: {error_msg}")
-
-                logger.info(f"Script {script_name} executed successfully")
-                return {"stdout": stdout.decode(), "stderr": stderr.decode()}
-
-            except Exception as e:
-                logger.error(f"Failed to run node script: {e}")
-                raise
-
-    async def generate_proof(
-        self,
-        csi_data: np.ndarray,
-        breathing_rate: float,
-        breathing_frequency: float,
-        confidence_score: float,
-        timestamp: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
-        """
-        ZKP証明の生成
-
-        Args:
-            csi_data: CSI振幅時系列データ
-            breathing_rate: 呼吸数（回/分）
-            breathing_frequency: 呼吸周波数（Hz）
-            confidence_score: 信頼度スコア（0.0-1.0）
-            timestamp: タイムスタンプ（Noneの場合は現在時刻）
-
-        Returns:
-            証明データ
-            {
-                "proof": {...},
-                "publicSignals": [...],
-                "commitment": "...",
-                "metadata": {...}
-            }
-        """
-        if timestamp is None:
-            timestamp = datetime.utcnow()
-
-        logger.info(f"Generating ZKP for breathing rate: {breathing_rate} bpm")
-
-        try:
-            # 1. 回路入力データの準備
-            input_data = self._prepare_circuit_input(
-                breathing_rate=breathing_rate,
-                confidence_score=confidence_score,
-            )
-
-            # 2. Witnessの計算
-            logger.info("Calculating witness...")
-            wasm_file = (
-                self.build_dir / "breathing_verifier_js" / "breathing_verifier.wasm"
-            )
-            input_file = self.build_dir / "input.json"
-            witness_file = self.build_dir / "witness.wtns"
-
-            # WASMファイルの存在確認
-            if not wasm_file.exists():
-                error_msg = f"WASM file not found: {wasm_file}"
-                logger.error(error_msg)
-                raise FileNotFoundError(error_msg)
-
-            # 入力データを保存
-            with open(input_file, "w") as f:
-                json.dump(input_data, f)
-
-            # snarkjs witness計算
-            witness_cmd = [
-                "snarkjs",
-                "wtns",
-                "calculate",
-                str(wasm_file),
-                str(input_file),
-                str(witness_file),
-            ]
-
-            process = await asyncio.create_subprocess_exec(
-                *witness_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await process.communicate()
-
-            if process.returncode != 0:
-                stdout_msg = stdout.decode() if stdout else ""
-                stderr_msg = stderr.decode() if stderr else ""
-                error_msg = f"stdout: {stdout_msg}\nstderr: {stderr_msg}" if (stdout_msg or stderr_msg) else "Unknown error"
-                logger.error(f"Witness calculation failed: {error_msg}")
-                raise RuntimeError(f"Witness calculation failed: {error_msg}")
-
-            # 3. 証明の生成
-            logger.info("Generating proof...")
-            zkey_file = self.keys_dir / "breathing_verifier.zkey"
-            proof_file = self.build_dir / "proof.json"
-            public_file = self.build_dir / "public.json"
-
-            prove_cmd = [
-                "snarkjs",
-                "groth16",
-                "prove",
-                str(zkey_file),
-                str(witness_file),
-                str(proof_file),
-                str(public_file),
-            ]
-
-            process = await asyncio.create_subprocess_exec(
-                *prove_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await process.communicate()
-
-            if process.returncode != 0:
-                stdout_msg = stdout.decode() if stdout else ""
-                stderr_msg = stderr.decode() if stderr else ""
-                error_msg = f"stdout: {stdout_msg}\nstderr: {stderr_msg}" if (stdout_msg or stderr_msg) else "Unknown error"
-                logger.error(f"Proof generation failed: {error_msg}")
-                raise RuntimeError(f"Proof generation failed: {error_msg}")
-
-            # 4. 証明データの読み込み
-            with open(proof_file, "r") as f:
-                proof = json.load(f)
-
-            with open(public_file, "r") as f:
-                public_signals = json.load(f)
-
-            logger.info("ZKP generation completed successfully")
-
-            return {
-                "proof": proof,
-                "publicSignals": public_signals,
-                "metadata": {
-                    "breathingRate": breathing_rate,
-                    "confidenceScore": confidence_score,
-                    "timestamp": timestamp.isoformat(),
-                    "protocol": "Groth16",
-                    "curve": "bn128",
-                },
-            }
-
-        except Exception as e:
-            logger.error(f"ZKP generation failed: {e}")
-            raise
-
-    async def verify_proof(
-        self, proof: Dict, public_signals: List[str]
-    ) -> bool:
-        """
-        証明の検証
-
-        Args:
-            proof: 証明データ
-            public_signals: 公開入力
-
-        Returns:
-            検証結果（True: 有効, False: 無効）
-        """
-        logger.info("Verifying ZKP...")
-
-        try:
-            vkey_file = self.keys_dir / "breathing_verifier_verification_key.json"
-            proof_file = self.build_dir / "verify_proof.json"
-            public_file = self.build_dir / "verify_public.json"
-
-            # 証明データを一時ファイルに保存
-            with open(proof_file, "w") as f:
-                json.dump(proof, f)
-
-            with open(public_file, "w") as f:
-                json.dump(public_signals, f)
-
-            # snarkjs verify実行
-            verify_cmd = [
-                "snarkjs",
-                "groth16",
-                "verify",
-                str(vkey_file),
-                str(public_file),
-                str(proof_file),
-            ]
-
-            process = await asyncio.create_subprocess_exec(
-                *verify_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-
-            stdout, stderr = await process.communicate()
-
-            # 出力から検証結果を判定
-            is_valid = b"OK" in stdout
-
-            logger.info(f"ZKP verification result: {'VALID' if is_valid else 'INVALID'}")
-
-            return is_valid
-
-        except Exception as e:
-            logger.error(f"ZKP verification failed: {e}")
-            return False
 
     # ========== コサイン類似度計算用ZKPメソッド ==========
 
@@ -1162,6 +817,83 @@ class ZKPService:
         )
 
         return input_data
+
+    def compute_full_cosine_similarity_python(
+        self,
+        reference_matrix: List[List[int]],
+        candidate_matrix: List[List[int]],
+        scale: int = 10000
+    ) -> Dict[str, Any]:
+        """
+        Python側でコサイン類似度を計算（回路と同じリサイズ・スケール前提）
+        """
+        input_data = self._prepare_full_cosine_similarity_input(
+            reference_matrix,
+            candidate_matrix,
+            scale
+        )
+
+        ref = np.array(input_data["referenceMatrix"], dtype=np.float64).flatten()
+        cand = np.array(input_data["candidateMatrix"], dtype=np.float64).flatten()
+
+        dot_product = float(np.dot(ref, cand))
+        norm_ref = float(np.linalg.norm(ref))
+        norm_cand = float(np.linalg.norm(cand))
+
+        if norm_ref == 0 or norm_cand == 0:
+            cosine = 0.0
+        else:
+            cosine = dot_product / (norm_ref * norm_cand)
+
+        return {
+            "cosine_similarity": cosine,
+            "dot_product": dot_product,
+            "norm_ref": norm_ref,
+            "norm_cand": norm_cand,
+            "vector_length": ref.size
+        }
+
+    def select_lowest_similarity_subcarrier(
+        self,
+        reference_matrix: List[List[int]],
+        candidate_matrix: List[List[int]],
+        scale: int = 10000
+    ) -> Dict[str, Any]:
+        """
+        サブキャリア単位でコサイン類似度を計算し、最も低いサブキャリアを返す
+        """
+        input_data = self._prepare_full_cosine_similarity_input(
+            reference_matrix,
+            candidate_matrix,
+            scale
+        )
+
+        ref = np.array(input_data["referenceMatrix"], dtype=np.float64)
+        cand = np.array(input_data["candidateMatrix"], dtype=np.float64)
+
+        num_subcarriers = ref.shape[1]
+        similarities: List[float] = []
+
+        for sc in range(num_subcarriers):
+            ref_vec = ref[:, sc]
+            cand_vec = cand[:, sc]
+            dot_product = float(np.dot(ref_vec, cand_vec))
+            norm_ref = float(np.linalg.norm(ref_vec))
+            norm_cand = float(np.linalg.norm(cand_vec))
+            if norm_ref == 0 or norm_cand == 0:
+                cosine = 0.0
+            else:
+                cosine = dot_product / (norm_ref * norm_cand)
+            similarities.append(cosine)
+
+        lowest_similarity = min(similarities)
+        lowest_index = similarities.index(lowest_similarity)
+
+        return {
+            "lowest_index": lowest_index,
+            "lowest_similarity": lowest_similarity,
+            "similarities": similarities
+        }
 
     async def _generate_full_cosine_similarity_witness(
         self,

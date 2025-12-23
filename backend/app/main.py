@@ -5,8 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.errors import setup_error_handlers
 from app.api.routes import api_router
-from app.services.task_queue import task_queue
-from app.services.analysis_tasks import register_task_handlers
 from app.services.zkp_service import ZKPService
 import logging
 
@@ -84,21 +82,6 @@ async def startup_event():
                 print(f"❌ ZKP circuit setup failed: {e}")
                 # エラーは継続（開発用途のため）
 
-        # タスクキューに接続
-        print("⏳ Connecting to task queue...")
-        await task_queue.connect()
-        print("✅ Task queue connected")
-
-        # タスクハンドラー登録
-        print("⏳ Registering task handlers...")
-        register_task_handlers()
-        print("✅ Task handlers registered")
-
-        # タスクキューのワーカーを起動
-        print("⏳ Starting task workers...")
-        await task_queue.start_workers(num_workers=3)
-        print("✅ Task workers started")
-
         logger.info("✅ Application startup completed successfully")
         print("✅ Application startup completed successfully")
     except Exception as e:
@@ -139,12 +122,6 @@ def _validate_security_settings():
 async def shutdown_event():
     """アプリケーション終了時のクリーンアップ処理"""
     try:
-        # ワーカー停止
-        await task_queue.stop_workers()
-
-        # タスクキューから切断
-        await task_queue.disconnect()
-
         logger.info("Application shutdown completed successfully")
     except Exception as e:
         logger.error(f"Error during application shutdown: {e}")

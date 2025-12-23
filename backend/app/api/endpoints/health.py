@@ -10,10 +10,19 @@ import logging
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.deps import get_redis_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _get_redis_client():
+    """シンプルなRedisクライアント取得（無効化時はNone）"""
+    if not settings.REDIS_URL:
+        return None
+    try:
+        return redis.from_url(settings.REDIS_URL)
+    except Exception:
+        return None
 
 @router.get("/")
 async def health_check():
@@ -65,7 +74,7 @@ async def redis_health():
     Redis接続チェック
     """
     try:
-        redis_client = get_redis_client()
+        redis_client = _get_redis_client()
         if redis_client is None:
             return {
                 "status": "unavailable",

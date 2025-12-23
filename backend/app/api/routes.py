@@ -3,7 +3,7 @@ APIルーター統合モジュール
 """
 
 from fastapi import APIRouter
-from app.api.endpoints import health, auth, csi_data, tasks, base_csi, zkp_verification
+from app.api.endpoints import health, csi_data, base_csi, zkp_verification
 
 api_router = APIRouter()
 
@@ -12,12 +12,6 @@ api_router.include_router(
     health.router,
     prefix="/health",
     tags=["health"]
-)
-
-api_router.include_router(
-    auth.router,
-    prefix="/auth",
-    tags=["authentication"]
 )
 
 api_router.include_router(
@@ -30,12 +24,6 @@ api_router.include_router(
     base_csi.router,
     prefix="/base-csi",
     tags=["base-csi"]
-)
-
-api_router.include_router(
-    tasks.router,
-    prefix="/tasks",
-    tags=["task-management"]
 )
 
 api_router.include_router(

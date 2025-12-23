@@ -53,10 +53,6 @@ class CSIData(BaseModel):
         Index('idx_csi_status_created', 'status', 'created_at'),  # ステータス別時系列検索用
     )
 
-    # リレーション
-    breathing_analyses = relationship("BreathingAnalysis", back_populates="csi_data", cascade="all, delete-orphan")
-
-
 class Session(BaseModel):
     """セッションテーブル"""
     __tablename__ = "sessions"

@@ -13,9 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
 from app.core.config import settings
-from app.models.user import User
 from app.models.csi_data import CSIData
 from app.models.base_csi import BaseCSI
 from app.services.csi_data import CSIDataService, SessionService
@@ -127,6 +125,16 @@ async def _process_and_generate_zkp_background(
                     candidate_matrix=candidate_matrix
                 )
 
+                # Pythonでの類似度計算（検証用）
+                python_similarity = zkp_service.compute_full_cosine_similarity_python(
+                    reference_matrix=reference_matrix,
+                    candidate_matrix=candidate_matrix
+                )
+                lowest_subcarrier = zkp_service.select_lowest_similarity_subcarrier(
+                    reference_matrix=reference_matrix,
+                    candidate_matrix=candidate_matrix
+                )
+
                 base_csi_comparison = {
                     "base_csi_id": str(base_csi.id),
                     "base_csi_name": base_csi.name,
@@ -134,6 +142,11 @@ async def _process_and_generate_zkp_background(
                     "zkp_proof": similarity_result.get("proof", {}),
                     "public_signals": similarity_result.get("publicSignals", []),
                     "is_valid": similarity_result.get("isValid", False),
+                    "python_similarity": python_similarity.get("cosine_similarity"),
+                    "lowest_similarity_subcarrier": {
+                        "index": lowest_subcarrier.get("lowest_index"),
+                        "similarity": lowest_subcarrier.get("lowest_similarity")
+                    },
                     "data_dimensions": {
                         "num_freq_points": base_data["num_freq_points"],
                         "num_subcarriers": base_data["num_subcarriers"],
@@ -225,7 +238,6 @@ async def _process_and_generate_zkp_background(
         if db:
             db.close()
 
-
 @router.post("/upload", response_model=CSIDataResponse)
 async def upload_csi_data(
     background_tasks: BackgroundTasks,
@@ -270,8 +282,7 @@ async def upload_csi_data(
         csi_data = await CSIDataService.upload_csi_data(
             db=db,
             file_data=file_data,
-            upload_info=upload_info,
-            user_id=None
+            upload_info=upload_info
         )
 
         # バックグラウンドタスクでPCAP解析+ZKP証明生成を実行
@@ -379,13 +390,12 @@ async def list_csi_data(
 @router.get("/{csi_data_id}", response_model=CSIDataResponse)
 async def get_csi_data(
     csi_data_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     特定CSIデータ取得
     """
-    csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id, current_user.id)
+    csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id)
     if not csi_data:
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND,
@@ -417,13 +427,12 @@ async def get_csi_data(
 @router.delete("/{csi_data_id}")
 async def delete_csi_data(
     csi_data_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     CSIデータ削除
     """
-    success = await CSIDataService.delete_csi_data(db, csi_data_id, current_user.id)
+    success = await CSIDataService.delete_csi_data(db, csi_data_id)
     if not success:
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND,
@@ -437,13 +446,12 @@ async def get_csi_visualization_data(
     csi_data_id: uuid.UUID,
     subcarrier_limit: int = Query(10, ge=1, le=64, description="表示するサブキャリア数"),
     time_window: Optional[int] = Query(None, ge=1, description="時間窓（秒）"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     CSIデータの可視化用データ取得
     """
-    csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id, current_user.id)
+    csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id)
     if not csi_data:
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND,
