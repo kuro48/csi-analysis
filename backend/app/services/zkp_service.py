@@ -772,7 +772,7 @@ class ZKPService:
         """
         # 回路の期待サイズ
         EXPECTED_FREQ_POINTS = 25
-        EXPECTED_SUBCARRIERS = 200
+        EXPECTED_SUBCARRIERS = 245
 
         # マトリックスを期待サイズにリサイズ（パディングまたはトリミング）
         def resize_matrix(matrix: List[List[int]], target_rows: int, target_cols: int) -> List[List[int]]:
