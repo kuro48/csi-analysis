@@ -209,4 +209,4 @@ template CosineSimilarityFullData(NUM_FREQ_POINTS, NUM_SUBCARRIERS, SCALE, ITER)
     minIndex <== minIdx[NUM_SUBCARRIERS - 1];
 }
 
-component main {public [referenceMatrix, candidateMatrix, similarities, minSimilarity, minIndex]} = CosineSimilarityFullData(25, 245, 10000, 2);
+component main {public [similarities, minSimilarity, minIndex]} = CosineSimilarityFullData(25, 245, 10000, 2);

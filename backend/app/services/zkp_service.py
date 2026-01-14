@@ -10,10 +10,13 @@ import os
 import subprocess
 import tempfile
 import uuid
+from decimal import Decimal
 from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 import logging
 import numpy as np
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -701,25 +704,22 @@ class ZKPService:
             proof, public_signals = await self._generate_full_cosine_similarity_groth16_proof(witness_file)
 
             # 4. 結果パース
-            # Public signals: [referenceMatrix..., candidateMatrix..., similarities[NUM_SUB], minSimilarity, minIndex]
-            num_matrix_elements = num_freq_points * num_subcarriers
-            expected_len_matrices_only = 2 * num_matrix_elements
-            expected_len_with_outputs = 2 * num_matrix_elements + num_subcarriers + 2
+            # Public signals: [similarities[NUM_SUB], minSimilarity, minIndex]
+            expected_len_outputs = num_subcarriers + 2
             actual_len = len(public_signals)
 
             logger.info(
                 f"Public signals length: actual={actual_len}, "
-                f"expected_matrices_only={expected_len_matrices_only}, "
-                f"expected_with_outputs={expected_len_with_outputs}"
+                f"expected_outputs={expected_len_outputs}"
             )
 
             similarities: List[float] = []
             selected_sub_index = None
             selected_sub_similarity = None
 
-            if actual_len >= expected_len_with_outputs:
-                start_sim = 2 * num_matrix_elements
-                end_sim = start_sim + num_subcarriers
+            if actual_len >= expected_len_outputs:
+                start_sim = 0
+                end_sim = num_subcarriers
                 similarities = [int(x) for x in public_signals[start_sim:end_sim]]
                 selected_sub_similarity = int(public_signals[-2])
                 selected_sub_index = int(public_signals[-1])
@@ -767,6 +767,102 @@ class ZKPService:
         except Exception as e:
             logger.error(f"Full cosine similarity ZKP generation failed: {e}", exc_info=True)
             raise RuntimeError(f"Full cosine similarity ZKP generation failed: {str(e)}")
+
+    def submit_full_similarity_proof_onchain(
+        self,
+        proof: Dict[str, Any],
+        public_signals: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Groth16証明をオンチェーンで検証し、レジストリに記録する
+        """
+        if (
+            not settings.ZKP_SUBMIT_RPC_URL
+            or not settings.ZKP_SUBMIT_PRIVATE_KEY
+            or not settings.ZKP_SUBMIT_REGISTRY_ADDRESS
+        ):
+            raise RuntimeError("ZKP on-chain submit settings are missing")
+
+        from web3 import Web3
+
+        w3 = Web3(Web3.HTTPProvider(settings.ZKP_SUBMIT_RPC_URL))
+        if not w3.is_connected():
+            raise RuntimeError("Failed to connect to RPC")
+
+        account = w3.eth.account.from_key(settings.ZKP_SUBMIT_PRIVATE_KEY)
+
+        contract_abi = [
+            {
+                "inputs": [
+                    {"internalType": "uint256[2]", "name": "_pA", "type": "uint256[2]"},
+                    {"internalType": "uint256[2][2]", "name": "_pB", "type": "uint256[2][2]"},
+                    {"internalType": "uint256[2]", "name": "_pC", "type": "uint256[2]"},
+                    {"internalType": "uint256[247]", "name": "_pubSignals", "type": "uint256[247]"},
+                ],
+                "name": "submitProof",
+                "outputs": [{"internalType": "bytes32", "name": "proofHash", "type": "bytes32"}],
+                "stateMutability": "nonpayable",
+                "type": "function",
+            }
+        ]
+
+        contract = w3.eth.contract(
+            address=Web3.to_checksum_address(settings.ZKP_SUBMIT_REGISTRY_ADDRESS),
+            abi=contract_abi
+        )
+
+        p_a, p_b, p_c = self._format_groth16_proof_for_solidity(proof)
+        pub_signals = [int(x) for x in public_signals]
+
+        if len(pub_signals) != 247:
+            raise RuntimeError(f"Unexpected public signals length: {len(pub_signals)}")
+
+        tx_params: Dict[str, Any] = {
+            "from": account.address,
+            "nonce": w3.eth.get_transaction_count(account.address),
+            "chainId": settings.ZKP_SUBMIT_CHAIN_ID,
+        }
+
+        if settings.ZKP_SUBMIT_GAS_LIMIT > 0:
+            tx_params["gas"] = settings.ZKP_SUBMIT_GAS_LIMIT
+        else:
+            estimated = contract.functions.submitProof(p_a, p_b, p_c, pub_signals).estimate_gas(tx_params)
+            tx_params["gas"] = int(estimated * 1.2)
+
+        if settings.ZKP_SUBMIT_MAX_FEE_GWEI and settings.ZKP_SUBMIT_MAX_PRIORITY_FEE_GWEI:
+            max_fee = int(Decimal(settings.ZKP_SUBMIT_MAX_FEE_GWEI) * (10 ** 9))
+            max_priority = int(Decimal(settings.ZKP_SUBMIT_MAX_PRIORITY_FEE_GWEI) * (10 ** 9))
+            tx_params["maxFeePerGas"] = max_fee
+            tx_params["maxPriorityFeePerGas"] = max_priority
+        else:
+            tx_params["gasPrice"] = w3.eth.gas_price
+
+        tx = contract.functions.submitProof(p_a, p_b, p_c, pub_signals).build_transaction(tx_params)
+        signed = account.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+
+        return {
+            "tx_hash": tx_hash.hex(),
+            "registry_address": settings.ZKP_SUBMIT_REGISTRY_ADDRESS,
+            "chain_id": settings.ZKP_SUBMIT_CHAIN_ID,
+        }
+
+    @staticmethod
+    def _format_groth16_proof_for_solidity(proof: Dict[str, Any]) -> Tuple[List[int], List[List[int]], List[int]]:
+        """
+        snarkjsのproofをSolidity verifier形式に変換
+        """
+        if not proof or "pi_a" not in proof or "pi_b" not in proof or "pi_c" not in proof:
+            raise RuntimeError("Invalid proof format")
+
+        a = [int(proof["pi_a"][0]), int(proof["pi_a"][1])]
+        b = [
+            [int(proof["pi_b"][0][1]), int(proof["pi_b"][0][0])],
+            [int(proof["pi_b"][1][1]), int(proof["pi_b"][1][0])],
+        ]
+        c = [int(proof["pi_c"][0]), int(proof["pi_c"][1])]
+
+        return a, b, c
 
     def _prepare_full_cosine_similarity_input(
         self,

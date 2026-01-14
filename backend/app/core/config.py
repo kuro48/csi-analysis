@@ -37,6 +37,14 @@ class Settings:
     # zkp_auto_compile は常に有効（環境変数を無視して強制ON）
     ZKP_AUTO_COMPILE: bool = True  # 自動コンパイル（初回起動時のみ）
     ZKP_DATA_RETENTION_HOURS: int = int(os.getenv("ZKP_DATA_RETENTION_HOURS", "0"))  # 0=即削除、>0=時間後削除
+    ZKP_AUTO_SUBMIT: bool = os.getenv("ZKP_AUTO_SUBMIT", "false").lower() == "true"
+    ZKP_SUBMIT_RPC_URL: str = os.getenv("ZKP_SUBMIT_RPC_URL", "")
+    ZKP_SUBMIT_PRIVATE_KEY: str = os.getenv("ZKP_SUBMIT_PRIVATE_KEY", "")
+    ZKP_SUBMIT_REGISTRY_ADDRESS: str = os.getenv("ZKP_SUBMIT_REGISTRY_ADDRESS", "")
+    ZKP_SUBMIT_CHAIN_ID: int = int(os.getenv("ZKP_SUBMIT_CHAIN_ID", "11155111"))  # Sepolia
+    ZKP_SUBMIT_GAS_LIMIT: int = int(os.getenv("ZKP_SUBMIT_GAS_LIMIT", "0"))  # 0=estimate
+    ZKP_SUBMIT_MAX_FEE_GWEI: str = os.getenv("ZKP_SUBMIT_MAX_FEE_GWEI", "")
+    ZKP_SUBMIT_MAX_PRIORITY_FEE_GWEI: str = os.getenv("ZKP_SUBMIT_MAX_PRIORITY_FEE_GWEI", "")
 
     # データベース設定
     # SECURITY: DATABASE credentials must be set via environment variables

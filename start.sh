@@ -29,6 +29,54 @@ if [ -f "frontend/.env.local.docker" ]; then
     cp frontend/.env.local.docker frontend/.env.local
 fi
 
+# ZKP回路コンパイル/デプロイ（オプション）
+if [[ "${ZKP_AUTO_DEPLOY}" == "true" ]]; then
+    echo "🧩 ZKP回路のコンパイルとSepoliaデプロイを実行します..."
+
+    if [ ! -f "zkp/hardhat/.env" ]; then
+        echo "❌ zkp/hardhat/.env が見つかりません。"
+        echo "   zkp/hardhat/.env.example をコピーしてRPC/秘密鍵を設定してください。"
+        exit 1
+    fi
+
+    if [ ! -d "zkp/node_modules" ]; then
+        echo "📦 zkp 依存関係をインストール中..."
+        (cd zkp && npm install)
+    fi
+
+    echo "🔧 ZKP回路をコンパイル中..."
+    (cd zkp && npm run compile:full_similarity)
+
+    echo "🔑 ZKPセットアップ中..."
+    (cd zkp && npm run setup:full_similarity)
+
+    echo "🧾 Solidity Verifierを生成中..."
+    (cd zkp && npm run export:full_similarity:sol)
+
+    if [ ! -d "zkp/hardhat/node_modules" ]; then
+        echo "📦 hardhat 依存関係をインストール中..."
+        (cd zkp/hardhat && npm install)
+    fi
+
+    echo "🚀 Sepoliaへデプロイ中..."
+    DEPLOY_OUTPUT="/tmp/zkp_deploy.json"
+    (cd zkp/hardhat && DEPLOY_OUTPUT="${DEPLOY_OUTPUT}" npx hardhat compile && DEPLOY_OUTPUT="${DEPLOY_OUTPUT}" npx hardhat run scripts/deploy.js --network "${ZKP_HARDHAT_NETWORK:-sepolia}")
+
+    if [ -f "${DEPLOY_OUTPUT}" ]; then
+        REGISTRY_ADDRESS=$(node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync(process.argv[1]));console.log(j.registry);" "${DEPLOY_OUTPUT}")
+        if [ -n "${REGISTRY_ADDRESS}" ]; then
+            if [ -f "backend/.env" ]; then
+                if grep -q "^ZKP_SUBMIT_REGISTRY_ADDRESS=" backend/.env; then
+                    perl -pi -e "s/^ZKP_SUBMIT_REGISTRY_ADDRESS=.*/ZKP_SUBMIT_REGISTRY_ADDRESS=${REGISTRY_ADDRESS}/" backend/.env
+                else
+                    echo "ZKP_SUBMIT_REGISTRY_ADDRESS=${REGISTRY_ADDRESS}" >> backend/.env
+                fi
+                echo "✅ backend/.env に ZKP_SUBMIT_REGISTRY_ADDRESS を設定しました"
+            fi
+        fi
+    fi
+fi
+
 # 既存のコンテナを停止・削除（オプション）
 read -p "🛑 既存のコンテナを停止・削除しますか? [y/N]: " -n 1 -r
 echo

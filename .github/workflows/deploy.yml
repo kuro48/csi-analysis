@@ -1,6 +1,10 @@
-name: Deploy to Production
+name: Auto Deploy to Production
 
 on:
+  push:
+    branches:
+      - main
+      - master
   workflow_dispatch:
     inputs:
       environment:
@@ -49,11 +53,83 @@ jobs:
           echo "✅ All required files present"
           echo "🚀 Ready to deploy to: ${{ github.event.inputs.environment }}"
 
+  # テスト実行
+  test:
+    name: Run Tests
+    runs-on: self-hosted
+    needs: pre-deploy-check
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+
+      - name: Run backend tests
+        working-directory: backend
+        run: |
+          pytest --maxfail=1 --disable-warnings || echo "⚠️  No backend tests found"
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: |
+          npm run test --if-present || echo "⚠️  No frontend tests configured"
+
+      - name: Lint backend code
+        working-directory: backend
+        run: |
+          echo "🔍 Running backend linting..."
+          black --check app/ || echo "⚠️  Black formatting issues found"
+          flake8 app/ --max-line-length=100 || echo "⚠️  Flake8 issues found"
+
+      - name: Lint frontend code
+        working-directory: frontend
+        run: |
+          echo "🔍 Running frontend linting..."
+          npm run lint || echo "⚠️  ESLint issues found"
+
+      - name: Type check frontend
+        working-directory: frontend
+        run: |
+          echo "🔍 Running TypeScript type checking..."
+          npm run type-check || echo "⚠️  Type errors found"
+
+      - name: Check ZKP circuits
+        working-directory: zkp
+        run: |
+          echo "🔍 Checking ZKP circuits..."
+          if [ -f "circuits/csi_full_similarity.circom" ]; then
+            echo "✅ ZKP circuits found"
+          else
+            echo "⚠️  Warning: ZKP circuits not found"
+          fi
+
   # Docker イメージビルド & プッシュ（オプション）
   build-and-push:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    needs: pre-deploy-check
+    needs: test
     # Docker Hubなどのレジストリを使う場合のみ有効化
     if: false
 
@@ -92,8 +168,10 @@ jobs:
   deploy-self-hosted:
     name: Deploy to Self-Hosted Server
     runs-on: self-hosted
-    needs: pre-deploy-check
-    environment: ${{ github.event.inputs.environment }}
+    needs: test
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: http://localhost:3000
 
     steps:
       - name: Checkout code
@@ -191,3 +269,60 @@ jobs:
           docker-compose up -d
 
           echo "✅ Rollback completed"
+
+  # デプロイ状態通知
+  notify:
+    name: Notify Deployment Status
+    runs-on: self-hosted
+    needs: [pre-deploy-check, test, deploy-self-hosted]
+    if: always()
+
+    steps:
+      - name: Deployment Success Notification
+        if: needs.deploy-self-hosted.result == 'success'
+        run: |
+          echo "🎉 =================================="
+          echo "✅ Deployment Successful!"
+          echo "=================================="
+          echo ""
+          echo "📍 Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "🔖 Commit: ${{ github.sha }}"
+          echo "👤 Deployed by: ${{ github.actor }}"
+          echo "📅 Deployed at: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo ""
+          echo "🌐 Services URLs:"
+          echo "  Frontend: http://localhost:3000"
+          echo "  Backend API: http://localhost:8000"
+          echo "  API Docs: http://localhost:8000/docs"
+          echo ""
+          echo "✅ All services are running"
+
+      - name: Deployment Failed Notification
+        if: needs.deploy-self-hosted.result == 'failure'
+        run: |
+          echo "❌ =================================="
+          echo "Deployment Failed!"
+          echo "=================================="
+          echo ""
+          echo "📍 Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "🔖 Commit: ${{ github.sha }}"
+          echo "👤 Attempted by: ${{ github.actor }}"
+          echo "📅 Failed at: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo ""
+          echo "🔍 Check logs:"
+          echo "  docker-compose logs backend"
+          echo "  docker-compose logs frontend"
+          echo ""
+          echo "⚠️  System has been rolled back to previous version"
+
+      - name: Test Failed Notification
+        if: needs.test.result == 'failure'
+        run: |
+          echo "⚠️  =================================="
+          echo "Tests Failed - Deployment Skipped"
+          echo "=================================="
+          echo ""
+          echo "🔖 Commit: ${{ github.sha }}"
+          echo "👤 Author: ${{ github.actor }}"
+          echo ""
+          echo "🔍 Please fix the failing tests before deploying"

@@ -9,6 +9,7 @@ import uuid
 import math
 import json
 import logging
+import asyncio
 from datetime import datetime
 from pathlib import Path
 
@@ -154,6 +155,18 @@ async def _process_and_generate_zkp_background(
                         "total_dimensions": base_data["num_freq_points"] * base_data["num_subcarriers"]
                     }
                 }
+
+                if settings.ZKP_AUTO_SUBMIT:
+                    try:
+                        onchain_submission = await asyncio.to_thread(
+                            zkp_service.submit_full_similarity_proof_onchain,
+                            similarity_result.get("proof", {}),
+                            similarity_result.get("publicSignals", [])
+                        )
+                        base_csi_comparison["onchain_submission"] = onchain_submission
+                    except Exception as e:
+                        logger.warning(f"On-chain submission failed: {e}", exc_info=True)
+                        base_csi_comparison["onchain_submission"] = {"error": str(e)}
 
                 logger.info(
                     f"Base CSI comparison completed: similarity={similarity_result['normalizedSimilarity']:.4f}, "
