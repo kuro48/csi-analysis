@@ -131,6 +131,13 @@ async def _process_and_generate_zkp_background(
                     candidate_matrix=candidate_matrix
                 )
 
+                # 上位5つの低類似度サブキャリアを計算
+                top_n_subcarriers_result = zkp_service.select_top_n_lowest_similarity_subcarriers(
+                    reference_matrix=reference_matrix,
+                    candidate_matrix=candidate_matrix,
+                    top_n=5
+                )
+
                 base_csi_comparison = {
                     "base_csi_id": str(base_csi.id),
                     "base_csi_name": base_csi.name,
@@ -148,6 +155,18 @@ async def _process_and_generate_zkp_background(
                         "index": similarity_result.get("selectedSubcarrierIndex"),
                         "similarity": similarity_result.get("selectedSubcarrierSimilarity")
                     },
+                    # 上位5つの低類似度サブキャリア（新規追加）
+                    "top_5_lowest_subcarriers": [
+                        {
+                            "index": idx,
+                            "similarity": sim,
+                            "rank": i + 1
+                        }
+                        for i, (idx, sim) in enumerate(zip(
+                            top_n_subcarriers_result["top_n_indices"],
+                            top_n_subcarriers_result["top_n_similarities"]
+                        ))
+                    ],
                     "data_dimensions": {
                         "num_freq_points": base_data["num_freq_points"],
                         "num_subcarriers": base_data["num_subcarriers"],

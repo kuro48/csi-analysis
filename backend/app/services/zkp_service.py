@@ -901,6 +901,74 @@ class ZKPService:
             "similarities": similarities
         }
 
+    def select_top_n_lowest_similarity_subcarriers(
+        self,
+        reference_matrix: List[List[int]],
+        candidate_matrix: List[List[int]],
+        top_n: int = 5
+    ) -> Dict[str, Any]:
+        """
+        サブキャリア単位でコサイン類似度を計算し、最も低いN個のサブキャリアを返す
+
+        Args:
+            reference_matrix: 参照CSIマトリックス
+            candidate_matrix: 候補CSIマトリックス
+            top_n: 返すサブキャリア数（デフォルト: 5）
+
+        Returns:
+            Dict containing:
+                - top_n_indices: 上位N個の低類似度サブキャリアのインデックス
+                - top_n_similarities: 対応する類似度
+                - all_similarities: 全サブキャリアの類似度
+                - lowest_index: 最も低いサブキャリアのインデックス
+                - lowest_similarity: 最も低い類似度
+        """
+        input_data = self._prepare_full_cosine_similarity_input(
+            reference_matrix,
+            candidate_matrix
+        )
+
+        ref = np.array(input_data["referenceMatrix"], dtype=np.float64)
+        cand = np.array(input_data["candidateMatrix"], dtype=np.float64)
+
+        num_subcarriers = ref.shape[1]
+        similarities: List[float] = []
+
+        for sc in range(num_subcarriers):
+            ref_vec = ref[:, sc]
+            cand_vec = cand[:, sc]
+            dot_product = float(np.dot(ref_vec, cand_vec))
+            norm_ref = float(np.linalg.norm(ref_vec))
+            norm_cand = float(np.linalg.norm(cand_vec))
+            if norm_ref == 0 or norm_cand == 0:
+                cosine = 0.0
+            else:
+                cosine = dot_product / (norm_ref * norm_cand)
+            similarities.append(cosine)
+
+        # インデックスと類似度をペアにしてソート
+        indexed_similarities = [(i, sim) for i, sim in enumerate(similarities)]
+        # 類似度の低い順にソート
+        sorted_similarities = sorted(indexed_similarities, key=lambda x: x[1])
+
+        # 上位N個を取得
+        top_n_items = sorted_similarities[:min(top_n, len(sorted_similarities))]
+        top_n_indices = [item[0] for item in top_n_items]
+        top_n_similarities = [item[1] for item in top_n_items]
+
+        # 最も低い1つ（後方互換性のため）
+        lowest_index = top_n_indices[0] if top_n_indices else 0
+        lowest_similarity = top_n_similarities[0] if top_n_similarities else 0.0
+
+        return {
+            "top_n_indices": top_n_indices,
+            "top_n_similarities": top_n_similarities,
+            "all_similarities": similarities,
+            "lowest_index": lowest_index,
+            "lowest_similarity": lowest_similarity,
+            "num_subcarriers": num_subcarriers
+        }
+
     async def _generate_full_cosine_similarity_witness(
         self,
         input_data: Dict[str, Any]
