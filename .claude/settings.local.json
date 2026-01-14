@@ -55,7 +55,8 @@
       "mcp__serena__find_symbol",
       "mcp__serena__search_for_pattern",
       "Bash(git -C /Users/ryunosukekurokawa/Documents/class/lab/M1/研究関連/csi-web-platform status)",
-      "Bash(npx snarkjs --version)"
+      "Bash(npx snarkjs --version)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []
