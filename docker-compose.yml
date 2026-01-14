@@ -56,6 +56,7 @@ services:
       - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000
       - DEBUG=True
       - ZKP_AUTO_COMPILE=TRUE
+      - ETHEREUM_RPC_URL=http://ganache:8545
     volumes:
       - ./backend:/app
       - ./zkp:/zkp
@@ -97,12 +98,29 @@ services:
       - csi_network
     restart: unless-stopped
 
+  # Ganache 開発用ブロックチェーン
+  ganache:
+    build:
+      context: ./ganache
+      dockerfile: Dockerfile
+    container_name: csi_ganache
+    command: ["ganache", "--host", "0.0.0.0", "--port", "8545", "--database.dbPath", "/data"]
+    volumes:
+      - ganache_data:/data
+    ports:
+      - "8545:8545"
+    networks:
+      - csi_network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     driver: local
   redis_data:
     driver: local
   csi_uploads:
+    driver: local
+  ganache_data:
     driver: local
 
 networks:
