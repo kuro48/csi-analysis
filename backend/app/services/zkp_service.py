@@ -901,6 +901,52 @@ class ZKPService:
             "similarities": similarities
         }
 
+    def extract_top_n_from_zkp_similarities(
+        self,
+        zkp_similarities: List[int],
+        scale: int = 10000,
+        top_n: int = 5
+    ) -> Dict[str, Any]:
+        """
+        ZKP回路から得られた全サブキャリアの類似度から、下位N個を抽出
+
+        Args:
+            zkp_similarities: ZKP回路が計算した類似度配列（スケール済み整数値）
+            scale: 固定小数点スケール（デフォルト: 10000）
+            top_n: 返すサブキャリア数（デフォルト: 5）
+
+        Returns:
+            Dict containing:
+                - top_n_indices: 上位N個の低類似度サブキャリアのインデックス
+                - top_n_similarities: 対応する類似度（正規化済み）
+                - lowest_index: 最も低いサブキャリアのインデックス
+                - lowest_similarity: 最も低い類似度（正規化済み）
+        """
+        # スケールされた整数値を正規化（0.0-1.0範囲）
+        normalized_similarities = [s / (scale * scale) for s in zkp_similarities]
+
+        # インデックスと類似度をペアにしてソート
+        indexed_similarities = [(i, sim) for i, sim in enumerate(normalized_similarities)]
+        # 類似度の低い順にソート
+        sorted_similarities = sorted(indexed_similarities, key=lambda x: x[1])
+
+        # 上位N個を取得
+        top_n_items = sorted_similarities[:min(top_n, len(sorted_similarities))]
+        top_n_indices = [item[0] for item in top_n_items]
+        top_n_similarities = [item[1] for item in top_n_items]
+
+        # 最も低い1つ
+        lowest_index = top_n_indices[0] if top_n_indices else 0
+        lowest_similarity = top_n_similarities[0] if top_n_similarities else 0.0
+
+        return {
+            "top_n_indices": top_n_indices,
+            "top_n_similarities": top_n_similarities,
+            "lowest_index": lowest_index,
+            "lowest_similarity": lowest_similarity,
+            "num_subcarriers": len(zkp_similarities)
+        }
+
     def select_top_n_lowest_similarity_subcarriers(
         self,
         reference_matrix: List[List[int]],

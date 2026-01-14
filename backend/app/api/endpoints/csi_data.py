@@ -131,10 +131,18 @@ async def _process_and_generate_zkp_background(
                     candidate_matrix=candidate_matrix
                 )
 
-                # 上位5つの低類似度サブキャリアを計算
-                top_n_subcarriers_result = zkp_service.select_top_n_lowest_similarity_subcarriers(
+                # Python計算での上位5つの低類似度サブキャリア
+                python_top_n_result = zkp_service.select_top_n_lowest_similarity_subcarriers(
                     reference_matrix=reference_matrix,
                     candidate_matrix=candidate_matrix,
+                    top_n=5
+                )
+
+                # ZKP回路内で計算された全サブキャリアの類似度から下位5つを抽出
+                zkp_similarities = similarity_result.get("similarities", [])
+                zkp_top_n_result = zkp_service.extract_top_n_from_zkp_similarities(
+                    zkp_similarities=zkp_similarities,
+                    scale=10000,
                     top_n=5
                 )
 
@@ -155,16 +163,28 @@ async def _process_and_generate_zkp_background(
                         "index": similarity_result.get("selectedSubcarrierIndex"),
                         "similarity": similarity_result.get("selectedSubcarrierSimilarity")
                     },
-                    # 上位5つの低類似度サブキャリア（新規追加）
-                    "top_5_lowest_subcarriers": [
+                    # ZKP回路内で計算された下位5つのサブキャリア
+                    "zkp_top_5_lowest_subcarriers": [
                         {
                             "index": idx,
                             "similarity": sim,
                             "rank": i + 1
                         }
                         for i, (idx, sim) in enumerate(zip(
-                            top_n_subcarriers_result["top_n_indices"],
-                            top_n_subcarriers_result["top_n_similarities"]
+                            zkp_top_n_result["top_n_indices"],
+                            zkp_top_n_result["top_n_similarities"]
+                        ))
+                    ],
+                    # Python高精度計算での下位5つのサブキャリア（比較用）
+                    "python_top_5_lowest_subcarriers": [
+                        {
+                            "index": idx,
+                            "similarity": sim,
+                            "rank": i + 1
+                        }
+                        for i, (idx, sim) in enumerate(zip(
+                            python_top_n_result["top_n_indices"],
+                            python_top_n_result["top_n_similarities"]
                         ))
                     ],
                     "data_dimensions": {
