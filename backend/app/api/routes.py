@@ -3,7 +3,7 @@ APIルーター統合モジュール
 """
 
 from fastapi import APIRouter
-from app.api.endpoints import health, csi_data, base_csi, zkp_verification
+from app.api.endpoints import health, csi_data, base_csi, zkp_verification, blockchain
 
 api_router = APIRouter()
 
@@ -30,4 +30,10 @@ api_router.include_router(
     zkp_verification.router,
     prefix="/zkp-verification",
     tags=["zkp-verification"]
+)
+
+api_router.include_router(
+    blockchain.router,
+    prefix="/blockchain",
+    tags=["blockchain"]
 )

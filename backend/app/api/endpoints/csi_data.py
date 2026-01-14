@@ -20,6 +20,7 @@ from app.services.csi_data import CSIDataService, SessionService
 from app.services.pcap_analyzer import PCAPAnalyzer
 from app.services.zkp_service import ZKPService
 from app.services.base_csi import BaseCSIService
+from app.services.blockchain_service import BlockchainService
 from app.schemas.csi_data import (
     CSIDataUpload, CSIDataResponse, CSIDataListResponse, CSIDataFilter,
     SessionCreate, SessionUpdate, SessionResponse, ProcessingStatus
@@ -239,6 +240,53 @@ async def _process_and_generate_zkp_background(
 
             csi_data.processed_data = processed_data
             db.commit()
+
+            # ブロックチェーンへの自動記録（設定で有効な場合）
+            if settings.BLOCKCHAIN_AUTO_RECORD and base_csi_comparison:
+                try:
+                    blockchain_service = BlockchainService(
+                        rpc_url=settings.ETHEREUM_RPC_URL,
+                        contract_address=settings.ZKPROOF_CONTRACT_ADDRESS,
+                        account_private_key=settings.BLOCKCHAIN_PRIVATE_KEY if settings.BLOCKCHAIN_PRIVATE_KEY else None
+                    )
+
+                    if blockchain_service.is_available():
+                        # デバイスIDを取得
+                        device_id = csi_data.device_id if hasattr(csi_data, 'device_id') else str(csi_data.uploader_id)
+
+                        # ZKP証明をブロックチェーンに記録
+                        proof_id = await blockchain_service.record_zkp_proof(
+                            device_id=device_id,
+                            proof=base_csi_comparison["zkp_proof"],
+                            public_signals=base_csi_comparison["public_signals"],
+                            proof_type="full_similarity"
+                        )
+
+                        if proof_id:
+                            logger.info(
+                                f"ZKP proof automatically recorded on blockchain: "
+                                f"CSI data {csi_data_id}, proof ID {proof_id}"
+                            )
+
+                            # ブロックチェーン証明IDをprocessed_dataに追加
+                            csi_data.processed_data["blockchain_proof_id"] = proof_id
+                            db.commit()
+                        else:
+                            logger.warning(
+                                f"Failed to record ZKP proof on blockchain for CSI data {csi_data_id}"
+                            )
+                    else:
+                        logger.warning(
+                            f"Blockchain service not available for CSI data {csi_data_id}. "
+                            f"Skipping automatic blockchain recording."
+                        )
+
+                except Exception as e:
+                    # ブロックチェーン記録エラーは警告のみ（処理を中断しない）
+                    logger.warning(
+                        f"Failed to record ZKP proof on blockchain for CSI data {csi_data_id}: {e}",
+                        exc_info=True
+                    )
 
             if base_csi_comparison:
                 logger.info(

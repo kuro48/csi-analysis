@@ -239,7 +239,7 @@ npm run type-check         # TypeScript型チェック
 ### 外部システム連携
 - **エッジデバイス**: https://github.com/kuro48/csi-edge-device.git
 - **IPFS**: 分散ストレージ（将来拡張）
-- **Blockchain**: イーサリアム連携（将来拡張）
+- **Blockchain**: イーサリアム連携（**実装済み** - ZKP証明のみを記録）
 
 ## ZKPシステム（Zero-Knowledge Proof）
 
@@ -322,3 +322,207 @@ zkp/scripts/
 - [ ] 開発用スクリプトがデプロイパッケージから除外
 - [ ] ZKP証明の生成・検証テスト完了
 - [ ] パフォーマンステスト完了（証明生成 < 2秒、検証 < 100ms）
+
+## ブロックチェーン統合（ZKP証明記録）
+
+### 概要
+
+ZKP証明**のみ**をブロックチェーンに記録し、元のCSIデータは公開しないプライバシー保護システム。
+
+### アーキテクチャ
+
+```
+CSI解析 → ZKP証明生成 → ブロックチェーン記録（証明のみ）
+                            ↓
+                    改ざん防止 & 透明性確保
+```
+
+### 主要コンポーネント
+
+#### 1. スマートコントラクト
+
+**ファイル**: `backend/contracts/ZKProofRegistry.sol`
+
+- ZKP証明専用のSolidityコントラクト
+- 証明データ（proof）、公開信号（publicSignals）、メタデータを保存
+- アクセス制御（ホワイトリスト）機能
+- バッチ処理対応
+
+#### 2. ブロックチェーンサービス
+
+**ファイル**: `backend/app/services/blockchain_service.py`
+
+主要メソッド:
+- `record_zkp_proof()` - ZKP証明をブロックチェーンに記録
+- `get_zkp_proof_by_id()` - 証明IDから証明を取得
+- `get_device_proof_ids()` - デバイスの証明一覧を取得
+- `verify_proof_on_chain()` - 証明を検証済みとしてマーク
+
+#### 3. APIエンドポイント
+
+**ベースパス**: `/api/blockchain`
+
+主要エンドポイント:
+- `GET /status` - ブロックチェーン接続状態確認
+- `POST /record-proof` - ZKP証明を直接記録
+- `POST /record-proof-from-csi` - CSIデータから証明を抽出して記録
+- `GET /proof/{proof_id}` - 証明を取得
+- `GET /device/{device_id}/proofs` - デバイスの証明一覧
+- `GET /device/{device_id}/latest-proof` - デバイスの最新証明
+- `POST /verify-proof-on-chain` - 証明を検証済みとしてマーク
+
+### セットアップ手順
+
+#### 1. Ganache起動（ローカル開発環境）
+
+```bash
+# Docker Composeで起動
+docker-compose up ganache -d
+```
+
+#### 2. スマートコントラクトのデプロイ
+
+```bash
+cd backend
+pip install web3 py-solc-x
+
+# ZKProofRegistryコントラクトをデプロイ
+python contracts/deploy_zkproof_contract.py
+```
+
+#### 3. 環境変数設定
+
+`backend/.env` に以下を追加：
+
+```env
+# ブロックチェーン自動記録設定
+BLOCKCHAIN_AUTO_RECORD=true  # CSIアップロード時に自動的にZKP証明をブロックチェーンに記録
+
+# Ethereumノード接続URL
+ETHEREUM_RPC_URL=http://localhost:8545
+
+# ZKProofRegistryコントラクトアドレス（デプロイ時に自動設定）
+ZKPROOF_CONTRACT_ADDRESS=0x...
+
+# トランザクション署名用の秘密鍵（本番環境では必須）
+BLOCKCHAIN_PRIVATE_KEY=
+```
+
+#### 4. バックエンド再起動
+
+```bash
+docker-compose restart backend
+```
+
+### 使用例
+
+#### 🚀 自動記録（推奨）
+
+CSIデータをアップロードするだけで自動的にZKP証明がブロックチェーンに記録されます。
+
+```bash
+# CSIデータをアップロード
+curl -X POST http://localhost:8000/api/csi-data/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@csi_data.pcap" \
+  -F "device_id=device_001"
+
+# バックグラウンドで自動的に：
+# 1. PCAP解析
+# 2. ZKP証明生成
+# 3. ブロックチェーンに記録 ✨
+```
+
+#### ZKP証明を手動で記録
+
+```bash
+curl -X POST http://localhost:8000/api/blockchain/record-proof \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "device_001",
+    "proof": {...},
+    "public_signals": [...],
+    "proof_type": "full_similarity"
+  }'
+```
+
+#### CSIデータから証明を手動で記録
+
+```bash
+curl -X POST http://localhost:8000/api/blockchain/record-proof-from-csi \
+  -H "Content-Type: application/json" \
+  -d '{
+    "csi_data_id": "550e8400-e29b-41d4-a716-446655440000",
+    "proof_type": "full_similarity"
+  }'
+```
+
+#### ブロックチェーン状態確認
+
+```bash
+# CLIツール
+python backend/contracts/check_zkproof_blockchain.py
+
+# 最近の証明を表示
+python backend/contracts/check_zkproof_blockchain.py --recent 5
+
+# デバイスの証明を表示
+python backend/contracts/check_zkproof_blockchain.py --device device_001
+```
+
+### 環境変数
+
+| 変数名 | 説明 | デフォルト値 |
+|-------|------|------------|
+| `BLOCKCHAIN_AUTO_RECORD` | CSIアップロード時に自動的にZKP証明をブロックチェーンに記録 | `true` |
+| `ETHEREUM_RPC_URL` | EthereumノードのRPC URL | `http://localhost:8545` |
+| `ZKPROOF_CONTRACT_ADDRESS` | ZKProofRegistryコントラクトアドレス | デプロイ時に設定 |
+| `BLOCKCHAIN_PRIVATE_KEY` | トランザクション署名用秘密鍵 | 開発環境では不要 |
+
+### プライバシー保護
+
+- ✅ **元データ非公開**: CSI生データはブロックチェーンに記録しない
+- ✅ **ZKP証明のみ**: 計算の正当性のみを証明
+- ✅ **透明性**: 証明は誰でも検証可能
+- ✅ **改ざん防止**: ブロックチェーンの不変性を活用
+
+### トラブルシューティング
+
+#### ブロックチェーンに接続できない
+
+```bash
+# Ganache起動確認
+docker ps | grep ganache
+
+# ポート確認
+lsof -i :8545
+
+# Ganache再起動
+docker-compose restart ganache
+```
+
+#### コントラクトアドレスが見つからない
+
+```bash
+# コントラクト再デプロイ
+python backend/contracts/deploy_zkproof_contract.py
+
+# .env確認
+cat backend/.env | grep ZKPROOF_CONTRACT_ADDRESS
+```
+
+### 詳細ドキュメント
+
+完全な実装ガイド・API仕様は `docs/BLOCKCHAIN_ZKP_INTEGRATION.md` を参照してください。
+
+### 本番環境デプロイ
+
+本番環境（Ethereum Mainnet/Testnet）へのデプロイ手順：
+
+1. **Infura/Alchemy等のノードプロバイダー**を設定
+2. **デプロイアカウントの秘密鍵**を環境変数に設定
+3. **コントラクトをデプロイ**
+4. **ガスコストを監視**し、最適化
+5. **Etherscanでコントラクトを検証**（透明性向上）
+
+詳細は `docs/BLOCKCHAIN_ZKP_INTEGRATION.md` の「本番環境デプロイ」セクションを参照。

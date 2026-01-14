@@ -38,6 +38,12 @@ class Settings:
     ZKP_AUTO_COMPILE: bool = True  # 自動コンパイル（初回起動時のみ）
     ZKP_DATA_RETENTION_HOURS: int = int(os.getenv("ZKP_DATA_RETENTION_HOURS", "0"))  # 0=即削除、>0=時間後削除
 
+    # ブロックチェーン設定
+    BLOCKCHAIN_AUTO_RECORD: bool = os.getenv("BLOCKCHAIN_AUTO_RECORD", "true").lower() == "true"  # CSIアップロード時に自動的にZKP証明をブロックチェーンに記録
+    ETHEREUM_RPC_URL: str = os.getenv("ETHEREUM_RPC_URL", "http://localhost:8545")
+    ZKPROOF_CONTRACT_ADDRESS: str = os.getenv("ZKPROOF_CONTRACT_ADDRESS", "")
+    BLOCKCHAIN_PRIVATE_KEY: str = os.getenv("BLOCKCHAIN_PRIVATE_KEY", "")
+
     # データベース設定
     # SECURITY: DATABASE credentials must be set via environment variables
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
