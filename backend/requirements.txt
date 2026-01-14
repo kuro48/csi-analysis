@@ -24,6 +24,9 @@ pydantic-settings==2.1.0
 httpx==0.26.0
 requests==2.31.0
 
+# ブロックチェーン関連
+web3==6.15.1
+
 # ログ・監視
 structlog==23.2.0
 
@@ -46,4 +49,3 @@ CSIKit==2.5
 
 # 環境変数管理
 python-dotenv==1.0.0
-
