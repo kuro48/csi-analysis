@@ -43,6 +43,7 @@ fi
 
 # ZKProofRegistryコントラクトが未デプロイ/無効なら自動デプロイ
 echo "Checking ZKProofRegistry deployment..."
+set +e
 python - <<'PY'
 import json
 import os
@@ -69,6 +70,7 @@ if not code or code in (b"", b"\x00"):
     raise SystemExit(2)
 PY
 status=$?
+set -e
 
 if [ $status -eq 2 ]; then
   echo "ZKProofRegistry contract missing or invalid. Deploying..."
@@ -81,6 +83,7 @@ fi
 
 # FullSimilarityVerifierが未デプロイ/無効なら自動デプロイ
 echo "Checking FullSimilarityVerifier deployment..."
+set +e
 python - <<'PY'
 import json
 import os
@@ -107,6 +110,7 @@ if not code or code in (b"", b"\x00"):
     raise SystemExit(2)
 PY
 verifier_status=$?
+set -e
 
 if [ $verifier_status -eq 2 ]; then
   VERIFIER_SOL="/zkp/build/full_similarity_verifier.sol"
