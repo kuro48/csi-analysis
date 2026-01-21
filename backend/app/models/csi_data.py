@@ -22,6 +22,7 @@ class CSIData(BaseModel):
     # ファイル情報
     file_path = Column(String(500), nullable=True)
     file_size = Column(BigInteger, nullable=True, index=True)  # サイズ検索用
+    device_id = Column(String(255), nullable=True, index=True)
 
     # ステータス
     status = Column(String(50), default="received", nullable=False, index=True)  # ステータス検索用

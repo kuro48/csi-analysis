@@ -21,6 +21,7 @@ class CSIDataResponse(BaseModel):
     """CSIデータレスポンススキーマ"""
     id: uuid.UUID
     session_id: Optional[str] = None
+    device_id: Optional[str] = None
     raw_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     processed_data: Optional[Dict[str, Any]] = None
     file_path: Optional[str] = None

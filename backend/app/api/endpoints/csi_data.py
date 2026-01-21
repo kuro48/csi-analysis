@@ -68,7 +68,10 @@ async def _record_zkp_proof_on_chain(
             )
             return
 
-        device_id = csi_data.device_id if hasattr(csi_data, "device_id") else str(csi_data.uploader_id)
+        device_id = getattr(csi_data, "device_id", None)
+        if not device_id:
+            logger.warning(f"CSI data {csi_data_id} has no device_id; skipping blockchain record")
+            return
         proof_id = await blockchain_service.record_zkp_proof(
             device_id=device_id,
             proof=base_csi_comparison["zkp_proof"],
@@ -399,6 +402,7 @@ async def upload_csi_data(
         return CSIDataResponse(
             id=csi_data.id,
             session_id=csi_data.session_id,
+            device_id=csi_data.device_id,
             file_path=csi_data.file_path,
             file_size=csi_data.file_size,
             status=csi_data.status,
