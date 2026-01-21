@@ -101,6 +101,29 @@ def save_contract_artifacts(abi, address):
     artifact_path.write_text(json.dumps(artifact, indent=2))
     print(f"\n💾 コントラクト情報を保存しました: {artifact_path}")
 
+def update_env_file(contract_address: str) -> None:
+    """環境変数ファイルに検証コントラクトアドレスを追記"""
+    backend_dir = Path(__file__).parent.parent
+    env_file = backend_dir / ".env"
+
+    env_lines = []
+    verifier_exists = False
+
+    if env_file.exists():
+        for line in env_file.read_text().splitlines(keepends=True):
+            if line.startswith("ZKPROOF_VERIFIER_CONTRACT_ADDRESS="):
+                env_lines.append(f"ZKPROOF_VERIFIER_CONTRACT_ADDRESS={contract_address}\n")
+                verifier_exists = True
+            else:
+                env_lines.append(line)
+
+    if not verifier_exists:
+        env_lines.append("\n# ZKProof Verifier Contract Address\n")
+        env_lines.append(f"ZKPROOF_VERIFIER_CONTRACT_ADDRESS={contract_address}\n")
+
+    env_file.write_text("".join(env_lines))
+    print(f"✅ {env_file} を更新しました")
+
 
 def main():
     """メイン処理"""
@@ -135,6 +158,7 @@ def main():
     abi, bytecode = compile_contract(solidity_path)
     contract_address = deploy_contract(w3, abi, bytecode, account_address)
     save_contract_artifacts(abi, contract_address)
+    update_env_file(contract_address)
 
     print("\n" + "=" * 60)
     print("🎉 デプロイが正常に完了しました!")

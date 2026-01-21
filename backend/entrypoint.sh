@@ -79,6 +79,55 @@ else
   echo "ZKProofRegistry contract is available."
 fi
 
+# FullSimilarityVerifierが未デプロイ/無効なら自動デプロイ
+echo "Checking FullSimilarityVerifier deployment..."
+python - <<'PY'
+import json
+import os
+from pathlib import Path
+from web3 import Web3
+
+rpc_url = os.getenv("ETHEREUM_RPC_URL", "http://ganache:8545")
+address = os.getenv("ZKPROOF_VERIFIER_CONTRACT_ADDRESS", "")
+artifact = Path("/app/contracts/build/FullSimilarityVerifier.json")
+
+if not address and artifact.exists():
+    data = json.loads(artifact.read_text())
+    address = data.get("address") or ""
+
+if not address:
+    raise SystemExit(2)
+
+w3 = Web3(Web3.HTTPProvider(rpc_url))
+if not w3.is_connected():
+    raise SystemExit(3)
+
+code = w3.eth.get_code(w3.to_checksum_address(address))
+if not code or code in (b"", b"\x00"):
+    raise SystemExit(2)
+PY
+verifier_status=$?
+
+if [ $verifier_status -eq 2 ]; then
+  VERIFIER_SOL="/zkp/build/full_similarity_verifier.sol"
+  ZKEY_FILE="/zkp/keys/csi_full_similarity_final.zkey"
+  if [ ! -f "$VERIFIER_SOL" ] && [ -f "$ZKEY_FILE" ]; then
+    echo "Generating FullSimilarityVerifier solidity..."
+    snarkjs zkey export solidityverifier "$ZKEY_FILE" "$VERIFIER_SOL"
+  fi
+
+  if [ -f "$VERIFIER_SOL" ]; then
+    echo "FullSimilarityVerifier contract missing or invalid. Deploying..."
+    python contracts/deploy_full_similarity_verifier.py
+  else
+    echo "FullSimilarityVerifier solidity not found. Skipping deploy."
+  fi
+elif [ $verifier_status -eq 3 ]; then
+  echo "Failed to connect to Ethereum node for verifier check."
+else
+  echo "FullSimilarityVerifier contract is available."
+fi
+
 # Uvicornサーバーを起動
 echo "Starting Uvicorn server..."
 exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
