@@ -4,15 +4,11 @@
 ZKP証明をブロックチェーンに記録・取得するためのエンドポイント
 """
 
-from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from uuid import UUID
 import logging
 
-from app.core.database import get_db
-from app.models.csi_data import CSIData
 from app.services.blockchain_service import BlockchainService
 
 router = APIRouter()
@@ -20,23 +16,6 @@ logger = logging.getLogger(__name__)
 
 # ブロックチェーンサービスのシングルトンインスタンス
 blockchain_service = BlockchainService()
-
-
-# ===== Pydanticスキーマ =====
-
-class RecordProofRequest(BaseModel):
-    """ZKP証明記録リクエスト"""
-    device_id: str
-    proof: Dict[str, Any]
-    public_signals: List[Any]
-    proof_type: str = "full_similarity"
-    data_hash: Optional[str] = None
-
-
-class RecordProofFromCSIRequest(BaseModel):
-    """CSIデータからZKP証明記録リクエスト"""
-    csi_data_id: UUID
-    proof_type: str = "full_similarity"
 
 
 class VerifyProofOnChainRequest(BaseModel):
@@ -73,162 +52,6 @@ async def get_blockchain_status() -> Dict[str, Any]:
         "current_block": blockchain_service.w3.eth.block_number,
         "contract_info": contract_info
     }
-
-
-@router.post("/record-proof")
-async def record_zkp_proof(
-    request: RecordProofRequest
-) -> Dict[str, Any]:
-    """
-    ZKP証明をブロックチェーンに記録
-
-    Args:
-        request: 証明記録リクエスト
-
-    Returns:
-        記録結果
-    """
-    if not blockchain_service.is_available():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Blockchain service is not available"
-        )
-
-    try:
-        # データハッシュをbytesに変換
-        data_hash_bytes = None
-        if request.data_hash:
-            if request.data_hash.startswith('0x'):
-                data_hash_bytes = bytes.fromhex(request.data_hash[2:])
-            else:
-                data_hash_bytes = bytes.fromhex(request.data_hash)
-
-        # ブロックチェーンに記録
-        proof_id = await blockchain_service.record_zkp_proof(
-            device_id=request.device_id,
-            proof=request.proof,
-            public_signals=request.public_signals,
-            proof_type=request.proof_type,
-            data_hash=data_hash_bytes
-        )
-
-        if not proof_id:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to record proof on blockchain"
-            )
-
-        logger.info(f"Successfully recorded proof {proof_id} for device {request.device_id}")
-
-        return {
-            "success": True,
-            "proof_id": proof_id,
-            "device_id": request.device_id,
-            "proof_type": request.proof_type,
-            "message": "ZKP proof recorded on blockchain successfully"
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to record proof: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to record proof: {str(e)}"
-        )
-
-
-@router.post("/record-proof-from-csi")
-async def record_zkp_proof_from_csi(
-    request: RecordProofFromCSIRequest,
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """
-    CSIデータからZKP証明を抽出してブロックチェーンに記録
-
-    Args:
-        request: CSIデータからの証明記録リクエスト
-        db: データベースセッション
-
-    Returns:
-        記録結果
-    """
-    if not blockchain_service.is_available():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Blockchain service is not available"
-        )
-
-    try:
-        # CSIデータ取得
-        csi_data = db.query(CSIData).filter(CSIData.id == request.csi_data_id).first()
-
-        if not csi_data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="CSI data not found"
-            )
-
-        # processed_dataから証明を取得
-        if not csi_data.processed_data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No processed data available"
-            )
-
-        base_csi_comparison = csi_data.processed_data.get("base_csi_comparison")
-
-        if not base_csi_comparison:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No ZKP proof available for this CSI data"
-            )
-
-        proof = base_csi_comparison.get("zkp_proof")
-        public_signals = base_csi_comparison.get("public_signals")
-
-        if not proof or not public_signals:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Invalid ZKP proof data"
-            )
-
-        # デバイスIDを取得（CSIデータのdevice_idまたはuploader_id）
-        device_id = csi_data.device_id if hasattr(csi_data, 'device_id') else str(csi_data.uploader_id)
-
-        # ブロックチェーンに記録
-        proof_id = await blockchain_service.record_zkp_proof(
-            device_id=device_id,
-            proof=proof,
-            public_signals=public_signals,
-            proof_type=request.proof_type
-        )
-
-        if not proof_id:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to record proof on blockchain"
-            )
-
-        logger.info(
-            f"Successfully recorded proof {proof_id} from CSI data {request.csi_data_id}"
-        )
-
-        return {
-            "success": True,
-            "proof_id": proof_id,
-            "csi_data_id": str(request.csi_data_id),
-            "device_id": device_id,
-            "proof_type": request.proof_type,
-            "message": "ZKP proof from CSI data recorded on blockchain successfully"
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to record proof from CSI data: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to record proof: {str(e)}"
-        )
 
 
 @router.get("/proof/{proof_id}")

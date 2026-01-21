@@ -141,7 +141,6 @@ export interface BreathingAnalysis {
   frequency_domain_data?: FrequencyDomainData;
   time_domain_data?: TimeDomainData;
   quality_metrics?: QualityMetrics;
-  ipfs_hash?: string;
   blockchain_tx_hash?: string;
   created_at: string;
 }

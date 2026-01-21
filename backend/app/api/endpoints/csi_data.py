@@ -29,6 +29,72 @@ from app.schemas.csi_data import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+def _serialize_fft_dataframe(fft_df) -> dict:
+    """FFTデータフレームをJSON化できる辞書に変換"""
+    if not hasattr(fft_df, "to_dict"):
+        return {}
+
+    import numpy as np
+
+    fft_df_copy = fft_df.copy()
+
+    # freq_interval列がInterval型の場合は文字列に変換
+    if "freq_interval" in fft_df_copy.columns:
+        fft_df_copy["freq_interval"] = fft_df_copy["freq_interval"].astype(str)
+
+    # NaN, inf, -infをNoneに置き換え（JSONで有効な値に変換）
+    fft_df_copy = fft_df_copy.replace([np.nan, np.inf, -np.inf], None)
+    return fft_df_copy.to_dict()
+
+
+async def _record_zkp_proof_on_chain(
+    csi_data: CSIData,
+    base_csi_comparison: dict,
+    csi_data_id: uuid.UUID,
+    db: Session
+) -> None:
+    """ZKP証明をブロックチェーンに自動記録"""
+    try:
+        blockchain_service = BlockchainService(
+            rpc_url=settings.ETHEREUM_RPC_URL,
+            contract_address=settings.ZKPROOF_CONTRACT_ADDRESS,
+            account_private_key=settings.BLOCKCHAIN_PRIVATE_KEY if settings.BLOCKCHAIN_PRIVATE_KEY else None
+        )
+
+        if not blockchain_service.is_available():
+            logger.warning(
+                f"Blockchain service not available for CSI data {csi_data_id}. "
+                f"Skipping automatic blockchain recording."
+            )
+            return
+
+        device_id = csi_data.device_id if hasattr(csi_data, "device_id") else str(csi_data.uploader_id)
+        proof_id = await blockchain_service.record_zkp_proof(
+            device_id=device_id,
+            proof=base_csi_comparison["zkp_proof"],
+            public_signals=base_csi_comparison["public_signals"],
+            proof_type="full_similarity"
+        )
+
+        if not proof_id:
+            logger.warning(
+                f"Failed to record ZKP proof on blockchain for CSI data {csi_data_id}"
+            )
+            return
+
+        logger.info(
+            f"ZKP proof automatically recorded on blockchain: "
+            f"CSI data {csi_data_id}, proof ID {proof_id}"
+        )
+
+        csi_data.processed_data["blockchain_proof_id"] = proof_id
+        db.commit()
+    except Exception as e:
+        logger.warning(
+            f"Failed to record ZKP proof on blockchain for CSI data {csi_data_id}: {e}",
+            exc_info=True
+        )
+
 
 async def _process_and_generate_zkp_background(
     csi_data_id: uuid.UUID,
@@ -211,23 +277,7 @@ async def _process_and_generate_zkp_background(
             csi_data.status = "completed"
 
             # DataFrameをJSON化（Interval型を文字列に変換、NaN値を処理）
-            fft_df = result["fft_dataframe"]
-            if hasattr(fft_df, "to_dict"):
-                import pandas as pd
-                import numpy as np
-
-                fft_df_copy = fft_df.copy()
-
-                # freq_interval列がInterval型の場合は文字列に変換
-                if "freq_interval" in fft_df_copy.columns:
-                    fft_df_copy["freq_interval"] = fft_df_copy["freq_interval"].astype(str)
-
-                # NaN, inf, -infをNoneに置き換え（JSONで有効な値に変換）
-                fft_df_copy = fft_df_copy.replace([np.nan, np.inf, -np.inf], None)
-
-                fft_dict = fft_df_copy.to_dict()
-            else:
-                fft_dict = {}
+            fft_dict = _serialize_fft_dataframe(result["fft_dataframe"])
 
             # processed_dataに解析結果を保存
             processed_data = {
@@ -241,52 +291,14 @@ async def _process_and_generate_zkp_background(
             csi_data.processed_data = processed_data
             db.commit()
 
-            # ブロックチェーンへの自動記録（設定で有効な場合）
-            if settings.BLOCKCHAIN_AUTO_RECORD and base_csi_comparison:
-                try:
-                    blockchain_service = BlockchainService(
-                        rpc_url=settings.ETHEREUM_RPC_URL,
-                        contract_address=settings.ZKPROOF_CONTRACT_ADDRESS,
-                        account_private_key=settings.BLOCKCHAIN_PRIVATE_KEY if settings.BLOCKCHAIN_PRIVATE_KEY else None
-                    )
-
-                    if blockchain_service.is_available():
-                        # デバイスIDを取得
-                        device_id = csi_data.device_id if hasattr(csi_data, 'device_id') else str(csi_data.uploader_id)
-
-                        # ZKP証明をブロックチェーンに記録
-                        proof_id = await blockchain_service.record_zkp_proof(
-                            device_id=device_id,
-                            proof=base_csi_comparison["zkp_proof"],
-                            public_signals=base_csi_comparison["public_signals"],
-                            proof_type="full_similarity"
-                        )
-
-                        if proof_id:
-                            logger.info(
-                                f"ZKP proof automatically recorded on blockchain: "
-                                f"CSI data {csi_data_id}, proof ID {proof_id}"
-                            )
-
-                            # ブロックチェーン証明IDをprocessed_dataに追加
-                            csi_data.processed_data["blockchain_proof_id"] = proof_id
-                            db.commit()
-                        else:
-                            logger.warning(
-                                f"Failed to record ZKP proof on blockchain for CSI data {csi_data_id}"
-                            )
-                    else:
-                        logger.warning(
-                            f"Blockchain service not available for CSI data {csi_data_id}. "
-                            f"Skipping automatic blockchain recording."
-                        )
-
-                except Exception as e:
-                    # ブロックチェーン記録エラーは警告のみ（処理を中断しない）
-                    logger.warning(
-                        f"Failed to record ZKP proof on blockchain for CSI data {csi_data_id}: {e}",
-                        exc_info=True
-                    )
+            # ブロックチェーンへの自動記録
+            if base_csi_comparison:
+                await _record_zkp_proof_on_chain(
+                    csi_data=csi_data,
+                    base_csi_comparison=base_csi_comparison,
+                    csi_data_id=csi_data_id,
+                    db=db
+                )
 
             if base_csi_comparison:
                 logger.info(
@@ -390,7 +402,6 @@ async def upload_csi_data(
             file_path=csi_data.file_path,
             file_size=csi_data.file_size,
             status=csi_data.status,
-            ipfs_hash=csi_data.ipfs_hash,
             created_at=csi_data.created_at,
             updated_at=csi_data.updated_at
         )

@@ -189,13 +189,6 @@ class CSIDataService:
         if not csi_data:
             return False
 
-        # IPFS削除処理（現在無効化 - 再有効化する場合は csi_data_ipfs.py を参照）
-        # --- IPFS削除処理をコメントアウト（将来の再利用のため保持） ---
-        # if csi_data.ipfs_hash:
-        #     from app.services.csi_data_ipfs import delete_csi_data_from_ipfs
-        #     await delete_csi_data_from_ipfs(csi_data.ipfs_hash)
-        # --- ここまで ---
-
         # ローカルファイル削除
         if csi_data.file_path and Path(csi_data.file_path).exists():
             try:

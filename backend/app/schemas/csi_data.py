@@ -4,7 +4,7 @@ CSIデータ関連スキーマ
 
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Union
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 import uuid
 
 
@@ -25,7 +25,6 @@ class CSIDataResponse(BaseModel):
     processed_data: Optional[Dict[str, Any]] = None
     file_path: Optional[str] = None
     file_size: Optional[int] = None
-    ipfs_hash: Optional[str] = None
     status: str
 
     created_at: datetime

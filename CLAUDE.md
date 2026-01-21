@@ -95,7 +95,6 @@ docker-compose restart
 2. **フロントエンド**がバックエンドAPIに認証・データ要求
 3. **バックエンド**がPostgreSQLからデータ取得、Redis経由でキャッシュ処理
 4. **WebSocket**経由でリアルタイムデータ配信
-5. **IPFS**との連携でデータ永続化（将来拡張用）
 
 ## 外部アクセス・APIエンドポイント
 
@@ -103,7 +102,6 @@ docker-compose restart
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
-- **IPFS Gateway**: http://localhost:8080
 
 ### 主要APIエンドポイント
 - `POST /api/v2/auth/login` - ユーザーログイン
@@ -125,7 +123,6 @@ docker-compose restart
 - **データベース**: PostgreSQL（メインデータ）+ Redis（キャッシュ）
 - **API**: FastAPI（OpenAPI自動生成）
 - **フロントエンド**: React + Next.js（App Router）
-- **データ永続化**: IPFS（将来拡張予定）
 
 ## システム要件
 
@@ -144,7 +141,6 @@ docker-compose restart
 - **8000**: バックエンドAPI
 - **5432**: PostgreSQL
 - **6379**: Redis
-- **8080**: IPFS Gateway
 
 ## トラブルシューティング
 
@@ -234,11 +230,9 @@ npm run type-check         # TypeScript型チェック
 1. エッジデバイス → `/api/v2/csi-data/upload` （認証必須）
 2. バックエンド → PostgreSQL保存 + Redis キャッシュ
 3. WebSocket経由でリアルタイム配信 → フロントエンド
-4. IPFS連携でデータ永続化（将来機能）
 
 ### 外部システム連携
 - **エッジデバイス**: https://github.com/kuro48/csi-edge-device.git
-- **IPFS**: 分散ストレージ（将来拡張）
 - **Blockchain**: イーサリアム連携（**実装済み** - ZKP証明のみを記録）
 
 ## ZKPシステム（Zero-Knowledge Proof）
@@ -395,9 +389,6 @@ python contracts/deploy_zkproof_contract.py
 `backend/.env` に以下を追加：
 
 ```env
-# ブロックチェーン自動記録設定
-BLOCKCHAIN_AUTO_RECORD=true  # CSIアップロード時に自動的にZKP証明をブロックチェーンに記録
-
 # Ethereumノード接続URL
 ETHEREUM_RPC_URL=http://localhost:8545
 
@@ -474,8 +465,7 @@ python backend/contracts/check_zkproof_blockchain.py --device device_001
 
 | 変数名 | 説明 | デフォルト値 |
 |-------|------|------------|
-| `BLOCKCHAIN_AUTO_RECORD` | CSIアップロード時に自動的にZKP証明をブロックチェーンに記録 | `true` |
-| `ETHEREUM_RPC_URL` | EthereumノードのRPC URL | `http://localhost:8545` |
+| `ETHEREUM_RPC_URL` | EthereumノードのRPC URL | `http://ganache:8545` (Docker), `http://localhost:8545` (ローカル) |
 | `ZKPROOF_CONTRACT_ADDRESS` | ZKProofRegistryコントラクトアドレス | デプロイ時に設定 |
 | `BLOCKCHAIN_PRIVATE_KEY` | トランザクション署名用秘密鍵 | 開発環境では不要 |
 

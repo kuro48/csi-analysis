@@ -44,13 +44,6 @@
 3. **自動ブロックチェーン記録** → ZKP証明のみを自動的に記録
 4. **証明検証** → いつでもブロックチェーンから取得・検証可能
 
-### 手動記録モード
-
-1. **CSI解析** → ZKP証明生成（コサイン類似度計算）
-2. **ZKP証明抽出** → 元データは保存せず、証明のみ
-3. **手動ブロックチェーン記録** → APIエンドポイントを使用して記録
-4. **証明検証** → いつでもブロックチェーンから取得・検証可能
-
 ## セットアップ
 
 ### 1. 前提条件
@@ -95,15 +88,16 @@ python contracts/deploy_zkproof_contract.py
 
 コントラクトアドレスは `.env` ファイルに自動的に追記されます。
 
+**Docker起動時の自動デプロイ**: `backend/entrypoint.sh` でアーティファクトが見つからない場合、
+上記のデプロイ手順を自動実行して `backend/contracts/build/ZKProofRegistry.json` を生成します。
+
 ### 4. 環境変数の設定
 
 `backend/.env` に以下の変数を追加・確認します：
 
 ```env
-# ブロックチェーン自動記録設定
-BLOCKCHAIN_AUTO_RECORD=true  # CSIアップロード時に自動的にZKP証明をブロックチェーンに記録（デフォルト: true）
-
 # Ethereumノード接続URL
+# Docker環境では ganache サービスに自動接続（http://ganache:8545）
 ETHEREUM_RPC_URL=http://localhost:8545
 
 # ZKProofRegistryコントラクトアドレス（デプロイ時に自動設定）
@@ -114,7 +108,7 @@ ZKPROOF_CONTRACT_ADDRESS=0x1234...
 BLOCKCHAIN_PRIVATE_KEY=
 ```
 
-**重要**: `BLOCKCHAIN_AUTO_RECORD=true` を設定すると、CSIデータのアップロード時に自動的にZKP証明がブロックチェーンに記録されます。手動で記録したい場合は `false` に設定してください。
+**重要**: CSIデータのアップロード時に自動的にZKP証明がブロックチェーンに記録されます。
 
 ### 5. バックエンド再起動
 
@@ -132,7 +126,7 @@ python -m uvicorn app.main:app --reload
 
 ### 自動ブロックチェーン記録（推奨）
 
-`BLOCKCHAIN_AUTO_RECORD=true` に設定すると、CSIデータをアップロードするだけで自動的にZKP証明がブロックチェーンに記録されます。
+CSIデータをアップロードするだけで自動的にZKP証明がブロックチェーンに記録されます。
 
 #### 動作フロー
 
@@ -157,10 +151,6 @@ ZKP proof automatically recorded on blockchain: CSI data <ID>, proof ID 0xabc123
 ```
 
 CSIデータ取得時、`processed_data.blockchain_proof_id` でブロックチェーン証明IDを確認できます。
-
-### 手動ブロックチェーン記録
-
-`BLOCKCHAIN_AUTO_RECORD=false` に設定すると、手動でAPIエンドポイントを使用してZKP証明を記録できます。
 
 ### APIエンドポイント
 
@@ -188,62 +178,7 @@ curl http://localhost:8000/api/blockchain/status
 }
 ```
 
-#### 2. ZKP証明を直接記録
-
-```bash
-curl -X POST http://localhost:8000/api/blockchain/record-proof \
-  -H "Content-Type: application/json" \
-  -d '{
-    "device_id": "test_device_001",
-    "proof": {
-      "pi_a": ["123", "456", "1"],
-      "pi_b": [["789", "012"], ["345", "678"], ["1", "0"]],
-      "pi_c": ["901", "234", "1"],
-      "protocol": "groth16",
-      "curve": "bn128"
-    },
-    "public_signals": ["100", "200", "300"],
-    "proof_type": "full_similarity"
-  }'
-```
-
-**レスポンス例:**
-```json
-{
-  "success": true,
-  "proof_id": "0xabcd1234...",
-  "device_id": "test_device_001",
-  "proof_type": "full_similarity",
-  "message": "ZKP proof recorded on blockchain successfully"
-}
-```
-
-#### 3. CSIデータからZKP証明を記録
-
-既存のCSIデータ（解析済み）からZKP証明を抽出してブロックチェーンに記録します。
-
-```bash
-curl -X POST http://localhost:8000/api/blockchain/record-proof-from-csi \
-  -H "Content-Type: application/json" \
-  -d '{
-    "csi_data_id": "550e8400-e29b-41d4-a716-446655440000",
-    "proof_type": "full_similarity"
-  }'
-```
-
-**レスポンス例:**
-```json
-{
-  "success": true,
-  "proof_id": "0xef567890...",
-  "csi_data_id": "550e8400-e29b-41d4-a716-446655440000",
-  "device_id": "device_123",
-  "proof_type": "full_similarity",
-  "message": "ZKP proof from CSI data recorded on blockchain successfully"
-}
-```
-
-#### 4. 証明IDから証明を取得
+#### 2. 証明IDから証明を取得
 
 ```bash
 curl http://localhost:8000/api/blockchain/proof/0xabcd1234...
@@ -269,7 +204,7 @@ curl http://localhost:8000/api/blockchain/proof/0xabcd1234...
 }
 ```
 
-#### 5. デバイスの証明一覧を取得
+#### 3. デバイスの証明一覧を取得
 
 ```bash
 curl http://localhost:8000/api/blockchain/device/test_device_001/proofs
@@ -288,13 +223,13 @@ curl http://localhost:8000/api/blockchain/device/test_device_001/proofs
 }
 ```
 
-#### 6. デバイスの最新証明を取得
+#### 4. デバイスの最新証明を取得
 
 ```bash
 curl http://localhost:8000/api/blockchain/device/test_device_001/latest-proof
 ```
 
-#### 7. 証明を検証済みとしてマーク
+#### 5. 証明を検証済みとしてマーク
 
 ```bash
 curl -X POST http://localhost:8000/api/blockchain/verify-proof-on-chain \
@@ -368,7 +303,6 @@ ZKP証明を記録・管理するスマートコントラクト。
 
 - 証明データはJSON文字列として保存（ガスコスト大）
 - バッチ処理で複数証明を効率的に記録
-- 必要に応じてIPFS等のオフチェーンストレージと組み合わせ可能
 
 ## トラブルシューティング
 
