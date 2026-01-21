@@ -41,29 +41,42 @@ if [ -n "$ETHEREUM_RPC_URL" ]; then
   echo "Ganache is ready!"
 fi
 
-# ZKProofRegistryコントラクトが未デプロイなら自動デプロイ
-if [ -z "$ZKPROOF_CONTRACT_ADDRESS" ]; then
-  CONTRACT_ARTIFACT="/app/contracts/build/ZKProofRegistry.json"
-  if [ -f "$CONTRACT_ARTIFACT" ]; then
-    ADDRESS_IN_ARTIFACT=$(python - <<'PY'
+# ZKProofRegistryコントラクトが未デプロイ/無効なら自動デプロイ
+echo "Checking ZKProofRegistry deployment..."
+python - <<'PY'
 import json
+import os
 from pathlib import Path
+from web3 import Web3
 
+rpc_url = os.getenv("ETHEREUM_RPC_URL", "http://ganache:8545")
+address = os.getenv("ZKPROOF_CONTRACT_ADDRESS", "")
 artifact = Path("/app/contracts/build/ZKProofRegistry.json")
-data = json.loads(artifact.read_text())
-print(data.get("address") or "")
-PY
-)
-  else
-    ADDRESS_IN_ARTIFACT=""
-  fi
 
-  if [ -z "$ADDRESS_IN_ARTIFACT" ]; then
-    echo "ZKProofRegistry contract not found. Deploying..."
-    python contracts/deploy_zkproof_contract.py
-  else
-    echo "ZKProofRegistry contract already deployed (artifact found)."
-  fi
+if not address and artifact.exists():
+    data = json.loads(artifact.read_text())
+    address = data.get("address") or ""
+
+if not address:
+    raise SystemExit(2)
+
+w3 = Web3(Web3.HTTPProvider(rpc_url))
+if not w3.is_connected():
+    raise SystemExit(3)
+
+code = w3.eth.get_code(w3.to_checksum_address(address))
+if not code or code in (b"", b"\x00"):
+    raise SystemExit(2)
+PY
+status=$?
+
+if [ $status -eq 2 ]; then
+  echo "ZKProofRegistry contract missing or invalid. Deploying..."
+  python contracts/deploy_zkproof_contract.py
+elif [ $status -eq 3 ]; then
+  echo "Failed to connect to Ethereum node for contract check."
+else
+  echo "ZKProofRegistry contract is available."
 fi
 
 # Uvicornサーバーを起動
