@@ -23,6 +23,7 @@ class BlockchainService:
         self,
         rpc_url: Optional[str] = None,
         contract_address: Optional[str] = None,
+        verifier_contract_address: Optional[str] = None,
         account_private_key: Optional[str] = None
     ):
         """
@@ -37,10 +38,15 @@ class BlockchainService:
         self.rpc_url = rpc_url or os.getenv('ETHEREUM_RPC_URL', 'http://localhost:8545')
         self.contract_address = (
             contract_address
-            or os.getenv('ZKPROOF_CONTRACT_ADDRESS')
+            or os.getenv("ZKPROOF_CONTRACT_ADDRESS")
             or self._load_contract_address_from_artifact()
         )
         self.account_private_key = account_private_key or os.getenv('BLOCKCHAIN_PRIVATE_KEY')
+        self.verifier_contract_address = (
+            verifier_contract_address
+            or os.getenv("ZKPROOF_VERIFIER_CONTRACT_ADDRESS")
+            or self._load_verifier_address_from_artifact()
+        )
 
         # Web3接続
         self.w3 = Web3(Web3.HTTPProvider(self.rpc_url))
@@ -62,6 +68,13 @@ class BlockchainService:
             self._load_contract()
         else:
             logger.warning("Contract address not set. Blockchain recording disabled.")
+
+        # 検証コントラクトをロード
+        self.verifier = None
+        if self.verifier_contract_address:
+            self._load_verifier_contract()
+        else:
+            logger.warning("Verifier contract address not set. On-chain verification disabled.")
 
     def _resolve_account(self):
         """トランザクション用のアカウントを解決"""
@@ -113,6 +126,39 @@ class BlockchainService:
 
         except Exception as e:
             logger.error(f"Failed to load contract: {e}", exc_info=True)
+
+    def _load_verifier_address_from_artifact(self) -> Optional[str]:
+        """ビルド済みアーティファクトから検証コントラクトアドレスを取得"""
+        contract_build_path = Path(__file__).parent.parent.parent / "contracts" / "build" / "FullSimilarityVerifier.json"
+        if not contract_build_path.exists():
+            return None
+
+        try:
+            with open(contract_build_path, "r") as f:
+                contract_data = json.load(f)
+            return contract_data.get("address")
+        except Exception as e:
+            logger.warning(f"Failed to load verifier address from artifact: {e}")
+            return None
+
+    def _load_verifier_contract(self):
+        """ZKP検証コントラクトをロード"""
+        try:
+            contract_build_path = Path(__file__).parent.parent.parent / "contracts" / "build" / "FullSimilarityVerifier.json"
+            if not contract_build_path.exists():
+                logger.error(f"Verifier ABI not found: {contract_build_path}")
+                return
+
+            with open(contract_build_path, "r") as f:
+                contract_data = json.load(f)
+
+            self.verifier = self.w3.eth.contract(
+                address=Web3.to_checksum_address(self.verifier_contract_address),
+                abi=contract_data["abi"]
+            )
+            logger.info(f"Loaded verifier contract at {self.verifier_contract_address}")
+        except Exception as e:
+            logger.error(f"Failed to load verifier contract: {e}", exc_info=True)
 
     def _get_account_address(self) -> Optional[str]:
         """送信元アドレスを取得"""
@@ -174,6 +220,72 @@ class BlockchainService:
     def is_available(self) -> bool:
         """ブロックチェーンサービスが利用可能か確認"""
         return self.connected and self.contract is not None and self.account is not None
+
+    def is_verifier_available(self) -> bool:
+        """検証コントラクトが利用可能か確認"""
+        return self.connected and self.verifier is not None
+
+    def _parse_groth16_proof(self, proof: Dict[str, Any]):
+        """Groth16証明をSolidity入力形式に変換"""
+        try:
+            a = [int(proof["pi_a"][0]), int(proof["pi_a"][1])]
+            b = [
+                [int(proof["pi_b"][0][1]), int(proof["pi_b"][0][0])],
+                [int(proof["pi_b"][1][1]), int(proof["pi_b"][1][0])]
+            ]
+            c = [int(proof["pi_c"][0]), int(proof["pi_c"][1])]
+        except (KeyError, IndexError, ValueError, TypeError) as e:
+            raise ValueError(f"Invalid Groth16 proof format: {e}") from e
+
+        return a, b, c
+
+    def verify_zkp_proof_on_chain(self, proof: Dict[str, Any], public_signals: List[Any]) -> bool:
+        """
+        オンチェーン検証コントラクトでZKP証明を検証
+
+        Args:
+            proof: ZKP証明オブジェクト
+            public_signals: 公開信号
+
+        Returns:
+            検証結果
+        """
+        if not self.is_verifier_available():
+            logger.warning("Verifier contract not available")
+            return False
+
+        try:
+            a, b, c = self._parse_groth16_proof(proof)
+            public_signals_int = [int(x) for x in public_signals]
+            return bool(self.verifier.functions.verifyProof(a, b, c, public_signals_int).call())
+        except Exception as e:
+            logger.error(f"On-chain verification failed: {e}", exc_info=True)
+            return False
+
+    def verify_and_mark_proof(self, proof_id: str) -> Optional[bool]:
+        """
+        証明IDからオンチェーン検証を行い、結果をブロックチェーンに記録
+
+        Args:
+            proof_id: 証明ID（hex文字列）
+
+        Returns:
+            検証結果、失敗時はNone
+        """
+        proof_record = self.get_zkp_proof_by_id(proof_id)
+        if not proof_record:
+            logger.warning("Proof record not found")
+            return None
+
+        is_valid = self.verify_zkp_proof_on_chain(
+            proof=proof_record["proof_data"],
+            public_signals=proof_record["public_signals"]
+        )
+        if not self.verify_proof_on_chain(proof_id=proof_id, is_valid=is_valid):
+            logger.warning("Failed to mark proof verification result on chain")
+            return None
+
+        return is_valid
 
     async def record_zkp_proof(
         self,

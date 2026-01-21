@@ -21,7 +21,6 @@ blockchain_service = BlockchainService()
 class VerifyProofOnChainRequest(BaseModel):
     """証明検証リクエスト"""
     proof_id: str
-    is_valid: bool
 
 
 # ===== エンドポイント =====
@@ -175,7 +174,7 @@ async def verify_proof_on_chain(
     request: VerifyProofOnChainRequest
 ) -> Dict[str, Any]:
     """
-    ZKP証明を検証済みとしてブロックチェーンにマーク
+    ZKP証明をオンチェーンで検証して結果を記録
 
     Args:
         request: 検証リクエスト
@@ -189,23 +188,26 @@ async def verify_proof_on_chain(
             detail="Blockchain service is not available"
         )
 
-    try:
-        success = blockchain_service.verify_proof_on_chain(
-            proof_id=request.proof_id,
-            is_valid=request.is_valid
+    if not blockchain_service.is_verifier_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Verifier contract is not available"
         )
 
-        if not success:
+    try:
+        is_valid = blockchain_service.verify_and_mark_proof(request.proof_id)
+
+        if is_valid is None:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to mark proof as verified on blockchain"
+                detail="Failed to verify proof on blockchain"
             )
 
         return {
             "success": True,
             "proof_id": request.proof_id,
-            "is_valid": request.is_valid,
-            "message": f"Proof marked as {'valid' if request.is_valid else 'invalid'} on blockchain"
+            "is_valid": is_valid,
+            "message": f"Proof verified on chain: {'valid' if is_valid else 'invalid'}"
         }
 
     except HTTPException:

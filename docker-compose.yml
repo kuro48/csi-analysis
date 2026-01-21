@@ -104,7 +104,22 @@ services:
       context: ./ganache
       dockerfile: Dockerfile
     container_name: csi_ganache
-    command: ["ganache", "--host", "0.0.0.0", "--port", "8545", "--database.dbPath", "/data"]
+    command: [
+      "ganache",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8545",
+      "--database.dbPath",
+      "/data/ganache",
+      "--wallet.defaultBalance",
+      "1000",
+      "--wallet.deterministic",
+      "--chain.allowUnlimitedInitCodeSize",
+      "--chain.allowUnlimitedContractSize",
+      "--miner.blockGasLimit",
+      "0x20000000"
+    ]
     volumes:
       - ganache_data:/data
     ports:

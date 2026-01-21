@@ -45,6 +45,7 @@ class Settings:
         "http://ganache:8545" if Path("/.dockerenv").exists() else "http://localhost:8545"
     )
     ZKPROOF_CONTRACT_ADDRESS: str = os.getenv("ZKPROOF_CONTRACT_ADDRESS", "")
+    ZKPROOF_VERIFIER_CONTRACT_ADDRESS: str = os.getenv("ZKPROOF_VERIFIER_CONTRACT_ADDRESS", "")
     BLOCKCHAIN_PRIVATE_KEY: str = os.getenv("BLOCKCHAIN_PRIVATE_KEY", "")
 
     # データベース設定
