@@ -57,6 +57,8 @@ services:
       - DEBUG=True
       - ZKP_AUTO_COMPILE=TRUE
       - ETHEREUM_RPC_URL=http://ganache:8545
+      - ZKPROOF_STORE_FULL_DATA_ONCHAIN=true
+      - ZKPROOF_ONCHAIN_MAX_JSON_CHARS=0
     volumes:
       - ./backend:/app
       - ./zkp:/zkp

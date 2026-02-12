@@ -198,6 +198,70 @@ class BlockchainService:
             "gasPrice": self.w3.eth.gas_price
         })
 
+    def _estimate_gas_with_buffer(
+        self,
+        tx_func,
+        default_gas: int,
+        buffer_multiplier: float = 1.2,
+        fallback_to_block_limit: bool = False
+    ) -> int:
+        """ガスを見積もってバッファを付与。失敗時はデフォルトを返す"""
+        account_address = self._get_account_address()
+        if not account_address:
+            return default_gas
+
+        try:
+            estimated = tx_func.estimate_gas({"from": account_address})
+            gas_limit = self.w3.eth.get_block("latest").gasLimit
+            buffered = int(estimated * buffer_multiplier)
+            if buffered >= gas_limit:
+                logger.warning(
+                    "Estimated gas exceeds block gas limit; using gas limit - 1. estimated=%s limit=%s",
+                    estimated,
+                    gas_limit
+                )
+                return max(gas_limit - 1, default_gas)
+
+            return max(buffered, default_gas)
+        except Exception as e:
+            logger.warning(f"Gas estimation failed; using default gas. error={e}", exc_info=True)
+            if fallback_to_block_limit:
+                try:
+                    gas_limit = self.w3.eth.get_block("latest").gasLimit
+                    return max(gas_limit - 1, default_gas)
+                except Exception:
+                    return default_gas
+            return default_gas
+
+    def _prepare_onchain_payload(
+        self,
+        proof_data_json: str,
+        public_signals_json: str,
+        public_signals: List[Any]
+    ) -> Dict[str, str]:
+        """オンチェーンに載せるペイロードを整形（サイズ過大時はハッシュ化）"""
+        store_full = os.getenv("ZKPROOF_STORE_FULL_DATA_ONCHAIN", "false").lower() == "true"
+        max_chars = int(os.getenv("ZKPROOF_ONCHAIN_MAX_JSON_CHARS", "2048"))
+        total_len = len(proof_data_json) + len(public_signals_json)
+
+        if store_full and (max_chars <= 0 or total_len <= max_chars):
+            return {"proof_data_json": proof_data_json, "public_signals_json": public_signals_json}
+
+        if max_chars <= 0 or total_len <= max_chars:
+            return {"proof_data_json": proof_data_json, "public_signals_json": public_signals_json}
+
+        proof_hash = hashlib.sha256(proof_data_json.encode()).hexdigest()
+        public_hash = hashlib.sha256(public_signals_json.encode()).hexdigest()
+        logger.warning(
+            "On-chain payload too large (%s chars). Storing hashes only. "
+            "Set ZKPROOF_STORE_FULL_DATA_ONCHAIN=true or increase ZKPROOF_ONCHAIN_MAX_JSON_CHARS to override.",
+            total_len
+        )
+        return {
+            "proof_data_json": json.dumps({"sha256": proof_hash}),
+            "public_signals_json": json.dumps({"sha256": public_hash, "count": len(public_signals)})
+        }
+
     def _send_transaction(self, tx: Dict[str, Any]):
         """トランザクションを送信してハッシュを返す"""
         if self.account_private_key:
@@ -255,6 +319,12 @@ class BlockchainService:
             return False
 
         try:
+            if not isinstance(public_signals, list):
+                logger.warning("Public signals are not a list; skipping on-chain verification")
+                return False
+            if not all(k in proof for k in ("pi_a", "pi_b", "pi_c")):
+                logger.warning("Proof data missing Groth16 keys; skipping on-chain verification")
+                return False
             a, b, c = self._parse_groth16_proof(proof)
             public_signals_int = [int(x) for x in public_signals]
             return bool(self.verifier.functions.verifyProof(a, b, c, public_signals_int).call())
@@ -313,6 +383,21 @@ class BlockchainService:
             return None
 
         try:
+            account_address = self._get_account_address()
+            if not account_address:
+                logger.error("No account available for recording proof")
+                return None
+
+            # 認可チェック（失敗時はトランザクションを送らない）
+            try:
+                if hasattr(self.contract.functions, "isAuthorizedRecorder"):
+                    is_authorized = self.contract.functions.isAuthorizedRecorder(account_address).call()
+                    if not is_authorized:
+                        logger.error(f"Account not authorized to record proofs: {account_address}")
+                        return None
+            except Exception as e:
+                logger.warning(f"Failed to check recorder authorization: {e}", exc_info=True)
+
             # 証明データをJSON文字列に変換
             proof_data_json = json.dumps(proof, separators=(',', ':'))
             public_signals_json = json.dumps(public_signals, separators=(',', ':'))
@@ -320,16 +405,25 @@ class BlockchainService:
             # データハッシュを正規化
             data_hash_bytes = self._normalize_data_hash(proof_data_json, public_signals_json, data_hash)
 
+            payload = self._prepare_onchain_payload(proof_data_json, public_signals_json, public_signals)
+
             logger.info(f"Recording ZKP proof for device {device_id}, type: {proof_type}")
 
-            # トランザクションを構築
-            tx = self._build_transaction(self.contract.functions.recordZKProof(
+            tx_func = self.contract.functions.recordZKProof(
                 device_id,
-                proof_data_json,
-                public_signals_json,
+                payload["proof_data_json"],
+                payload["public_signals_json"],
                 proof_type,
                 data_hash_bytes
-            ), gas=2000000)
+            )
+            gas = self._estimate_gas_with_buffer(
+                tx_func,
+                default_gas=2000000,
+                fallback_to_block_limit=True
+            )
+
+            # トランザクションを構築
+            tx = self._build_transaction(tx_func, gas=gas)
 
             if not tx:
                 logger.error("Failed to build transaction for recording proof")
