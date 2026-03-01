@@ -21,9 +21,14 @@ logger = logging.getLogger(__name__)
 class ZKPService:
     """ZKP証明生成サービス"""
 
-    EXPECTED_FREQ_POINTS = 25
+    # 回路パラメータと一致させる（csi_full_similarity.circom の component main 宣言と同期）
+    EXPECTED_FREQ_POINTS = 31   # 0.00~0.60Hz, 0.02Hz刻み
     EXPECTED_SUBCARRIERS = 245
-    DEFAULT_SCALE = 10000
+    ZKP_FREQ_START = 0.0        # Hz
+    ZKP_FREQ_STEP  = 0.02       # Hz
+    ZKP_NORMAL_LOW_BIN  = 5     # 0.10Hz
+    ZKP_NORMAL_HIGH_BIN = 25    # 0.50Hz
+    DEFAULT_SCALE = 100
 
     def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True):
         """
@@ -701,54 +706,30 @@ class ZKPService:
             proof, public_signals = await self._generate_full_cosine_similarity_groth16_proof(witness_file)
 
             # 4. 結果パース
-            # Public signals: [referenceMatrix..., candidateMatrix..., similarities[NUM_SUB], minSimilarity, minIndex]
-            num_matrix_elements = num_freq_points * num_subcarriers
-            expected_len_matrices_only = 2 * num_matrix_elements
-            expected_len_with_outputs = 2 * num_matrix_elements + num_subcarriers + 2
+            # 新設計: public_signals = [isNormal]  （1値のみ）
+            # 入力行列は秘密入力なので public_signals には含まれない
             actual_len = len(public_signals)
+            logger.info(f"Public signals length: actual={actual_len}, expected=1 (isNormal only)")
 
-            logger.info(
-                f"Public signals length: actual={actual_len}, "
-                f"expected_matrices_only={expected_len_matrices_only}, "
-                f"expected_with_outputs={expected_len_with_outputs}"
+            is_normal = bool(int(public_signals[0])) if actual_len >= 1 else False
+
+            # 表示用メタデータ: ZKP証明の外でPython計算（プライバシーに影響しない）
+            per_sub = self.select_lowest_similarity_subcarrier(
+                reference_matrix=reference_matrix,
+                candidate_matrix=candidate_matrix
             )
-
-            similarities: List[float] = []
-            selected_sub_index = None
-            selected_sub_similarity = None
-
-            if actual_len >= expected_len_with_outputs:
-                start_sim = 2 * num_matrix_elements
-                end_sim = start_sim + num_subcarriers
-                similarities = [int(x) for x in public_signals[start_sim:end_sim]]
-                selected_sub_similarity = int(public_signals[-2])
-                selected_sub_index = int(public_signals[-1])
-            else:
-                # フォールバック: Python計算
-                per_sub = self.select_lowest_similarity_subcarrier(
-                    reference_matrix=reference_matrix,
-                    candidate_matrix=candidate_matrix
-                )
-                similarities = [int(s * scale * scale) for s in per_sub.get("similarities", [])]
-                selected_sub_index = per_sub.get("lowest_index")
-                selected_sub_similarity = per_sub.get("lowest_similarity", 0) * scale * scale
-
-            # 注: 回路で出力されるsimilarityは dotProduct * SCALE
-            # ここでは選択サブキャリアの similarity を正規化して返す
-
-            normalized_similarity = (selected_sub_similarity / (scale * scale)) if selected_sub_similarity is not None else 0.0
-            dot_product = int(selected_sub_similarity / scale) if selected_sub_similarity is not None else 0
+            selected_sub_index = per_sub.get("lowest_index")
+            normalized_similarity = per_sub.get("lowest_similarity", 0.0)
 
             result = {
                 "proof": proof,
                 "publicSignals": public_signals,
-                "similarities": similarities,
+                "isNormal": is_normal,
+                # 以下は表示用（ZKP証明の公開出力ではなくPython計算値）
                 "selectedSubcarrierIndex": selected_sub_index,
-                "selectedSubcarrierSimilarity": normalized_similarity,
-                "similarity": selected_sub_similarity,
                 "normalizedSimilarity": normalized_similarity,
-                "dotProduct": dot_product,
-                "isValid": bool(selected_sub_similarity and selected_sub_similarity > 0)
+                "similarity": normalized_similarity,
+                "isValid": is_normal,
             }
 
             total_time = time.time() - total_start_time
@@ -756,10 +737,9 @@ class ZKPService:
             logger.info("=" * 80)
             logger.info(f"✅ Full Cosine Similarity ZKP Proof Generation COMPLETED")
             logger.info(f"   Total Time: {total_time:.3f} seconds")
-            logger.info(f"   Selected Subcarrier: {selected_sub_index}")
-            logger.info(f"   Similarity (normalized): {normalized_similarity:.4f}")
-            logger.info(f"   Dot Product (approx): {dot_product}")
-            logger.info(f"   Is Valid: {bool(selected_sub_similarity and selected_sub_similarity > 0)}")
+            logger.info(f"   Is Normal (ZKP public output): {is_normal}")
+            logger.info(f"   Selected Subcarrier (display): {selected_sub_index}")
+            logger.info(f"   Similarity (display): {normalized_similarity:.4f}")
             logger.info("=" * 80)
 
             return result

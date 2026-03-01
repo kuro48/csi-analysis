@@ -48,11 +48,16 @@ class PCAPAnalyzer:
     DOWNSAMPLE_INTERVAL_S = 0.01  # 10ms = 100Hz サンプリング
 
     # 周波数ビン設定
-    FREQUENCY_BIN_STEP = 0.01  # 0.01Hz刻み
+    FREQUENCY_BIN_STEP = 0.01  # 0.01Hz刻み（表示用）
 
     # 呼吸周波数帯域（Hz）
     BREATHING_MIN_FREQ = 0.15  # 9 bpm
     BREATHING_MAX_FREQ = 0.4   # 24 bpm
+
+    # ZKP回路用周波数設定（正常範囲外もカバーしてピーク判定を可能にする）
+    ZKP_FREQ_START = 0.0   # Hz
+    ZKP_FREQ_END   = 0.60  # Hz
+    ZKP_FREQ_STEP  = 0.02  # Hz刻み → 31ビン (bin5=0.10Hz, bin25=0.50Hz)
 
     # ZKP設定
     ZKP_VECTOR_DIM = 4  # ZKP回路で要求される次元数
@@ -338,18 +343,19 @@ class PCAPAnalyzer:
         self,
         fft_df: pd.DataFrame,
         freq_col: str = 'frequency',
-        use_binned: bool = False
+        use_binned: bool = False,
+        freq_min: Optional[float] = None,
+        freq_max: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         全サブキャリアの呼吸周波数帯域データを抽出（生データのまま）
-
-        呼吸周波数帯域（0.15～0.4Hz）の全周波数ポイント × 全サブキャリアの
-        データをそのまま返します（平均化なし）。
 
         Args:
             fft_df: FFT結果のDataFrame
             freq_col: 周波数列名（'frequency' または 'freq_interval'）
             use_binned: ビン平均化後のDataFrameを使用する場合True
+            freq_min: 抽出する周波数下限 Hz（省略時は BREATHING_MIN_FREQ）
+            freq_max: 抽出する周波数上限 Hz（省略時は BREATHING_MAX_FREQ）
 
         Returns:
             {
@@ -395,16 +401,20 @@ class PCAPAnalyzer:
             df['freq_mid'] = df['freq_interval'].apply(get_interval_mid)
             # 明示的にfloat型に変換（category型を回避）
             df['freq_mid'] = df['freq_mid'].astype(float)
+            lo = freq_min if freq_min is not None else self.BREATHING_MIN_FREQ
+            hi = freq_max if freq_max is not None else self.BREATHING_MAX_FREQ
             freq_mask = (
-                (df['freq_mid'] >= self.BREATHING_MIN_FREQ) &
-                (df['freq_mid'] <= self.BREATHING_MAX_FREQ)
+                (df['freq_mid'] >= lo) &
+                (df['freq_mid'] <= hi)
             )
             freq_values = df.loc[freq_mask, 'freq_mid'].values
         else:
+            lo = freq_min if freq_min is not None else self.BREATHING_MIN_FREQ
+            hi = freq_max if freq_max is not None else self.BREATHING_MAX_FREQ
             # frequency列を使用
             freq_mask = (
-                (df[freq_col] >= self.BREATHING_MIN_FREQ) &
-                (df[freq_col] <= self.BREATHING_MAX_FREQ)
+                (df[freq_col] >= lo) &
+                (df[freq_col] <= hi)
             )
             freq_values = df.loc[freq_mask, freq_col].values
 

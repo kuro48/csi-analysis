@@ -4,12 +4,15 @@
 ZKP証明をブロックチェーンに記録・取得するためのエンドポイント
 """
 
-from typing import Dict, Any
-from fastapi import APIRouter, HTTPException, status
+from typing import Dict, Any, Optional, List
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 import logging
 
 from app.services.blockchain_service import BlockchainService
+from app.core.database import get_db
+from app.models.csi_data import CSIData
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -21,6 +24,28 @@ blockchain_service = BlockchainService()
 class VerifyProofOnChainRequest(BaseModel):
     """証明検証リクエスト"""
     proof_id: str
+    proof: Optional[Dict[str, Any]] = None          # 直接渡す場合（省略時はDBから取得）
+    public_signals: Optional[List[Any]] = None       # 直接渡す場合（省略時はDBから取得）
+
+
+def _lookup_proof_data_from_db(
+    proof_id: str,
+    db: Session,
+) -> Optional[Dict[str, Any]]:
+    """
+    proof_id に対応する証明データを DB の processed_data から取得する。
+    記録時に保存した blockchain_proof_data キーを参照する。
+    """
+    row = (
+        db.query(CSIData)
+        .filter(
+            CSIData.processed_data["blockchain_proof_id"].astext == proof_id
+        )
+        .first()
+    )
+    if row is None:
+        return None
+    return (row.processed_data or {}).get("blockchain_proof_data")
 
 
 # ===== エンドポイント =====
@@ -171,13 +196,17 @@ async def get_latest_device_proof(
 
 @router.post("/verify-proof-on-chain")
 async def verify_proof_on_chain(
-    request: VerifyProofOnChainRequest
+    request: VerifyProofOnChainRequest,
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
-    ZKP証明をオンチェーンで検証して結果を記録
+    ZKP証明をオンチェーンで検証して結果を記録。
+
+    proof / public_signals を省略した場合は DB から自動取得するため、
+    proof_id だけで任意タイミングに呼び出せる。
 
     Args:
-        request: 検証リクエスト
+        request: 検証リクエスト（proof_id 必須、proof/public_signals は省略可）
 
     Returns:
         検証結果
@@ -194,13 +223,36 @@ async def verify_proof_on_chain(
             detail="Verifier contract is not available"
         )
 
+    proof = request.proof
+    public_signals = request.public_signals
+
+    # proof/public_signals が渡されなかった場合は DB から取得
+    if proof is None or public_signals is None:
+        stored = _lookup_proof_data_from_db(request.proof_id, db)
+        if stored is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=(
+                    "Proof data not found in DB for this proof_id. "
+                    "Pass 'proof' and 'public_signals' explicitly, or re-upload the CSI data."
+                ),
+            )
+        if proof is None:
+            proof = stored.get("proof")
+        if public_signals is None:
+            public_signals = stored.get("public_signals")
+
     try:
-        is_valid = blockchain_service.verify_and_mark_proof(request.proof_id)
+        is_valid = blockchain_service.verify_and_mark_proof(
+            proof_id=request.proof_id,
+            proof=proof,
+            public_signals=public_signals,
+        )
 
         if is_valid is None:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to verify proof on blockchain"
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Verification could not be completed (proof data format invalid)"
             )
 
         return {

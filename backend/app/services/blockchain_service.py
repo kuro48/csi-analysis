@@ -332,24 +332,47 @@ class BlockchainService:
             logger.error(f"On-chain verification failed: {e}", exc_info=True)
             return False
 
-    def verify_and_mark_proof(self, proof_id: str) -> Optional[bool]:
+    def verify_and_mark_proof(
+        self,
+        proof_id: str,
+        proof: Optional[Dict[str, Any]] = None,
+        public_signals: Optional[List[Any]] = None,
+    ) -> Optional[bool]:
         """
         証明IDからオンチェーン検証を行い、結果をブロックチェーンに記録
 
         Args:
             proof_id: 証明ID（hex文字列）
+            proof: 生の証明データ（省略時はオンチェーンから取得）
+            public_signals: 公開信号リスト（省略時はオンチェーンから取得）
 
         Returns:
             検証結果、失敗時はNone
         """
-        proof_record = self.get_zkp_proof_by_id(proof_id)
-        if not proof_record:
-            logger.warning("Proof record not found")
+        # proof / public_signals が渡されなかった場合はオンチェーンから取得
+        if proof is None or public_signals is None:
+            proof_record = self.get_zkp_proof_by_id(proof_id)
+            if not proof_record:
+                logger.warning("Proof record not found on chain")
+                return None
+            if proof is None:
+                proof = proof_record["proof_data"]
+            if public_signals is None:
+                public_signals = proof_record["public_signals"]
+
+        # オンチェーンにハッシュのみ保存されている場合の検出
+        # （public_signalsがリストでなくハッシュ辞書になっている）
+        if not isinstance(public_signals, list):
+            logger.warning(
+                "public_signals is not a list (hash-only storage detected). "
+                "On-chain Groth16 verification requires the actual signals. "
+                "Marking as unverifiable (None returned)."
+            )
             return None
 
         is_valid = self.verify_zkp_proof_on_chain(
-            proof=proof_record["proof_data"],
-            public_signals=proof_record["public_signals"]
+            proof=proof,
+            public_signals=public_signals,
         )
         if not self.verify_proof_on_chain(proof_id=proof_id, is_valid=is_valid):
             logger.warning("Failed to mark proof verification result on chain")

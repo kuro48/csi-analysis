@@ -72,10 +72,13 @@ async def _record_zkp_proof_on_chain(
         if not device_id:
             logger.warning(f"CSI data {csi_data_id} has no device_id; skipping blockchain record")
             return
+        zkp_proof = base_csi_comparison["zkp_proof"]
+        public_signals = base_csi_comparison["public_signals"]
+
         proof_id = await blockchain_service.record_zkp_proof(
             device_id=device_id,
-            proof=base_csi_comparison["zkp_proof"],
-            public_signals=base_csi_comparison["public_signals"],
+            proof=zkp_proof,
+            public_signals=public_signals,
             proof_type="full_similarity"
         )
 
@@ -90,7 +93,12 @@ async def _record_zkp_proof_on_chain(
             f"CSI data {csi_data_id}, proof ID {proof_id}"
         )
 
+        # 任意タイミングでの verify-proof-on-chain 呼び出しに備えて証明データを DB に保持
         csi_data.processed_data["blockchain_proof_id"] = proof_id
+        csi_data.processed_data["blockchain_proof_data"] = {
+            "proof": zkp_proof,
+            "public_signals": public_signals,
+        }
         db.commit()
     except Exception as e:
         logger.warning(
@@ -172,20 +180,24 @@ async def _process_and_generate_zkp_background(
                 import pandas as pd
                 base_fft_df = pd.DataFrame(base_csi.fft_dataframe)
 
-                # ベースCSIから全データを抽出（呼吸周波数帯域のみ）
+                # ベースCSIから全データを抽出（ZKP用広帯域レンジ）
                 base_data = analyzer.extract_full_subcarrier_vectors(
                     base_fft_df,
                     freq_col='freq_interval',
-                    use_binned=True
+                    use_binned=True,
+                    freq_min=analyzer.ZKP_FREQ_START,
+                    freq_max=analyzer.ZKP_FREQ_END,
                 )
                 reference_matrix = base_data["csi_matrix"]
 
-                # アップロードされたCSIから全データを抽出
+                # アップロードされたCSIから全データを抽出（ZKP用広帯域レンジ）
                 upload_fft_df = result["fft_dataframe"]
                 upload_data = analyzer.extract_full_subcarrier_vectors(
                     upload_fft_df,
                     freq_col='freq_interval',
-                    use_binned=True
+                    use_binned=True,
+                    freq_min=analyzer.ZKP_FREQ_START,
+                    freq_max=analyzer.ZKP_FREQ_END,
                 )
                 candidate_matrix = upload_data["csi_matrix"]
 
