@@ -4,6 +4,7 @@
 ZKP証明をブロックチェーンに記録・取得するサービス
 """
 
+import asyncio
 import json
 import os
 import hashlib
@@ -457,8 +458,10 @@ class BlockchainService:
 
             logger.info(f"Transaction sent: {tx_hash.hex()}")
 
-            # トランザクションレシートを待機
-            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+            # トランザクションレシートを待機（ブロッキング呼び出しをスレッドで実行）
+            tx_receipt = await asyncio.to_thread(
+                self.w3.eth.wait_for_transaction_receipt, tx_hash, timeout=120
+            )
 
             if tx_receipt['status'] == 1:
                 # イベントログから証明IDを取得

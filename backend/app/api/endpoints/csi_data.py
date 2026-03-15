@@ -29,6 +29,31 @@ from app.schemas.csi_data import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# BlockchainServiceのシングルトン（アップロードごとの新規インスタンス生成を回避）
+_blockchain_service_instance: Optional["BlockchainService"] = None
+
+
+def _get_blockchain_service() -> "BlockchainService":
+    """BlockchainServiceのシングルトンを返す（遅延初期化）"""
+    global _blockchain_service_instance
+    if _blockchain_service_instance is None:
+        _blockchain_service_instance = BlockchainService(
+            rpc_url=settings.ETHEREUM_RPC_URL,
+            contract_address=settings.ZKPROOF_CONTRACT_ADDRESS,
+            account_private_key=settings.BLOCKCHAIN_PRIVATE_KEY if settings.BLOCKCHAIN_PRIVATE_KEY else None
+        )
+    return _blockchain_service_instance
+
+
+def _parse_json_field(value) -> Optional[dict]:
+    """JSONB列の値をdictに正規化（str/dict/None対応）"""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return json.loads(value) if value else None
+    return value
+
+
 def _serialize_fft_dataframe(fft_df) -> dict:
     """FFTデータフレームをJSON化できる辞書に変換"""
     if not hasattr(fft_df, "to_dict"):
@@ -55,11 +80,7 @@ async def _record_zkp_proof_on_chain(
 ) -> None:
     """ZKP証明をブロックチェーンに自動記録"""
     try:
-        blockchain_service = BlockchainService(
-            rpc_url=settings.ETHEREUM_RPC_URL,
-            contract_address=settings.ZKPROOF_CONTRACT_ADDRESS,
-            account_private_key=settings.BLOCKCHAIN_PRIVATE_KEY if settings.BLOCKCHAIN_PRIVATE_KEY else None
-        )
+        blockchain_service = _get_blockchain_service()
 
         if not blockchain_service.is_available():
             logger.warning(
@@ -202,19 +223,19 @@ async def _process_and_generate_zkp_background(
                 candidate_matrix = upload_data["csi_matrix"]
 
                 # 全データを使ったコサイン類似度ZKP証明を生成
-                similarity_result = await zkp_service.generate_full_cosine_similarity_proof(
+                similarity_result = await zkp_service.generate_proof(
                     reference_matrix=reference_matrix,
                     candidate_matrix=candidate_matrix
                 )
 
                 # Pythonでの類似度計算（検証用）
-                python_similarity = zkp_service.compute_full_cosine_similarity_python(
+                python_similarity = zkp_service.compute_python_similarity(
                     reference_matrix=reference_matrix,
                     candidate_matrix=candidate_matrix
                 )
 
                 # Python計算での上位5つの低類似度サブキャリア
-                python_top_n_result = zkp_service.select_top_n_lowest_similarity_subcarriers(
+                python_top_n_result = zkp_service.select_top_n_subcarriers(
                     reference_matrix=reference_matrix,
                     candidate_matrix=candidate_matrix,
                     top_n=5
@@ -222,7 +243,7 @@ async def _process_and_generate_zkp_background(
 
                 # ZKP回路内で計算された全サブキャリアの類似度から下位5つを抽出
                 zkp_similarities = similarity_result.get("similarities", [])
-                zkp_top_n_result = zkp_service.extract_top_n_from_zkp_similarities(
+                zkp_top_n_result = zkp_service.extract_top_n_from_similarities(
                     zkp_similarities=zkp_similarities,
                     scale=10000,
                     top_n=5
@@ -462,21 +483,11 @@ async def list_csi_data(
         # レスポンス構築
         csi_responses = []
         for csi_data in csi_data_list:
-
-            # JSONフィールドをパース（文字列の場合）
-            raw_data = csi_data.raw_data
-            if isinstance(raw_data, str):
-                raw_data = json.loads(raw_data) if raw_data else None
-
-            processed_data = csi_data.processed_data
-            if isinstance(processed_data, str):
-                processed_data = json.loads(processed_data) if processed_data else None
-
             csi_response = CSIDataResponse(
                 id=csi_data.id,
                 session_id=csi_data.session_id,
-                raw_data=raw_data,
-                processed_data=processed_data,
+                raw_data=_parse_json_field(csi_data.raw_data),
+                processed_data=_parse_json_field(csi_data.processed_data),
                 file_path=csi_data.file_path,
                 file_size=csi_data.file_size,
                 status=csi_data.status,
@@ -517,20 +528,11 @@ async def get_csi_data(
             detail="CSIデータが見つかりません"
         )
 
-    # JSONフィールドをパース（文字列の場合）
-    raw_data = csi_data.raw_data
-    if isinstance(raw_data, str):
-        raw_data = json.loads(raw_data) if raw_data else None
-
-    processed_data = csi_data.processed_data
-    if isinstance(processed_data, str):
-        processed_data = json.loads(processed_data) if processed_data else None
-
     return CSIDataResponse(
         id=csi_data.id,
         session_id=csi_data.session_id,
-        raw_data=raw_data,
-        processed_data=processed_data,
+        raw_data=_parse_json_field(csi_data.raw_data),
+        processed_data=_parse_json_field(csi_data.processed_data),
         file_path=csi_data.file_path,
         file_size=csi_data.file_size,
         status=csi_data.status,

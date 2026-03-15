@@ -49,8 +49,10 @@ class CSIData(BaseModel):
 
     # 複合インデックス - CSIデータ固有のクエリパターン用
     __table_args__ = (
-        Index('idx_csi_session_created', 'session_id', 'created_at'),  # セッション別時系列検索用
-        Index('idx_csi_status_created', 'status', 'created_at'),  # ステータス別時系列検索用
+        Index('idx_csi_session_created', 'session_id', 'created_at'),       # セッション別時系列検索用
+        Index('idx_csi_status_created', 'status', 'created_at'),            # ステータス別時系列検索用
+        Index('idx_csi_device_status', 'device_id', 'status'),              # デバイス別ステータス検索用
+        Index('idx_csi_blockchain_sync', 'blockchain_status', 'created_at'),# ブロックチェーン同期状態検索用
     )
 
 class Session(BaseModel):

@@ -29,11 +29,8 @@ class CacheService:
     def _serialize_value(self, value: Any) -> bytes:
         """値をシリアライズ"""
         try:
-            # JSON serializable な値は JSON で
-            json.dumps(value, default=str)
             return json.dumps(value, default=str).encode('utf-8')
         except (TypeError, ValueError):
-            # JSON serializable でない値は pickle で
             return pickle.dumps(value)
 
     def _deserialize_value(self, value: bytes) -> Any:
@@ -81,12 +78,17 @@ class CacheService:
             return False
 
     def delete_pattern(self, pattern: str) -> int:
-        """パターンマッチングでキャッシュを削除"""
+        """パターンマッチングでキャッシュを削除（SCAN使用でRedisブロッキングを回避）"""
         try:
-            keys = self.redis.keys(pattern)
-            if keys:
-                return self.redis.delete(*keys)
-            return 0
+            deleted = 0
+            cursor = 0
+            while True:
+                cursor, keys = self.redis.scan(cursor, match=pattern, count=100)
+                if keys:
+                    deleted += self.redis.delete(*keys)
+                if cursor == 0:
+                    break
+            return deleted
         except Exception as e:
             logger.error(f"Cache delete pattern error for {pattern}: {e}")
             return 0
