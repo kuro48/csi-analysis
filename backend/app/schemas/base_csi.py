@@ -26,6 +26,8 @@ class BaseCSIResponse(BaseModel):
     name: str
     source_pcap_path: Optional[str]
     source_pcap_size: Optional[int]
+    status: str
+    error_message: Optional[str]
     expires_at: Optional[str]
     is_expired: bool
     created_at: str
@@ -39,6 +41,8 @@ class BaseCSIResponse(BaseModel):
                 "name": "正常呼吸パターン - 安静時",
                 "source_pcap_path": "/data/pcap/base_csi_123.pcap",
                 "source_pcap_size": 1048576,
+                "status": "completed",
+                "error_message": None,
                 "expires_at": "2024-12-31T23:59:59",
                 "is_expired": False,
                 "created_at": "2024-01-01T00:00:00",

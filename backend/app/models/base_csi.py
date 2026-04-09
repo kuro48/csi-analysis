@@ -28,6 +28,10 @@ class BaseCSI(Base):
     source_pcap_path = Column(String(500), nullable=True, comment="元のPCAPファイルパス")
     source_pcap_size = Column(Integer, nullable=True, comment="元のPCAPファイルサイズ（バイト）")
 
+    # 処理状態
+    status = Column(String(50), default="processing", nullable=False, index=True, comment="processing, completed, error")
+    error_message = Column(String(1000), nullable=True, comment="処理失敗時のエラーメッセージ")
+
     # 有効期限
     expires_at = Column(DateTime, comment="有効期限")
 
@@ -51,6 +55,8 @@ class BaseCSI(Base):
             "name": self.name,
             "source_pcap_path": self.source_pcap_path,
             "source_pcap_size": self.source_pcap_size,
+            "status": self.status,
+            "error_message": self.error_message,
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "is_expired": self.is_expired(),
             "created_at": self.created_at.isoformat(),

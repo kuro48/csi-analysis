@@ -79,6 +79,7 @@ class PCAPAnalyzer:
     WAVELET_FREQ_MAX = 2.0   # Hz（解析上限 = 120 bpm、呼吸帯域の5倍）
     WAVELET_N_FREQS = 200    # 対数スケール周波数点数
     WAVELET_NAME = "cmor1.5-1.0"
+    WAVELET_FFT_METHOD_MIN_SIGNAL_LEN = 256
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -351,45 +352,50 @@ class PCAPAnalyzer:
         )
 
         scales = pywt.frequency2scale(self.WAVELET_NAME, target_freqs * sampling_interval)
-
-        all_wavelet_results = []
+        frequency_axis = None
+        amplitude_rows = []
+        valid_cols = []
 
         for col in data_cols:
-            sig = df[col].values.astype(float)
+            sig = df[col].to_numpy(dtype=np.float32, copy=False)
 
             if len(sig) < 2:
                 self.logger.debug(f"サブキャリア {col}: データ不足 (長さ={len(sig)})")
                 continue
 
             sig = np.nan_to_num(sig, nan=0.0, posinf=0.0, neginf=0.0)
+            method = 'fft' if len(sig) >= self.WAVELET_FFT_METHOD_MIN_SIGNAL_LEN else 'conv'
 
             coefficients, freqs = pywt.cwt(
                 sig,
                 scales,
                 self.WAVELET_NAME,
                 sampling_period=sampling_interval,
-                method='conv'
+                method=method
             )
 
             # 時間平均振幅 (axis=1 は時間軸)
-            time_avg_amplitude = np.mean(np.abs(coefficients), axis=1)
+            time_avg_amplitude = np.mean(np.abs(coefficients), axis=1).astype(np.float32, copy=False)
+            amplitude_rows.append(time_avg_amplitude)
+            valid_cols.append(col)
+            if frequency_axis is None:
+                frequency_axis = freqs
 
-            wavelet_df = pd.DataFrame({
-                'frequency': freqs,
-                col: time_avg_amplitude
-            })
-            all_wavelet_results.append(wavelet_df.set_index('frequency'))
-
-        if not all_wavelet_results:
+        if not amplitude_rows:
             self.logger.warning("ウェーブレット変換結果が空です")
             return pd.DataFrame()
 
-        merged_wavelet_df = pd.concat(all_wavelet_results, axis=1).reset_index()
+        wavelet_matrix = np.stack(amplitude_rows, axis=1)
+        merged_wavelet_df = pd.DataFrame(
+            wavelet_matrix,
+            columns=valid_cols,
+        )
+        merged_wavelet_df.insert(0, 'frequency', frequency_axis)
 
         self.logger.info(
-            f"ウェーブレット変換完了: {len(data_cols)}サブキャリア, "
+            f"ウェーブレット変換完了: {len(valid_cols)}サブキャリア, "
             f"{len(merged_wavelet_df)}周波数ポイント "
-            f"({self.WAVELET_FREQ_MIN:.3f}–{float(np.max(freqs)):.3f} Hz)"
+            f"({self.WAVELET_FREQ_MIN:.3f}–{float(np.max(frequency_axis)):.3f} Hz)"
         )
 
         return self.drop_invalid_rows(merged_wavelet_df)
@@ -775,12 +781,13 @@ class PCAPAnalyzer:
 
         return df
 
-    def analyze_pcap_file(self, file_path: str) -> Dict[str, Any]:
+    def analyze_pcap_file(self, file_path: str, include_wavelet: bool = True) -> Dict[str, Any]:
         """
         PCAPファイルを解析してCSIデータを抽出（FFT・ウェーブレット変換の両方を実行）
 
         Args:
             file_path: PCAPファイルのパス
+            include_wavelet: True の場合はウェーブレット変換も実行
 
         Returns:
             {
@@ -840,17 +847,20 @@ class PCAPAnalyzer:
         # FFTから呼吸レート推定
         breathing_rate_fft = self.estimate_breathing_rate(fft_df, freq_col='frequency')
 
-        # === ウェーブレット変換 ===
-        wavelet_df = self.apply_wavelet_transform(df, self.DOWNSAMPLE_INTERVAL_S)
-
         binned_wavelet_df = pd.DataFrame()
         breathing_rate_wavelet = None
+        wavelet_bin_count = 0
 
-        if not wavelet_df.empty:
-            wavelet_max_freq = wavelet_df['frequency'].max()
-            wavelet_bins = self.make_bins(wavelet_max_freq, self.FREQUENCY_BIN_STEP)
-            binned_wavelet_df = self.average_magnitude_by_frequency_bins(wavelet_df, wavelet_bins)
-            breathing_rate_wavelet = self.estimate_breathing_rate(wavelet_df, freq_col='frequency')
+        if include_wavelet:
+            # === ウェーブレット変換 ===
+            wavelet_df = self.apply_wavelet_transform(df, self.DOWNSAMPLE_INTERVAL_S)
+
+            if not wavelet_df.empty:
+                wavelet_max_freq = wavelet_df['frequency'].max()
+                wavelet_bins = self.make_bins(wavelet_max_freq, self.FREQUENCY_BIN_STEP)
+                binned_wavelet_df = self.average_magnitude_by_frequency_bins(wavelet_df, wavelet_bins)
+                breathing_rate_wavelet = self.estimate_breathing_rate(wavelet_df, freq_col='frequency')
+                wavelet_bin_count = len(binned_wavelet_df)
 
         # 処理結果をログ出力
         br_info = (
@@ -862,7 +872,7 @@ class PCAPAnalyzer:
             f"サブキャリア: {no_subcarriers} → {remaining_subcarriers}, "
             f"有効行: {len(df)}, "
             f"FFTビン: {len(binned_fft_df)}, "
-            f"ウェーブレットビン: {len(binned_wavelet_df) if not binned_wavelet_df.empty else 0}, "
+            f"ウェーブレットビン: {wavelet_bin_count}, "
             f"最大周波数: {max_freq:.2f}Hz, "
             f"呼吸推定 [{', '.join(br_info)}]"
         )

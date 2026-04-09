@@ -20,7 +20,7 @@ class BaseCSIService:
     """ベースCSI管理サービス"""
 
     @staticmethod
-    async def register_base_csi(
+    def create_base_csi_record(
         db: Session,
         pcap_file_data: bytes,
         pcap_filename: str,
@@ -28,7 +28,7 @@ class BaseCSIService:
         storage_dir: str = "/data/base_csi"
     ) -> BaseCSI:
         """
-        PCAPファイルからベースCSIを登録
+        ベースCSIの初期レコードを作成し、PCAPファイルを保存
 
         Args:
             db: データベースセッション
@@ -39,10 +39,10 @@ class BaseCSIService:
             storage_dir: 保存ディレクトリ
 
         Returns:
-            登録されたベースCSI
+            作成されたベースCSI
 
         Raises:
-            ValueError: PCAP解析に失敗した場合
+            ValueError: 初期登録に失敗した場合
         """
         try:
             # 保存ディレクトリ作成
@@ -58,30 +58,16 @@ class BaseCSIService:
 
             logger.info(f"Base CSI PCAP saved: {pcap_path}")
 
-            # PCAP解析（FFT + ウェーブレット変換）
-            analyzer = PCAPAnalyzer()
-            analysis_result = analyzer.analyze_pcap_file(str(pcap_path))
-            fft_df = analysis_result["fft"]
-
-            # freq_interval列をJSON化可能な形式に変換
-            fft_df_copy = fft_df.copy()
-            if 'freq_interval' in fft_df_copy.columns:
-                fft_df_copy['freq_interval'] = fft_df_copy['freq_interval'].astype(str)
-
-            # NaN値をNoneに変換（JSONのnullになる）
-            import numpy as np
-            fft_df_copy = fft_df_copy.replace({np.nan: None})
-
             # 有効期限設定（常に30日）
             expires_at = datetime.utcnow() + timedelta(days=30)
 
-            # ベースCSIレコード作成
             base_csi = BaseCSI(
                 id=pcap_id,
                 name=register_info.name,
-                fft_dataframe=fft_df_copy.to_dict(),
+                fft_dataframe={},
                 source_pcap_path=str(pcap_path),
                 source_pcap_size=len(pcap_file_data),
+                status="processing",
                 expires_at=expires_at
             )
 
@@ -89,19 +75,69 @@ class BaseCSIService:
             db.commit()
             db.refresh(base_csi)
 
-            logger.info(f"Base CSI registered: {base_csi.id}, name={base_csi.name}")
+            logger.info(f"Base CSI record created: {base_csi.id}, name={base_csi.name}")
 
             return base_csi
 
         except Exception as e:
-            logger.error(f"Failed to register base CSI: {e}", exc_info=True)
-            raise ValueError(f"ベースCSI登録に失敗しました: {str(e)}")
+            logger.error(f"Failed to create base CSI record: {e}", exc_info=True)
+            raise ValueError(f"ベースCSI登録の初期化に失敗しました: {str(e)}")
+
+    @staticmethod
+    def process_base_csi_registration(
+        db: Session,
+        base_csi_id: uuid.UUID,
+    ) -> Optional[BaseCSI]:
+        """
+        保存済みPCAPからベースCSI解析を実行し、レコードを完成させる
+        """
+        base_csi = db.query(BaseCSI).filter(BaseCSI.id == base_csi_id).first()
+
+        if base_csi is None:
+            logger.error(f"Base CSI not found for processing: {base_csi_id}")
+            return None
+
+        try:
+            if not base_csi.source_pcap_path:
+                raise ValueError("PCAPファイルパスが未設定です")
+
+            analyzer = PCAPAnalyzer()
+            analysis_result = analyzer.analyze_pcap_file(base_csi.source_pcap_path)
+            fft_df = analysis_result["fft"]
+
+            if fft_df.empty:
+                raise ValueError("PCAP解析結果が空です")
+
+            fft_df_copy = fft_df.copy()
+            if 'freq_interval' in fft_df_copy.columns:
+                fft_df_copy['freq_interval'] = fft_df_copy['freq_interval'].astype(str)
+
+            import numpy as np
+            fft_df_copy = fft_df_copy.replace({np.nan: None})
+
+            base_csi.fft_dataframe = fft_df_copy.to_dict()
+            base_csi.status = "completed"
+            base_csi.error_message = None
+            db.commit()
+            db.refresh(base_csi)
+
+            logger.info(f"Base CSI registered: {base_csi.id}, name={base_csi.name}")
+            return base_csi
+
+        except Exception as e:
+            logger.error(f"Failed to process base CSI: {e}", exc_info=True)
+            base_csi.status = "error"
+            base_csi.error_message = str(e)[:1000]
+            db.commit()
+            db.refresh(base_csi)
+            return base_csi
 
     @staticmethod
     def get_base_csi_list(
         db: Session,
         user_id: Optional[uuid.UUID] = None,
         include_expired: bool = False,
+        status: Optional[str] = None,
         page: int = 1,
         page_size: int = 20
     ) -> Tuple[List[BaseCSI], int]:
@@ -130,6 +166,9 @@ class BaseCSIService:
                 (BaseCSI.expires_at.is_(None)) | (BaseCSI.expires_at > datetime.utcnow())
             )
 
+        if status is not None:
+            query = query.filter(BaseCSI.status == status)
+
         # 総数取得
         total_count = query.count()
 
@@ -143,7 +182,8 @@ class BaseCSIService:
     def get_base_csi_by_id(
         db: Session,
         base_csi_id: uuid.UUID,
-        user_id: Optional[uuid.UUID] = None
+        user_id: Optional[uuid.UUID] = None,
+        status: Optional[str] = None,
     ) -> Optional[BaseCSI]:
         """
         ベースCSIをIDで取得
@@ -160,6 +200,9 @@ class BaseCSIService:
 
         if user_id is not None:
             query = query.filter(BaseCSI.user_id == user_id)
+
+        if status is not None:
+            query = query.filter(BaseCSI.status == status)
 
         return query.first()
 
