@@ -2,7 +2,7 @@
 ベースCSI管理エンドポイント
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status as http_status, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, File, UploadFile, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional
 import uuid
@@ -11,6 +11,7 @@ import json
 import logging
 
 from app.core.database import get_db
+from app.core.database import SessionLocal
 from app.services.base_csi import BaseCSIService
 from app.schemas.base_csi import (
     BaseCSIRegister, BaseCSIResponse, BaseCSIListResponse, BaseCSIUpdate
@@ -20,8 +21,17 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _process_base_csi_background(base_csi_id: uuid.UUID):
+    db = SessionLocal()
+    try:
+        BaseCSIService.process_base_csi_registration(db, base_csi_id)
+    finally:
+        db.close()
+
+
 @router.post("/register", response_model=BaseCSIResponse)
 async def register_base_csi(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="PCAPファイル"),
     db: Session = Depends(get_db)
 ):
@@ -50,13 +60,14 @@ async def register_base_csi(
             name=file.filename or "base_csi.pcap"
         )
 
-        # ベースCSI登録（グローバルベースCSIとしてuser_id=Noneで登録）
-        base_csi = await BaseCSIService.register_base_csi(
+        # ベースCSIの初期レコードを即時作成し、解析はバックグラウンドで継続する
+        base_csi = BaseCSIService.create_base_csi_record(
             db=db,
             pcap_file_data=file_data,
             pcap_filename=file.filename or "unknown.pcap",
             register_info=register_info
         )
+        background_tasks.add_task(_process_base_csi_background, base_csi.id)
 
         return BaseCSIResponse(**base_csi.to_dict())
 
@@ -89,6 +100,7 @@ async def list_base_csis(
         base_csis, total_count = BaseCSIService.get_base_csi_list(
             db=db,
             include_expired=include_expired,
+            status=None,
             page=page,
             page_size=page_size
         )

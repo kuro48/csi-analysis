@@ -2,6 +2,8 @@
 CSIデータ関連エンドポイント
 """
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, File, UploadFile, Form, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -140,10 +142,10 @@ async def _run_base_csi_comparison(
         比較結果の辞書。ベースCSIが存在しない場合は None。
     """
     if base_csi_id:
-        base_csi = BaseCSIService.get_base_csi_by_id(db, base_csi_id, user_id=None)
+        base_csi = BaseCSIService.get_base_csi_by_id(db, base_csi_id, user_id=None, status="completed")
     else:
         base_csis, _ = BaseCSIService.get_base_csi_list(
-            db=db, user_id=None, include_expired=False, page=1, page_size=1
+            db=db, user_id=None, include_expired=False, status="completed", page=1, page_size=1
         )
         base_csi = base_csis[0] if base_csis else None
 
@@ -326,7 +328,7 @@ async def _process_and_generate_zkp_background(
 
         # --- PCAP解析（FFT + ウェーブレット変換） ---
         logger.info(f"Analyzing PCAP file: {file_path}")
-        analysis_result = analyzer.analyze_pcap_file(file_path)
+        analysis_result = await asyncio.to_thread(analyzer.analyze_pcap_file, file_path)
         binned_fft_df = analysis_result["fft"]
         binned_wavelet_df = analysis_result["wavelet"]
         if binned_fft_df.empty:
