@@ -29,11 +29,11 @@ except ImportError:
     logging.warning("Scapy not available. PCAP analysis will be limited.")
 
 try:
-    from scipy.signal import cwt as scipy_cwt, morlet2 as scipy_morlet2
-    SCIPY_WAVELET_AVAILABLE = True
+    import pywt
+    PYWAVELETS_AVAILABLE = True
 except ImportError:
-    SCIPY_WAVELET_AVAILABLE = False
-    logging.warning("scipy.signal not available. Wavelet analysis will be disabled.")
+    PYWAVELETS_AVAILABLE = False
+    logging.warning("PyWavelets not available. Wavelet analysis will be disabled.")
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class PCAPAnalyzer:
     WAVELET_FREQ_MIN = 0.01  # Hz（解析下限 = 0.6 bpm）
     WAVELET_FREQ_MAX = 2.0   # Hz（解析上限 = 120 bpm、呼吸帯域の5倍）
     WAVELET_N_FREQS = 200    # 対数スケール周波数点数
-    WAVELET_W0 = 5.0         # Morletウェーブレット角周波数パラメータ
+    WAVELET_NAME = "cmor1.5-1.0"
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -323,10 +323,9 @@ class PCAPAnalyzer:
 
         Returns:
             ウェーブレット時間平均振幅のDataFrame（列: frequency, サブキャリア番号...）
-            scipy未インストール時は空のDataFrame
         """
-        if not SCIPY_WAVELET_AVAILABLE:
-            self.logger.warning("scipy未インストールのためウェーブレット変換をスキップ")
+        if not PYWAVELETS_AVAILABLE:
+            self.logger.warning("PyWavelets未インストールのためウェーブレット変換をスキップ")
             return pd.DataFrame()
 
         if df is None or df.empty:
@@ -343,7 +342,6 @@ class PCAPAnalyzer:
 
         n_freqs = n_freqs or self.WAVELET_N_FREQS
         fs = 1.0 / sampling_interval
-        w0 = self.WAVELET_W0
 
         # 対数スケールで解析周波数を設定（低周波域の分解能を高める）
         target_freqs = np.logspace(
@@ -352,8 +350,7 @@ class PCAPAnalyzer:
             n_freqs
         )
 
-        # scale = w0 × fs / (2π × freq)
-        scales = w0 * fs / (2.0 * np.pi * target_freqs)
+        scales = pywt.frequency2scale(self.WAVELET_NAME, target_freqs * sampling_interval)
 
         all_wavelet_results = []
 
@@ -366,15 +363,19 @@ class PCAPAnalyzer:
 
             sig = np.nan_to_num(sig, nan=0.0, posinf=0.0, neginf=0.0)
 
-            # CWT実行: shape = (len(scales), len(sig))
-            # scales[i] は target_freqs[i] に対応
-            coefficients = scipy_cwt(sig, scipy_morlet2, scales, w=w0)
+            coefficients, freqs = pywt.cwt(
+                sig,
+                scales,
+                self.WAVELET_NAME,
+                sampling_period=sampling_interval,
+                method='conv'
+            )
 
             # 時間平均振幅 (axis=1 は時間軸)
             time_avg_amplitude = np.mean(np.abs(coefficients), axis=1)
 
             wavelet_df = pd.DataFrame({
-                'frequency': target_freqs,
+                'frequency': freqs,
                 col: time_avg_amplitude
             })
             all_wavelet_results.append(wavelet_df.set_index('frequency'))
@@ -388,7 +389,7 @@ class PCAPAnalyzer:
         self.logger.info(
             f"ウェーブレット変換完了: {len(data_cols)}サブキャリア, "
             f"{len(merged_wavelet_df)}周波数ポイント "
-            f"({self.WAVELET_FREQ_MIN:.3f}–{target_freqs[-1]:.3f} Hz)"
+            f"({self.WAVELET_FREQ_MIN:.3f}–{float(np.max(freqs)):.3f} Hz)"
         )
 
         return self.drop_invalid_rows(merged_wavelet_df)

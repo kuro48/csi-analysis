@@ -7,7 +7,11 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         gcc \
+        gfortran \
+        python3-dev \
         libpq-dev \
+        libopenblas-dev \
+        liblapack-dev \
         postgresql-client \
         curl \
         wget \
