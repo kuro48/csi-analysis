@@ -122,6 +122,7 @@ async def _run_base_csi_comparison(
     analyzer: "PCAPAnalyzer",
     zkp_service: "ZKPService",
     fft_dataframe,
+    wavelet_dataframe,
     base_csi_id: Optional[uuid.UUID],
     user_id: Optional[uuid.UUID],
 ) -> Optional[dict]:
@@ -133,6 +134,7 @@ async def _run_base_csi_comparison(
         analyzer: PCAPアナライザーインスタンス
         zkp_service: ZKPサービスインスタンス
         fft_dataframe: アップロードCSIのFFT DataFrame
+        wavelet_dataframe: アップロードCSIのWavelet DataFrame
         base_csi_id: ベースCSI ID（None の場合は最新を使用）
         user_id: ユーザーID
 
@@ -153,71 +155,143 @@ async def _run_base_csi_comparison(
 
     logger.info(f"Comparing with base CSI: {base_csi.id} ({base_csi.name})")
 
-    base_fft_df = pd.DataFrame(base_csi.fft_dataframe)
     extract_kwargs = dict(freq_col='freq_interval', use_binned=True,
                          freq_min=analyzer.ZKP_FREQ_START, freq_max=analyzer.ZKP_FREQ_END)
-
-    base_data = analyzer.extract_full_subcarrier_vectors(base_fft_df, **extract_kwargs)
-    upload_data = analyzer.extract_full_subcarrier_vectors(fft_dataframe, **extract_kwargs)
-    reference_matrix = base_data["csi_matrix"]
-    candidate_matrix = upload_data["csi_matrix"]
-
-    similarity_result = await zkp_service.generate_proof(
-        reference_matrix=reference_matrix,
-        candidate_matrix=candidate_matrix
-    )
-    python_similarity = zkp_service.compute_python_similarity(
-        reference_matrix=reference_matrix,
-        candidate_matrix=candidate_matrix
-    )
-    python_top_n_result = zkp_service.select_top_n_subcarriers(
-        reference_matrix=reference_matrix,
-        candidate_matrix=candidate_matrix,
-        top_n=5
-    )
-    zkp_top_n_result = zkp_service.extract_top_n_from_similarities(
-        zkp_similarities=similarity_result.get("similarities", []),
-        scale=10000,
-        top_n=5
-    )
-
-    logger.info(
-        f"Base CSI comparison completed: similarity={similarity_result['normalizedSimilarity']:.4f}, "
-        f"dimensions={base_data['num_freq_points']}×{base_data['num_subcarriers']}"
-    )
 
     subcarrier_entry = lambda indices, sims: [
         {"index": idx, "similarity": sim, "rank": i + 1}
         for i, (idx, sim) in enumerate(zip(indices, sims))
     ]
 
+    def load_base_dataframe(method: str):
+        stored = getattr(base_csi, f"{method}_dataframe", None)
+        if stored:
+            return pd.DataFrame(stored)
+
+        source_path = getattr(base_csi, "source_pcap_path", None)
+        if not source_path:
+            return pd.DataFrame()
+
+        try:
+            fallback_result = analyzer.analyze_pcap_file(source_path)
+            return fallback_result.get(method, pd.DataFrame())
+        except Exception as e:
+            logger.warning(f"Failed to rebuild {method} dataframe from base PCAP: {e}", exc_info=True)
+            return pd.DataFrame()
+
+    async def compare_method(method: str, base_df, upload_df) -> Optional[dict]:
+        if base_df is None or base_df.empty or upload_df is None or upload_df.empty:
+            logger.warning(f"Skipping {method} ZKP comparison because dataframe is empty")
+            return None
+
+        base_data = analyzer.extract_full_subcarrier_vectors(base_df, **extract_kwargs)
+        upload_data = analyzer.extract_full_subcarrier_vectors(upload_df, **extract_kwargs)
+
+        if base_data["num_freq_points"] == 0 or upload_data["num_freq_points"] == 0:
+            logger.warning(f"Skipping {method} ZKP comparison because extracted vectors are empty")
+            return None
+
+        reference_matrix = base_data["csi_matrix"]
+        candidate_matrix = upload_data["csi_matrix"]
+
+        similarity_result = await zkp_service.generate_proof(
+            reference_matrix=reference_matrix,
+            candidate_matrix=candidate_matrix
+        )
+        python_similarity = zkp_service.compute_python_similarity(
+            reference_matrix=reference_matrix,
+            candidate_matrix=candidate_matrix
+        )
+        python_top_n_result = zkp_service.select_top_n_subcarriers(
+            reference_matrix=reference_matrix,
+            candidate_matrix=candidate_matrix,
+            top_n=5
+        )
+        zkp_top_n_result = zkp_service.extract_top_n_from_similarities(
+            zkp_similarities=similarity_result.get("similarities", []),
+            scale=10000,
+            top_n=5
+        )
+
+        selected_similarity = similarity_result.get("selectedSubcarrierSimilarity")
+        if selected_similarity is None:
+            selected_similarity = python_top_n_result.get("lowest_similarity")
+
+        logger.info(
+            f"Base CSI {method} comparison completed: similarity={similarity_result['normalizedSimilarity']:.4f}, "
+            f"dimensions={base_data['num_freq_points']}×{base_data['num_subcarriers']}"
+        )
+
+        return {
+            "method": method,
+            "similarity_score": similarity_result["normalizedSimilarity"],
+            "zkp_proof": similarity_result.get("proof", {}),
+            "public_signals": similarity_result.get("publicSignals", []),
+            "is_valid": similarity_result.get("isValid", False),
+            "python_similarity": python_similarity.get("cosine_similarity"),
+            "selected_subcarrier": {
+                "index": similarity_result.get("selectedSubcarrierIndex"),
+                "similarity": selected_similarity,
+            },
+            "lowest_similarity_subcarrier": {
+                "index": similarity_result.get("selectedSubcarrierIndex"),
+                "similarity": selected_similarity,
+            },
+            "zkp_top_5_lowest_subcarriers": subcarrier_entry(
+                zkp_top_n_result["top_n_indices"], zkp_top_n_result["top_n_similarities"]
+            ),
+            "python_top_5_lowest_subcarriers": subcarrier_entry(
+                python_top_n_result["top_n_indices"], python_top_n_result["top_n_similarities"]
+            ),
+            "data_dimensions": {
+                "num_freq_points": base_data["num_freq_points"],
+                "num_subcarriers": base_data["num_subcarriers"],
+                "total_dimensions": base_data["num_freq_points"] * base_data["num_subcarriers"],
+            },
+        }
+
+    method_results = {}
+    for method_name, upload_df in {
+        "fft": fft_dataframe,
+        "wavelet": wavelet_dataframe,
+    }.items():
+        result = await compare_method(method_name, load_base_dataframe(method_name), upload_df)
+        if result:
+            method_results[method_name] = result
+
+    if not method_results:
+        logger.warning("No method-specific ZKP comparison could be generated")
+        return None
+
+    primary_method = "fft" if "fft" in method_results else next(iter(method_results))
+    primary_result = method_results[primary_method]
+    similarity_delta = None
+    if "fft" in method_results and "wavelet" in method_results:
+        similarity_delta = abs(
+            method_results["fft"]["similarity_score"] - method_results["wavelet"]["similarity_score"]
+        )
+
     return {
         "base_csi_id": str(base_csi.id),
         "base_csi_name": base_csi.name,
-        "similarity_score": similarity_result["normalizedSimilarity"],
-        "zkp_proof": similarity_result.get("proof", {}),
-        "public_signals": similarity_result.get("publicSignals", []),
-        "is_valid": similarity_result.get("isValid", False),
-        "python_similarity": python_similarity.get("cosine_similarity"),
-        "selected_subcarrier": {
-            "index": similarity_result.get("selectedSubcarrierIndex"),
-            "similarity": similarity_result.get("selectedSubcarrierSimilarity"),
+        "primary_method": primary_method,
+        "methods": method_results,
+        "comparison_summary": {
+            "generated_methods": list(method_results.keys()),
+            "primary_method": primary_method,
+            "similarity_delta": similarity_delta,
         },
-        "lowest_similarity_subcarrier": {  # 後方互換
-            "index": similarity_result.get("selectedSubcarrierIndex"),
-            "similarity": similarity_result.get("selectedSubcarrierSimilarity"),
-        },
-        "zkp_top_5_lowest_subcarriers": subcarrier_entry(
-            zkp_top_n_result["top_n_indices"], zkp_top_n_result["top_n_similarities"]
-        ),
-        "python_top_5_lowest_subcarriers": subcarrier_entry(
-            python_top_n_result["top_n_indices"], python_top_n_result["top_n_similarities"]
-        ),
-        "data_dimensions": {
-            "num_freq_points": base_data["num_freq_points"],
-            "num_subcarriers": base_data["num_subcarriers"],
-            "total_dimensions": base_data["num_freq_points"] * base_data["num_subcarriers"],
-        },
+        # 後方互換: 既存のトップレベルは primary_method の結果を流用する
+        "similarity_score": primary_result["similarity_score"],
+        "zkp_proof": primary_result["zkp_proof"],
+        "public_signals": primary_result["public_signals"],
+        "is_valid": primary_result["is_valid"],
+        "python_similarity": primary_result["python_similarity"],
+        "selected_subcarrier": primary_result["selected_subcarrier"],
+        "lowest_similarity_subcarrier": primary_result["lowest_similarity_subcarrier"],
+        "zkp_top_5_lowest_subcarriers": primary_result["zkp_top_5_lowest_subcarriers"],
+        "python_top_5_lowest_subcarriers": primary_result["python_top_5_lowest_subcarriers"],
+        "data_dimensions": primary_result["data_dimensions"],
     }
 
 
@@ -239,6 +313,7 @@ async def _process_and_generate_zkp_background(
         base_csi_id: ベースCSI ID（指定されない場合は最新のアクティブなベースCSIを使用）
     """
     db = None
+    csi_data = None
     try:
         db = db_session_maker()
         logger.info(f"Starting background processing for CSI data {csi_data_id}")
@@ -267,6 +342,7 @@ async def _process_and_generate_zkp_background(
                 analyzer=analyzer,
                 zkp_service=zkp_service,
                 fft_dataframe=binned_fft_df,
+                wavelet_dataframe=binned_wavelet_df,
                 base_csi_id=base_csi_id,
                 user_id=user_id,
             )
@@ -279,10 +355,7 @@ async def _process_and_generate_zkp_background(
             processed_data: dict = {
                 "fft_dataframe": _serialize_fft_dataframe(binned_fft_df),
                 "wavelet_dataframe": _serialize_fft_dataframe(binned_wavelet_df),
-                "breathing_rate_comparison": {
-                    "fft_bpm": analysis_result["breathing_rate_fft_bpm"],
-                    "wavelet_bpm": analysis_result["breathing_rate_wavelet_bpm"],
-                },
+                "breathing_rate_comparison": analysis_result["breathing_rate_comparison"],
             }
             if base_csi_comparison:
                 processed_data["base_csi_comparison"] = base_csi_comparison
@@ -329,6 +402,18 @@ async def _process_and_generate_zkp_background(
             db.commit()
 
     finally:
+        if not settings.RESEARCH_MODE and file_path:
+            temp_path = Path(file_path)
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                    logger.info(f"Temporary CSI file deleted after background processing: {file_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete temporary CSI file {file_path}: {e}")
+            if db and csi_data:
+                csi_data.file_path = None
+                csi_data.file_size = None
+                db.commit()
         if db:
             db.close()
 
@@ -394,8 +479,8 @@ async def upload_csi_data(
             id=csi_data.id,
             session_id=csi_data.session_id,
             device_id=csi_data.device_id,
-            file_path=csi_data.file_path,
-            file_size=csi_data.file_size,
+            file_path=csi_data.file_path if settings.RESEARCH_MODE else None,
+            file_size=csi_data.file_size if settings.RESEARCH_MODE else None,
             status=csi_data.status,
             created_at=csi_data.created_at,
             updated_at=csi_data.updated_at

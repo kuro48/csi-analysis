@@ -79,6 +79,7 @@ class PCAPAnalyzer:
     WAVELET_FREQ_MAX = 2.0   # Hz（解析上限 = 120 bpm、呼吸帯域の5倍）
     WAVELET_N_FREQS = 200    # 対数スケール周波数点数
     WAVELET_NAME = "cmor1.5-1.0"
+    BREATHING_RATE_AGREEMENT_THRESHOLD_BPM = 3.0
     WAVELET_FFT_METHOD_MIN_SIGNAL_LEN = 256
 
     def __init__(self):
@@ -450,6 +451,52 @@ class PCAPAnalyzer:
 
         return peak_freq_hz * 60.0  # Hz → BPM
 
+    def compare_breathing_rate_estimates(
+        self,
+        fft_bpm: Optional[float],
+        wavelet_bpm: Optional[float]
+    ) -> Dict[str, Any]:
+        """
+        FFT とウェーブレットの呼吸レート推定結果を比較
+
+        Args:
+            fft_bpm: FFT 由来の呼吸レート
+            wavelet_bpm: ウェーブレット由来の呼吸レート
+
+        Returns:
+            比較結果辞書
+        """
+        comparison: Dict[str, Any] = {
+            "fft_bpm": fft_bpm,
+            "wavelet_bpm": wavelet_bpm,
+            "difference_bpm": None,
+            "difference_ratio": None,
+            "agreement_threshold_bpm": self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM,
+            "is_consistent": None,
+            "preferred_method": None,
+        }
+
+        if fft_bpm is None and wavelet_bpm is None:
+            return comparison
+
+        if fft_bpm is None:
+            comparison["preferred_method"] = "wavelet"
+            return comparison
+
+        if wavelet_bpm is None:
+            comparison["preferred_method"] = "fft"
+            return comparison
+
+        difference_bpm = abs(float(fft_bpm) - float(wavelet_bpm))
+        max_rate = max(abs(float(fft_bpm)), abs(float(wavelet_bpm)))
+
+        comparison["difference_bpm"] = difference_bpm
+        comparison["difference_ratio"] = (difference_bpm / max_rate) if max_rate > 0 else 0.0
+        comparison["is_consistent"] = difference_bpm <= self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM
+        comparison["preferred_method"] = "fft" if difference_bpm <= self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM else "wavelet"
+
+        return comparison
+
     def average_magnitude_by_frequency_bins(
         self,
         df: pd.DataFrame,
@@ -692,6 +739,7 @@ class PCAPAnalyzer:
             return {
                 "fft_dataframe": pd.DataFrame(),
                 "wavelet_dataframe": pd.DataFrame(),
+                "breathing_rate_comparison": self.compare_breathing_rate_estimates(None, None),
                 "zkp_proof": None,
                 "error": "FFT analysis failed"
             }
@@ -723,6 +771,7 @@ class PCAPAnalyzer:
                 "wavelet_dataframe": analysis_result["wavelet"],
                 "breathing_rate_fft_bpm": analysis_result["breathing_rate_fft_bpm"],
                 "breathing_rate_wavelet_bpm": analysis_result["breathing_rate_wavelet_bpm"],
+                "breathing_rate_comparison": analysis_result["breathing_rate_comparison"],
                 "zkp_proof": zkp_result["proof"],
                 "public_signals": zkp_result["publicSignals"],
                 "best_index": zkp_result["bestIndex"],
@@ -738,6 +787,7 @@ class PCAPAnalyzer:
                 "wavelet_dataframe": analysis_result["wavelet"],
                 "breathing_rate_fft_bpm": analysis_result["breathing_rate_fft_bpm"],
                 "breathing_rate_wavelet_bpm": analysis_result["breathing_rate_wavelet_bpm"],
+                "breathing_rate_comparison": analysis_result["breathing_rate_comparison"],
                 "zkp_proof": None,
                 "error": str(e)
             }
@@ -796,7 +846,8 @@ class PCAPAnalyzer:
                 "wavelet": pd.DataFrame,           # ウェーブレット変換結果（周波数ビン平均化済み）
                                                    # 列: ['freq_interval', サブキャリア...]
                 "breathing_rate_fft_bpm": float,   # FFTによる呼吸レート推定値 (BPM)
-                "breathing_rate_wavelet_bpm": float # ウェーブレットによる呼吸レート推定値 (BPM)
+                "breathing_rate_wavelet_bpm": float, # ウェーブレットによる呼吸レート推定値 (BPM)
+                "breathing_rate_comparison": dict  # 両手法の比較結果
             }
             解析失敗時は "fft" が空のDataFrameとなる。
         """
@@ -805,6 +856,7 @@ class PCAPAnalyzer:
             "wavelet": pd.DataFrame(),
             "breathing_rate_fft_bpm": None,
             "breathing_rate_wavelet_bpm": None,
+            "breathing_rate_comparison": self.compare_breathing_rate_estimates(None, None),
         }
 
         # CSIKitでPCAPファイルを読み込み
@@ -855,12 +907,15 @@ class PCAPAnalyzer:
             # === ウェーブレット変換 ===
             wavelet_df = self.apply_wavelet_transform(df, self.DOWNSAMPLE_INTERVAL_S)
 
-            if not wavelet_df.empty:
-                wavelet_max_freq = wavelet_df['frequency'].max()
-                wavelet_bins = self.make_bins(wavelet_max_freq, self.FREQUENCY_BIN_STEP)
-                binned_wavelet_df = self.average_magnitude_by_frequency_bins(wavelet_df, wavelet_bins)
-                breathing_rate_wavelet = self.estimate_breathing_rate(wavelet_df, freq_col='frequency')
-                wavelet_bin_count = len(binned_wavelet_df)
+        if not wavelet_df.empty:
+            # FFT と同じ周波数ビンを使って、行数・ビン境界を揃える
+            binned_wavelet_df = self.average_magnitude_by_frequency_bins(wavelet_df, bins)
+            breathing_rate_wavelet = self.estimate_breathing_rate(wavelet_df, freq_col='frequency')
+
+        breathing_rate_comparison = self.compare_breathing_rate_estimates(
+            breathing_rate_fft,
+            breathing_rate_wavelet
+        )
 
         # 処理結果をログ出力
         br_info = (
@@ -882,6 +937,7 @@ class PCAPAnalyzer:
             "wavelet": binned_wavelet_df,
             "breathing_rate_fft_bpm": breathing_rate_fft,
             "breathing_rate_wavelet_bpm": breathing_rate_wavelet,
+            "breathing_rate_comparison": breathing_rate_comparison,
         }
 
 # サービスインスタンス
