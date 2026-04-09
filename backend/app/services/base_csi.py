@@ -58,9 +58,10 @@ class BaseCSIService:
 
             logger.info(f"Base CSI PCAP saved: {pcap_path}")
 
-            # PCAP解析
+            # PCAP解析（FFT + ウェーブレット変換）
             analyzer = PCAPAnalyzer()
-            fft_df = analyzer.analyze_pcap_file(str(pcap_path))
+            analysis_result = analyzer.analyze_pcap_file(str(pcap_path))
+            fft_df = analysis_result["fft"]
 
             # freq_interval列をJSON化可能な形式に変換
             fft_df_copy = fft_df.copy()

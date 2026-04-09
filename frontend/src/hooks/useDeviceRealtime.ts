@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useCallback } from 'react'
-import { useWebSocket } from './useWebSocket'
+import { useWebSocket, WebSocketMessage } from './useWebSocket'
 
 interface Device {
   id: string
@@ -21,8 +21,8 @@ interface UseDeviceRealtimeProps {
   onDeviceCreated?: (device: Device) => void
   onDeviceUpdated?: (device: Device) => void
   onDeviceDeleted?: (deviceId: string) => void
-  onDeviceStatistics?: (statistics: any) => void
-  onHeartbeat?: (deviceId: string, data: any) => void
+  onDeviceStatistics?: (statistics: Record<string, unknown>) => void
+  onHeartbeat?: (deviceId: string, data: Record<string, unknown>) => void
 }
 
 export function useDeviceRealtime({
@@ -34,27 +34,27 @@ export function useDeviceRealtime({
   onHeartbeat
 }: UseDeviceRealtimeProps) {
   // メッセージハンドラー
-  const handleMessage = useCallback((message: any) => {
+  const handleMessage = useCallback((message: WebSocketMessage) => {
     const { type, data, device_id } = message
 
     switch (type) {
       case 'device_status':
-        onDeviceStatusUpdate?.(data)
+        onDeviceStatusUpdate?.(data as Device)
         break
       case 'device_created':
-        onDeviceCreated?.(data)
+        onDeviceCreated?.(data as Device)
         break
       case 'device_updated':
-        onDeviceUpdated?.(data)
+        onDeviceUpdated?.(data as Device)
         break
       case 'device_deleted':
-        onDeviceDeleted?.(device_id)
+        onDeviceDeleted?.(device_id as string)
         break
       case 'device_statistics':
-        onDeviceStatistics?.(data)
+        onDeviceStatistics?.(data as Record<string, unknown>)
         break
       case 'device_heartbeat':
-        onHeartbeat?.(device_id, data)
+        onHeartbeat?.(device_id as string, data as Record<string, unknown>)
         break
       case 'connection_established':
       case 'subscribed':

@@ -11,6 +11,7 @@ CSI呼吸解析結果からZero-Knowledge Proofを生成するサービス
 import asyncio
 import json
 import os
+import secrets
 import subprocess
 import tempfile
 import uuid
@@ -198,7 +199,7 @@ class ZKPService:
             ["snarkjs", "zkey", "contribute", str(zkey_0), str(zkey_final),
              "--name=Auto-generated contribution", "-v"],
             cwd=str(self.zkp_dir),
-            input="random_entropy_12345\n",
+            input=secrets.token_hex(32) + "\n",
             capture_output=True,
             text=True
         )
@@ -448,21 +449,13 @@ class ZKPService:
     ) -> Dict[str, Any]:
         """
         サブキャリア単位でコサイン類似度を計算し、最も低いサブキャリアを返す（表示用）。
+        select_top_n_subcarriers(top_n=1) への委譲。
         """
-        input_data = self._prepare_input(reference_matrix, candidate_matrix)
-
-        ref  = np.array(input_data["referenceMatrix"], dtype=np.float64)
-        cand = np.array(input_data["candidateMatrix"],  dtype=np.float64)
-
-        similarities = self._per_subcarrier_cosine(ref, cand)
-
-        lowest_similarity = min(similarities)
-        lowest_index      = similarities.index(lowest_similarity)
-
+        result = self.select_top_n_subcarriers(reference_matrix, candidate_matrix, top_n=1)
         return {
-            "lowest_index":      lowest_index,
-            "lowest_similarity": lowest_similarity,
-            "similarities":      similarities
+            "lowest_index":      result["lowest_index"],
+            "lowest_similarity": result["lowest_similarity"],
+            "similarities":      result["all_similarities"],
         }
 
     def select_top_n_subcarriers(

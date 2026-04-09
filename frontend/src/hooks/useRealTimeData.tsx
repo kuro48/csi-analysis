@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
-import { useWebSocket } from './useWebSocket'
+import { useWebSocket, WebSocketMessage } from './useWebSocket'
 
 interface RealtimeData {
   deviceStatuses: Record<string, DeviceStatus>
@@ -14,7 +14,7 @@ interface DeviceStatus {
   device_id: string
   status: 'online' | 'offline' | 'error'
   last_seen: string
-  data?: any
+  data?: Record<string, unknown>
 }
 
 interface BreathingAnalysis {
@@ -22,7 +22,7 @@ interface BreathingAnalysis {
   breathing_rate: number
   confidence: number
   timestamp: string
-  data?: any
+  data?: Record<string, unknown>
 }
 
 interface SystemNotification {
@@ -37,7 +37,7 @@ interface RealtimeContextType {
   connectionStatus: 'Connecting' | 'Open' | 'Closing' | 'Closed'
   subscribe: (channel: string) => boolean
   unsubscribe: (channel: string) => boolean
-  sendMessage: (message: any) => boolean
+  sendMessage: (message: WebSocketMessage) => boolean
 }
 
 const RealtimeContext = createContext<RealtimeContextType | null>(null)
@@ -90,45 +90,53 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     },
   })
 
-  const handleRealtimeMessage = useCallback((message: any) => {
+  const handleRealtimeMessage = useCallback((message: WebSocketMessage) => {
+    const deviceId = message.device_id as string | undefined
+    const timestamp = message.timestamp as string | undefined
+    const msgData = message.data as Record<string, unknown> | undefined
+
     switch (message.type) {
       case 'device_status_update':
-        setData((prev) => ({
-          ...prev,
-          deviceStatuses: {
-            ...prev.deviceStatuses,
-            [message.device_id]: {
-              device_id: message.device_id,
-              status: message.data.status || 'online',
-              last_seen: message.timestamp,
-              data: message.data,
+        if (deviceId) {
+          setData((prev) => ({
+            ...prev,
+            deviceStatuses: {
+              ...prev.deviceStatuses,
+              [deviceId]: {
+                device_id: deviceId,
+                status: (msgData?.status as DeviceStatus['status']) || 'online',
+                last_seen: timestamp ?? '',
+                data: msgData,
+              },
             },
-          },
-        }))
+          }))
+        }
         break
 
       case 'breathing_analysis_update':
-        setData((prev) => ({
-          ...prev,
-          breathingAnalyses: {
-            ...prev.breathingAnalyses,
-            [message.device_id]: {
-              device_id: message.device_id,
-              breathing_rate: message.data.breathing_rate || 0,
-              confidence: message.data.confidence || 0,
-              timestamp: message.timestamp,
-              data: message.data,
+        if (deviceId) {
+          setData((prev) => ({
+            ...prev,
+            breathingAnalyses: {
+              ...prev.breathingAnalyses,
+              [deviceId]: {
+                device_id: deviceId,
+                breathing_rate: (msgData?.breathing_rate as number) || 0,
+                confidence: (msgData?.confidence as number) || 0,
+                timestamp: timestamp ?? '',
+                data: msgData,
+              },
             },
-          },
-        }))
+          }))
+        }
         break
 
       case 'system_notification':
         const notification: SystemNotification = {
           id: `${Date.now()}-${Math.random()}`,
-          type: message.data.type || 'info',
-          message: message.data.message || 'Unknown notification',
-          timestamp: message.timestamp,
+          type: (msgData?.type as SystemNotification['type']) || 'info',
+          message: (msgData?.message as string) || 'Unknown notification',
+          timestamp: timestamp ?? '',
         }
         setData((prev) => ({
           ...prev,

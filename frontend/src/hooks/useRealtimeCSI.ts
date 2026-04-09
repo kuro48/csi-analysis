@@ -66,7 +66,7 @@ export function useRealtimeCSI({
     },
     onMessage: (message) => {
       if (message.type === 'csi_analysis_realtime' && message.device_id === deviceId) {
-        handleCSIAnalysisMessage(message.data)
+        handleCSIAnalysisMessage(message.data as Record<string, unknown>)
       }
     },
     onError: (error) => {
@@ -77,16 +77,16 @@ export function useRealtimeCSI({
     }
   })
 
-  const handleCSIAnalysisMessage = useCallback((data: any) => {
+  const handleCSIAnalysisMessage = useCallback((data: Record<string, unknown>) => {
     const analysisData: CSIAnalysisData = {
-      timestamp: data.timestamp,
-      breathing_rate: data.breathing_rate || 0,
-      breathing_amplitude: data.breathing_amplitude || 0,
-      breathing_confidence: data.breathing_confidence || 0,
-      signal_quality: data.signal_quality || 0,
-      motion_detected: data.motion_detected || false,
-      anomaly_score: data.anomaly_score || 0,
-      raw_signal: data.raw_signal || []
+      timestamp: (data.timestamp as string) ?? '',
+      breathing_rate: (data.breathing_rate as number) || 0,
+      breathing_amplitude: (data.breathing_amplitude as number) || 0,
+      breathing_confidence: (data.breathing_confidence as number) || 0,
+      signal_quality: (data.signal_quality as number) || 0,
+      motion_detected: (data.motion_detected as boolean) || false,
+      anomaly_score: (data.anomaly_score as number) || 0,
+      raw_signal: (data.raw_signal as number[]) || [],
     }
 
     setCurrentData(analysisData)

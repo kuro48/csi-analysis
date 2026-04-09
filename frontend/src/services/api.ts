@@ -70,13 +70,13 @@ class ApiClient {
   // HTTP リクエストの基本メソッド
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: Omit<RequestInit, 'headers'> & { headers?: Record<string, string> } = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string>),
+      ...options.headers,
     }
 
     if (this.token) {
@@ -107,18 +107,18 @@ class ApiClient {
   }
 
   // POST リクエスト
-  async post<T>(endpoint: string, data?: any): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      body: data !== undefined ? JSON.stringify(data) : undefined,
     })
   }
 
   // PUT リクエスト
-  async put<T>(endpoint: string, data?: any): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
+      body: data !== undefined ? JSON.stringify(data) : undefined,
     })
   }
 

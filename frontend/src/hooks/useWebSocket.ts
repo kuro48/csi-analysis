@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 
-interface WebSocketMessage {
+export interface WebSocketMessage {
   type: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface UseWebSocketOptions {
@@ -75,12 +75,14 @@ export function useWebSocket({
         return
       }
 
-      const token = localStorage.getItem('access_token')
-      const wsUrl = token ? `${urlRef.current}?token=${token}` : urlRef.current
-
-      wsRef.current = new WebSocket(wsUrl, protocols)
+      wsRef.current = new WebSocket(urlRef.current, protocols)
 
       wsRef.current.onopen = (event) => {
+        // 接続確立後にトークンを送信（URLパラメータに含めない）
+        const token = localStorage.getItem('access_token')
+        if (token && wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'auth', token }))
+        }
         setState((prev) => ({
           ...prev,
           readyState: WebSocket.OPEN,

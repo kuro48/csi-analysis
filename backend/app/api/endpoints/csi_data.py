@@ -11,6 +11,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+import pandas as pd
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -21,6 +22,7 @@ from app.services.pcap_analyzer import PCAPAnalyzer
 from app.services.zkp_service import ZKPService
 from app.services.base_csi import BaseCSIService
 from app.services.blockchain_service import BlockchainService
+from app.api.endpoints.blockchain import get_blockchain_service
 from app.schemas.csi_data import (
     CSIDataUpload, CSIDataResponse, CSIDataListResponse, CSIDataFilter,
     SessionCreate, SessionUpdate, SessionResponse, ProcessingStatus
@@ -28,21 +30,6 @@ from app.schemas.csi_data import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-# BlockchainServiceのシングルトン（アップロードごとの新規インスタンス生成を回避）
-_blockchain_service_instance: Optional["BlockchainService"] = None
-
-
-def _get_blockchain_service() -> "BlockchainService":
-    """BlockchainServiceのシングルトンを返す（遅延初期化）"""
-    global _blockchain_service_instance
-    if _blockchain_service_instance is None:
-        _blockchain_service_instance = BlockchainService(
-            rpc_url=settings.ETHEREUM_RPC_URL,
-            contract_address=settings.ZKPROOF_CONTRACT_ADDRESS,
-            account_private_key=settings.BLOCKCHAIN_PRIVATE_KEY if settings.BLOCKCHAIN_PRIVATE_KEY else None
-        )
-    return _blockchain_service_instance
 
 
 def _parse_json_field(value) -> Optional[dict]:
@@ -80,7 +67,7 @@ async def _record_zkp_proof_on_chain(
 ) -> None:
     """ZKP証明をブロックチェーンに自動記録"""
     try:
-        blockchain_service = _get_blockchain_service()
+        blockchain_service = get_blockchain_service()
 
         if not blockchain_service.is_available():
             logger.warning(
@@ -128,6 +115,110 @@ async def _record_zkp_proof_on_chain(
         )
 
 
+async def _run_base_csi_comparison(
+    db: Session,
+    analyzer: "PCAPAnalyzer",
+    zkp_service: "ZKPService",
+    fft_dataframe,
+    base_csi_id: Optional[uuid.UUID],
+    user_id: Optional[uuid.UUID],
+) -> Optional[dict]:
+    """
+    ベースCSIとのコサイン類似度比較・ZKP証明生成
+
+    Args:
+        db: DBセッション
+        analyzer: PCAPアナライザーインスタンス
+        zkp_service: ZKPサービスインスタンス
+        fft_dataframe: アップロードCSIのFFT DataFrame
+        base_csi_id: ベースCSI ID（None の場合は最新を使用）
+        user_id: ユーザーID
+
+    Returns:
+        比較結果の辞書。ベースCSIが存在しない場合は None。
+    """
+    if base_csi_id:
+        base_csi = BaseCSIService.get_base_csi_by_id(db, base_csi_id, user_id=None)
+    else:
+        base_csis, _ = BaseCSIService.get_base_csi_list(
+            db=db, user_id=None, include_expired=False, page=1, page_size=1
+        )
+        base_csi = base_csis[0] if base_csis else None
+
+    if not base_csi:
+        logger.warning("No base CSI found for comparison")
+        return None
+
+    logger.info(f"Comparing with base CSI: {base_csi.id} ({base_csi.name})")
+
+    base_fft_df = pd.DataFrame(base_csi.fft_dataframe)
+    extract_kwargs = dict(freq_col='freq_interval', use_binned=True,
+                         freq_min=analyzer.ZKP_FREQ_START, freq_max=analyzer.ZKP_FREQ_END)
+
+    base_data = analyzer.extract_full_subcarrier_vectors(base_fft_df, **extract_kwargs)
+    upload_data = analyzer.extract_full_subcarrier_vectors(fft_dataframe, **extract_kwargs)
+    reference_matrix = base_data["csi_matrix"]
+    candidate_matrix = upload_data["csi_matrix"]
+
+    similarity_result = await zkp_service.generate_proof(
+        reference_matrix=reference_matrix,
+        candidate_matrix=candidate_matrix
+    )
+    python_similarity = zkp_service.compute_python_similarity(
+        reference_matrix=reference_matrix,
+        candidate_matrix=candidate_matrix
+    )
+    python_top_n_result = zkp_service.select_top_n_subcarriers(
+        reference_matrix=reference_matrix,
+        candidate_matrix=candidate_matrix,
+        top_n=5
+    )
+    zkp_top_n_result = zkp_service.extract_top_n_from_similarities(
+        zkp_similarities=similarity_result.get("similarities", []),
+        scale=10000,
+        top_n=5
+    )
+
+    logger.info(
+        f"Base CSI comparison completed: similarity={similarity_result['normalizedSimilarity']:.4f}, "
+        f"dimensions={base_data['num_freq_points']}×{base_data['num_subcarriers']}"
+    )
+
+    subcarrier_entry = lambda indices, sims: [
+        {"index": idx, "similarity": sim, "rank": i + 1}
+        for i, (idx, sim) in enumerate(zip(indices, sims))
+    ]
+
+    return {
+        "base_csi_id": str(base_csi.id),
+        "base_csi_name": base_csi.name,
+        "similarity_score": similarity_result["normalizedSimilarity"],
+        "zkp_proof": similarity_result.get("proof", {}),
+        "public_signals": similarity_result.get("publicSignals", []),
+        "is_valid": similarity_result.get("isValid", False),
+        "python_similarity": python_similarity.get("cosine_similarity"),
+        "selected_subcarrier": {
+            "index": similarity_result.get("selectedSubcarrierIndex"),
+            "similarity": similarity_result.get("selectedSubcarrierSimilarity"),
+        },
+        "lowest_similarity_subcarrier": {  # 後方互換
+            "index": similarity_result.get("selectedSubcarrierIndex"),
+            "similarity": similarity_result.get("selectedSubcarrierSimilarity"),
+        },
+        "zkp_top_5_lowest_subcarriers": subcarrier_entry(
+            zkp_top_n_result["top_n_indices"], zkp_top_n_result["top_n_similarities"]
+        ),
+        "python_top_5_lowest_subcarriers": subcarrier_entry(
+            python_top_n_result["top_n_indices"], python_top_n_result["top_n_similarities"]
+        ),
+        "data_dimensions": {
+            "num_freq_points": base_data["num_freq_points"],
+            "num_subcarriers": base_data["num_subcarriers"],
+            "total_dimensions": base_data["num_freq_points"] * base_data["num_subcarriers"],
+        },
+    }
+
+
 async def _process_and_generate_zkp_background(
     csi_data_id: uuid.UUID,
     file_path: str,
@@ -136,8 +227,7 @@ async def _process_and_generate_zkp_background(
     base_csi_id: Optional[uuid.UUID] = None
 ):
     """
-    バックグラウンドでPCAP解析とZKP証明生成を実行
-    オプションでベースCSIとのコサイン類似度比較も実行
+    バックグラウンドでPCAP解析・ZKP証明生成・DB保存・ブロックチェーン記録を実行
 
     Args:
         csi_data_id: CSIデータID
@@ -148,192 +238,62 @@ async def _process_and_generate_zkp_background(
     """
     db = None
     try:
-        # データベースセッション作成
         db = db_session_maker()
-
         logger.info(f"Starting background processing for CSI data {csi_data_id}")
 
-        # ステータスを「処理中」に更新
         csi_data = db.query(CSIData).filter_by(id=csi_data_id).first()
         if csi_data:
             csi_data.status = "processing"
             db.commit()
 
-        # PcapAnalyzerとZKPServiceのインスタンス作成
         analyzer = PCAPAnalyzer()
         zkp_service = ZKPService(auto_compile=settings.ZKP_AUTO_COMPILE)
 
+        # --- PCAP解析（FFT + ウェーブレット変換） ---
         logger.info(f"Analyzing PCAP file: {file_path}")
-
-        # PCAP解析を実行（FFT変換まで）
-        binned_fft_df = analyzer.analyze_pcap_file(file_path)
-
+        analysis_result = analyzer.analyze_pcap_file(file_path)
+        binned_fft_df = analysis_result["fft"]
+        binned_wavelet_df = analysis_result["wavelet"]
         if binned_fft_df.empty:
             raise ValueError("PCAP解析に失敗しました: データが空です")
 
-        # 基本的な結果を作成
-        result = {
-            "binned_fft_dataframe": binned_fft_df,
-            "fft_dataframe": binned_fft_df  # ビン平均化後のデータを使用
-        }
-
-        # ベースCSIとの比較（常に実行）
+        # --- ベースCSI比較・ZKP証明生成 ---
         base_csi_comparison = None
         try:
-            # グローバルベースCSIを取得（user_id = None）
-            if base_csi_id:
-                base_csi = BaseCSIService.get_base_csi_by_id(db, base_csi_id, user_id=None)
-            else:
-                # 最新のアクティブなベースCSIを取得（user_id = None でグローバル）
-                base_csis, _ = BaseCSIService.get_base_csi_list(
-                    db=db,
-                    user_id=None,
-                    include_expired=False,
-                    page=1,
-                    page_size=1
-                )
-                base_csi = base_csis[0] if base_csis else None
-
-            if base_csi:
-                logger.info(f"Comparing with base CSI: {base_csi.id} ({base_csi.name})")
-
-                # ベースCSIのFFTデータからDataFrameを復元
-                import pandas as pd
-                base_fft_df = pd.DataFrame(base_csi.fft_dataframe)
-
-                # ベースCSIから全データを抽出（ZKP用広帯域レンジ）
-                base_data = analyzer.extract_full_subcarrier_vectors(
-                    base_fft_df,
-                    freq_col='freq_interval',
-                    use_binned=True,
-                    freq_min=analyzer.ZKP_FREQ_START,
-                    freq_max=analyzer.ZKP_FREQ_END,
-                )
-                reference_matrix = base_data["csi_matrix"]
-
-                # アップロードされたCSIから全データを抽出（ZKP用広帯域レンジ）
-                upload_fft_df = result["fft_dataframe"]
-                upload_data = analyzer.extract_full_subcarrier_vectors(
-                    upload_fft_df,
-                    freq_col='freq_interval',
-                    use_binned=True,
-                    freq_min=analyzer.ZKP_FREQ_START,
-                    freq_max=analyzer.ZKP_FREQ_END,
-                )
-                candidate_matrix = upload_data["csi_matrix"]
-
-                # 全データを使ったコサイン類似度ZKP証明を生成
-                similarity_result = await zkp_service.generate_proof(
-                    reference_matrix=reference_matrix,
-                    candidate_matrix=candidate_matrix
-                )
-
-                # Pythonでの類似度計算（検証用）
-                python_similarity = zkp_service.compute_python_similarity(
-                    reference_matrix=reference_matrix,
-                    candidate_matrix=candidate_matrix
-                )
-
-                # Python計算での上位5つの低類似度サブキャリア
-                python_top_n_result = zkp_service.select_top_n_subcarriers(
-                    reference_matrix=reference_matrix,
-                    candidate_matrix=candidate_matrix,
-                    top_n=5
-                )
-
-                # ZKP回路内で計算された全サブキャリアの類似度から下位5つを抽出
-                zkp_similarities = similarity_result.get("similarities", [])
-                zkp_top_n_result = zkp_service.extract_top_n_from_similarities(
-                    zkp_similarities=zkp_similarities,
-                    scale=10000,
-                    top_n=5
-                )
-
-                base_csi_comparison = {
-                    "base_csi_id": str(base_csi.id),
-                    "base_csi_name": base_csi.name,
-                    "similarity_score": similarity_result["normalizedSimilarity"],
-                    "zkp_proof": similarity_result.get("proof", {}),
-                    "public_signals": similarity_result.get("publicSignals", []),
-                    "is_valid": similarity_result.get("isValid", False),
-                    "python_similarity": python_similarity.get("cosine_similarity"),
-                    "selected_subcarrier": {
-                        "index": similarity_result.get("selectedSubcarrierIndex"),
-                        "similarity": similarity_result.get("selectedSubcarrierSimilarity")
-                    },
-                    # 互換性のため旧フィールド名も残す
-                    "lowest_similarity_subcarrier": {
-                        "index": similarity_result.get("selectedSubcarrierIndex"),
-                        "similarity": similarity_result.get("selectedSubcarrierSimilarity")
-                    },
-                    # ZKP回路内で計算された下位5つのサブキャリア
-                    "zkp_top_5_lowest_subcarriers": [
-                        {
-                            "index": idx,
-                            "similarity": sim,
-                            "rank": i + 1
-                        }
-                        for i, (idx, sim) in enumerate(zip(
-                            zkp_top_n_result["top_n_indices"],
-                            zkp_top_n_result["top_n_similarities"]
-                        ))
-                    ],
-                    # Python高精度計算での下位5つのサブキャリア（比較用）
-                    "python_top_5_lowest_subcarriers": [
-                        {
-                            "index": idx,
-                            "similarity": sim,
-                            "rank": i + 1
-                        }
-                        for i, (idx, sim) in enumerate(zip(
-                            python_top_n_result["top_n_indices"],
-                            python_top_n_result["top_n_similarities"]
-                        ))
-                    ],
-                    "data_dimensions": {
-                        "num_freq_points": base_data["num_freq_points"],
-                        "num_subcarriers": base_data["num_subcarriers"],
-                        "total_dimensions": base_data["num_freq_points"] * base_data["num_subcarriers"]
-                    }
-                }
-
-                logger.info(
-                    f"Base CSI comparison completed: similarity={similarity_result['normalizedSimilarity']:.4f}, "
-                    f"dimensions={base_data['num_freq_points']}×{base_data['num_subcarriers']}"
-                )
-            else:
-                logger.warning("No base CSI found for comparison")
-
+            base_csi_comparison = await _run_base_csi_comparison(
+                db=db,
+                analyzer=analyzer,
+                zkp_service=zkp_service,
+                fft_dataframe=binned_fft_df,
+                base_csi_id=base_csi_id,
+                user_id=user_id,
+            )
         except Exception as e:
             logger.warning(f"Base CSI comparison failed: {e}", exc_info=True)
-            # 比較失敗はエラーとして扱わず、通常の処理を継続
 
-        # 結果をデータベースに保存
+        # --- DB保存 ---
         if csi_data:
             csi_data.status = "completed"
-
-            # DataFrameをJSON化（Interval型を文字列に変換、NaN値を処理）
-            fft_dict = _serialize_fft_dataframe(result["fft_dataframe"])
-
-            # processed_dataに解析結果を保存
-            processed_data = {
-                "fft_dataframe": fft_dict
+            processed_data: dict = {
+                "fft_dataframe": _serialize_fft_dataframe(binned_fft_df),
+                "wavelet_dataframe": _serialize_fft_dataframe(binned_wavelet_df),
+                "breathing_rate_comparison": {
+                    "fft_bpm": analysis_result["breathing_rate_fft_bpm"],
+                    "wavelet_bpm": analysis_result["breathing_rate_wavelet_bpm"],
+                },
             }
-
-            # ベースCSI比較結果を追加
             if base_csi_comparison:
                 processed_data["base_csi_comparison"] = base_csi_comparison
-
             csi_data.processed_data = processed_data
             db.commit()
 
-            # ブロックチェーンへの自動記録
+            # --- ブロックチェーン記録 ---
             if base_csi_comparison:
                 await _record_zkp_proof_on_chain(
                     csi_data=csi_data,
                     base_csi_comparison=base_csi_comparison,
                     csi_data_id=csi_data_id,
-                    db=db
+                    db=db,
                 )
 
             if base_csi_comparison:
@@ -345,28 +305,24 @@ async def _process_and_generate_zkp_background(
                 logger.info(f"Background processing completed for CSI data {csi_data_id}")
 
     except ValueError as e:
-        # PCAP解析失敗などの検証エラー
         logger.error(f"Validation error in background processing for CSI data {csi_data_id}: {e}", exc_info=True)
-
         if db and csi_data:
             csi_data.status = "error"
             csi_data.processed_data = {
                 "error": str(e),
                 "error_type": "ValidationError",
-                "error_category": "pcap_analysis_failed"
+                "error_category": "pcap_analysis_failed",
             }
             db.commit()
 
     except Exception as e:
-        # その他の予期しないエラー
         logger.error(f"Background processing failed for CSI data {csi_data_id}: {e}", exc_info=True)
-
         if db and csi_data:
             csi_data.status = "error"
             csi_data.processed_data = {
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "error_category": "processing_failed"
+                "error_category": "processing_failed",
             }
             db.commit()
 
