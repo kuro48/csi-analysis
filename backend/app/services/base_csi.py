@@ -20,6 +20,21 @@ class BaseCSIService:
     """ベースCSI管理サービス"""
 
     @staticmethod
+    def _serialize_dataframe(df):
+        """DataFrame を JSON 保存可能な dict に変換"""
+        if df is None or df.empty:
+            return None
+
+        df_copy = df.copy()
+        if 'freq_interval' in df_copy.columns:
+            df_copy['freq_interval'] = df_copy['freq_interval'].astype(str)
+
+        import numpy as np
+
+        df_copy = df_copy.replace({np.nan: None})
+        return df_copy.to_dict()
+
+    @staticmethod
     async def register_base_csi(
         db: Session,
         pcap_file_data: bytes,
@@ -62,15 +77,7 @@ class BaseCSIService:
             analyzer = PCAPAnalyzer()
             analysis_result = analyzer.analyze_pcap_file(str(pcap_path))
             fft_df = analysis_result["fft"]
-
-            # freq_interval列をJSON化可能な形式に変換
-            fft_df_copy = fft_df.copy()
-            if 'freq_interval' in fft_df_copy.columns:
-                fft_df_copy['freq_interval'] = fft_df_copy['freq_interval'].astype(str)
-
-            # NaN値をNoneに変換（JSONのnullになる）
-            import numpy as np
-            fft_df_copy = fft_df_copy.replace({np.nan: None})
+            wavelet_df = analysis_result["wavelet"]
 
             # 有効期限設定（常に30日）
             expires_at = datetime.utcnow() + timedelta(days=30)
@@ -79,7 +86,8 @@ class BaseCSIService:
             base_csi = BaseCSI(
                 id=pcap_id,
                 name=register_info.name,
-                fft_dataframe=fft_df_copy.to_dict(),
+                fft_dataframe=BaseCSIService._serialize_dataframe(fft_df),
+                wavelet_dataframe=BaseCSIService._serialize_dataframe(wavelet_df),
                 source_pcap_path=str(pcap_path),
                 source_pcap_size=len(pcap_file_data),
                 expires_at=expires_at
