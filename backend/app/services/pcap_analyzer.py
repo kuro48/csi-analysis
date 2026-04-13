@@ -81,6 +81,11 @@ class PCAPAnalyzer:
     WAVELET_NAME = "cmor1.5-1.0"
     BREATHING_RATE_AGREEMENT_THRESHOLD_BPM = 3.0
     WAVELET_FFT_METHOD_MIN_SIGNAL_LEN = 256
+    MUSIC_FREQ_MIN = 0.01
+    MUSIC_FREQ_MAX = 2.0
+    MUSIC_N_FREQS = 256
+    MUSIC_EMBEDDING_DIM = 32
+    MUSIC_MODEL_ORDER = 2
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -401,6 +406,125 @@ class PCAPAnalyzer:
 
         return self.drop_invalid_rows(merged_wavelet_df)
 
+    def _compute_music_pseudospectrum(
+        self,
+        signal: np.ndarray,
+        sampling_interval: float,
+        frequencies: np.ndarray,
+        embedding_dim: Optional[int] = None,
+        model_order: Optional[int] = None,
+    ) -> np.ndarray:
+        """
+        1次元信号に対して MUSIC 擬似スペクトルを計算する。
+
+        時系列を Hankel 行列に埋め込み、共分散行列の雑音部分空間から
+        周波数ごとの擬似スペクトルを算出する。
+        """
+        if signal.size < 4:
+            return np.array([], dtype=np.float32)
+
+        cleaned = np.nan_to_num(signal.astype(np.float64, copy=False), nan=0.0, posinf=0.0, neginf=0.0)
+        cleaned = cleaned - np.mean(cleaned)
+
+        if np.allclose(cleaned, 0.0):
+            return np.zeros(len(frequencies), dtype=np.float32)
+
+        max_embedding = max(4, min(signal.size // 2, self.MUSIC_EMBEDDING_DIM))
+        embedding_dim = embedding_dim or max_embedding
+        embedding_dim = max(4, min(embedding_dim, signal.size - 1))
+
+        snapshot_count = signal.size - embedding_dim + 1
+        if snapshot_count < 2:
+            return np.array([], dtype=np.float32)
+
+        hankel = np.column_stack([
+            cleaned[start:start + embedding_dim]
+            for start in range(snapshot_count)
+        ])
+        covariance = (hankel @ hankel.conj().T) / snapshot_count
+
+        eigvals, eigvecs = np.linalg.eigh(covariance)
+        sort_idx = np.argsort(eigvals)[::-1]
+        eigvecs = eigvecs[:, sort_idx]
+
+        model_order = model_order or self.MUSIC_MODEL_ORDER
+        model_order = max(1, min(model_order, embedding_dim - 1))
+        noise_subspace = eigvecs[:, model_order:]
+
+        if noise_subspace.size == 0:
+            return np.array([], dtype=np.float32)
+
+        sample_indices = np.arange(embedding_dim, dtype=np.float64)
+        angular = 2.0 * np.pi * frequencies * sampling_interval
+        steering = np.exp(-1j * np.outer(sample_indices, angular))
+        projection = noise_subspace.conj().T @ steering
+        denominator = np.sum(np.abs(projection) ** 2, axis=0)
+        denominator = np.maximum(denominator, 1e-12)
+
+        return (1.0 / denominator).astype(np.float32, copy=False)
+
+    def apply_music_transform(
+        self,
+        df: pd.DataFrame,
+        sampling_interval: float,
+        time_col: str = 'timestamp',
+        n_freqs: Optional[int] = None,
+    ) -> pd.DataFrame:
+        """
+        各サブキャリアに MUSIC 法を適用し、擬似スペクトルを返す。
+
+        返却形式は FFT / Wavelet と揃え、列を `frequency + subcarriers` にする。
+        """
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        data_cols = [
+            col for col in df.columns
+            if col != time_col and pd.api.types.is_numeric_dtype(df[col])
+        ]
+
+        if not data_cols:
+            self.logger.warning("MUSIC適用可能な列が見つかりません")
+            return pd.DataFrame()
+
+        fs = 1.0 / sampling_interval
+        n_freqs = n_freqs or self.MUSIC_N_FREQS
+        target_freqs = np.linspace(
+            self.MUSIC_FREQ_MIN,
+            min(self.MUSIC_FREQ_MAX, fs / 2.0),
+            n_freqs,
+            dtype=np.float64,
+        )
+
+        spectra = []
+        valid_cols = []
+
+        for col in data_cols:
+            sig = df[col].to_numpy(dtype=np.float32, copy=False)
+            spectrum = self._compute_music_pseudospectrum(sig, sampling_interval, target_freqs)
+            if spectrum.size == 0:
+                self.logger.debug(f"サブキャリア {col}: MUSICスペクトル生成不可")
+                continue
+
+            spectra.append(spectrum)
+            valid_cols.append(col)
+
+        if not spectra:
+            self.logger.warning("MUSIC変換結果が空です")
+            return pd.DataFrame()
+
+        music_matrix = np.stack(spectra, axis=1)
+        merged_music_df = pd.DataFrame(music_matrix, columns=valid_cols)
+        merged_music_df.insert(0, 'frequency', target_freqs.astype(np.float32, copy=False))
+
+        self.logger.info(
+            f"MUSIC変換完了: {len(valid_cols)}サブキャリア, "
+            f"{len(merged_music_df)}周波数ポイント "
+            f"({self.MUSIC_FREQ_MIN:.3f}–{float(np.max(target_freqs)):.3f} Hz)"
+        )
+
+        return self.drop_invalid_rows(merged_music_df)
+
     def estimate_breathing_rate(
         self,
         freq_df: pd.DataFrame,
@@ -451,51 +575,84 @@ class PCAPAnalyzer:
 
         return peak_freq_hz * 60.0  # Hz → BPM
 
+    def compare_breathing_rate_methods(self, method_rates: Dict[str, Optional[float]]) -> Dict[str, Any]:
+        """
+        複数手法の呼吸レート推定結果を比較する。
+        """
+        normalized_rates = {
+            method: (float(rate) if rate is not None else None)
+            for method, rate in method_rates.items()
+        }
+        available = {method: rate for method, rate in normalized_rates.items() if rate is not None}
+
+        comparison: Dict[str, Any] = {
+            "methods": {f"{method}_bpm": rate for method, rate in normalized_rates.items()},
+            "available_methods": list(available.keys()),
+            "agreement_threshold_bpm": self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM,
+            "min_bpm": min(available.values()) if available else None,
+            "max_bpm": max(available.values()) if available else None,
+            "spread_bpm": None,
+            "spread_ratio": None,
+            "is_consistent": None,
+            "preferred_method": None,
+        }
+        comparison.update({f"{method}_bpm": rate for method, rate in normalized_rates.items()})
+
+        if not available:
+            return comparison
+
+        preferred_order = ["fft", "wavelet", "music"]
+        if len(available) == 1:
+            comparison["preferred_method"] = next(iter(available))
+            return comparison
+
+        min_bpm = comparison["min_bpm"]
+        max_bpm = comparison["max_bpm"]
+        spread_bpm = max_bpm - min_bpm
+        spread_ratio = (spread_bpm / max_bpm) if max_bpm and max_bpm > 0 else 0.0
+
+        comparison["spread_bpm"] = spread_bpm
+        comparison["spread_ratio"] = spread_ratio
+        comparison["is_consistent"] = spread_bpm <= self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM
+
+        if comparison["is_consistent"]:
+            for method in preferred_order:
+                if method in available:
+                    comparison["preferred_method"] = method
+                    break
+        else:
+            median_rate = float(np.median(list(available.values())))
+            comparison["preferred_method"] = min(
+                available,
+                key=lambda method: (
+                    abs(available[method] - median_rate),
+                    preferred_order.index(method) if method in preferred_order else len(preferred_order),
+                ),
+            )
+
+        return comparison
+
     def compare_breathing_rate_estimates(
         self,
         fft_bpm: Optional[float],
         wavelet_bpm: Optional[float]
     ) -> Dict[str, Any]:
         """
-        FFT とウェーブレットの呼吸レート推定結果を比較
-
-        Args:
-            fft_bpm: FFT 由来の呼吸レート
-            wavelet_bpm: ウェーブレット由来の呼吸レート
-
-        Returns:
-            比較結果辞書
+        既存互換のための2手法比較ラッパー。
         """
-        comparison: Dict[str, Any] = {
-            "fft_bpm": fft_bpm,
-            "wavelet_bpm": wavelet_bpm,
-            "difference_bpm": None,
-            "difference_ratio": None,
-            "agreement_threshold_bpm": self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM,
-            "is_consistent": None,
-            "preferred_method": None,
+        comparison = self.compare_breathing_rate_methods({
+            "fft": fft_bpm,
+            "wavelet": wavelet_bpm,
+        })
+        return {
+            "fft_bpm": comparison["methods"].get("fft_bpm"),
+            "wavelet_bpm": comparison["methods"].get("wavelet_bpm"),
+            "difference_bpm": comparison["spread_bpm"],
+            "difference_ratio": comparison["spread_ratio"],
+            "agreement_threshold_bpm": comparison["agreement_threshold_bpm"],
+            "is_consistent": comparison["is_consistent"],
+            "preferred_method": comparison["preferred_method"],
         }
-
-        if fft_bpm is None and wavelet_bpm is None:
-            return comparison
-
-        if fft_bpm is None:
-            comparison["preferred_method"] = "wavelet"
-            return comparison
-
-        if wavelet_bpm is None:
-            comparison["preferred_method"] = "fft"
-            return comparison
-
-        difference_bpm = abs(float(fft_bpm) - float(wavelet_bpm))
-        max_rate = max(abs(float(fft_bpm)), abs(float(wavelet_bpm)))
-
-        comparison["difference_bpm"] = difference_bpm
-        comparison["difference_ratio"] = (difference_bpm / max_rate) if max_rate > 0 else 0.0
-        comparison["is_consistent"] = difference_bpm <= self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM
-        comparison["preferred_method"] = "fft" if difference_bpm <= self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM else "wavelet"
-
-        return comparison
 
     def average_magnitude_by_frequency_bins(
         self,
@@ -739,7 +896,10 @@ class PCAPAnalyzer:
             return {
                 "fft_dataframe": pd.DataFrame(),
                 "wavelet_dataframe": pd.DataFrame(),
-                "breathing_rate_comparison": self.compare_breathing_rate_estimates(None, None),
+                "music_dataframe": pd.DataFrame(),
+                "breathing_rate_comparison": self.compare_breathing_rate_methods(
+                    {"fft": None, "wavelet": None, "music": None}
+                ),
                 "zkp_proof": None,
                 "error": "FFT analysis failed"
             }
@@ -769,8 +929,10 @@ class PCAPAnalyzer:
             return {
                 "fft_dataframe": fft_df,
                 "wavelet_dataframe": analysis_result["wavelet"],
+                "music_dataframe": analysis_result["music"],
                 "breathing_rate_fft_bpm": analysis_result["breathing_rate_fft_bpm"],
                 "breathing_rate_wavelet_bpm": analysis_result["breathing_rate_wavelet_bpm"],
+                "breathing_rate_music_bpm": analysis_result["breathing_rate_music_bpm"],
                 "breathing_rate_comparison": analysis_result["breathing_rate_comparison"],
                 "zkp_proof": zkp_result["proof"],
                 "public_signals": zkp_result["publicSignals"],
@@ -785,8 +947,10 @@ class PCAPAnalyzer:
             return {
                 "fft_dataframe": fft_df,
                 "wavelet_dataframe": analysis_result["wavelet"],
+                "music_dataframe": analysis_result["music"],
                 "breathing_rate_fft_bpm": analysis_result["breathing_rate_fft_bpm"],
                 "breathing_rate_wavelet_bpm": analysis_result["breathing_rate_wavelet_bpm"],
+                "breathing_rate_music_bpm": analysis_result["breathing_rate_music_bpm"],
                 "breathing_rate_comparison": analysis_result["breathing_rate_comparison"],
                 "zkp_proof": None,
                 "error": str(e)
@@ -831,13 +995,19 @@ class PCAPAnalyzer:
 
         return df
 
-    def analyze_pcap_file(self, file_path: str, include_wavelet: bool = True) -> Dict[str, Any]:
+    def analyze_pcap_file(
+        self,
+        file_path: str,
+        include_wavelet: bool = True,
+        include_music: bool = True,
+    ) -> Dict[str, Any]:
         """
         PCAPファイルを解析してCSIデータを抽出（FFT・ウェーブレット変換の両方を実行）
 
         Args:
             file_path: PCAPファイルのパス
             include_wavelet: True の場合はウェーブレット変換も実行
+            include_music: True の場合は MUSIC 法も実行
 
         Returns:
             {
@@ -845,18 +1015,25 @@ class PCAPAnalyzer:
                                                    # 列: ['freq_interval', サブキャリア...]
                 "wavelet": pd.DataFrame,           # ウェーブレット変換結果（周波数ビン平均化済み）
                                                    # 列: ['freq_interval', サブキャリア...]
+                "music": pd.DataFrame,             # MUSIC 結果（周波数ビン平均化済み）
+                                                   # 列: ['freq_interval', サブキャリア...]
                 "breathing_rate_fft_bpm": float,   # FFTによる呼吸レート推定値 (BPM)
                 "breathing_rate_wavelet_bpm": float, # ウェーブレットによる呼吸レート推定値 (BPM)
-                "breathing_rate_comparison": dict  # 両手法の比較結果
+                "breathing_rate_music_bpm": float, # MUSICによる呼吸レート推定値 (BPM)
+                "breathing_rate_comparison": dict  # 各手法の比較結果
             }
             解析失敗時は "fft" が空のDataFrameとなる。
         """
         _empty = {
             "fft": pd.DataFrame(),
             "wavelet": pd.DataFrame(),
+            "music": pd.DataFrame(),
             "breathing_rate_fft_bpm": None,
             "breathing_rate_wavelet_bpm": None,
-            "breathing_rate_comparison": self.compare_breathing_rate_estimates(None, None),
+            "breathing_rate_music_bpm": None,
+            "breathing_rate_comparison": self.compare_breathing_rate_methods(
+                {"fft": None, "wavelet": None, "music": None}
+            ),
         }
 
         # CSIKitでPCAPファイルを読み込み
@@ -900,27 +1077,40 @@ class PCAPAnalyzer:
         breathing_rate_fft = self.estimate_breathing_rate(fft_df, freq_col='frequency')
 
         binned_wavelet_df = pd.DataFrame()
+        binned_music_df = pd.DataFrame()
         breathing_rate_wavelet = None
+        breathing_rate_music = None
         wavelet_bin_count = 0
+        music_bin_count = 0
+        wavelet_df = pd.DataFrame()
+        music_df = pd.DataFrame()
 
         if include_wavelet:
-            # === ウェーブレット変換 ===
             wavelet_df = self.apply_wavelet_transform(df, self.DOWNSAMPLE_INTERVAL_S)
+        if include_music:
+            music_df = self.apply_music_transform(df, self.DOWNSAMPLE_INTERVAL_S)
 
         if not wavelet_df.empty:
-            # FFT と同じ周波数ビンを使って、行数・ビン境界を揃える
             binned_wavelet_df = self.average_magnitude_by_frequency_bins(wavelet_df, bins)
             breathing_rate_wavelet = self.estimate_breathing_rate(wavelet_df, freq_col='frequency')
+            wavelet_bin_count = len(binned_wavelet_df)
 
-        breathing_rate_comparison = self.compare_breathing_rate_estimates(
-            breathing_rate_fft,
-            breathing_rate_wavelet
-        )
+        if not music_df.empty:
+            binned_music_df = self.average_magnitude_by_frequency_bins(music_df, bins)
+            breathing_rate_music = self.estimate_breathing_rate(music_df, freq_col='frequency')
+            music_bin_count = len(binned_music_df)
+
+        breathing_rate_comparison = self.compare_breathing_rate_methods({
+            "fft": breathing_rate_fft,
+            "wavelet": breathing_rate_wavelet,
+            "music": breathing_rate_music,
+        })
 
         # 処理結果をログ出力
         br_info = (
             f"FFT={breathing_rate_fft:.1f}bpm" if breathing_rate_fft else "FFT=N/A",
             f"Wavelet={breathing_rate_wavelet:.1f}bpm" if breathing_rate_wavelet else "Wavelet=N/A",
+            f"MUSIC={breathing_rate_music:.1f}bpm" if breathing_rate_music else "MUSIC=N/A",
         )
         self.logger.info(
             f"解析完了 - フレーム数: {no_frames}, "
@@ -928,6 +1118,7 @@ class PCAPAnalyzer:
             f"有効行: {len(df)}, "
             f"FFTビン: {len(binned_fft_df)}, "
             f"ウェーブレットビン: {wavelet_bin_count}, "
+            f"MUSICビン: {music_bin_count}, "
             f"最大周波数: {max_freq:.2f}Hz, "
             f"呼吸推定 [{', '.join(br_info)}]"
         )
@@ -935,8 +1126,10 @@ class PCAPAnalyzer:
         return {
             "fft": binned_fft_df,
             "wavelet": binned_wavelet_df,
+            "music": binned_music_df,
             "breathing_rate_fft_bpm": breathing_rate_fft,
             "breathing_rate_wavelet_bpm": breathing_rate_wavelet,
+            "breathing_rate_music_bpm": breathing_rate_music,
             "breathing_rate_comparison": breathing_rate_comparison,
         }
 

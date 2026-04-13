@@ -81,6 +81,7 @@ class BaseCSIService:
                 name=register_info.name,
                 fft_dataframe={},
                 wavelet_dataframe=None,
+                music_dataframe=None,
                 source_pcap_path=str(pcap_path),
                 source_pcap_size=len(pcap_file_data),
                 status="processing",
@@ -142,12 +143,14 @@ class BaseCSIService:
             analysis_result = analyzer.analyze_pcap_file(base_csi.source_pcap_path)
             fft_df = analysis_result["fft"]
             wavelet_df = analysis_result["wavelet"]
+            music_df = analysis_result["music"]
 
             if fft_df.empty:
                 raise ValueError("PCAP解析結果が空です")
 
             base_csi.fft_dataframe = BaseCSIService._serialize_dataframe(fft_df) or {}
             base_csi.wavelet_dataframe = BaseCSIService._serialize_dataframe(wavelet_df)
+            base_csi.music_dataframe = BaseCSIService._serialize_dataframe(music_df)
             base_csi.status = "completed"
             base_csi.error_message = None
             db.commit()

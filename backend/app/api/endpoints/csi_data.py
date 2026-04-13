@@ -123,6 +123,7 @@ async def _run_base_csi_comparison(
     zkp_service: "ZKPService",
     fft_dataframe,
     wavelet_dataframe,
+    music_dataframe,
     base_csi_id: Optional[uuid.UUID],
     user_id: Optional[uuid.UUID],
 ) -> Optional[dict]:
@@ -135,6 +136,7 @@ async def _run_base_csi_comparison(
         zkp_service: ZKPサービスインスタンス
         fft_dataframe: アップロードCSIのFFT DataFrame
         wavelet_dataframe: アップロードCSIのWavelet DataFrame
+        music_dataframe: アップロードCSIのMUSIC DataFrame
         base_csi_id: ベースCSI ID（None の場合は最新を使用）
         user_id: ユーザーID
 
@@ -254,6 +256,7 @@ async def _run_base_csi_comparison(
     for method_name, upload_df in {
         "fft": fft_dataframe,
         "wavelet": wavelet_dataframe,
+        "music": music_dataframe,
     }.items():
         result = await compare_method(method_name, load_base_dataframe(method_name), upload_df)
         if result:
@@ -331,6 +334,7 @@ async def _process_and_generate_zkp_background(
         analysis_result = await asyncio.to_thread(analyzer.analyze_pcap_file, file_path)
         binned_fft_df = analysis_result["fft"]
         binned_wavelet_df = analysis_result["wavelet"]
+        binned_music_df = analysis_result["music"]
         if binned_fft_df.empty:
             raise ValueError("PCAP解析に失敗しました: データが空です")
 
@@ -343,6 +347,7 @@ async def _process_and_generate_zkp_background(
                 zkp_service=zkp_service,
                 fft_dataframe=binned_fft_df,
                 wavelet_dataframe=binned_wavelet_df,
+                music_dataframe=binned_music_df,
                 base_csi_id=base_csi_id,
                 user_id=user_id,
             )
@@ -355,6 +360,7 @@ async def _process_and_generate_zkp_background(
             processed_data: dict = {
                 "fft_dataframe": _serialize_fft_dataframe(binned_fft_df),
                 "wavelet_dataframe": _serialize_fft_dataframe(binned_wavelet_df),
+                "music_dataframe": _serialize_fft_dataframe(binned_music_df),
                 "breathing_rate_comparison": analysis_result["breathing_rate_comparison"],
             }
             if base_csi_comparison:

@@ -24,6 +24,7 @@ class BaseCSI(Base):
     # FFTデータ（周波数解析結果）
     fft_dataframe = Column(JSON, nullable=False, comment="FFT DataFrame（周波数ビン × サブキャリア）")
     wavelet_dataframe = Column(JSON, nullable=True, comment="Wavelet DataFrame（周波数ビン × サブキャリア）")
+    music_dataframe = Column(JSON, nullable=True, comment="MUSIC DataFrame（周波数ビン × サブキャリア）")
 
     # 元のPCAPファイル情報
     source_pcap_path = Column(String(500), nullable=True, comment="元のPCAPファイルパス")
