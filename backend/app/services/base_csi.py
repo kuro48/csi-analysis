@@ -35,7 +35,7 @@ class BaseCSIService:
         return df_copy.to_dict()
 
     @staticmethod
-    async def register_base_csi(
+    def create_base_csi_record(
         db: Session,
         pcap_file_data: bytes,
         pcap_filename: str,
@@ -43,7 +43,7 @@ class BaseCSIService:
         storage_dir: str = "/data/base_csi"
     ) -> BaseCSI:
         """
-        ベースCSIの初期レコードを作成し、PCAPファイルを保存
+        ベースCSIの初期レコードを作成し、PCAPファイルを保存する
 
         Args:
             db: データベースセッション
@@ -73,20 +73,14 @@ class BaseCSIService:
 
             logger.info(f"Base CSI PCAP saved: {pcap_path}")
 
-            # PCAP解析（FFT + ウェーブレット変換）
-            analyzer = PCAPAnalyzer()
-            analysis_result = analyzer.analyze_pcap_file(str(pcap_path))
-            fft_df = analysis_result["fft"]
-            wavelet_df = analysis_result["wavelet"]
-
             # 有効期限設定（常に30日）
             expires_at = datetime.utcnow() + timedelta(days=30)
 
             base_csi = BaseCSI(
                 id=pcap_id,
                 name=register_info.name,
-                fft_dataframe=BaseCSIService._serialize_dataframe(fft_df),
-                wavelet_dataframe=BaseCSIService._serialize_dataframe(wavelet_df),
+                fft_dataframe={},
+                wavelet_dataframe=None,
                 source_pcap_path=str(pcap_path),
                 source_pcap_size=len(pcap_file_data),
                 status="processing",
@@ -104,6 +98,27 @@ class BaseCSIService:
         except Exception as e:
             logger.error(f"Failed to create base CSI record: {e}", exc_info=True)
             raise ValueError(f"ベースCSI登録の初期化に失敗しました: {str(e)}")
+
+    @staticmethod
+    async def register_base_csi(
+        db: Session,
+        pcap_file_data: bytes,
+        pcap_filename: str,
+        register_info: BaseCSIRegister,
+        storage_dir: str = "/data/base_csi"
+    ) -> BaseCSI:
+        """
+        後方互換のために残す同期登録ヘルパー。
+        初期レコード作成後に、その場で解析まで完了させる。
+        """
+        base_csi = BaseCSIService.create_base_csi_record(
+            db=db,
+            pcap_file_data=pcap_file_data,
+            pcap_filename=pcap_filename,
+            register_info=register_info,
+            storage_dir=storage_dir,
+        )
+        return BaseCSIService.process_base_csi_registration(db, base_csi.id)
 
     @staticmethod
     def process_base_csi_registration(
@@ -126,18 +141,13 @@ class BaseCSIService:
             analyzer = PCAPAnalyzer()
             analysis_result = analyzer.analyze_pcap_file(base_csi.source_pcap_path)
             fft_df = analysis_result["fft"]
+            wavelet_df = analysis_result["wavelet"]
 
             if fft_df.empty:
                 raise ValueError("PCAP解析結果が空です")
 
-            fft_df_copy = fft_df.copy()
-            if 'freq_interval' in fft_df_copy.columns:
-                fft_df_copy['freq_interval'] = fft_df_copy['freq_interval'].astype(str)
-
-            import numpy as np
-            fft_df_copy = fft_df_copy.replace({np.nan: None})
-
-            base_csi.fft_dataframe = fft_df_copy.to_dict()
+            base_csi.fft_dataframe = BaseCSIService._serialize_dataframe(fft_df) or {}
+            base_csi.wavelet_dataframe = BaseCSIService._serialize_dataframe(wavelet_df)
             base_csi.status = "completed"
             base_csi.error_message = None
             db.commit()
