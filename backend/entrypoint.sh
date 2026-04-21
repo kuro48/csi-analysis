@@ -74,7 +74,13 @@ set -e
 
 if [ $status -eq 2 ]; then
   echo "ZKProofRegistry contract missing or invalid. Deploying..."
+  set +e
   python contracts/deploy_zkproof_contract.py
+  deploy_status=$?
+  set -e
+  if [ $deploy_status -ne 0 ]; then
+    echo "WARNING: ZKProofRegistry auto-deploy failed. Continuing without blockchain auto-deploy."
+  fi
 elif [ $status -eq 3 ]; then
   echo "Failed to connect to Ethereum node for contract check."
 else
@@ -122,7 +128,13 @@ if [ $verifier_status -eq 2 ]; then
 
   if [ -f "$VERIFIER_SOL" ]; then
     echo "FullSimilarityVerifier contract missing or invalid. Deploying..."
+    set +e
     python contracts/deploy_full_similarity_verifier.py
+    verifier_deploy_status=$?
+    set -e
+    if [ $verifier_deploy_status -ne 0 ]; then
+      echo "WARNING: FullSimilarityVerifier auto-deploy failed. Continuing without verifier auto-deploy."
+    fi
   else
     echo "FullSimilarityVerifier solidity not found. Skipping deploy."
   fi
@@ -130,6 +142,65 @@ elif [ $verifier_status -eq 3 ]; then
   echo "Failed to connect to Ethereum node for verifier check."
 else
   echo "FullSimilarityVerifier contract is available."
+fi
+
+# ZKP回路の事前コンパイル（Wavelet・MUSIC）
+if [ "${ZKP_AUTO_COMPILE:-TRUE}" = "TRUE" ] || [ "${ZKP_AUTO_COMPILE:-true}" = "true" ]; then
+  ZKP_DIR="${ZKP_DIR:-/zkp}"
+  WAVELET_WASM="$ZKP_DIR/build/csi_wavelet_similarity_js/csi_wavelet_similarity.wasm"
+  WAVELET_ZKEY="$ZKP_DIR/keys/csi_wavelet_similarity_final.zkey"
+  MUSIC_WASM="$ZKP_DIR/build/csi_music_similarity_js/csi_music_similarity.wasm"
+  MUSIC_ZKEY="$ZKP_DIR/keys/csi_music_similarity_final.zkey"
+  PTAU_FILE="$ZKP_DIR/keys/powersOfTau28_hez_final_19.ptau"
+
+  NEED_WAVELET=false
+  NEED_MUSIC=false
+  [ ! -f "$WAVELET_WASM" ] || [ ! -f "$WAVELET_ZKEY" ] && NEED_WAVELET=true
+  [ ! -f "$MUSIC_WASM" ]   || [ ! -f "$MUSIC_ZKEY" ]   && NEED_MUSIC=true
+
+  if $NEED_WAVELET || $NEED_MUSIC; then
+    echo "ZKP circuits (wavelet/MUSIC) not found. Starting pre-compilation..."
+    set +e
+
+    # node_modules がなければ npm install
+    if [ ! -d "$ZKP_DIR/node_modules" ]; then
+      echo "Installing ZKP npm dependencies..."
+      npm install --prefix "$ZKP_DIR"
+    fi
+
+    # ptauファイルがなければダウンロード（FFT回路でも共有）
+    if [ ! -f "$PTAU_FILE" ]; then
+      echo "Downloading Powers of Tau file (~200MB)..."
+      PTAU_URL="https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_19.ptau"
+      wget -q -O "$PTAU_FILE" "$PTAU_URL" \
+        || curl -sL -o "$PTAU_FILE" "$PTAU_URL" \
+        || { echo "WARNING: Failed to download ptau file. Circuit setup will fail."; }
+    fi
+
+    # Wavelet回路のコンパイル・セットアップ
+    if $NEED_WAVELET; then
+      echo "Compiling wavelet ZKP circuit..."
+      (cd "$ZKP_DIR" && npm run compile:wavelet && npm run setup:wavelet) \
+        && echo "Wavelet ZKP circuit is ready." \
+        || echo "WARNING: Wavelet ZKP circuit compilation failed. Auto-compile will retry on first upload."
+    else
+      echo "Wavelet ZKP circuit is already compiled."
+    fi
+
+    # MUSIC回路のコンパイル・セットアップ（制約数が多いため数十分かかる場合あり）
+    if $NEED_MUSIC; then
+      echo "Compiling MUSIC ZKP circuit (this may take 10-60 minutes)..."
+      (cd "$ZKP_DIR" && npm run compile:music && npm run setup:music) \
+        && echo "MUSIC ZKP circuit is ready." \
+        || echo "WARNING: MUSIC ZKP circuit compilation failed. Auto-compile will retry on first upload."
+    else
+      echo "MUSIC ZKP circuit is already compiled."
+    fi
+
+    set -e
+  else
+    echo "All ZKP circuits (wavelet/MUSIC) are already compiled. Skipping."
+  fi
 fi
 
 # Uvicornサーバーを起動

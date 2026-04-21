@@ -2,7 +2,7 @@
 PCAPAnalyzer の ZKP 向け補助処理。
 """
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -134,6 +134,7 @@ async def analyze_and_generate_zkp(
     reference_matrix, candidate_matrix = self.prepare_zkp_vectors_from_fft(fft_df)
 
     if zkp_service is None:
+
         from app.services.zkp_service import ZKPService
 
         zkp_service = ZKPService()
@@ -188,3 +189,77 @@ async def analyze_and_generate_zkp(
             "zkp_proof": None,
             "error": str(exc),
         }
+
+
+def extract_matrix_for_zkp(
+    self,
+    df: pd.DataFrame,
+) -> List[List[int]]:
+    """FFT・ウェーブレット用ZKP入力行列を抽出する。
+
+    binned DataFrame（freq_interval列付き）から ZKP_FREQ_START～ZKP_FREQ_END の
+    周波数帯域を抽出し、ZKP_SCALE倍の整数行列を返す。
+    """
+    extracted = self.extract_full_subcarrier_vectors(
+        df,
+        freq_col="freq_interval",
+        use_binned=True,
+        freq_min=self.ZKP_FREQ_START,
+        freq_max=self.ZKP_FREQ_END,
+    )
+    return extracted["csi_matrix"]
+
+
+def extract_music_matrix_for_zkp(
+    self,
+    music_df: pd.DataFrame,
+) -> List[List[int]]:
+    """MUSIC擬似スペクトルをZKP入力行列に変換する。
+
+    処理フロー:
+      1. ZKP_FREQ_START～ZKP_FREQ_END の行を抽出
+      2. log10圧縮: log10(1 + x)
+      3. サブキャリア単位 min-max 正規化 → [0, 1]
+      4. × ZKP_SCALE → 整数化
+    """
+    if music_df is None or music_df.empty:
+        return []
+
+    df = music_df.copy()
+    if "freq_interval" in df.columns:
+        df["_freq_mid"] = df["freq_interval"].apply(_interval_midpoint).astype(float)
+        freq_mask = (df["_freq_mid"] >= self.ZKP_FREQ_START) & (df["_freq_mid"] <= self.ZKP_FREQ_END)
+    elif "frequency" in df.columns:
+        freq_mask = (df["frequency"] >= self.ZKP_FREQ_START) & (df["frequency"] <= self.ZKP_FREQ_END)
+    else:
+        return []
+
+    sub_df = df[freq_mask]
+    if sub_df.empty:
+        return []
+
+    subcarrier_cols = [
+        col for col in sub_df.columns
+        if col not in {"frequency", "freq_interval", "_freq_mid"}
+        and pd.api.types.is_numeric_dtype(sub_df[col])
+    ]
+    if not subcarrier_cols:
+        return []
+
+    matrix = sub_df[subcarrier_cols].to_numpy(dtype=np.float64)
+    matrix = np.nan_to_num(matrix, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # log10圧縮
+    matrix = np.log10(1.0 + np.maximum(matrix, 0.0))
+
+    # サブキャリア単位 min-max 正規化
+    col_min = matrix.min(axis=0)
+    col_max = matrix.max(axis=0)
+    col_range = np.where(col_max - col_min == 0.0, 1.0, col_max - col_min)
+    matrix = (matrix - col_min) / col_range
+
+    result = []
+    for row in matrix:
+        result.append([int(v * self.ZKP_SCALE) for v in row])
+
+    return result

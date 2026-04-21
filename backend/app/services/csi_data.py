@@ -8,14 +8,14 @@ from typing import List, Optional, Tuple, Any, Dict
 from datetime import datetime, timedelta
 from pathlib import Path
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, asc, func
+from sqlalchemy import and_, desc, func
 import logging
 import tempfile
 
 from app.models.csi_data import CSIData, Session as DataSession
 from app.schemas.csi_data import (
     CSIDataUpload, CSIDataResponse, CSIDataFilter,
-    SessionCreate, SessionUpdate, ProcessingStatus
+    SessionCreate
 )
 from app.core.config import settings
 

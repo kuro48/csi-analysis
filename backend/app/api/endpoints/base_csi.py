@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from typing import Optional
 import uuid
 import math
-import json
 import logging
+from pathlib import Path
 
 from app.core.database import get_db
 from app.core.database import SessionLocal
@@ -16,17 +16,87 @@ from app.services.base_csi import BaseCSIService
 from app.schemas.base_csi import (
     BaseCSIRegister, BaseCSIResponse, BaseCSIListResponse, BaseCSIUpdate
 )
+from app.core.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def _process_base_csi_background(base_csi_id: uuid.UUID):
+def _process_base_csi_background(base_csi_id: uuid.UUID, parser_mode: str = "standard"):
     db = SessionLocal()
     try:
-        BaseCSIService.process_base_csi_registration(db, base_csi_id)
+        BaseCSIService.process_base_csi_registration(db, base_csi_id, parser_mode=parser_mode)
     finally:
         db.close()
+
+
+def _validate_base_csi_upload(file_name: Optional[str], file_size: int, parser_mode: str) -> None:
+    if not file_name:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="ファイル名が必要です",
+        )
+
+    extension = Path(file_name).suffix.lower()
+    if parser_mode == "picoscenes":
+        if extension != ".csi":
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="PicoScenes ベースCSIは .csi ファイルのみ受け付けます",
+            )
+        if not settings.PICOSCENES_ENABLED:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="PicoScenes .csi の受付は現在無効化されています",
+            )
+        max_bytes = settings.PICOSCENES_MAX_FILE_SIZE_MB * 1024 * 1024
+        if file_size > max_bytes:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "PicoScenes .csi ファイルが大きすぎます。"
+                    f"上限: {settings.PICOSCENES_MAX_FILE_SIZE_MB}MB"
+                ),
+            )
+        return
+
+    if extension not in {".pcap", ".pcapng", ".cap"}:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="ベースCSI登録は .pcap / .pcapng / .cap のみ受け付けます",
+        )
+
+
+async def _register_base_csi_impl(
+    background_tasks: BackgroundTasks,
+    file: UploadFile,
+    db: Session,
+    parser_mode: str,
+) -> BaseCSIResponse:
+    file_data = await file.read()
+
+    if len(file_data) == 0:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="アップロードファイルが空です"
+        )
+
+    _validate_base_csi_upload(file.filename, len(file_data), parser_mode)
+
+    default_name = "base_csi.csi" if parser_mode == "picoscenes" else "base_csi.pcap"
+    register_info = BaseCSIRegister(
+        name=file.filename or default_name
+    )
+
+    base_csi = BaseCSIService.create_base_csi_record(
+        db=db,
+        pcap_file_data=file_data,
+        pcap_filename=file.filename or default_name,
+        register_info=register_info
+    )
+    background_tasks.add_task(_process_base_csi_background, base_csi.id, parser_mode)
+
+    return BaseCSIResponse(**base_csi.to_dict())
 
 
 @router.post("/register", response_model=BaseCSIResponse)
@@ -46,30 +116,12 @@ async def register_base_csi(
     注意: このエンドポイントは認証不要のため、本番環境では適切なアクセス制御を実装してください。
     """
     try:
-        # ファイルデータ読み取り
-        file_data = await file.read()
-
-        if len(file_data) == 0:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail="アップロードファイルが空です"
-            )
-
-        # 登録情報構築（ファイル名を使用、有効期限30日）
-        register_info = BaseCSIRegister(
-            name=file.filename or "base_csi.pcap"
-        )
-
-        # ベースCSIの初期レコードを即時作成し、解析はバックグラウンドで継続する
-        base_csi = BaseCSIService.create_base_csi_record(
+        return await _register_base_csi_impl(
+            background_tasks=background_tasks,
+            file=file,
             db=db,
-            pcap_file_data=file_data,
-            pcap_filename=file.filename or "unknown.pcap",
-            register_info=register_info
+            parser_mode="standard",
         )
-        background_tasks.add_task(_process_base_csi_background, base_csi.id)
-
-        return BaseCSIResponse(**base_csi.to_dict())
 
     except ValueError as e:
         raise HTTPException(
@@ -81,6 +133,38 @@ async def register_base_csi(
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"ベースCSI登録に失敗しました: {str(e)}"
+        )
+
+
+@router.post("/register-picoscenes", response_model=BaseCSIResponse)
+async def register_base_csi_picoscenes(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="PicoScenes .csi ファイル"),
+    db: Session = Depends(get_db)
+):
+    """
+    ベースCSIを PicoScenes .csi ファイルで登録。
+
+    アップロード後、PicoScenes for Python Toolbox で解析し、
+    ベースCSIとして保存します。
+    """
+    try:
+        return await _register_base_csi_impl(
+            background_tasks=background_tasks,
+            file=file,
+            db=db,
+            parser_mode="picoscenes",
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Base CSI PicoScenes registration failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"PicoScenes ベースCSI登録に失敗しました: {str(e)}"
         )
 
 

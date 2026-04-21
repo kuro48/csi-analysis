@@ -48,6 +48,9 @@ PyWavelets>=1.6.0
 scapy==2.5.0
 pyshark==0.6
 CSIKit==2.5
+picoscenes @ git+https://github.com/wifisensing/PicoScenes-Python-Toolbox.git@f676855accedf79e848bf2f1d10ee5c1f649a33a
+
+# PicoScenes .csi は CSIKit 2.5 の reader で扱う
 
 # 環境変数管理
 python-dotenv==1.0.0

@@ -23,12 +23,18 @@ from app.services.pcap_analyzer_frequency import (
     estimate_breathing_rate,
 )
 from app.services.pcap_analyzer_pipeline import (
+    _analyze_dataframe,
     _convert_csi_to_dataframe,
+    _convert_picoscenes_to_dataframe,
+    _select_picoscenes_subcarriers,
+    analyze_csi_file_with_picoscenes,
     analyze_pcap_file,
 )
 from app.services.pcap_analyzer_zkp import (
     analyze_and_generate_zkp,
     extract_full_subcarrier_vectors,
+    extract_matrix_for_zkp,
+    extract_music_matrix_for_zkp,
     prepare_zkp_vectors_from_fft,
 )
 
@@ -95,11 +101,17 @@ class PCAPAnalyzer:
     compare_breathing_rate_estimates = compare_breathing_rate_estimates
 
     extract_full_subcarrier_vectors = extract_full_subcarrier_vectors
+    extract_matrix_for_zkp = extract_matrix_for_zkp
+    extract_music_matrix_for_zkp = extract_music_matrix_for_zkp
     prepare_zkp_vectors_from_fft = prepare_zkp_vectors_from_fft
     analyze_and_generate_zkp = analyze_and_generate_zkp
 
     _convert_csi_to_dataframe = _convert_csi_to_dataframe
+    _select_picoscenes_subcarriers = _select_picoscenes_subcarriers
+    _convert_picoscenes_to_dataframe = _convert_picoscenes_to_dataframe
+    _analyze_dataframe = _analyze_dataframe
     analyze_pcap_file = analyze_pcap_file
+    analyze_csi_file_with_picoscenes = analyze_csi_file_with_picoscenes
 
 
 pcap_analyzer = PCAPAnalyzer()

@@ -35,8 +35,7 @@ class Settings:
 
     # ZKP設定
     ZKP_AUTO_GENERATE: bool = os.getenv("ZKP_AUTO_GENERATE", "true").lower() == "true"  # 自動ZKP証明生成
-    # zkp_auto_compile は常に有効（環境変数を無視して強制ON）
-    ZKP_AUTO_COMPILE: bool = True  # 自動コンパイル（初回起動時のみ）
+    ZKP_AUTO_COMPILE: bool = os.getenv("ZKP_AUTO_COMPILE", "true").lower() == "true"  # 自動コンパイル
     ZKP_DATA_RETENTION_HOURS: int = int(os.getenv("ZKP_DATA_RETENTION_HOURS", "0"))  # 0=即削除、>0=時間後削除
 
     # ブロックチェーン設定
@@ -94,6 +93,10 @@ class Settings:
     RATE_LIMIT_LOGIN: str = os.getenv("RATE_LIMIT_LOGIN", "5/minute")
     RATE_LIMIT_API: str = os.getenv("RATE_LIMIT_API", "100/minute")
     RATE_LIMIT_UPLOAD: str = os.getenv("RATE_LIMIT_UPLOAD", "10/minute")
+
+    # PicoScenes設定
+    PICOSCENES_ENABLED: bool = os.getenv("PICOSCENES_ENABLED", "true").lower() == "true"
+    PICOSCENES_MAX_FILE_SIZE_MB: int = int(os.getenv("PICOSCENES_MAX_FILE_SIZE_MB", "200"))
 
     # ログ設定
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")

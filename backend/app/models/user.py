@@ -3,7 +3,6 @@
 """
 
 from sqlalchemy import Column, String, Boolean, DateTime
-from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
 

@@ -3,7 +3,6 @@ CSIデータモデル
 """
 
 from sqlalchemy import Column, String, Integer, BigInteger, Index
-from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from app.models.base import BaseModel
 

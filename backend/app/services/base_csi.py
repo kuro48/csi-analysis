@@ -64,9 +64,10 @@ class BaseCSIService:
             storage_path = Path(storage_dir)
             storage_path.mkdir(parents=True, exist_ok=True)
 
-            # PCAPファイル保存
+            # 元の拡張子を保って保存し、後段のパーサ選択に使う
             pcap_id = uuid.uuid4()
-            pcap_path = storage_path / f"base_{pcap_id}.pcap"
+            extension = Path(pcap_filename).suffix.lower() or ".pcap"
+            pcap_path = storage_path / f"base_{pcap_id}{extension}"
 
             with open(pcap_path, "wb") as f:
                 f.write(pcap_file_data)
@@ -125,6 +126,7 @@ class BaseCSIService:
     def process_base_csi_registration(
         db: Session,
         base_csi_id: uuid.UUID,
+        parser_mode: str = "standard",
     ) -> Optional[BaseCSI]:
         """
         保存済みPCAPからベースCSI解析を実行し、レコードを完成させる
@@ -140,7 +142,15 @@ class BaseCSIService:
                 raise ValueError("PCAPファイルパスが未設定です")
 
             analyzer = PCAPAnalyzer()
-            analysis_result = analyzer.analyze_pcap_file(base_csi.source_pcap_path)
+            source_path = base_csi.source_pcap_path
+            inferred_parser_mode = parser_mode
+            if Path(source_path).suffix.lower() == ".csi":
+                inferred_parser_mode = "picoscenes"
+
+            if inferred_parser_mode == "picoscenes":
+                analysis_result = analyzer.analyze_csi_file_with_picoscenes(source_path)
+            else:
+                analysis_result = analyzer.analyze_pcap_file(source_path)
             fft_df = analysis_result["fft"]
             wavelet_df = analysis_result["wavelet"]
             music_df = analysis_result["music"]

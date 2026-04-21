@@ -2,7 +2,7 @@
 ユーザー関連のPydanticスキーマ
 """
 
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, Field, validator
 from typing import Optional
 from datetime import datetime
 import re
