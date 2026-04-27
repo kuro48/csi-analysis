@@ -1,7 +1,9 @@
+from pathlib import Path
 from typing import Dict
 import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.core.errors import setup_error_handlers
@@ -62,6 +64,82 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(api_router, prefix=settings.API_V2_PREFIX)
 setup_error_handlers(app)
+
+_GRAPHS_DIR = Path("/backend/outputs/graphs")
+_GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@app.get("/graphs/{csi_data_id}", response_class=Response)
+async def graph_gallery(csi_data_id: str) -> Response:
+    from fastapi.responses import HTMLResponse
+    d = _GRAPHS_DIR / csi_data_id
+    base = f"/graphs/{csi_data_id}"
+
+    def _link(filename: str, label: str) -> str:
+        path = d / filename
+        if not path.exists():
+            return ""
+        return f'<a href="{base}/{filename}" target="_blank">{label}</a>'
+
+    combined_exists = (d / "combined.png").exists()
+    combined_block = ""
+    if combined_exists:
+        combined_block = f"""
+        <section>
+          <h2>Combined</h2>
+          <div class="dl-links">
+            {_link("combined.png", "PNG")}
+            {_link("combined.svg", "SVG")}
+            {_link("combined.pdf", "PDF")}
+          </div>
+          <img src="{base}/combined.png" alt="combined">
+        </section>
+        <hr>
+        """
+
+    def _section(title: str, key: str, color: str) -> str:
+        if not (d / f"{key}.png").exists():
+            return ""
+        return f"""
+        <section>
+          <h2 style="color:{color}">{title}</h2>
+          <img src="{base}/{key}.png" alt="{key}">
+        </section>"""
+
+    html = f"""<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>CSI Spectrum — {csi_data_id}</title>
+  <style>
+    body {{ font-family: sans-serif; background:#111; color:#eee; margin:0; padding:1rem 2rem; }}
+    h1   {{ font-size:1.1rem; color:#aaa; word-break:break-all; }}
+    h2   {{ margin-bottom:.4rem; }}
+    hr   {{ border-color:#333; margin:2rem 0; }}
+    img  {{ max-width:100%; border:1px solid #333; border-radius:4px; margin-top:.5rem; }}
+    section {{ margin-bottom:2rem; }}
+    .dl-links {{ margin:.4rem 0; }}
+    .dl-links a {{
+      display:inline-block; margin-right:.8rem; padding:.3rem .8rem;
+      background:#2a2a2a; border:1px solid #555; border-radius:4px;
+      color:#7cf; text-decoration:none; font-size:.85rem;
+    }}
+    .dl-links a:hover {{ background:#333; }}
+  </style>
+</head>
+<body>
+  <h1>{csi_data_id}</h1>
+  <hr>
+  {combined_block}
+  {_section("FFT", "fft", "#4af")}
+  {_section("Wavelet", "wavelet", "#c8f")}
+  {_section("MUSIC", "music", "#f88")}
+</body>
+</html>"""
+    return HTMLResponse(content=html)
+
+
+app.mount("/graphs", StaticFiles(directory=str(_GRAPHS_DIR)), name="graphs")
 
 logger = logging.getLogger(__name__)
 

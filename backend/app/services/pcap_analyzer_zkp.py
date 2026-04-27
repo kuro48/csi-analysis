@@ -64,9 +64,9 @@ def extract_full_subcarrier_vectors(
         freq_point_data = []
         for col in subcarrier_cols:
             amplitude = row[col]
-            if np.isnan(amplitude):
+            if not np.isfinite(amplitude):
                 amplitude = 0.0
-            freq_point_data.append(int(amplitude * self.ZKP_SCALE))
+            freq_point_data.append(max(0, int(amplitude * self.ZKP_SCALE)))
         csi_matrix.append(freq_point_data)
 
     frequencies = [int(freq * self.ZKP_SCALE) for freq in freq_values]

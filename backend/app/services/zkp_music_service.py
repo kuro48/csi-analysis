@@ -265,7 +265,7 @@ class ZKPMusicService:
         def resize(matrix: List[List[int]], rows: int, cols: int) -> List[List[int]]:
             result = []
             for i in range(rows):
-                row = list(matrix[i][:cols]) if i < len(matrix) else []
+                row = [max(0, int(v)) for v in matrix[i][:cols]] if i < len(matrix) else []
                 row.extend([0] * (cols - len(row)))
                 result.append(row)
             return result
@@ -283,12 +283,13 @@ class ZKPMusicService:
         with open(input_file, "w") as f:
             json.dump(input_data, f)
 
+        generate_witness_js = self.build_dir / f"{CIRCUIT_NAME}_js" / "generate_witness.js"
+        if not generate_witness_js.exists():
+            raise RuntimeError(f"generate_witness.js not found: {generate_witness_js}")
+
         proc = await asyncio.create_subprocess_exec(
-            "node", "--experimental-wasm-modules",
-            "node_modules/.bin/snarkjs",
-            "wtns", "calculate",
+            "node", str(generate_witness_js),
             str(wasm), str(input_file), str(witness_file),
-            cwd=str(self.circuits_dir),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -305,11 +306,9 @@ class ZKPMusicService:
         public_file = self.temp_dir / f"music_public_{uuid.uuid4()}.json"
 
         proc = await asyncio.create_subprocess_exec(
-            "node", "node_modules/.bin/snarkjs",
-            "groth16", "prove",
+            "snarkjs", "groth16", "prove",
             str(zkey), witness_file,
             str(proof_file), str(public_file),
-            cwd=str(self.circuits_dir),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

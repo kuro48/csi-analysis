@@ -552,7 +552,7 @@ class ZKPService:
             resized = []
             for i in range(target_rows):
                 if i < len(matrix):
-                    row = matrix[i][:target_cols]
+                    row = [max(0, int(v)) for v in matrix[i][:target_cols]]
                     row.extend([0] * (target_cols - len(row)))
                 else:
                     row = [0] * target_cols
@@ -607,11 +607,13 @@ class ZKPService:
             with open(input_file, 'w') as f:
                 json.dump(input_data, f)
 
+            generate_witness_js = self.build_dir / "csi_full_similarity_js" / "generate_witness.js"
+            if not generate_witness_js.exists():
+                raise RuntimeError(f"generate_witness.js not found: {generate_witness_js}")
+
             cmd = [
                 "node",
-                "--experimental-wasm-modules",
-                "node_modules/.bin/snarkjs",
-                "wtns", "calculate",
+                str(generate_witness_js),
                 str(wasm_file),
                 str(input_file),
                 str(witness_file)
@@ -622,7 +624,6 @@ class ZKPService:
 
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
-                cwd=str(self.circuits_dir),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
@@ -673,8 +674,7 @@ class ZKPService:
                 )
 
             cmd = [
-                "node",
-                "node_modules/.bin/snarkjs",
+                "snarkjs",
                 "groth16", "prove",
                 str(zkey_file),
                 witness_file,
@@ -687,7 +687,6 @@ class ZKPService:
 
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
-                cwd=str(self.circuits_dir),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )

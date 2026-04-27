@@ -31,8 +31,9 @@ def _resolve_output_dir(output_dir: Optional[Path]) -> Path:
     return _FALLBACK_OUTPUT_DIR
 
 
-def _freq_axis() -> List[float]:
-    return [round(ZKP_FREQ_START + i * ZKP_FREQ_STEP, 3) for i in range(ZKP_FREQ_POINTS)]
+def _freq_axis(num_points: Optional[int] = None) -> List[float]:
+    n = num_points if num_points is not None else ZKP_FREQ_POINTS
+    return [round(ZKP_FREQ_START + i * ZKP_FREQ_STEP, 3) for i in range(n)]
 
 
 def save_fft_graph(
@@ -61,7 +62,8 @@ def save_fft_graph(
         out_path = save_dir / "fft.png"
 
         matrix = np.array(fft_matrix, dtype=np.float64)
-        freqs = _freq_axis()
+        num_freq_points = matrix.shape[0] if matrix.ndim == 2 else ZKP_FREQ_POINTS
+        freqs = _freq_axis(num_freq_points)
         num_subcarriers = matrix.shape[1] if matrix.ndim == 2 else 0
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -130,7 +132,8 @@ def save_wavelet_graph(
         out_path = save_dir / "wavelet.png"
 
         matrix = np.array(wavelet_matrix, dtype=np.float64)
-        freqs = _freq_axis()
+        num_freq_points = matrix.shape[0] if matrix.ndim == 2 else ZKP_FREQ_POINTS
+        freqs = _freq_axis(num_freq_points)
         num_subcarriers = matrix.shape[1] if matrix.ndim == 2 else 0
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -199,7 +202,8 @@ def save_music_graph(
         out_path = save_dir / "music.png"
 
         matrix = np.array(music_matrix, dtype=np.float64)
-        freqs = _freq_axis()
+        num_freq_points = matrix.shape[0] if matrix.ndim == 2 else ZKP_FREQ_POINTS
+        freqs = _freq_axis(num_freq_points)
         num_subcarriers = matrix.shape[1] if matrix.ndim == 2 else 0
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -236,6 +240,96 @@ def save_music_graph(
 
         logger.info(f"MUSIC graph saved: {out_path}")
         return out_path
+
+    except Exception as exc:
+        logger.error(f"Failed to save MUSIC graph: {exc}", exc_info=True)
+        return None
+
+
+def save_combined_graph(
+    fft_matrix: List[List[int]],
+    wavelet_matrix: List[List[int]],
+    music_matrix: List[List[int]],
+    csi_data_id: str,
+    output_dir: Optional[Path] = None,
+) -> Optional[Path]:
+    """
+    FFT・ウェーブレット・MUSICの3手法を縦に並べた比較グラフを
+    PNG・SVG・PDF の3形式で保存する。
+
+    Returns:
+        保存された PNG ファイルの Path（代表）、失敗時は None
+    """
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from matplotlib.gridspec import GridSpec
+
+        save_dir = _resolve_output_dir(output_dir) / str(csi_data_id)
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        datasets = []
+        if fft_matrix:
+            datasets.append(("FFT", np.array(fft_matrix, dtype=np.float64), "viridis", "steelblue"))
+        if wavelet_matrix:
+            datasets.append(("Wavelet", np.array(wavelet_matrix, dtype=np.float64), "plasma", "darkorchid"))
+        if music_matrix:
+            datasets.append(("MUSIC", np.array(music_matrix, dtype=np.float64), "inferno", "crimson"))
+
+        if not datasets:
+            logger.warning("No matrix data available for combined graph")
+            return None
+
+        n_methods = len(datasets)
+        fig = plt.figure(figsize=(14, 5 * n_methods))
+        fig.suptitle(f"CSI Spectrum Comparison — {csi_data_id}", fontsize=13, y=1.01)
+        gs = GridSpec(n_methods, 2, figure=fig, hspace=0.45, wspace=0.3)
+
+        for row, (label, matrix, cmap, line_color) in enumerate(datasets):
+            num_freq_points = matrix.shape[0]
+            freqs = _freq_axis(num_freq_points)
+            num_subcarriers = matrix.shape[1] if matrix.ndim == 2 else 0
+            mean_spec = matrix.mean(axis=1)
+
+            # ヒートマップ
+            ax_heat = fig.add_subplot(gs[row, 0])
+            im = ax_heat.imshow(
+                matrix, aspect="auto", origin="lower", cmap=cmap,
+                extent=[0, num_subcarriers, freqs[0], freqs[-1]],
+            )
+            ax_heat.set_xlabel("Subcarrier index")
+            ax_heat.set_ylabel("Frequency (Hz)")
+            ax_heat.set_title(f"{label} — Heatmap")
+            ax_heat.axhline(NORMAL_LOW_HZ, color="red", linestyle="--", linewidth=0.8, label=f"{NORMAL_LOW_HZ} Hz")
+            ax_heat.axhline(NORMAL_HIGH_HZ, color="orange", linestyle="--", linewidth=0.8, label=f"{NORMAL_HIGH_HZ} Hz")
+            ax_heat.legend(fontsize=7)
+            fig.colorbar(im, ax=ax_heat, label="Amplitude (scaled)")
+
+            # 平均スペクトル
+            ax_spec = fig.add_subplot(gs[row, 1])
+            ax_spec.plot(freqs, mean_spec, color=line_color, linewidth=1.2)
+            ax_spec.axvspan(NORMAL_LOW_HZ, NORMAL_HIGH_HZ, alpha=0.15, color="green", label="Normal range")
+            ax_spec.set_xlabel("Frequency (Hz)")
+            ax_spec.set_ylabel("Mean amplitude (scaled)")
+            ax_spec.set_title(f"{label} — Mean spectrum")
+            ax_spec.legend(fontsize=7)
+
+        png_path = save_dir / "combined.png"
+        svg_path = save_dir / "combined.svg"
+        pdf_path = save_dir / "combined.pdf"
+
+        fig.savefig(png_path, dpi=120, bbox_inches="tight")
+        fig.savefig(svg_path, bbox_inches="tight")
+        fig.savefig(pdf_path, bbox_inches="tight")
+        plt.close(fig)
+
+        logger.info(f"Combined graph saved: {png_path} / .svg / .pdf")
+        return png_path
+
+    except Exception as exc:
+        logger.error(f"Failed to save combined graph: {exc}", exc_info=True)
+        return None
 
     except Exception as exc:
         logger.error(f"Failed to save MUSIC graph: {exc}", exc_info=True)

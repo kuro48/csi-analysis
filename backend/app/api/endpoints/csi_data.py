@@ -24,7 +24,7 @@ from app.services.pcap_analyzer import PCAPAnalyzer
 from app.services.zkp_service import ZKPService
 from app.services.zkp_wavelet_service import ZKPWaveletService
 from app.services.zkp_music_service import ZKPMusicService
-from app.services.csi_visualizer import save_fft_graph, save_wavelet_graph, save_music_graph
+from app.services.csi_visualizer import save_fft_graph, save_wavelet_graph, save_music_graph, save_combined_graph
 from app.services.base_csi import BaseCSIService
 from app.services.blockchain_service import BlockchainService
 from app.api.endpoints.blockchain import get_blockchain_service
@@ -510,6 +510,7 @@ async def _process_and_generate_zkp_background(
             await asyncio.to_thread(save_wavelet_graph, wavelet_matrix, csi_id_str)
         if music_matrix:
             await asyncio.to_thread(save_music_graph, music_matrix, csi_id_str)
+        await asyncio.to_thread(save_combined_graph, fft_matrix, wavelet_matrix, music_matrix, csi_id_str)
 
         device_id = getattr(csi_data, "device_id", None) if csi_data else None
 
