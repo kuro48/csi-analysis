@@ -46,6 +46,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
+# Solidityコンパイラをpy-solcxが期待するパスに配置（起動時のネットワーク依存を排除）
+RUN mkdir -p /root/.solcx \
+    && wget -q -O /root/.solcx/solc-v0.8.20 \
+        https://github.com/ethereum/solidity/releases/download/v0.8.20/solc-static-linux \
+    && chmod +x /root/.solcx/solc-v0.8.20
+
 # アプリケーションコードをコピー
 COPY . .
 

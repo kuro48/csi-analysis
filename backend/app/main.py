@@ -11,11 +11,9 @@ import logging
 
 
 def configure_logging() -> None:
-    """アプリケーション共通のログ出力を設定"""
     log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
-
     if not root_logger.handlers:
         handler = logging.StreamHandler()
         handler.setFormatter(
@@ -26,12 +24,12 @@ def configure_logging() -> None:
 
 configure_logging()
 
-# healthチェックのログを除外するフィルタ
+
 class HealthCheckFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         return "/health" not in record.getMessage()
 
-# アプリケーション初期化
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.DESCRIPTION,
@@ -39,7 +37,6 @@ app = FastAPI(
     openapi_url=f"{settings.API_V2_PREFIX}/openapi.json",
 )
 
-# CORS設定
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -49,7 +46,7 @@ app.add_middleware(
     expose_headers=["X-Request-ID"],
 )
 
-# セキュリティヘッダーミドルウェア
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         response = await call_next(request)
@@ -61,12 +58,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         return response
 
+
 app.add_middleware(SecurityHeadersMiddleware)
-
-# APIルーターを登録
 app.include_router(api_router, prefix=settings.API_V2_PREFIX)
-
-# エラーハンドラーを登録
 setup_error_handlers(app)
 
 logger = logging.getLogger(__name__)
@@ -74,19 +68,15 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup_event():
-    """アプリケーション起動時の初期化処理"""
     try:
-        # uvicornのアクセスログからhealthチェックを除外
         logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
         print("⏳ Starting application initialization...")
         logger.info("Starting application initialization...")
 
-        # セキュリティ設定の検証
         _validate_security_settings()
         print("✅ Security settings validated")
 
-        # ZKP回路のセットアップ（必要なら自動コンパイル）
         if settings.ZKP_AUTO_COMPILE:
             print("⏳ Checking ZKP circuits (auto-compile enabled)...")
             try:
@@ -95,7 +85,6 @@ async def startup_event():
             except Exception as e:
                 logger.error(f"ZKP circuit setup failed: {e}", exc_info=True)
                 print(f"❌ ZKP circuit setup failed: {e}")
-                # エラーは継続（開発用途のため）
 
         logger.info("✅ Application startup completed successfully")
         print("✅ Application startup completed successfully")
@@ -109,58 +98,47 @@ async def startup_event():
 
 
 def _validate_security_settings():
-    """起動時のセキュリティ設定検証"""
-    # JWT秘密鍵の検証
+    """JWT_SECRET_KEYが安全なデフォルト値でないことを確認する。本番環境では起動を拒否する。"""
     unsafe_secrets = [
         "your-super-secret-jwt-key-change-in-production",
         "secret",
         "changeme",
-        "default"
+        "default",
     ]
-
     if settings.JWT_SECRET_KEY in unsafe_secrets or len(settings.JWT_SECRET_KEY) < 32:
         error_msg = (
             "SECURITY WARNING: JWT_SECRET_KEY is using an unsafe default value or is too short. "
             "Please set a strong JWT_SECRET_KEY (minimum 32 characters) in your environment variables."
         )
-
         if not settings.DEBUG:
-            # 本番環境では起動を拒否
             logger.error(error_msg)
             raise ValueError(error_msg)
         else:
-            # 開発環境では警告のみ
             logger.warning(error_msg)
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """アプリケーション終了時のクリーンアップ処理"""
-    try:
-        logger.info("Application shutdown completed successfully")
-    except Exception as e:
-        logger.error(f"Error during application shutdown: {e}")
+    logger.info("Application shutdown completed successfully")
 
 
 @app.get("/")
 async def root() -> Dict[str, str]:
-    """ルートエンドポイント"""
     return {
         "message": f"Welcome to {settings.PROJECT_NAME}",
         "version": settings.VERSION,
         "docs_url": "/docs",
         "redoc_url": "/redoc",
-        "api_prefix": settings.API_V2_PREFIX
+        "api_prefix": settings.API_V2_PREFIX,
     }
 
 
 @app.get("/health")
 async def health_check() -> Dict[str, str]:
-    """基本ヘルスチェックエンドポイント（後方互換性）"""
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
-        "version": settings.VERSION
+        "version": settings.VERSION,
     }
 
 
@@ -170,5 +148,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,
-        log_level="info"
+        log_level="info",
     )

@@ -1,29 +1,20 @@
-"""
-CSIデータ管理サービス
-"""
-
-import os
 import uuid
 from typing import List, Optional, Tuple, Any, Dict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc, func
+from sqlalchemy import desc
 import logging
 import tempfile
 
-from app.models.csi_data import CSIData, Session as DataSession
-from app.schemas.csi_data import (
-    CSIDataUpload, CSIDataResponse, CSIDataFilter,
-    SessionCreate
-)
+from app.models.csi_data import CSIData
+from app.schemas.csi_data import CSIDataUpload, CSIDataFilter
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class CSIDataService:
-    """CSIデータ管理サービス"""
 
     @staticmethod
     async def upload_csi_data(
@@ -32,41 +23,32 @@ class CSIDataService:
         upload_info: CSIDataUpload,
     ) -> CSIData:
         """
-        CSIデータアップロード処理
-
-        RESEARCH_MODE=true: CSIデータをファイルとして保存（研究・分析用）
-        RESEARCH_MODE=false: CSIデータを保存せず、解析とZKP証明のみ保存（本番環境・プライバシー重視）
+        RESEARCH_MODE=true: 永続ディレクトリにファイルを保存（研究・分析用）
+        RESEARCH_MODE=false: 一時ファイルとして保持し、バックグラウンド処理後に削除（本番環境）
         """
-
-        # ファイル名とパス設定
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_extension = Path(upload_info.file_name).suffix
         unique_filename = f"{timestamp}_{uuid.uuid4().hex[:8]}{file_extension}"
 
-        # 研究モードの場合は永続的なディレクトリ、本番モードは一時ディレクトリ
         if settings.RESEARCH_MODE:
-            # 研究モード: データを永続的に保存
             upload_dir = Path("uploads") / "csi_data" / datetime.now().strftime("%Y/%m/%d")
             upload_dir.mkdir(parents=True, exist_ok=True)
             file_path = upload_dir / unique_filename
             logger.info(f"RESEARCH MODE: Saving CSI data to {file_path}")
         else:
-            # 本番モード: 一時ファイルとして保持し、バックグラウンド処理後に削除
             temp_file = tempfile.NamedTemporaryFile(
                 mode='wb',
                 suffix=file_extension,
                 prefix=f"csi_{timestamp}_",
-                delete=False
+                delete=False,
             )
             file_path = Path(temp_file.name)
-            logger.info(f"PRODUCTION MODE: Using temporary file {file_path} (will be deleted after background processing)")
+            logger.info(f"PRODUCTION MODE: Using temporary file {file_path}")
 
         try:
-            # ファイル保存
             with open(file_path, 'wb') as f:
                 f.write(file_data)
 
-            # データベースレコード作成
             device_id = None
             if isinstance(upload_info.metadata, dict):
                 device_id = upload_info.metadata.get("device_id")
@@ -89,7 +71,6 @@ class CSIDataService:
             return csi_data
 
         except Exception as e:
-            # エラー時はファイルを削除
             if file_path.exists():
                 try:
                     file_path.unlink()
@@ -103,9 +84,8 @@ class CSIDataService:
         csi_data_id: uuid.UUID,
         status: str,
         processed_data: Dict[str, Any] = None,
-        error_message: str = None
+        error_message: str = None,
     ) -> Optional[CSIData]:
-        """処理状態更新"""
         csi_data = db.query(CSIData).filter(CSIData.id == csi_data_id).first()
         if not csi_data:
             return None
@@ -116,15 +96,10 @@ class CSIDataService:
 
         db.commit()
         db.refresh(csi_data)
-
         return csi_data
 
     @staticmethod
-    def get_csi_data_by_id(
-        db: Session,
-        csi_data_id: uuid.UUID
-    ) -> Optional[CSIData]:
-        """CSIデータをIDで取得"""
+    def get_csi_data_by_id(db: Session, csi_data_id: uuid.UUID) -> Optional[CSIData]:
         return db.query(CSIData).filter(CSIData.id == csi_data_id).first()
 
     @staticmethod
@@ -132,9 +107,8 @@ class CSIDataService:
         db: Session,
         filters: CSIDataFilter,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
     ) -> Tuple[List[CSIData], int]:
-        """CSIデータ一覧取得（簡易フィルタのみ）"""
         query = db.query(CSIData)
 
         if filters.session_id:
@@ -147,77 +121,26 @@ class CSIDataService:
             query = query.filter(CSIData.created_at <= filters.end_date)
 
         total_count = query.count()
-        csi_data_list = query.order_by(desc(CSIData.created_at)).offset((page - 1) * page_size).limit(page_size).all()
+        csi_data_list = (
+            query.order_by(desc(CSIData.created_at))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
         return csi_data_list, total_count
 
     @staticmethod
-    async def delete_csi_data(
-        db: Session,
-        csi_data_id: uuid.UUID
-    ) -> bool:
-        """CSIデータ削除"""
+    async def delete_csi_data(db: Session, csi_data_id: uuid.UUID) -> bool:
         csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id)
         if not csi_data:
             return False
 
-        # ローカルファイル削除
         if csi_data.file_path and Path(csi_data.file_path).exists():
             try:
                 Path(csi_data.file_path).unlink()
             except Exception as e:
                 logger.warning(f"Failed to delete file {csi_data.file_path}: {e}")
 
-        # データベースレコード削除
         db.delete(csi_data)
         db.commit()
         return True
-class SessionService:
-    """データ収集セッション管理サービス"""
-
-    @staticmethod
-    async def create_session(
-        db: Session,
-        session_data: SessionCreate
-    ) -> DataSession:
-        """セッション作成"""
-
-        session = DataSession(
-            session_name=session_data.session_name,
-            start_time=session_data.start_time,
-            status="active",
-            metadata=session_data.metadata
-        )
-
-        db.add(session)
-        db.commit()
-        db.refresh(session)
-
-
-        return session
-
-    @staticmethod
-    async def end_session(
-        db: Session,
-        session_id: uuid.UUID
-    ) -> Optional[DataSession]:
-        """セッション終了"""
-        session = db.query(DataSession).filter(
-            and_(
-                DataSession.id == session_id,
-            )
-        ).first()
-
-        if not session:
-            return None
-
-        end_time = datetime.utcnow()
-        session.end_time = end_time
-        session.status = "completed"
-
-        if session.start_time:
-            session.duration = int((end_time - session.start_time).total_seconds())
-
-        db.commit()
-        db.refresh(session)
-
-        return session

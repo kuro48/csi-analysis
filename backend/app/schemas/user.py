@@ -1,7 +1,3 @@
-"""
-ユーザー関連のPydanticスキーマ
-"""
-
 from pydantic import BaseModel, Field, validator
 from typing import Optional
 from datetime import datetime
@@ -10,13 +6,11 @@ import uuid as uuid_pkg
 
 
 class UserBase(BaseModel):
-    """ユーザーベーススキーマ"""
     username: str = Field(..., min_length=3, max_length=32)
     email: str = Field(..., max_length=255)
 
 
 class UserCreate(UserBase):
-    """ユーザー作成スキーマ"""
     password: str = Field(..., min_length=8, max_length=100)
 
     @validator('username')
@@ -37,13 +31,11 @@ class UserCreate(UserBase):
 
 
 class UserLogin(BaseModel):
-    """ユーザーログインスキーマ"""
     username: str
     password: str
 
 
 class UserUpdate(BaseModel):
-    """ユーザー更新スキーマ"""
     email: Optional[str] = Field(None, max_length=255)
     password: Optional[str] = Field(None, min_length=8, max_length=100)
     is_active: Optional[bool] = None
@@ -61,7 +53,6 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(UserBase):
-    """ユーザー応答スキーマ"""
     id: uuid_pkg.UUID
     role: str
     is_active: bool
@@ -69,4 +60,4 @@ class UserResponse(UserBase):
     last_login_at: Optional[datetime]
 
     class Config:
-        from_attributes = True  # SQLAlchemyモデルからの変換を有効化
+        from_attributes = True

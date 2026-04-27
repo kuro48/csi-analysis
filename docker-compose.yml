@@ -1,7 +1,4 @@
-# version: '3.8' - obsolete in newer docker-compose
-
 services:
-  # PostgreSQL データベース
   postgres:
     image: postgres:15-alpine
     container_name: csi_postgres
@@ -21,7 +18,6 @@ services:
     networks:
       - csi_network
 
-  # Redis キャッシュ
   redis:
     image: redis:7-alpine
     container_name: csi_redis
@@ -38,7 +34,6 @@ services:
     networks:
       - csi_network
 
-  # FastAPI バックエンド
   backend:
     build:
       context: ./backend
@@ -53,7 +48,7 @@ services:
       - POSTGRES_DB=csi_system
       - REDIS_HOST=redis
       - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
-      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000
+      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
       - DEBUG=True
       - ZKP_AUTO_COMPILE=TRUE
       - ETHEREUM_RPC_URL=http://ganache:8545
@@ -79,28 +74,6 @@ services:
       - csi_network
     restart: unless-stopped
 
-  # Next.js フロントエンド
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: csi_frontend
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - NODE_ENV=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-    networks:
-      - csi_network
-    restart: unless-stopped
-
-  # Ganache 開発用ブロックチェーン
   ganache:
     build:
       context: ./ganache
