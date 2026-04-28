@@ -36,7 +36,9 @@ from app.schemas.csi_data import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 SUPPORTED_STANDARD_CSI_FILE_EXTENSIONS = {".pcap", ".pcapng", ".cap"}
-SUPPORTED_PICOSCENES_FILE_EXTENSIONS = {".csi"}
+# .csv は PICOSCENES_PARSER=matlab のときに MATLAB パイプラインで処理される
+# OLD: SUPPORTED_PICOSCENES_FILE_EXTENSIONS = {".csi"}
+SUPPORTED_PICOSCENES_FILE_EXTENSIONS = {".csi", ".csv"}
 
 
 def _parse_json_field(value) -> Optional[dict]:

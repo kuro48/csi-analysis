@@ -39,13 +39,45 @@ def _convert_picoscenes_to_dataframe(
     self,
     file_path: str,
 ) -> pd.DataFrame:
-    """PicoScenes .csi を設定されたパーサーで DataFrame に変換する。"""
+    """.csv は MATLAB を介さず pandas で直接読み込む。.csi はパーサー設定に従う。"""
+    if Path(file_path).suffix.lower() == ".csv":
+        return self._read_csv_directly(file_path)
+
     parser = settings.PICOSCENES_PARSER.lower()
     if parser == "matlab":
-        return self._convert_picoscenes_to_dataframe_with_matlab(file_path)
+        return self._convert_csv_to_dataframe_with_matlab(file_path)
     if parser == "python":
         return self._convert_picoscenes_to_dataframe_with_python(file_path)
     raise ValueError(f"Unsupported PICOSCENES_PARSER: {settings.PICOSCENES_PARSER}")
+
+
+def _read_csv_directly(
+    self,
+    file_path: str,
+) -> pd.DataFrame:
+    """CSVファイルを pandas で直接読み込んで DataFrame に変換する。
+
+    期待するフォーマット:
+      - 'timestamp' 列: ナノ秒単位の整数
+      - その他の列: サブキャリアインデックス（整数）をカラム名とする振幅値
+    """
+    df = pd.read_csv(file_path)
+
+    if "timestamp" not in df.columns:
+        raise ValueError("CSV に 'timestamp' 列がありません")
+
+    df["timestamp"] = pd.to_datetime(df["timestamp"].astype("int64"), unit="ns", errors="coerce")
+    for col in df.columns:
+        if col == "timestamp":
+            continue
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    self.logger.info(
+        "CSV直接読み込み完了: frames=%s, subcarriers=%s",
+        len(df),
+        len([c for c in df.columns if c != "timestamp"]),
+    )
+    return df
 
 
 def _convert_picoscenes_to_dataframe_with_python(
@@ -130,26 +162,117 @@ def _matlab_quote(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
-def _convert_picoscenes_to_dataframe_with_matlab(
+# --- OLD: PicoScenes .csi を MATLAB Toolbox で CSV 化する実装 ------------
+# def _convert_picoscenes_to_dataframe_with_matlab(
+#     self,
+#     file_path: str,
+# ) -> pd.DataFrame:
+#     """PicoScenes MATLAB Toolbox で .csi を CSV 化し、DataFrame に変換する。"""
+#     helper_dir = Path(__file__).resolve().parent / "matlab"
+#     helper_path = helper_dir / "convert_picoscenes_to_csv.m"
+#     if not helper_path.exists():
+#         raise RuntimeError(f"MATLAB PicoScenes converter is missing: {helper_path}")
+#
+#     with tempfile.TemporaryDirectory() as temp_dir:
+#         output_csv = str(Path(temp_dir) / "picoscenes.csv")
+#         addpath_commands = [f"addpath({_matlab_quote(str(helper_dir))})"]
+#         if settings.PICOSCENES_MATLAB_TOOLBOX_PATH:
+#             addpath_commands.insert(
+#                 0,
+#                 "addpath(genpath("
+#                 f"{_matlab_quote(settings.PICOSCENES_MATLAB_TOOLBOX_PATH)}"
+#                 "))",
+#             )
+#
+#         batch_command = "; ".join(
+#             addpath_commands
+#             + [
+#                 "convert_picoscenes_to_csv("
+#                 f"{_matlab_quote(str(Path(file_path).resolve()))}, "
+#                 f"{_matlab_quote(output_csv)}, "
+#                 "245"
+#                 ")"
+#             ]
+#         )
+#         command = shlex.split(settings.MATLAB_COMMAND) + ["-batch", batch_command]
+#
+#         self.logger.info(
+#             "PicoScenes MATLAB変換開始: file=%s, command=%s",
+#             file_path,
+#             settings.MATLAB_COMMAND,
+#         )
+#         try:
+#             completed = subprocess.run(
+#                 command,
+#                 check=True,
+#                 capture_output=True,
+#                 text=True,
+#                 timeout=settings.PICOSCENES_MATLAB_TIMEOUT_SECONDS,
+#             )
+#         except FileNotFoundError as exc:
+#             raise RuntimeError(
+#                 "MATLAB command was not found. Set MATLAB_COMMAND or use "
+#                 "PICOSCENES_PARSER=python to use the Python toolbox."
+#             ) from exc
+#         except subprocess.TimeoutExpired as exc:
+#             raise RuntimeError(
+#                 "PicoScenes MATLAB parsing timed out after "
+#                 f"{settings.PICOSCENES_MATLAB_TIMEOUT_SECONDS} seconds"
+#             ) from exc
+#         except subprocess.CalledProcessError as exc:
+#             stderr = (exc.stderr or "").strip()
+#             stdout = (exc.stdout or "").strip()
+#             detail = stderr or stdout or str(exc)
+#             raise RuntimeError(f"PicoScenes MATLAB parsing failed: {detail[-2000:]}") from exc
+#
+#         if completed.stderr:
+#             self.logger.debug("PicoScenes MATLAB stderr: %s", completed.stderr.strip())
+#
+#         df = pd.read_csv(output_csv)
+#
+#     if df.empty:
+#         raise ValueError("PicoScenes MATLAB parser returned no frames")
+#     if "timestamp" not in df.columns:
+#         raise ValueError("PicoScenes MATLAB parser output is missing timestamp column")
+#
+#     df["timestamp"] = pd.to_datetime(df["timestamp"].astype("int64"), unit="ns", errors="coerce")
+#     for col in df.columns:
+#         if col == "timestamp":
+#             continue
+#         df[col] = pd.to_numeric(df[col], errors="coerce")
+#
+#     self.logger.info(
+#         "PicoScenes MATLAB DataFrame作成完了: frames=%s, selected_subcarriers=%s",
+#         len(df),
+#         len([col for col in df.columns if col != "timestamp"]),
+#     )
+#     return df
+# -------------------------------------------------------------------------
+
+
+def _convert_csv_to_dataframe_with_matlab(
     self,
     file_path: str,
 ) -> pd.DataFrame:
-    """PicoScenes MATLAB Toolbox で .csi を CSV 化し、DataFrame に変換する。"""
+    """入力 .csv を MATLAB 経由でサブキャリア選択し、DataFrame に変換する。
+
+    convert_picoscenes_to_csv.m が CSV を読み込み、サブキャリア選択を適用した
+    うえで出力 CSV を書き出す。Python はその出力 CSV を読み込んで DataFrame を返す。
+    """
+    if not file_path.lower().endswith(".csv"):
+        raise ValueError(
+            f"MATLAB パーサーは .csv のみ受け付けます (受信: {file_path}). "
+            "PICOSCENES_PARSER=python に切り替えるか、.csv ファイルを渡してください。"
+        )
+
     helper_dir = Path(__file__).resolve().parent / "matlab"
     helper_path = helper_dir / "convert_picoscenes_to_csv.m"
     if not helper_path.exists():
-        raise RuntimeError(f"MATLAB PicoScenes converter is missing: {helper_path}")
+        raise RuntimeError(f"MATLAB CSV converter is missing: {helper_path}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        output_csv = str(Path(temp_dir) / "picoscenes.csv")
+        output_csv = str(Path(temp_dir) / "csi_out.csv")
         addpath_commands = [f"addpath({_matlab_quote(str(helper_dir))})"]
-        if settings.PICOSCENES_MATLAB_TOOLBOX_PATH:
-            addpath_commands.insert(
-                0,
-                "addpath(genpath("
-                f"{_matlab_quote(settings.PICOSCENES_MATLAB_TOOLBOX_PATH)}"
-                "))",
-            )
 
         batch_command = "; ".join(
             addpath_commands
@@ -164,7 +287,7 @@ def _convert_picoscenes_to_dataframe_with_matlab(
         command = shlex.split(settings.MATLAB_COMMAND) + ["-batch", batch_command]
 
         self.logger.info(
-            "PicoScenes MATLAB変換開始: file=%s, command=%s",
+            "CSV → MATLAB変換開始: file=%s, command=%s",
             file_path,
             settings.MATLAB_COMMAND,
         )
@@ -178,29 +301,28 @@ def _convert_picoscenes_to_dataframe_with_matlab(
             )
         except FileNotFoundError as exc:
             raise RuntimeError(
-                "MATLAB command was not found. Set MATLAB_COMMAND or use "
-                "PICOSCENES_PARSER=python to use the Python toolbox."
+                "MATLAB command was not found. Set MATLAB_COMMAND in settings."
             ) from exc
         except subprocess.TimeoutExpired as exc:
             raise RuntimeError(
-                "PicoScenes MATLAB parsing timed out after "
+                "MATLAB CSV parsing timed out after "
                 f"{settings.PICOSCENES_MATLAB_TIMEOUT_SECONDS} seconds"
             ) from exc
         except subprocess.CalledProcessError as exc:
             stderr = (exc.stderr or "").strip()
             stdout = (exc.stdout or "").strip()
             detail = stderr or stdout or str(exc)
-            raise RuntimeError(f"PicoScenes MATLAB parsing failed: {detail[-2000:]}") from exc
+            raise RuntimeError(f"MATLAB CSV parsing failed: {detail[-2000:]}") from exc
 
         if completed.stderr:
-            self.logger.debug("PicoScenes MATLAB stderr: %s", completed.stderr.strip())
+            self.logger.debug("MATLAB stderr: %s", completed.stderr.strip())
 
         df = pd.read_csv(output_csv)
 
     if df.empty:
-        raise ValueError("PicoScenes MATLAB parser returned no frames")
+        raise ValueError("MATLAB CSV parser returned no frames")
     if "timestamp" not in df.columns:
-        raise ValueError("PicoScenes MATLAB parser output is missing timestamp column")
+        raise ValueError("MATLAB CSV parser output is missing timestamp column")
 
     df["timestamp"] = pd.to_datetime(df["timestamp"].astype("int64"), unit="ns", errors="coerce")
     for col in df.columns:
@@ -209,7 +331,7 @@ def _convert_picoscenes_to_dataframe_with_matlab(
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     self.logger.info(
-        "PicoScenes MATLAB DataFrame作成完了: frames=%s, selected_subcarriers=%s",
+        "MATLAB CSV DataFrame作成完了: frames=%s, selected_subcarriers=%s",
         len(df),
         len([col for col in df.columns if col != "timestamp"]),
     )
@@ -346,12 +468,18 @@ def analyze_csi_file_with_picoscenes(
     include_wavelet: bool = True,
     include_music: bool = True,
 ) -> Dict[str, Any]:
-    """PicoScenes .csi を解析する。"""
+    """CSI ファイルを解析する。
+
+    MATLAB パーサー選択時は .csv を受け取る。
+    Python パーサー選択時は従来どおり PicoScenes .csi を受け取る。
+    """
+    # --- OLD: .csi 専用だった呼び出し ---
+    # df = self._convert_picoscenes_to_dataframe(file_path)
     df = self._convert_picoscenes_to_dataframe(file_path)
     no_frames = len(df)
     no_subcarriers = len([col for col in df.columns if col.lstrip("-").isdigit()])
     self.logger.info(
-        "PicoScenes CSIデータ読み込み完了: %sフレーム, %sサブキャリア",
+        "CSIデータ読み込み完了: %sフレーム, %sサブキャリア",
         no_frames,
         no_subcarriers,
     )
