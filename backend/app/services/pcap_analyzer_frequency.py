@@ -24,7 +24,11 @@ def apply_fourier_transform(
     sampling_interval: float,
     time_col: str = "timestamp",
 ) -> pd.DataFrame:
-    """各サブキャリアに FFT を適用する。"""
+    """各サブキャリアに FFT を適用する。
+
+    実際のタイムスタンプから実サンプリングレートを計算し、
+    等間隔リサンプリング・デトレンド・Hann窓を適用してから FFT する。
+    """
     if df is None or df.empty:
         return pd.DataFrame()
 
@@ -33,16 +37,46 @@ def apply_fourier_transform(
         self.logger.warning("FFT適用可能な列が見つかりません")
         return pd.DataFrame()
 
+    # --- 実サンプリングレートをタイムスタンプから計算 ---
+    if time_col in df.columns and len(df) >= 2:
+        ts = pd.to_datetime(df[time_col])
+        duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
+        if duration_s > 0:
+            actual_fs = (len(df) - 1) / duration_s        # 実際の Hz
+            target_fs = 1.0 / sampling_interval            # 目標 Hz (100 Hz)
+            resample_factor = actual_fs / target_fs
+        else:
+            actual_fs = 1.0 / sampling_interval
+            resample_factor = 1.0
+    else:
+        actual_fs = 1.0 / sampling_interval
+        resample_factor = 1.0
+
+    self.logger.info(f"実サンプリングレート: {actual_fs:.2f} Hz (目標: {1/sampling_interval:.0f} Hz)")
+
     all_fft_results = []
     for col in data_cols:
-        signal = df[col].values
-        if len(signal) < 2:
-            self.logger.debug(f"サブキャリア {col}: データ不足 (長さ={len(signal)})")
+        signal = df[col].values.astype(np.float64)
+        if len(signal) < 4:
             continue
 
+        # 等間隔リサンプリング（実レート → 目標レート）
+        if abs(resample_factor - 1.0) > 0.05:
+            from scipy.signal import resample
+            n_target = max(4, int(round(len(signal) / resample_factor)))
+            signal = resample(signal, n_target)
+
+        # デトレンド（線形トレンドと DC を除去）
+        from scipy.signal import detrend
+        signal = detrend(signal, type="linear")
+
+        # Hann 窓（スペクトル漏れ抑制）
+        window = np.hanning(len(signal))
+        signal = signal * window
+
         sample_count = len(signal)
-        yf = np.fft.fft(signal)
-        xf = np.fft.fftfreq(sample_count, d=sampling_interval)
+        yf = np.fft.rfft(signal)
+        xf = np.fft.rfftfreq(sample_count, d=sampling_interval)
 
         positive_mask = xf > 0
         fft_df = pd.DataFrame({
@@ -83,33 +117,48 @@ def apply_wavelet_transform(
         self.logger.warning("ウェーブレット変換適用可能な列が見つかりません")
         return pd.DataFrame()
 
+    # --- 実サンプリングレートをタイムスタンプから計算 ---
+    if time_col in df.columns and len(df) >= 2:
+        ts = pd.to_datetime(df[time_col])
+        duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
+        actual_interval = duration_s / (len(df) - 1) if duration_s > 0 else sampling_interval
+    else:
+        actual_interval = sampling_interval
+
+    self.logger.info(f"ウェーブレット実サンプリング間隔: {actual_interval*1000:.2f} ms")
+
     n_freqs = n_freqs or self.WAVELET_N_FREQS
-    sampling_rate = 1.0 / sampling_interval
+    actual_fs = 1.0 / actual_interval
     target_freqs = np.logspace(
         np.log10(self.WAVELET_FREQ_MIN),
-        np.log10(min(self.WAVELET_FREQ_MAX, sampling_rate / 2.0)),
+        np.log10(min(self.WAVELET_FREQ_MAX, actual_fs / 2.0)),
         n_freqs,
     )
 
-    scales = pywt.frequency2scale(self.WAVELET_NAME, target_freqs * sampling_interval)
+    scales = pywt.frequency2scale(self.WAVELET_NAME, target_freqs * actual_interval)
     frequency_axis = None
     amplitude_rows = []
     valid_cols = []
 
     for col in data_cols:
-        signal = df[col].to_numpy(dtype=np.float32, copy=False)
+        signal = df[col].to_numpy(dtype=np.float64, copy=False)
         if len(signal) < 2:
             self.logger.debug(f"サブキャリア {col}: データ不足 (長さ={len(signal)})")
             continue
 
         signal = np.nan_to_num(signal, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # デトレンド（DCオフセット・線形ドリフト除去）
+        from scipy.signal import detrend
+        signal = detrend(signal, type="linear")
+
         method = "fft" if len(signal) >= self.WAVELET_FFT_METHOD_MIN_SIGNAL_LEN else "conv"
 
         coefficients, freqs = pywt.cwt(
             signal,
             scales,
             self.WAVELET_NAME,
-            sampling_period=sampling_interval,
+            sampling_period=actual_interval,
             method=method,
         )
 
@@ -204,11 +253,21 @@ def apply_music_transform(
         self.logger.warning("MUSIC適用可能な列が見つかりません")
         return pd.DataFrame()
 
-    sampling_rate = 1.0 / sampling_interval
+    # --- 実サンプリングレートをタイムスタンプから計算 ---
+    if time_col in df.columns and len(df) >= 2:
+        ts = pd.to_datetime(df[time_col])
+        duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
+        actual_interval = duration_s / (len(df) - 1) if duration_s > 0 else sampling_interval
+    else:
+        actual_interval = sampling_interval
+
+    self.logger.info(f"MUSIC実サンプリング間隔: {actual_interval*1000:.2f} ms")
+
+    actual_fs = 1.0 / actual_interval
     n_freqs = n_freqs or self.MUSIC_N_FREQS
     target_freqs = np.linspace(
         self.MUSIC_FREQ_MIN,
-        min(self.MUSIC_FREQ_MAX, sampling_rate / 2.0),
+        min(self.MUSIC_FREQ_MAX, actual_fs / 2.0),
         n_freqs,
         dtype=np.float64,
     )
@@ -216,8 +275,14 @@ def apply_music_transform(
     spectra = []
     valid_cols = []
     for col in data_cols:
-        signal = df[col].to_numpy(dtype=np.float32, copy=False)
-        spectrum = self._compute_music_pseudospectrum(signal, sampling_interval, target_freqs)
+        signal = df[col].to_numpy(dtype=np.float64, copy=False)
+
+        # デトレンド（線形ドリフト除去）
+        from scipy.signal import detrend
+        signal = np.nan_to_num(signal, nan=0.0, posinf=0.0, neginf=0.0)
+        signal = detrend(signal, type="linear")
+
+        spectrum = self._compute_music_pseudospectrum(signal, actual_interval, target_freqs)
         if spectrum.size == 0:
             self.logger.debug(f"サブキャリア {col}: MUSICスペクトル生成不可")
             continue
@@ -266,8 +331,14 @@ def estimate_breathing_rate(
     if mean_amplitude.empty or mean_amplitude.isna().all():
         return None
 
-    peak_idx = mean_amplitude.idxmax()
-    peak_freq_hz = float(breathing_df.loc[peak_idx, freq_col])
+    # ガウシアン平滑化してからピーク検出（雑音耐性向上）
+    values = mean_amplitude.values.astype(np.float64)
+    if len(values) >= 5:
+        from scipy.ndimage import gaussian_filter1d
+        values = gaussian_filter1d(values, sigma=2)
+
+    peak_idx_pos = int(np.argmax(values))
+    peak_freq_hz = float(breathing_df[freq_col].iloc[peak_idx_pos])
     return peak_freq_hz * 60.0
 
 

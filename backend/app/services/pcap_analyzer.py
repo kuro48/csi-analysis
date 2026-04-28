@@ -80,7 +80,7 @@ class PCAPAnalyzer:
     MUSIC_FREQ_MAX = 2.0
     MUSIC_N_FREQS = 256
     MUSIC_EMBEDDING_DIM = 32
-    MUSIC_MODEL_ORDER = 2
+    MUSIC_MODEL_ORDER = 1
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)

@@ -59,15 +59,20 @@ def extract_full_subcarrier_vectors(
         self.logger.warning("サブキャリア列が見つかりません")
         return _empty_extracted_vectors()
 
+    # [周波数ポイント × サブキャリア] の numpy 行列として取得し、
+    # サブキャリア単位で min-max 正規化 → [0, 1] → ZKP_SCALE 倍して整数化
+    raw = breathing_df[subcarrier_cols].to_numpy(dtype=np.float64)
+    raw = np.nan_to_num(raw, nan=0.0, posinf=0.0, neginf=0.0)
+    raw = np.maximum(raw, 0.0)          # 負値を 0 に
+
+    col_min = raw.min(axis=0)
+    col_max = raw.max(axis=0)
+    col_range = np.where(col_max - col_min == 0.0, 1.0, col_max - col_min)
+    normalized = (raw - col_min) / col_range  # [0, 1]
+
     csi_matrix = []
-    for _, row in breathing_df.iterrows():
-        freq_point_data = []
-        for col in subcarrier_cols:
-            amplitude = row[col]
-            if not np.isfinite(amplitude):
-                amplitude = 0.0
-            freq_point_data.append(max(0, int(amplitude * self.ZKP_SCALE)))
-        csi_matrix.append(freq_point_data)
+    for row_vec in normalized:
+        csi_matrix.append([int(v * self.ZKP_SCALE) for v in row_vec])
 
     frequencies = [int(freq * self.ZKP_SCALE) for freq in freq_values]
     num_freq_points = len(csi_matrix)
