@@ -52,7 +52,7 @@ def extract_full_subcarrier_vectors(
 
     subcarrier_cols = [
         col for col in breathing_df.columns
-        if col not in [freq_col, "freq_interval", "freq_mid"]
+        if col not in [freq_col, "freq_interval", "freq_mid", "_mean"]
         and pd.api.types.is_numeric_dtype(breathing_df[col])
     ]
     if not subcarrier_cols:
@@ -245,7 +245,7 @@ def extract_music_matrix_for_zkp(
 
     subcarrier_cols = [
         col for col in sub_df.columns
-        if col not in {"frequency", "freq_interval", "_freq_mid"}
+        if col not in {"frequency", "freq_interval", "_freq_mid", "_mean"}
         and pd.api.types.is_numeric_dtype(sub_df[col])
     ]
     if not subcarrier_cols:

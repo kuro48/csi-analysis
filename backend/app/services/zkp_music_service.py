@@ -287,16 +287,22 @@ class ZKPMusicService:
         if not generate_witness_js.exists():
             raise RuntimeError(f"generate_witness.js not found: {generate_witness_js}")
 
+        env = os.environ.copy()
+        env["NODE_OPTIONS"] = "--max-old-space-size=4096"
+
         proc = await asyncio.create_subprocess_exec(
             "node", str(generate_witness_js),
             str(wasm), str(input_file), str(witness_file),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
         stdout, stderr = await proc.communicate()
 
         if proc.returncode != 0:
-            raise RuntimeError(f"Music witness generation failed: {stderr.decode()}")
+            stdout_msg = stdout.decode(errors="replace") if stdout else ""
+            stderr_msg = stderr.decode(errors="replace") if stderr else ""
+            raise RuntimeError(f"Music witness generation failed: returncode={proc.returncode}\nstdout: {stdout_msg}\nstderr: {stderr_msg}")
 
         return str(witness_file)
 
@@ -305,17 +311,29 @@ class ZKPMusicService:
         proof_file = self.temp_dir / f"music_proof_{uuid.uuid4()}.json"
         public_file = self.temp_dir / f"music_public_{uuid.uuid4()}.json"
 
+        if not zkey.exists():
+            raise RuntimeError(f"zkey file not found: {zkey}")
+
+        if not Path(witness_file).exists():
+            raise RuntimeError(f"Music witness file not found: {witness_file}")
+
+        env = os.environ.copy()
+        env["NODE_OPTIONS"] = "--max-old-space-size=4096"
+
         proc = await asyncio.create_subprocess_exec(
             "snarkjs", "groth16", "prove",
-            str(zkey), witness_file,
+            str(zkey), str(witness_file),
             str(proof_file), str(public_file),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
         stdout, stderr = await proc.communicate()
 
         if proc.returncode != 0:
-            raise RuntimeError(f"Music proof generation failed: {stderr.decode()}")
+            stdout_msg = stdout.decode(errors="replace") if stdout else ""
+            stderr_msg = stderr.decode(errors="replace") if stderr else ""
+            raise RuntimeError(f"Music proof generation failed: returncode={proc.returncode}\nstdout: {stdout_msg}\nstderr: {stderr_msg}")
 
         with open(proof_file) as f:
             proof = json.load(f)

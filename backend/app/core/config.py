@@ -74,6 +74,10 @@ class Settings:
 
     PICOSCENES_ENABLED: bool = os.getenv("PICOSCENES_ENABLED", "true").lower() == "true"
     PICOSCENES_MAX_FILE_SIZE_MB: int = int(os.getenv("PICOSCENES_MAX_FILE_SIZE_MB", "200"))
+    PICOSCENES_PARSER: str = os.getenv("PICOSCENES_PARSER", "matlab").lower()
+    MATLAB_COMMAND: str = os.getenv("MATLAB_COMMAND", "matlab")
+    PICOSCENES_MATLAB_TOOLBOX_PATH: str = os.getenv("PICOSCENES_MATLAB_TOOLBOX_PATH", "")
+    PICOSCENES_MATLAB_TIMEOUT_SECONDS: int = int(os.getenv("PICOSCENES_MATLAB_TIMEOUT_SECONDS", "300"))
 
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 

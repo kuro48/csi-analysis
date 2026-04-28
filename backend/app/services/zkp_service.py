@@ -622,19 +622,23 @@ class ZKPService:
             logger.info("⏱️ Starting witness generation...")
             start_time = time.time()
 
+            env = os.environ.copy()
+            env["NODE_OPTIONS"] = "--max-old-space-size=4096"
+
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
             stdout, stderr = await proc.communicate()
 
             witness_time = time.time() - start_time
 
             if proc.returncode != 0:
-                stdout_msg = stdout.decode() if stdout else ""
-                stderr_msg = stderr.decode() if stderr else ""
-                error_msg  = f"stdout: {stdout_msg}\nstderr: {stderr_msg}" if (stdout_msg or stderr_msg) else "Unknown error"
+                stdout_msg = stdout.decode(errors="replace") if stdout else ""
+                stderr_msg = stderr.decode(errors="replace") if stderr else ""
+                error_msg  = f"returncode={proc.returncode}\nstdout: {stdout_msg}\nstderr: {stderr_msg}"
                 raise RuntimeError(f"Witness generation failed: {error_msg}")
 
             logger.info(f"✅ Witness generated in {witness_time:.3f} seconds: {witness_file}")
@@ -673,29 +677,38 @@ class ZKPService:
                     f"Please run: cd zkp && npm run setup:full_similarity"
                 )
 
+            if not Path(witness_file).exists():
+                raise RuntimeError(f"Witness file not found: {witness_file}")
+
             cmd = [
                 "snarkjs",
                 "groth16", "prove",
                 str(zkey_file),
-                witness_file,
+                str(witness_file),
                 str(proof_file),
                 str(public_file)
             ]
 
-            logger.info("⏱️ Starting proof generation...")
+            logger.info(f"⏱️ Starting proof generation... cmd={' '.join(cmd)}")
             start_time = time.time()
+
+            env = os.environ.copy()
+            env["NODE_OPTIONS"] = "--max-old-space-size=4096"
 
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
             stdout, stderr = await proc.communicate()
 
             generation_time = time.time() - start_time
 
             if proc.returncode != 0:
-                error_msg = stderr.decode() if stderr else "Unknown error"
+                stdout_msg = stdout.decode(errors="replace") if stdout else ""
+                stderr_msg = stderr.decode(errors="replace") if stderr else ""
+                error_msg  = f"returncode={proc.returncode}\nstdout: {stdout_msg}\nstderr: {stderr_msg}"
                 raise RuntimeError(f"Proof generation failed: {error_msg}")
 
             with open(proof_file,  'r') as f:

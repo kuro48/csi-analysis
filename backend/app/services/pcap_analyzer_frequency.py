@@ -272,21 +272,34 @@ def apply_music_transform(
         dtype=np.float64,
     )
 
+    from scipy.signal import detrend
+
+    # --- 全サブキャリアの平均信号を計算（コヒーレント積算）---
+    # 呼吸信号は全サブキャリアで同位相に乗るため加算で強調され、
+    # 無相関なノイズは sqrt(N) 倍ではなく 1/N で平均化されて抑制される。
+    # この平均信号に MUSIC を適用することで BPM 推定精度が向上する。
+    signal_matrix = np.stack(
+        [df[col].to_numpy(dtype=np.float64, copy=False) for col in data_cols],
+        axis=1,
+    )  # shape: [time, n_subcarriers]
+    signal_matrix = np.nan_to_num(signal_matrix, nan=0.0, posinf=0.0, neginf=0.0)
+    signal_matrix = detrend(signal_matrix, axis=0, type="linear")
+    mean_signal = signal_matrix.mean(axis=1)  # shape: [time]
+
+    mean_spectrum = self._compute_music_pseudospectrum(mean_signal, actual_interval, target_freqs)
+    if mean_spectrum.size == 0:
+        self.logger.warning("MUSIC平均信号スペクトル生成不可")
+        return pd.DataFrame()
+
+    # --- サブキャリアごとの MUSIC（ZKP 入力用に残す）---
     spectra = []
     valid_cols = []
-    for col in data_cols:
-        signal = df[col].to_numpy(dtype=np.float64, copy=False)
-
-        # デトレンド（線形ドリフト除去）
-        from scipy.signal import detrend
-        signal = np.nan_to_num(signal, nan=0.0, posinf=0.0, neginf=0.0)
-        signal = detrend(signal, type="linear")
-
+    for col_idx, col in enumerate(data_cols):
+        signal = signal_matrix[:, col_idx]
         spectrum = self._compute_music_pseudospectrum(signal, actual_interval, target_freqs)
         if spectrum.size == 0:
             self.logger.debug(f"サブキャリア {col}: MUSICスペクトル生成不可")
             continue
-
         spectra.append(spectrum)
         valid_cols.append(col)
 
@@ -296,6 +309,8 @@ def apply_music_transform(
 
     music_matrix = np.stack(spectra, axis=1)
     merged_music_df = pd.DataFrame(music_matrix, columns=valid_cols)
+    # _mean 列を先頭に挿入（BPM 推定に使用、ZKP では除外）
+    merged_music_df.insert(0, "_mean", mean_spectrum.astype(np.float32, copy=False))
     merged_music_df.insert(0, "frequency", target_freqs.astype(np.float32, copy=False))
 
     self.logger.info(
@@ -327,7 +342,17 @@ def estimate_breathing_rate(
     if not data_cols:
         return None
 
-    mean_amplitude = breathing_df[data_cols].mean(axis=1)
+    # MUSIC の場合は平均信号スペクトル列（_mean）を優先する。
+    # 各サブキャリアのMUSICピークが異なる周波数に出るのを避けるため、
+    # コヒーレント積算済みの _mean 列を直接使う。
+    if "_mean" in data_cols:
+        mean_amplitude = breathing_df["_mean"]
+    else:
+        # FFT / Wavelet: ピーク振幅が大きい上位10%サブキャリアの平均
+        subcarrier_peaks = breathing_df[data_cols].max(axis=0)
+        n_top = max(1, len(data_cols) // 10)
+        top_cols = subcarrier_peaks.nlargest(n_top).index.tolist()
+        mean_amplitude = breathing_df[top_cols].mean(axis=1)
     if mean_amplitude.empty or mean_amplitude.isna().all():
         return None
 

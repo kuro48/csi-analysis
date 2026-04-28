@@ -26,6 +26,8 @@ from app.services.pcap_analyzer_pipeline import (
     _analyze_dataframe,
     _convert_csi_to_dataframe,
     _convert_picoscenes_to_dataframe,
+    _convert_picoscenes_to_dataframe_with_matlab,
+    _convert_picoscenes_to_dataframe_with_python,
     _select_picoscenes_subcarriers,
     analyze_csi_file_with_picoscenes,
     analyze_pcap_file,
@@ -109,6 +111,8 @@ class PCAPAnalyzer:
     _convert_csi_to_dataframe = _convert_csi_to_dataframe
     _select_picoscenes_subcarriers = _select_picoscenes_subcarriers
     _convert_picoscenes_to_dataframe = _convert_picoscenes_to_dataframe
+    _convert_picoscenes_to_dataframe_with_python = _convert_picoscenes_to_dataframe_with_python
+    _convert_picoscenes_to_dataframe_with_matlab = _convert_picoscenes_to_dataframe_with_matlab
     _analyze_dataframe = _analyze_dataframe
     analyze_pcap_file = analyze_pcap_file
     analyze_csi_file_with_picoscenes = analyze_csi_file_with_picoscenes

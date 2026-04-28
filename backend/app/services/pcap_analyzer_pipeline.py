@@ -3,6 +3,9 @@ PCAPAnalyzer の CSI 読み込みと解析パイプライン。
 """
 
 from pathlib import Path
+import shlex
+import subprocess
+import tempfile
 from typing import Any, Dict
 
 from CSIKit.reader import get_reader
@@ -10,6 +13,7 @@ from CSIKit.util import csitools
 import numpy as np
 import pandas as pd
 
+from app.core.config import settings
 from app.services.pcap_analyzer_common import _build_empty_analysis_result
 
 
@@ -32,6 +36,19 @@ def _select_picoscenes_subcarriers(
 
 
 def _convert_picoscenes_to_dataframe(
+    self,
+    file_path: str,
+) -> pd.DataFrame:
+    """PicoScenes .csi を設定されたパーサーで DataFrame に変換する。"""
+    parser = settings.PICOSCENES_PARSER.lower()
+    if parser == "matlab":
+        return self._convert_picoscenes_to_dataframe_with_matlab(file_path)
+    if parser == "python":
+        return self._convert_picoscenes_to_dataframe_with_python(file_path)
+    raise ValueError(f"Unsupported PICOSCENES_PARSER: {settings.PICOSCENES_PARSER}")
+
+
+def _convert_picoscenes_to_dataframe_with_python(
     self,
     file_path: str,
 ) -> pd.DataFrame:
@@ -105,6 +122,96 @@ def _convert_picoscenes_to_dataframe(
         len(selected_indices),
         num_tones,
         rx_info.get("CBW"),
+    )
+    return df
+
+
+def _matlab_quote(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _convert_picoscenes_to_dataframe_with_matlab(
+    self,
+    file_path: str,
+) -> pd.DataFrame:
+    """PicoScenes MATLAB Toolbox で .csi を CSV 化し、DataFrame に変換する。"""
+    helper_dir = Path(__file__).resolve().parent / "matlab"
+    helper_path = helper_dir / "convert_picoscenes_to_csv.m"
+    if not helper_path.exists():
+        raise RuntimeError(f"MATLAB PicoScenes converter is missing: {helper_path}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_csv = str(Path(temp_dir) / "picoscenes.csv")
+        addpath_commands = [f"addpath({_matlab_quote(str(helper_dir))})"]
+        if settings.PICOSCENES_MATLAB_TOOLBOX_PATH:
+            addpath_commands.insert(
+                0,
+                "addpath(genpath("
+                f"{_matlab_quote(settings.PICOSCENES_MATLAB_TOOLBOX_PATH)}"
+                "))",
+            )
+
+        batch_command = "; ".join(
+            addpath_commands
+            + [
+                "convert_picoscenes_to_csv("
+                f"{_matlab_quote(str(Path(file_path).resolve()))}, "
+                f"{_matlab_quote(output_csv)}, "
+                "245"
+                ")"
+            ]
+        )
+        command = shlex.split(settings.MATLAB_COMMAND) + ["-batch", batch_command]
+
+        self.logger.info(
+            "PicoScenes MATLAB変換開始: file=%s, command=%s",
+            file_path,
+            settings.MATLAB_COMMAND,
+        )
+        try:
+            completed = subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=settings.PICOSCENES_MATLAB_TIMEOUT_SECONDS,
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                "MATLAB command was not found. Set MATLAB_COMMAND or use "
+                "PICOSCENES_PARSER=python to use the Python toolbox."
+            ) from exc
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                "PicoScenes MATLAB parsing timed out after "
+                f"{settings.PICOSCENES_MATLAB_TIMEOUT_SECONDS} seconds"
+            ) from exc
+        except subprocess.CalledProcessError as exc:
+            stderr = (exc.stderr or "").strip()
+            stdout = (exc.stdout or "").strip()
+            detail = stderr or stdout or str(exc)
+            raise RuntimeError(f"PicoScenes MATLAB parsing failed: {detail[-2000:]}") from exc
+
+        if completed.stderr:
+            self.logger.debug("PicoScenes MATLAB stderr: %s", completed.stderr.strip())
+
+        df = pd.read_csv(output_csv)
+
+    if df.empty:
+        raise ValueError("PicoScenes MATLAB parser returned no frames")
+    if "timestamp" not in df.columns:
+        raise ValueError("PicoScenes MATLAB parser output is missing timestamp column")
+
+    df["timestamp"] = pd.to_datetime(df["timestamp"].astype("int64"), unit="ns", errors="coerce")
+    for col in df.columns:
+        if col == "timestamp":
+            continue
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    self.logger.info(
+        "PicoScenes MATLAB DataFrame作成完了: frames=%s, selected_subcarriers=%s",
+        len(df),
+        len([col for col in df.columns if col != "timestamp"]),
     )
     return df
 
@@ -239,7 +346,7 @@ def analyze_csi_file_with_picoscenes(
     include_wavelet: bool = True,
     include_music: bool = True,
 ) -> Dict[str, Any]:
-    """PicoScenes for Python Toolbox で .csi を解析する。"""
+    """PicoScenes .csi を解析する。"""
     df = self._convert_picoscenes_to_dataframe(file_path)
     no_frames = len(df)
     no_subcarriers = len([col for col in df.columns if col.lstrip("-").isdigit()])
