@@ -51,7 +51,7 @@ services:
       - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
       - DEBUG=True
       - ZKP_AUTO_COMPILE=TRUE
-      - PICOSCENES_PARSER=matlab
+      - PICOSCENES_PARSER=python
       - MATLAB_COMMAND=matlab
       - PICOSCENES_MATLAB_TOOLBOX_PATH=
       - PICOSCENES_MATLAB_TIMEOUT_SECONDS=300
