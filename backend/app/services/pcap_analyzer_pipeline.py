@@ -26,13 +26,11 @@ def _select_picoscenes_subcarriers(
     if subcarrier_indices.size <= max_subcarriers:
         return np.arange(subcarrier_indices.size)
 
-    non_zero_positions = np.where(subcarrier_indices != 0)[0]
-    if non_zero_positions.size >= max_subcarriers:
-        ranked = non_zero_positions[np.argsort(np.abs(subcarrier_indices[non_zero_positions]))[:max_subcarriers]]
-    else:
-        ranked = np.argsort(np.abs(subcarrier_indices))[:max_subcarriers]
-
-    return np.sort(ranked)
+    # 等間隔サンプリング: 周波数ダイバーシティを均等に保持する
+    positions = np.round(
+        np.linspace(0, subcarrier_indices.size - 1, max_subcarriers)
+    ).astype(int)
+    return np.sort(np.unique(positions))
 
 
 def _convert_picoscenes_to_dataframe(
@@ -113,7 +111,10 @@ def _convert_picoscenes_to_dataframe_with_python(
     selected_positions = self._select_picoscenes_subcarriers(subcarrier_indices)
     selected_indices = subcarrier_indices[selected_positions]
 
-    rows = []
+    # 事前に配列を確保してフレームごとにベクトル代入（Pythonのdictループを排除）
+    mag_array = np.empty((len(raw_frames), len(selected_positions)), dtype=np.float32)
+    timestamps: list = []
+    valid_count = 0
     fallback_ns = None
     for frame_idx, frame in enumerate(raw_frames):
         frame_csi = frame.get("CSI") or {}
@@ -139,15 +140,16 @@ def _convert_picoscenes_to_dataframe_with_python(
                 fallback_ns += int(self.DOWNSAMPLE_INTERVAL_S * 1_000_000_000)
             system_ns = fallback_ns
 
-        row = {"timestamp": pd.to_datetime(int(system_ns), unit="ns", errors="coerce")}
-        for pos, subcarrier_index in zip(selected_positions, selected_indices):
-            row[str(int(subcarrier_index))] = float(tone_vector[pos])
-        rows.append(row)
+        mag_array[valid_count, :] = tone_vector[selected_positions]
+        timestamps.append(pd.to_datetime(int(system_ns), unit="ns", errors="coerce"))
+        valid_count += 1
 
-    if not rows:
+    if valid_count == 0:
         raise ValueError("No valid PicoScenes frames could be converted")
 
-    df = pd.DataFrame(rows)
+    col_names = [str(int(i)) for i in selected_indices]
+    df = pd.DataFrame(mag_array[:valid_count], columns=col_names)
+    df.insert(0, "timestamp", timestamps)
     self.logger.info(
         "PicoScenes DataFrame作成完了: frames=%s, selected_subcarriers=%s, original_tones=%s, cbw=%s",
         len(df),

@@ -134,38 +134,55 @@ def apply_wavelet_transform(
         np.log10(min(self.WAVELET_FREQ_MAX, actual_fs / 2.0)),
         n_freqs,
     )
-
     scales = pywt.frequency2scale(self.WAVELET_NAME, target_freqs * actual_interval)
-    frequency_axis = None
+
+    # --- 全サブキャリアのバッチ前処理（ループ前に一括実行）---
+    from scipy.signal import detrend
+
+    signal_matrix = np.stack(
+        [df[col].to_numpy(dtype=np.float64, copy=False) for col in data_cols],
+        axis=1,
+    )  # shape: [T, n_sub]
+    signal_matrix = np.nan_to_num(signal_matrix, nan=0.0, posinf=0.0, neginf=0.0)
+    signal_matrix = detrend(signal_matrix, axis=0, type="linear")  # バッチデトレンド
+
+    signal_len = signal_matrix.shape[0]
+    if signal_len < 2:
+        self.logger.warning("信号長不足のためウェーブレット変換をスキップ")
+        return pd.DataFrame()
+
+    method = "fft" if signal_len >= self.WAVELET_FFT_METHOD_MIN_SIGNAL_LEN else "conv"
+
+    # --- 平均信号 CWT（BPM 推定用・コヒーレント積算）---
+    # 呼吸信号は全サブキャリアで同位相に乗るため加算で強調され、
+    # 無相関なノイズは平均化で抑制される（MUSIC の _mean 列と同じ戦略）
+    mean_signal = signal_matrix.mean(axis=1)  # shape: [T]
+    mean_coeff, frequency_axis = pywt.cwt(
+        mean_signal,
+        scales,
+        self.WAVELET_NAME,
+        sampling_period=actual_interval,
+        method=method,
+    )
+    mean_amplitude = np.mean(np.abs(mean_coeff), axis=1).astype(np.float32)
+
+    # --- サブキャリア別 CWT（ZKP・可視化用）---
     amplitude_rows = []
     valid_cols = []
-
-    for col in data_cols:
-        signal = df[col].to_numpy(dtype=np.float64, copy=False)
-        if len(signal) < 2:
-            self.logger.debug(f"サブキャリア {col}: データ不足 (長さ={len(signal)})")
+    for col_idx, col in enumerate(data_cols):
+        signal = signal_matrix[:, col_idx]
+        if np.allclose(signal, 0.0):
+            self.logger.debug(f"サブキャリア {col}: 全ゼロのためスキップ")
             continue
-
-        signal = np.nan_to_num(signal, nan=0.0, posinf=0.0, neginf=0.0)
-
-        # デトレンド（DCオフセット・線形ドリフト除去）
-        from scipy.signal import detrend
-        signal = detrend(signal, type="linear")
-
-        method = "fft" if len(signal) >= self.WAVELET_FFT_METHOD_MIN_SIGNAL_LEN else "conv"
-
-        coefficients, freqs = pywt.cwt(
+        coefficients, _ = pywt.cwt(
             signal,
             scales,
             self.WAVELET_NAME,
             sampling_period=actual_interval,
             method=method,
         )
-
         amplitude_rows.append(np.mean(np.abs(coefficients), axis=1).astype(np.float32, copy=False))
         valid_cols.append(col)
-        if frequency_axis is None:
-            frequency_axis = freqs
 
     if not amplitude_rows:
         self.logger.warning("ウェーブレット変換結果が空です")
@@ -173,10 +190,11 @@ def apply_wavelet_transform(
 
     wavelet_matrix = np.stack(amplitude_rows, axis=1)
     merged_wavelet_df = pd.DataFrame(wavelet_matrix, columns=valid_cols)
+    merged_wavelet_df.insert(0, "_mean", mean_amplitude)
     merged_wavelet_df.insert(0, "frequency", frequency_axis)
 
     self.logger.info(
-        f"ウェーブレット変換完了: {len(valid_cols)}サブキャリア, "
+        f"ウェーブレット変換完了: {len(valid_cols)}サブキャリア (+平均信号), "
         f"{len(merged_wavelet_df)}周波数ポイント "
         f"({self.WAVELET_FREQ_MIN:.3f}–{float(np.max(frequency_axis)):.3f} Hz)"
     )
@@ -191,8 +209,13 @@ def _compute_music_pseudospectrum(
     frequencies: np.ndarray,
     embedding_dim: Optional[int] = None,
     model_order: Optional[int] = None,
+    precomputed_steering: Optional[np.ndarray] = None,
 ) -> np.ndarray:
-    """1次元信号に対する MUSIC 擬似スペクトルを計算する。"""
+    """1次元信号に対する MUSIC 擬似スペクトルを計算する。
+
+    precomputed_steering: 事前計算済みステアリング行列 [embedding_dim, n_freqs]。
+    指定時はステアリング計算をスキップして再利用する。
+    """
     if signal.size < 4:
         return np.array([], dtype=np.float32)
 
@@ -227,9 +250,13 @@ def _compute_music_pseudospectrum(
     if noise_subspace.size == 0:
         return np.array([], dtype=np.float32)
 
-    sample_indices = np.arange(embedding_dim, dtype=np.float64)
-    angular = 2.0 * np.pi * frequencies * sampling_interval
-    steering = np.exp(-1j * np.outer(sample_indices, angular))
+    if precomputed_steering is not None:
+        steering = precomputed_steering
+    else:
+        sample_indices = np.arange(embedding_dim, dtype=np.float64)
+        angular = 2.0 * np.pi * frequencies * sampling_interval
+        steering = np.exp(-1j * np.outer(sample_indices, angular))
+
     projection = noise_subspace.conj().T @ steering
     denominator = np.sum(np.abs(projection) ** 2, axis=0)
     denominator = np.maximum(denominator, 1e-12)
@@ -274,47 +301,86 @@ def apply_music_transform(
 
     from scipy.signal import detrend
 
-    # --- 全サブキャリアの平均信号を計算（コヒーレント積算）---
-    # 呼吸信号は全サブキャリアで同位相に乗るため加算で強調され、
-    # 無相関なノイズは sqrt(N) 倍ではなく 1/N で平均化されて抑制される。
-    # この平均信号に MUSIC を適用することで BPM 推定精度が向上する。
+    # --- 全サブキャリアのバッチ前処理 ---
     signal_matrix = np.stack(
         [df[col].to_numpy(dtype=np.float64, copy=False) for col in data_cols],
         axis=1,
-    )  # shape: [time, n_subcarriers]
+    )  # shape: [T, n_sub]
     signal_matrix = np.nan_to_num(signal_matrix, nan=0.0, posinf=0.0, neginf=0.0)
     signal_matrix = detrend(signal_matrix, axis=0, type="linear")
-    mean_signal = signal_matrix.mean(axis=1)  # shape: [time]
 
-    mean_spectrum = self._compute_music_pseudospectrum(mean_signal, actual_interval, target_freqs)
+    signal_length, n_subcarriers = signal_matrix.shape
+
+    # embedding_dim を一度だけ計算（全サブキャリアで同一）
+    max_embedding = max(4, min(signal_length // 2, self.MUSIC_EMBEDDING_DIM))
+    embedding_dim = max(4, min(max_embedding, signal_length - 1))
+    model_order = max(1, min(self.MUSIC_MODEL_ORDER, embedding_dim - 1))
+
+    # ステアリング行列を事前計算（全サブキャリアで共有）
+    sample_indices = np.arange(embedding_dim, dtype=np.float64)
+    angular = 2.0 * np.pi * target_freqs * actual_interval
+    precomputed_steering = np.exp(-1j * np.outer(sample_indices, angular))  # [L, n_freqs]
+
+    # --- 平均信号 MUSIC（BPM 推定用・コヒーレント積算）---
+    mean_signal = signal_matrix.mean(axis=1)  # shape: [T]
+    mean_spectrum = self._compute_music_pseudospectrum(
+        mean_signal, actual_interval, target_freqs,
+        embedding_dim=embedding_dim, model_order=model_order,
+        precomputed_steering=precomputed_steering,
+    )
     if mean_spectrum.size == 0:
         self.logger.warning("MUSIC平均信号スペクトル生成不可")
         return pd.DataFrame()
 
-    # --- サブキャリアごとの MUSIC（ZKP 入力用に残す）---
-    spectra = []
-    valid_cols = []
-    for col_idx, col in enumerate(data_cols):
-        signal = signal_matrix[:, col_idx]
-        spectrum = self._compute_music_pseudospectrum(signal, actual_interval, target_freqs)
-        if spectrum.size == 0:
-            self.logger.debug(f"サブキャリア {col}: MUSICスペクトル生成不可")
-            continue
-        spectra.append(spectrum)
-        valid_cols.append(col)
+    # --- バッチ MUSIC（全サブキャリアを一括ベクトル処理）---
+    snapshot_count = signal_length - embedding_dim + 1
 
-    if not spectra:
+    # ゼロ信号を除外
+    nonzero_mask = ~np.all(np.isclose(signal_matrix, 0.0), axis=0)
+    valid_cols = [col for col, ok in zip(data_cols, nonzero_mask) if ok]
+    valid_signals = signal_matrix[:, nonzero_mask]  # [T, n_valid]
+
+    if valid_signals.shape[1] == 0 or snapshot_count < 2:
         self.logger.warning("MUSIC変換結果が空です")
-        return pd.DataFrame()
+        merged_music_df = pd.DataFrame({
+            "frequency": target_freqs.astype(np.float32),
+            "_mean": mean_spectrum.astype(np.float32),
+        })
+        return self.drop_invalid_rows(merged_music_df)
 
-    music_matrix = np.stack(spectra, axis=1)
-    merged_music_df = pd.DataFrame(music_matrix, columns=valid_cols)
-    # _mean 列を先頭に挿入（BPM 推定に使用、ZKP では除外）
+    # Hankel 行列をスライディングウィンドウで一括構築し連続メモリに配置
+    # windows shape: [snapshot_count, n_valid, embedding_dim]
+    windows = np.lib.stride_tricks.sliding_window_view(valid_signals, embedding_dim, axis=0)
+    # transpose 後に ascontiguousarray で C 連続にする（BLAS の性能を最大化）
+    hankel_batch = np.ascontiguousarray(windows.transpose(1, 2, 0))  # [n_valid, L, snapshot_count]
+
+    # バッチ共分散行列: [n_valid, L, L]
+    cov_batch = (hankel_batch @ hankel_batch.transpose(0, 2, 1)) / snapshot_count
+
+    # バッチ固有値分解（NumPy の batched eigh）
+    _, eigvecs_batch = np.linalg.eigh(cov_batch)  # eigvecs: [n_valid, L, L]
+
+    # 固有値は昇順のため、列を逆順に並べ替えて降順にする
+    eigvecs_sorted = eigvecs_batch[..., ::-1]  # [n_valid, L, L]
+
+    # ノイズ部分空間: [n_valid, L, n_noise]
+    noise_subspaces = eigvecs_sorted[:, :, model_order:]
+
+    # バッチ擬似スペクトル計算
+    # noise_T: [n_valid, n_noise, L]  ×  steering: [L, n_freqs]  →  [n_valid, n_noise, n_freqs]
+    noise_T = np.ascontiguousarray(noise_subspaces.conj().transpose(0, 2, 1))
+    projection_batch = noise_T @ precomputed_steering  # [n_valid, n_noise, n_freqs]
+    denominator_batch = np.sum(np.abs(projection_batch) ** 2, axis=1)  # [n_valid, n_freqs]
+    denominator_batch = np.maximum(denominator_batch, 1e-12)
+    spectra_batch = (1.0 / denominator_batch).astype(np.float32)  # [n_valid, n_freqs]
+
+    # 出力 DataFrame 構築（既存の列構造を維持）
+    merged_music_df = pd.DataFrame(spectra_batch.T, columns=valid_cols)
     merged_music_df.insert(0, "_mean", mean_spectrum.astype(np.float32, copy=False))
     merged_music_df.insert(0, "frequency", target_freqs.astype(np.float32, copy=False))
 
     self.logger.info(
-        f"MUSIC変換完了: {len(valid_cols)}サブキャリア, "
+        f"MUSIC変換完了: {len(valid_cols)}サブキャリア (バッチ処理), "
         f"{len(merged_music_df)}周波数ポイント "
         f"({self.MUSIC_FREQ_MIN:.3f}–{float(np.max(target_freqs)):.3f} Hz)"
     )

@@ -77,13 +77,18 @@ run_picoscenes() {
     # -q で自動終了しない場合に備えて強制終了
     if kill -0 "$pid" 2>/dev/null; then
         kill "$pid"
-        wait "$pid" 2>/dev/null || true
     fi
+    # 自然終了・強制終了どちらでも wait してファイル書き込みを完了させる
+    wait "$pid" 2>/dev/null || true
 
     echo "[Capture] Capture finished."
     echo "[Capture] --- PicoScenes log ---"
     cat "$log_file"
     echo "[Capture] --------------------"
+
+    echo "[Capture] .csi files in output directory:"
+    ls -lh "$(dirname "$output_file")"/*.csi 2>/dev/null \
+        || echo "[Capture] (no .csi files found in $(dirname "$output_file"))"
 }
 
 # CSIファイルの存在確認
@@ -93,6 +98,10 @@ check_csi_file() {
     if [[ ! -f "$csi_file" ]]; then
         echo "ERROR: CSI file not found: ${csi_file}"
         echo "       PicoScenesのログを確認してください。"
+        echo ""
+        echo "       [診断] ディレクトリ内の .csi ファイル一覧:"
+        ls -lht "$(dirname "$csi_file")"/*.csi 2>/dev/null \
+            || echo "       ($(dirname "$csi_file") に .csi ファイルが存在しません)"
         return 1
     fi
     local file_size
