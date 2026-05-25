@@ -13,7 +13,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_OUTPUT_DIR = Path("/backend/outputs/graphs")
+_DEFAULT_OUTPUT_DIR = Path("/app/outputs/graphs")
 _FALLBACK_OUTPUT_DIR = Path(__file__).parent.parent.parent / "outputs" / "graphs"
 
 NORMAL_LOW_HZ = 0.10

@@ -301,12 +301,17 @@ class ZKPService:
             is_normal = bool(int(public_signals[0])) if actual_len >= 1 else False
 
             # 表示用メタデータ: ZKP証明の外でPython計算（プライバシーに影響しない）
+            # 全体コサイン類似度（行列全体のflattened cosine）を正規化類似度として使用
+            python_sim = self.compute_python_similarity(
+                reference_matrix=reference_matrix,
+                candidate_matrix=candidate_matrix
+            )
+            normalized_similarity = python_sim.get("cosine_similarity", 0.0)
             per_sub = self.select_lowest_subcarrier(
                 reference_matrix=reference_matrix,
                 candidate_matrix=candidate_matrix
             )
             selected_sub_index = per_sub.get("lowest_index")
-            normalized_similarity = per_sub.get("lowest_similarity", 0.0)
 
             result = {
                 "proof": proof,
@@ -476,10 +481,17 @@ class ZKPService:
             top_n_indices, top_n_similarities, all_similarities,
             lowest_index, lowest_similarity, num_subcarriers
         """
+        # ゼロパディング列を除くため、リサイズ前の実列数を記録
+        actual_cols = len(reference_matrix[0]) if reference_matrix else self.EXPECTED_SUBCARRIERS
+
         input_data = self._prepare_input(reference_matrix, candidate_matrix)
 
         ref  = np.array(input_data["referenceMatrix"], dtype=np.float64)
         cand = np.array(input_data["candidateMatrix"],  dtype=np.float64)
+
+        # 実データ列のみでコサイン類似度を計算（ゼロパディング列を除外）
+        ref  = ref[:,  :actual_cols]
+        cand = cand[:, :actual_cols]
 
         similarities = self._per_subcarrier_cosine(ref, cand)
 
