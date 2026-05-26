@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 # PCAPAnalyzer クラス定数と同期）                                     #
 # ------------------------------------------------------------------ #
 
-DOWNSAMPLE_INTERVAL_S: float = 0.01   # 目標サンプリング間隔 100 Hz
+DOWNSAMPLE_INTERVAL_S: float = 0.01   # フォールバック用サンプリング間隔（タイムスタンプ取得不可時）
 FREQUENCY_BIN_STEP: float = 0.01      # 周波数ビン幅 Hz
 
 ZKP_FREQ_START: float = 0.0           # 抽出開始周波数 Hz
@@ -500,10 +500,10 @@ def apply_fft(df: pd.DataFrame) -> pd.DataFrame:
 
     手順:
         1. 実タイムスタンプから実サンプリングレートを計算
-        2. 目標レート（1/DOWNSAMPLE_INTERVAL_S）に等間隔リサンプリング
-        3. 線形デトレンド（DC + 線形トレンド除去）
-        4. Hann窓（スペクトル漏れ抑制）
-        5. rfft → 正の周波数成分の絶対値
+        2. 線形デトレンド（DC + 線形トレンド除去）
+        3. Hann窓（スペクトル漏れ抑制）
+        4. rfft → 正の周波数成分の絶対値
+        ※ リサンプリングは行わず、実測サンプリングレートをそのまま使用する
     """
     if df.empty:
         return pd.DataFrame()
@@ -512,17 +512,15 @@ def apply_fft(df: pd.DataFrame) -> pd.DataFrame:
     if not data_cols:
         return pd.DataFrame()
 
-    target_fs = 1.0 / DOWNSAMPLE_INTERVAL_S
-
     if "timestamp" in df.columns and len(df) >= 2:
         ts = pd.to_datetime(df["timestamp"])
         duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
-        actual_fs = (len(df) - 1) / duration_s if duration_s > 0 else target_fs
+        actual_fs = (len(df) - 1) / duration_s if duration_s > 0 else 1.0 / DOWNSAMPLE_INTERVAL_S
     else:
-        actual_fs = target_fs
+        actual_fs = 1.0 / DOWNSAMPLE_INTERVAL_S
 
-    resample_factor = actual_fs / target_fs
-    logger.info(f"実サンプリングレート: {actual_fs:.2f} Hz, リサンプル係数: {resample_factor:.3f}")
+    actual_interval = 1.0 / actual_fs
+    logger.info(f"FFT 実サンプリングレート: {actual_fs:.4f} Hz (サンプル間隔: {actual_interval:.4f} s)")
 
     all_results: list[pd.DataFrame] = []
     for col in data_cols:
@@ -530,15 +528,11 @@ def apply_fft(df: pd.DataFrame) -> pd.DataFrame:
         if len(signal) < 4:
             continue
 
-        if abs(resample_factor - 1.0) > 0.05:
-            n_target = max(4, int(round(len(signal) / resample_factor)))
-            signal = resample(signal, n_target)
-
         signal = detrend(signal, type="linear")
         signal = signal * np.hanning(len(signal))
 
         yf = np.fft.rfft(signal)
-        xf = np.fft.rfftfreq(len(signal), d=DOWNSAMPLE_INTERVAL_S)
+        xf = np.fft.rfftfreq(len(signal), d=actual_interval)
 
         positive = xf > 0
         col_df = pd.DataFrame({"frequency": xf[positive], col: np.abs(yf[positive])})
