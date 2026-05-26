@@ -19,6 +19,8 @@ ZKP証明（Groth16）を生成して結果をJSONで保存する。
         "proof": { ... },              // Groth16証明オブジェクト
         "publicSignals": ["0" or "1"], // isNormal
         "isNormal": bool,
+        "wavelet_matrix": [[int, ...], ...], // Wavelet ZKP行列（空の場合は []）
+        "music_matrix": [[int, ...], ...],   // MUSIC ZKP行列（空の場合は []）
         "num_freq_points": int,
         "num_subcarriers": int,
         "source_file": str,
@@ -40,7 +42,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.signal import detrend, resample
+from scipy.signal import detrend
+
+try:
+    import pywt
+    PYWAVELETS_AVAILABLE = True
+except ImportError:
+    PYWAVELETS_AVAILABLE = False
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +73,25 @@ EXPECTED_SUBCARRIERS: int = 245
 
 GUARD_BANDS: list[tuple[int, int]] = [(-128, -122), (122, 127)]
 PILOTS: list[int] = [-103, -75, -39, -11, 11, 39, 75, 103]
+
+# ウェーブレット変換パラメータ
+WAVELET_NAME: str = "cmor1.5-1.0"
+WAVELET_FREQ_MIN: float = 0.01
+WAVELET_FREQ_MAX: float = 2.0
+WAVELET_N_FREQS: int = 100
+WAVELET_FFT_METHOD_MIN_SIGNAL_LEN: int = 256
+
+# MUSIC 法パラメータ
+MUSIC_FREQ_MIN: float = 0.01
+MUSIC_FREQ_MAX: float = 2.0
+MUSIC_N_FREQS: int = 128
+MUSIC_EMBEDDING_DIM: int = 32
+MUSIC_MODEL_ORDER: int = 1
+
+
+def _mag_cols(df: pd.DataFrame) -> list[str]:
+    """振幅列（整数インデックス名の列）だけを返す。"""
+    return [c for c in df.columns if c.lstrip("-").isdigit()]
 
 
 # ------------------------------------------------------------------ #
@@ -191,28 +218,49 @@ def remove_unnecessary_subcarriers(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ------------------------------------------------------------------ #
+# Step 3.5: 背景差分除去                                                #
+# ------------------------------------------------------------------ #
+
+def subtract_background(
+    df: pd.DataFrame,
+    subcarrier_medians: dict[str, float],
+) -> pd.DataFrame:
+    """ベースCSIのサブキャリア別メジアンを用いて背景差分を除去する。
+
+    存在しないサブキャリアキーはスキップする。負値は 0 にクリップする。
+    """
+    result = df.copy()
+    for col in _mag_cols(df):
+        if col in subcarrier_medians:
+            result[col] = (df[col] - subcarrier_medians[col]).clip(lower=0)
+    return result
+
+
+# ------------------------------------------------------------------ #
 # Step 4: FFT適用                                                      #
 # ------------------------------------------------------------------ #
 
 def apply_fft(df: pd.DataFrame) -> pd.DataFrame:
+    """各サブキャリアにFFTを適用する。
+
+    リサンプリングは行わず、実測サンプリングレートをそのまま使用する。
+    """
     if df.empty:
         return pd.DataFrame()
 
-    data_cols = [c for c in df.columns if c != "timestamp" and pd.api.types.is_numeric_dtype(df[c])]
+    data_cols = _mag_cols(df)
     if not data_cols:
         return pd.DataFrame()
-
-    target_fs = 1.0 / DOWNSAMPLE_INTERVAL_S
 
     if "timestamp" in df.columns and len(df) >= 2:
         ts = pd.to_datetime(df["timestamp"])
         duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
-        actual_fs = (len(df) - 1) / duration_s if duration_s > 0 else target_fs
+        actual_fs = (len(df) - 1) / duration_s if duration_s > 0 else 1.0 / DOWNSAMPLE_INTERVAL_S
     else:
-        actual_fs = target_fs
+        actual_fs = 1.0 / DOWNSAMPLE_INTERVAL_S
 
-    resample_factor = actual_fs / target_fs
-    logger.info(f"実サンプリングレート: {actual_fs:.2f} Hz, リサンプル係数: {resample_factor:.3f}")
+    actual_interval = 1.0 / actual_fs
+    logger.info(f"FFT 実サンプリングレート: {actual_fs:.4f} Hz (サンプル間隔: {actual_interval:.4f} s)")
 
     all_results: list[pd.DataFrame] = []
     for col in data_cols:
@@ -220,15 +268,11 @@ def apply_fft(df: pd.DataFrame) -> pd.DataFrame:
         if len(signal) < 4:
             continue
 
-        if abs(resample_factor - 1.0) > 0.05:
-            n_target = max(4, int(round(len(signal) / resample_factor)))
-            signal = resample(signal, n_target)
-
         signal = detrend(signal, type="linear")
         signal = signal * np.hanning(len(signal))
 
         yf = np.fft.rfft(signal)
-        xf = np.fft.rfftfreq(len(signal), d=DOWNSAMPLE_INTERVAL_S)
+        xf = np.fft.rfftfreq(len(signal), d=actual_interval)
 
         positive = xf > 0
         col_df = pd.DataFrame({"frequency": xf[positive], col: np.abs(yf[positive])})
@@ -240,6 +284,187 @@ def apply_fft(df: pd.DataFrame) -> pd.DataFrame:
     merged = pd.concat(all_results, axis=1).reset_index()
     logger.info(f"FFT 完了: {len(data_cols)} サブキャリア, {len(merged)} 周波数ポイント")
     return drop_invalid_rows(merged)
+
+
+# ------------------------------------------------------------------ #
+# Step 4-2: ウェーブレット変換                                          #
+# ------------------------------------------------------------------ #
+
+def _parse_wavelet_bw(wavelet_name: str) -> float:
+    try:
+        return float(wavelet_name.split("cmor")[1].split("-")[0])
+    except (IndexError, ValueError):
+        return 1.5
+
+
+def apply_wavelet_transform(df: pd.DataFrame) -> pd.DataFrame:
+    """各サブキャリアに CWT を適用し、時間平均振幅スペクトルを返す（CoI考慮）。
+
+    Returns:
+        columns: ["frequency", "_mean", "<subcarrier_index>", ...]
+    """
+    if not PYWAVELETS_AVAILABLE:
+        logger.warning("PyWavelets 未インストールのためウェーブレット変換をスキップ")
+        return pd.DataFrame()
+    if df.empty:
+        return pd.DataFrame()
+
+    data_cols = _mag_cols(df)
+    if not data_cols:
+        return pd.DataFrame()
+
+    if "timestamp" in df.columns and len(df) >= 2:
+        ts = pd.to_datetime(df["timestamp"])
+        duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
+        actual_interval = duration_s / (len(df) - 1) if duration_s > 0 else DOWNSAMPLE_INTERVAL_S
+    else:
+        actual_interval = DOWNSAMPLE_INTERVAL_S
+
+    actual_fs = 1.0 / actual_interval
+    target_freqs = np.logspace(
+        np.log10(WAVELET_FREQ_MIN),
+        np.log10(min(WAVELET_FREQ_MAX, actual_fs / 2.0)),
+        WAVELET_N_FREQS,
+    )
+    scales = pywt.frequency2scale(WAVELET_NAME, target_freqs * actual_interval)
+
+    signal_matrix = np.stack(
+        [df[col].to_numpy(dtype=np.float64, copy=False) for col in data_cols], axis=1
+    )
+    signal_matrix = np.nan_to_num(signal_matrix, nan=0.0, posinf=0.0, neginf=0.0)
+    signal_matrix = detrend(signal_matrix, axis=0, type="linear")
+
+    n_samples = signal_matrix.shape[0]
+    if n_samples < 2:
+        return pd.DataFrame()
+
+    bw = _parse_wavelet_bw(WAVELET_NAME)
+    coi_half = scales * np.sqrt(bw)
+    dist_from_edge = np.minimum(np.arange(n_samples), n_samples - 1 - np.arange(n_samples))
+    coi_valid = dist_from_edge[np.newaxis, :] > coi_half[:, np.newaxis]
+    valid_counts = coi_valid.sum(axis=1)
+
+    method = "fft" if n_samples >= WAVELET_FFT_METHOD_MIN_SIGNAL_LEN else "conv"
+
+    def _coi_mean(abs_coef: np.ndarray) -> np.ndarray:
+        masked_sum = np.sum(abs_coef * coi_valid, axis=1)
+        fallback = abs_coef.mean(axis=1)
+        return np.where(valid_counts >= 2, masked_sum / np.maximum(valid_counts, 1), fallback).astype(np.float32)
+
+    mean_coeff, frequency_axis = pywt.cwt(
+        signal_matrix.mean(axis=1), scales, WAVELET_NAME,
+        sampling_period=actual_interval, method=method,
+    )
+    mean_amplitude = _coi_mean(np.abs(mean_coeff))
+
+    amplitude_rows, valid_cols = [], []
+    for col_idx, col in enumerate(data_cols):
+        signal = signal_matrix[:, col_idx]
+        if np.allclose(signal, 0.0):
+            continue
+        coefficients, _ = pywt.cwt(signal, scales, WAVELET_NAME, sampling_period=actual_interval, method=method)
+        amplitude_rows.append(_coi_mean(np.abs(coefficients)))
+        valid_cols.append(col)
+
+    if not amplitude_rows:
+        return pd.DataFrame()
+
+    result_df = pd.DataFrame(np.stack(amplitude_rows, axis=1), columns=valid_cols)
+    result_df.insert(0, "_mean", mean_amplitude)
+    result_df.insert(0, "frequency", frequency_axis.astype(np.float32))
+    logger.info(f"ウェーブレット変換完了: {len(valid_cols)} サブキャリア, {len(result_df)} 周波数点")
+    return drop_invalid_rows(result_df)
+
+
+# ------------------------------------------------------------------ #
+# Step 4-3: MUSIC 法                                                   #
+# ------------------------------------------------------------------ #
+
+def _compute_music_pseudospectrum(
+    signal: np.ndarray,
+    frequencies: np.ndarray,
+    embedding_dim: int,
+    model_order: int,
+    precomputed_steering: np.ndarray,
+) -> np.ndarray:
+    if signal.size < 4:
+        return np.zeros(len(frequencies), dtype=np.float32)
+    cleaned = np.nan_to_num(signal.astype(np.float64, copy=False), nan=0.0, posinf=0.0, neginf=0.0)
+    cleaned = cleaned - np.mean(cleaned)
+    if np.allclose(cleaned, 0.0) or signal.size - embedding_dim + 1 < 2:
+        return np.zeros(len(frequencies), dtype=np.float32)
+    snapshot_count = signal.size - embedding_dim + 1
+    hankel = np.column_stack([cleaned[i:i + embedding_dim] for i in range(snapshot_count)])
+    covariance = (hankel @ hankel.conj().T) / snapshot_count
+    eigvals, eigvecs = np.linalg.eigh(covariance)
+    noise_subspace = eigvecs[:, np.argsort(eigvals)[::-1]][:, model_order:]
+    projection = noise_subspace.conj().T @ precomputed_steering
+    denominator = np.maximum(np.sum(np.abs(projection) ** 2, axis=0), 1e-12)
+    return (1.0 / denominator).astype(np.float32, copy=False)
+
+
+def apply_music_transform(df: pd.DataFrame) -> pd.DataFrame:
+    """各サブキャリアに MUSIC 法を適用し、擬似スペクトルを返す。
+
+    Returns:
+        columns: ["frequency", "_mean", "<subcarrier_index>", ...]
+    """
+    if df.empty:
+        return pd.DataFrame()
+
+    data_cols = _mag_cols(df)
+    if not data_cols:
+        return pd.DataFrame()
+
+    if "timestamp" in df.columns and len(df) >= 2:
+        ts = pd.to_datetime(df["timestamp"])
+        duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
+        actual_interval = duration_s / (len(df) - 1) if duration_s > 0 else DOWNSAMPLE_INTERVAL_S
+    else:
+        actual_interval = DOWNSAMPLE_INTERVAL_S
+
+    actual_fs = 1.0 / actual_interval
+    target_freqs = np.linspace(MUSIC_FREQ_MIN, min(MUSIC_FREQ_MAX, actual_fs / 2.0), MUSIC_N_FREQS, dtype=np.float64)
+
+    signal_matrix = np.stack(
+        [df[col].to_numpy(dtype=np.float64, copy=False) for col in data_cols], axis=1
+    )
+    signal_matrix = np.nan_to_num(signal_matrix, nan=0.0, posinf=0.0, neginf=0.0)
+    signal_matrix = detrend(signal_matrix, axis=0, type="linear")
+
+    signal_length = signal_matrix.shape[0]
+    embedding_dim = max(4, min(signal_length // 2, MUSIC_EMBEDDING_DIM, signal_length - 1))
+    model_order = max(1, min(MUSIC_MODEL_ORDER, embedding_dim - 1))
+    snapshot_count = signal_length - embedding_dim + 1
+
+    angular = 2.0 * np.pi * target_freqs * actual_interval
+    precomputed_steering = np.exp(-1j * np.outer(np.arange(embedding_dim, dtype=np.float64), angular))
+
+    mean_spectrum = _compute_music_pseudospectrum(
+        signal_matrix.mean(axis=1), target_freqs, embedding_dim, model_order, precomputed_steering
+    )
+
+    nonzero_mask = ~np.all(np.isclose(signal_matrix, 0.0), axis=0)
+    valid_cols = [col for col, ok in zip(data_cols, nonzero_mask) if ok]
+    valid_signals = signal_matrix[:, nonzero_mask]
+
+    if valid_signals.shape[1] == 0 or snapshot_count < 2:
+        logger.warning("MUSIC 変換結果が空です")
+        return drop_invalid_rows(pd.DataFrame({"frequency": target_freqs.astype(np.float32), "_mean": mean_spectrum}))
+
+    windows = np.lib.stride_tricks.sliding_window_view(valid_signals, embedding_dim, axis=0)
+    hankel_batch = np.ascontiguousarray(windows.transpose(1, 2, 0))
+    cov_batch = (hankel_batch @ hankel_batch.transpose(0, 2, 1)) / snapshot_count
+    _, eigvecs_batch = np.linalg.eigh(cov_batch)
+    noise_subspaces = eigvecs_batch[..., ::-1][:, :, model_order:]
+    projection_batch = np.ascontiguousarray(noise_subspaces.conj().transpose(0, 2, 1)) @ precomputed_steering
+    spectra_batch = (1.0 / np.maximum(np.sum(np.abs(projection_batch) ** 2, axis=1), 1e-12)).astype(np.float32)
+
+    result_df = pd.DataFrame(spectra_batch.T, columns=valid_cols)
+    result_df.insert(0, "_mean", mean_spectrum.astype(np.float32, copy=False))
+    result_df.insert(0, "frequency", target_freqs.astype(np.float32, copy=False))
+    logger.info(f"MUSIC 変換完了: {len(valid_cols)} サブキャリア, {len(result_df)} 周波数点")
+    return drop_invalid_rows(result_df)
 
 
 # ------------------------------------------------------------------ #
@@ -324,6 +549,46 @@ def extract_zkp_matrix(binned_df: pd.DataFrame) -> list[list[int]]:
     logger.info(
         f"ZKP 行列抽出完了: {len(matrix)} 周波数ポイント × {len(subcarrier_cols)} サブキャリア"
     )
+    return matrix
+
+
+# ------------------------------------------------------------------ #
+# Step 6-2: ウェーブレット用 ZKP 行列抽出（ビン化なし）                  #
+# ------------------------------------------------------------------ #
+
+def extract_zkp_matrix_direct(freq_df: pd.DataFrame) -> list[list[int]]:
+    """frequency列を持つDataFrameから直接ZKP行列を生成する。
+
+    ウェーブレット出力のように対数スペーシングの frequency 列を持つ場合に使用する。
+    """
+    if freq_df.empty or "frequency" not in freq_df.columns:
+        raise ValueError("DataFrameが空か frequency 列がありません")
+
+    mask = (freq_df["frequency"] >= ZKP_FREQ_START) & (freq_df["frequency"] <= ZKP_FREQ_END)
+    sub_df = freq_df[mask]
+    if sub_df.empty:
+        raise ValueError(
+            f"周波数帯域 {ZKP_FREQ_START}〜{ZKP_FREQ_END} Hz にデータがありません"
+        )
+
+    subcarrier_cols = [
+        c for c in sub_df.columns
+        if c not in {"frequency"} and not c.startswith("_")
+        and pd.api.types.is_numeric_dtype(sub_df[c])
+    ]
+    if not subcarrier_cols:
+        raise ValueError("サブキャリア列が見つかりません")
+
+    raw = sub_df[subcarrier_cols].to_numpy(dtype=np.float64)
+    raw = np.nan_to_num(raw, nan=0.0, posinf=0.0, neginf=0.0)
+    raw = np.maximum(raw, 0.0)
+
+    col_min = raw.min(axis=0)
+    col_max = raw.max(axis=0)
+    col_range = np.where(col_max - col_min == 0.0, 1.0, col_max - col_min)
+    normalized = (raw - col_min) / col_range
+    matrix = [[int(v * ZKP_SCALE) for v in row] for row in normalized]
+    logger.info(f"ZKP 行列抽出完了(直接): {len(matrix)} 周波数ポイント × {len(subcarrier_cols)} サブキャリア")
     return matrix
 
 
@@ -474,20 +739,50 @@ async def generate_groth16_proof(
 # メインパイプライン                                                     #
 # ------------------------------------------------------------------ #
 
-def process_main_csi(csi_file: str) -> list[list[int]]:
-    """メインCSIファイルを処理してZKP候補行列を返す。"""
+def process_main_csi(
+    csi_file: str,
+    subcarrier_medians: dict[str, float] | None = None,
+) -> dict:
+    """メインCSIファイルを処理してZKP候補行列を返す（FFT / Wavelet / MUSIC）。"""
     df = load_csi_to_dataframe(csi_file)
     df = drop_invalid_rows(df)
     if df.empty:
         raise ValueError("有効なデータ行がありません")
-
     df = remove_unnecessary_subcarriers(df)
+
+    if subcarrier_medians:
+        df = subtract_background(df, subcarrier_medians)
+        logger.info("背景差分除去完了")
+
+    # FFT
     fft_df = apply_fft(df)
     if fft_df.empty:
         raise ValueError("FFT結果が空です")
+    fft_matrix = extract_zkp_matrix(average_by_frequency_bins(fft_df))
 
-    binned_df = average_by_frequency_bins(fft_df)
-    return extract_zkp_matrix(binned_df)
+    # Wavelet
+    wavelet_matrix: list[list[int]] = []
+    wavelet_df = apply_wavelet_transform(df)
+    if not wavelet_df.empty:
+        try:
+            wavelet_matrix = extract_zkp_matrix_direct(wavelet_df)
+        except ValueError as e:
+            logger.warning(f"[Wavelet] ZKP行列抽出スキップ: {e}")
+
+    # MUSIC
+    music_matrix: list[list[int]] = []
+    music_df = apply_music_transform(df)
+    if not music_df.empty:
+        try:
+            music_matrix = extract_zkp_matrix(average_by_frequency_bins(music_df))
+        except ValueError as e:
+            logger.warning(f"[MUSIC] ZKP行列抽出スキップ: {e}")
+
+    return {
+        "matrix": fft_matrix,
+        "wavelet_matrix": wavelet_matrix,
+        "music_matrix": music_matrix,
+    }
 
 
 async def run(csi_file: str, base_file: str, zkp_dir: Path, output_file: str) -> None:
@@ -501,11 +796,14 @@ async def run(csi_file: str, base_file: str, zkp_dir: Path, output_file: str) ->
         base_data = json.load(f)
 
     reference_matrix: list[list[int]] = base_data["matrix"]
+    subcarrier_medians: dict[str, float] = base_data.get("subcarrier_medians", {})
     logger.info(
-        f"ベース行列読み込み: {base_data['num_freq_points']} × {base_data['num_subcarriers']}"
+        f"ベース行列読み込み: {base_data['num_freq_points']} × {base_data['num_subcarriers']}, "
+        f"メジアン: {len(subcarrier_medians)} サブキャリア"
     )
 
-    candidate_matrix = process_main_csi(csi_file)
+    result_matrices = process_main_csi(csi_file, subcarrier_medians or None)
+    candidate_matrix = result_matrices["matrix"]
     logger.info(
         f"候補行列: {len(candidate_matrix)} × {len(candidate_matrix[0]) if candidate_matrix else 0}"
     )
@@ -530,6 +828,8 @@ async def run(csi_file: str, base_file: str, zkp_dir: Path, output_file: str) ->
         "proof": proof,
         "publicSignals": public_signals,
         "isNormal": is_normal,
+        "wavelet_matrix": result_matrices["wavelet_matrix"],
+        "music_matrix": result_matrices["music_matrix"],
         "num_freq_points": EXPECTED_FREQ_POINTS,
         "num_subcarriers": EXPECTED_SUBCARRIERS,
         "source_file": str(Path(csi_file).resolve()),
