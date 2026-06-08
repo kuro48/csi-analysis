@@ -1,5 +1,5 @@
 import { API_BASE } from "./constants";
-import type { BaseCSIResponse, MainCSIResponse } from "./types";
+import type { BaseCSIResponse, CSIDataListResponse, CSIStatus, MainCSIResponse } from "./types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -28,4 +28,22 @@ export function uploadMainCSI(file: File, signal?: AbortSignal): Promise<MainCSI
 
 export function getMainCSI(id: string, signal?: AbortSignal): Promise<MainCSIResponse> {
   return request<MainCSIResponse>(`${API_BASE}/api/v2/csi-data/${id}`, { signal });
+}
+
+export function listMainCSI(
+  params: {
+    status?: CSIStatus | "all";
+    page?: number;
+    pageSize?: number;
+    sessionId?: string;
+  } = {},
+  signal?: AbortSignal
+): Promise<CSIDataListResponse> {
+  const query = new URLSearchParams();
+  query.set("data_status", params.status ?? "all");
+  query.set("page", String(params.page ?? 1));
+  query.set("page_size", String(params.pageSize ?? 20));
+  if (params.sessionId) query.set("session_id", params.sessionId);
+
+  return request<CSIDataListResponse>(`${API_BASE}/api/v2/csi-data/?${query.toString()}`, { signal });
 }

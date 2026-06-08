@@ -22,6 +22,16 @@ export interface BaseCSIResponse {
 export interface MethodComparison {
   similarity_score: number;
   is_valid: boolean;
+  python_similarity?: number | null;
+  selected_subcarrier?: {
+    index: number | null;
+    similarity: number | null;
+  };
+  data_dimensions?: {
+    num_freq_points: number;
+    num_subcarriers: number;
+    total_dimensions: number;
+  };
 }
 
 export interface BaseCSIComparison {
@@ -29,6 +39,22 @@ export interface BaseCSIComparison {
   base_csi_name: string;
   similarity_score: number;
   methods: Partial<Record<"fft" | "wavelet" | "music", MethodComparison>>;
+  primary_method?: "fft" | "wavelet" | "music";
+  is_valid?: boolean;
+  selected_subcarrier?: {
+    index: number | null;
+    similarity: number | null;
+  };
+  data_dimensions?: {
+    num_freq_points: number;
+    num_subcarriers: number;
+    total_dimensions: number;
+  };
+  comparison_summary?: {
+    generated_methods: string[];
+    primary_method: string;
+    similarity_delta: number | null;
+  };
 }
 
 export interface BreathingRateComparison {
@@ -42,15 +68,36 @@ export interface ProcessedData {
   music_dataframe?: DataframeDict;
   breathing_rate_comparison?: BreathingRateComparison;
   base_csi_comparison?: BaseCSIComparison;
+  wavelet_zkp?: TransformZKPResult | null;
+  music_zkp?: TransformZKPResult | null;
+  blockchain_proof_id?: string;
   error?: string;
 }
 
 export interface MainCSIResponse {
   id: string;
+  session_id: string | null;
+  device_id: string | null;
+  raw_data?: Record<string, unknown> | Array<Record<string, unknown>> | null;
+  file_path?: string | null;
+  file_size: number | null;
   status: CSIStatus;
   processed_data: ProcessedData | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CSIDataListResponse {
+  csi_data: MainCSIResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface TransformZKPResult {
+  is_normal: boolean;
+  proof_id: string | null;
 }
 
 export interface SpectrumPoint {

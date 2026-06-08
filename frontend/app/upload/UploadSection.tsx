@@ -31,6 +31,7 @@ export function UploadSection({ mode }: Props) {
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startedAtRef = useRef<number>(0);
+  const pollRef = useRef<(id: string, abort: AbortController) => Promise<void>>(async () => {});
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -52,14 +53,14 @@ export function UploadSection({ mode }: Props) {
           setBaseRecord(rec);
           setStatus(rec.status as CSIStatus);
           if (!TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
-            timerRef.current = setTimeout(() => poll(id, abort), POLL_INTERVAL_MS);
+            timerRef.current = setTimeout(() => pollRef.current(id, abort), POLL_INTERVAL_MS);
           }
         } else {
           const rec = await getMainCSI(id, abort.signal);
           setMainRecord(rec);
           setStatus(rec.status as CSIStatus);
           if (!TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
-            timerRef.current = setTimeout(() => poll(id, abort), POLL_INTERVAL_MS);
+            timerRef.current = setTimeout(() => pollRef.current(id, abort), POLL_INTERVAL_MS);
           }
         }
       } catch (e) {
@@ -70,6 +71,10 @@ export function UploadSection({ mode }: Props) {
     },
     [mode]
   );
+
+  useEffect(() => {
+    pollRef.current = poll;
+  }, [poll]);
 
   useEffect(() => {
     return () => {

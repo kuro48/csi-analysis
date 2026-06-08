@@ -722,6 +722,7 @@ async def list_csi_data(
             csi_response = CSIDataResponse(
                 id=csi_data.id,
                 session_id=csi_data.session_id,
+                device_id=csi_data.device_id,
                 raw_data=_parse_json_field(csi_data.raw_data),
                 processed_data=_parse_json_field(csi_data.processed_data),
                 file_path=csi_data.file_path,
@@ -767,6 +768,7 @@ async def get_csi_data(
     return CSIDataResponse(
         id=csi_data.id,
         session_id=csi_data.session_id,
+        device_id=csi_data.device_id,
         raw_data=_parse_json_field(csi_data.raw_data),
         processed_data=_parse_json_field(csi_data.processed_data),
         file_path=csi_data.file_path,
