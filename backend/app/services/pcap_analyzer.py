@@ -18,20 +18,19 @@ from app.services.pcap_analyzer_frequency import (
     apply_fourier_transform,
     apply_music_transform,
     apply_wavelet_transform,
-    compare_breathing_rate_estimates,
     compare_breathing_rate_methods,
     estimate_breathing_rate,
 )
 from app.services.pcap_analyzer_pipeline import (
+    SUPPORTED_CSI_EXTENSIONS,
     _analyze_dataframe,
     _convert_csi_to_dataframe,
-    _convert_picoscenes_to_dataframe,
-    # _convert_picoscenes_to_dataframe_with_matlab,  # 旧: .csi 用
     _convert_csv_to_dataframe_with_matlab,
+    _convert_picoscenes_to_dataframe,
     _convert_picoscenes_to_dataframe_with_python,
     _read_csv_directly,
-    _select_picoscenes_subcarriers,
     analyze_csi_file_with_picoscenes,
+    analyze_file,
     analyze_pcap_file,
 )
 from app.services.pcap_analyzer_zkp import (
@@ -49,13 +48,28 @@ class PCAPAnalyzer:
     """PCAP解析クラス。"""
 
     CHANNEL_CONFIGS = {
-        "80MHz": {
-            "guard_bands": [
-                (-128, -122),
-                (122, 127),
-            ],
+        ("5GHz", 80): {
+            "guard_bands": [(-128, -122), (122, 127)],
             "pilots": [-103, -75, -39, -11, 11, 39, 75, 103],
-        }
+        },
+        ("5GHz", 160): {
+            "guard_bands": [(-256, -250), (250, 255)],
+            "pilots": [
+                -231, -203, -167, -139, -117, -89, -53, -25,
+                  25,   53,   89,  117,  139, 167, 203, 231,
+            ],
+        },
+        ("6GHz", 80): {
+            "guard_bands": [(-128, -122), (122, 127)],
+            "pilots": [-103, -75, -39, -11, 11, 39, 75, 103],
+        },
+        ("6GHz", 160): {
+            "guard_bands": [(-256, -250), (250, 255)],
+            "pilots": [
+                -231, -203, -167, -139, -117, -89, -53, -25,
+                  25,   53,   89,  117,  139, 167, 203, 231,
+            ],
+        },
     }
 
     DOWNSAMPLE_INTERVAL_S = 0.01
@@ -102,7 +116,6 @@ class PCAPAnalyzer:
     apply_music_transform = apply_music_transform
     estimate_breathing_rate = estimate_breathing_rate
     compare_breathing_rate_methods = compare_breathing_rate_methods
-    compare_breathing_rate_estimates = compare_breathing_rate_estimates
 
     extract_full_subcarrier_vectors = extract_full_subcarrier_vectors
     extract_matrix_for_zkp = extract_matrix_for_zkp
@@ -110,14 +123,15 @@ class PCAPAnalyzer:
     prepare_zkp_vectors_from_fft = prepare_zkp_vectors_from_fft
     analyze_and_generate_zkp = analyze_and_generate_zkp
 
+    SUPPORTED_CSI_EXTENSIONS = SUPPORTED_CSI_EXTENSIONS
+
     _convert_csi_to_dataframe = _convert_csi_to_dataframe
-    _select_picoscenes_subcarriers = _select_picoscenes_subcarriers
     _convert_picoscenes_to_dataframe = _convert_picoscenes_to_dataframe
     _convert_picoscenes_to_dataframe_with_python = _convert_picoscenes_to_dataframe_with_python
-    # _convert_picoscenes_to_dataframe_with_matlab = _convert_picoscenes_to_dataframe_with_matlab  # 旧: .csi 用
     _convert_csv_to_dataframe_with_matlab = _convert_csv_to_dataframe_with_matlab
     _read_csv_directly = _read_csv_directly
     _analyze_dataframe = _analyze_dataframe
+    analyze_file = analyze_file
     analyze_pcap_file = analyze_pcap_file
     analyze_csi_file_with_picoscenes = analyze_csi_file_with_picoscenes
 

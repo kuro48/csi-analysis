@@ -59,12 +59,26 @@ else
     echo "❌ Backend API: 接続失敗"
 fi
 
+echo "⏳ フロントエンド / nginx の起動を待機中..."
+for i in {1..12}; do
+    if curl -f http://localhost > /dev/null 2>&1; then
+        echo "✅ Frontend (nginx): 接続OK"
+        break
+    fi
+    if [ $i -eq 12 ]; then
+        echo "❌ Frontend: 接続失敗（バックグラウンドで起動中の可能性あり）"
+    fi
+    sleep 5
+done
+
 echo ""
 echo "🎉 セットアップ完了！"
 echo ""
 echo "📋 サービス情報:"
-echo "   🔧 Backend:   http://localhost:8000"
-echo "   📖 API Docs:  http://localhost:8000/docs"
+echo "   🌐 Frontend:  http://localhost"
+echo "   📤 Upload:    http://localhost/upload"
+echo "   🔧 API:       http://localhost/api/v2/"
+echo "   📖 API Docs:  http://localhost/docs"
 echo "   🗄️  Database:  localhost:5432 (csi_user/csi_password)"
 echo "   🔴 Redis:     localhost:6379"
 echo ""

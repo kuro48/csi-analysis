@@ -48,7 +48,7 @@ services:
       - POSTGRES_DB=csi_system
       - REDIS_HOST=redis
       - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
-      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      - ALLOWED_ORIGINS=http://localhost,http://127.0.0.1,http://localhost:3000
       - DEBUG=True
       - ZKP_AUTO_COMPILE=TRUE
       - PICOSCENES_PARSER=python
@@ -74,6 +74,34 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - csi_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost
+    container_name: csi_frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - csi_network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: csi_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
     networks:
       - csi_network
     restart: unless-stopped

@@ -10,6 +10,7 @@
 # ============================================================
 NIC_INDEX="${CSI_NIC_INDEX:-2}"     # PicoScenesの -i オプションで指定するインターフェースID
                                     # array_status コマンドで確認可能
+CBW="${CSI_CBW:-160}"                # チャンネル帯域幅 [MHz]: 20 / 40 / 80 / 160
 
 # ============================================================
 # サーバー設定（環境に合わせて変更してください）
@@ -54,7 +55,7 @@ run_picoscenes() {
     echo "[Capture] Output : ${output_file}.csi"
     echo "[Capture] Log    : ${log_file}"
 
-    PicoScenes "-d debug -i ${NIC_INDEX} --mode logger --output ${output_file} -q ${duration}" \
+    PicoScenes "-d debug -i ${NIC_INDEX} --mode logger --cbw ${CBW} --output ${output_file} -q ${duration}" \
         > "$log_file" 2>&1 &
 
     local pid=$!

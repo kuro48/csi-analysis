@@ -35,6 +35,9 @@ class BaseCSI(Base):
         return {
             "id": str(self.id),
             "name": self.name,
+            "fft_dataframe": self.fft_dataframe,
+            "wavelet_dataframe": self.wavelet_dataframe,
+            "music_dataframe": self.music_dataframe,
             "source_pcap_path": self.source_pcap_path,
             "source_pcap_size": self.source_pcap_size,
             "status": self.status,

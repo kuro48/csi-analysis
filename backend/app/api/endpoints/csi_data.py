@@ -22,8 +22,7 @@ from app.models.base_csi import BaseCSI
 from app.services.csi_data import CSIDataService
 from app.services.pcap_analyzer import PCAPAnalyzer
 from app.services.zkp_service import ZKPService
-from app.services.zkp_wavelet_service import ZKPWaveletService
-from app.services.zkp_music_service import ZKPMusicService
+from app.services.zkp_circuit_service import ZKPMusicService, ZKPWaveletService
 from app.services.csi_visualizer import save_fft_graph, save_wavelet_graph, save_music_graph, save_combined_graph
 from app.services.base_csi import BaseCSIService
 from app.services.blockchain_service import BlockchainService
@@ -35,10 +34,7 @@ from app.schemas.csi_data import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-SUPPORTED_STANDARD_CSI_FILE_EXTENSIONS = {".pcap", ".pcapng", ".cap"}
-# .csv は PICOSCENES_PARSER=matlab のときに MATLAB パイプラインで処理される
-# OLD: SUPPORTED_PICOSCENES_FILE_EXTENSIONS = {".csi"}
-SUPPORTED_PICOSCENES_FILE_EXTENSIONS = {".csi", ".csv"}
+from app.services.pcap_analyzer_pipeline import SUPPORTED_CSI_EXTENSIONS
 
 
 def _parse_json_field(value) -> Optional[dict]:
@@ -68,11 +64,7 @@ def _serialize_fft_dataframe(fft_df) -> dict:
     return fft_df_copy.to_dict()
 
 
-def _validate_upload_file(
-    file_name: Optional[str],
-    file_size: int,
-    allowed_extensions: set[str],
-) -> str:
+def _validate_upload_file(file_name: Optional[str], file_size: int) -> str:
     """アップロード対象がサポート対象かを検証し、正規化した拡張子を返す。"""
     if not file_name:
         raise HTTPException(
@@ -81,12 +73,12 @@ def _validate_upload_file(
         )
 
     extension = Path(file_name).suffix.lower()
-    if extension not in allowed_extensions:
+    if extension not in SUPPORTED_CSI_EXTENSIONS:
         raise HTTPException(
             status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=(
                 "未対応のファイル形式です。"
-                f"対応形式: {', '.join(sorted(allowed_extensions))}"
+                f"対応形式: {', '.join(sorted(SUPPORTED_CSI_EXTENSIONS))}"
             ),
         )
 
@@ -459,19 +451,12 @@ async def _process_and_generate_zkp_background(
     csi_data_id: uuid.UUID,
     file_path: str,
     db_session_maker,
-    parser_mode: str = "standard",
     user_id: Optional[uuid.UUID] = None,
     base_csi_id: Optional[uuid.UUID] = None
 ):
     """
-    バックグラウンドでPCAP解析・ZKP証明生成・DB保存・ブロックチェーン記録を実行
-
-    Args:
-        csi_data_id: CSIデータID
-        file_path: PCAPファイルパス
-        db_session_maker: データベースセッションファクトリ
-        user_id: ユーザーID（ベースCSI比較用）
-        base_csi_id: ベースCSI ID（指定されない場合は最新のアクティブなベースCSIを使用）
+    バックグラウンドでCSI解析・ZKP証明生成・DB保存・ブロックチェーン記録を実行。
+    ファイル形式（.pcap / .csi など）は拡張子から自動判定する。
     """
     db = None
     csi_data = None
@@ -490,11 +475,8 @@ async def _process_and_generate_zkp_background(
         music_zkp_service = ZKPMusicService(auto_compile=settings.ZKP_AUTO_COMPILE)
 
         # --- CSI解析（FFT + ウェーブレット + MUSIC） ---
-        logger.info(f"Analyzing CSI file: {file_path} (parser_mode={parser_mode})")
-        if parser_mode == "picoscenes":
-            analysis_result = await asyncio.to_thread(analyzer.analyze_csi_file_with_picoscenes, file_path)
-        else:
-            analysis_result = await asyncio.to_thread(analyzer.analyze_pcap_file, file_path)
+        logger.info(f"Analyzing CSI file: {file_path}")
+        analysis_result = await asyncio.to_thread(analyzer.analyze_file, file_path)
         binned_fft_df = analysis_result["fft"]
         binned_wavelet_df = analysis_result["wavelet"]
         binned_music_df = analysis_result["music"]
@@ -654,11 +636,7 @@ async def upload_csi_data(
                 detail="アップロードファイルが空です"
             )
 
-        _validate_upload_file(
-            file.filename,
-            len(file_data),
-            allowed_extensions=SUPPORTED_STANDARD_CSI_FILE_EXTENSIONS,
-        )
+        _validate_upload_file(file.filename, len(file_data))
 
         # アップロード情報構築
         upload_info = CSIDataUpload(
@@ -683,7 +661,6 @@ async def upload_csi_data(
             csi_data_id=csi_data.id,
             file_path=csi_data.file_path,
             db_session_maker=SessionLocal,
-            parser_mode="standard",
         )
 
         logger.info(f"CSI data uploaded: {csi_data.id}, background processing scheduled")
@@ -712,86 +689,6 @@ async def upload_csi_data(
             detail=f"CSIデータアップロードに失敗しました: {str(e)}"
         )
 
-
-@router.post("/upload-picoscenes", response_model=CSIDataResponse)
-async def upload_picoscenes_csi_data(
-    background_tasks: BackgroundTasks,
-    session_id: Optional[str] = Form(None, description="セッションID"),
-    collection_start_time: Optional[str] = Form(None, description="収集開始時刻"),
-    collection_duration: Optional[float] = Form(None, description="収集時間（秒）"),
-    metadata: Optional[str] = Form(None, description="メタデータ（JSON文字列）"),
-    file: UploadFile = File(..., description="PicoScenes .csi データファイル"),
-    db: Session = Depends(get_db)
-):
-    """
-    PicoScenes .csi データアップロード専用エンドポイント。
-
-    アップロード後、PicoScenes for Python Toolbox で .csi を解析し、
-    既存の FFT / Wavelet / MUSIC / ZKP パイプラインへ渡します。
-    """
-    try:
-        file_data = await file.read()
-
-        if len(file_data) == 0:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail="アップロードファイルが空です"
-            )
-
-        _validate_upload_file(
-            file.filename,
-            len(file_data),
-            allowed_extensions=SUPPORTED_PICOSCENES_FILE_EXTENSIONS,
-        )
-
-        upload_info = CSIDataUpload(
-            file_name=file.filename,
-            session_id=session_id,
-            collection_start_time=datetime.fromisoformat(collection_start_time.replace('Z', '+00:00')) if collection_start_time else None,
-            collection_duration=collection_duration,
-            metadata=json.loads(metadata) if metadata else {}
-        )
-
-        csi_data = await CSIDataService.upload_csi_data(
-            db=db,
-            file_data=file_data,
-            upload_info=upload_info
-        )
-
-        from app.core.database import SessionLocal
-        background_tasks.add_task(
-            _process_and_generate_zkp_background,
-            csi_data_id=csi_data.id,
-            file_path=csi_data.file_path,
-            db_session_maker=SessionLocal,
-            parser_mode="picoscenes",
-        )
-
-        logger.info(f"PicoScenes CSI data uploaded: {csi_data.id}, background processing scheduled")
-
-        return CSIDataResponse(
-            id=csi_data.id,
-            session_id=csi_data.session_id,
-            device_id=csi_data.device_id,
-            file_path=csi_data.file_path if settings.RESEARCH_MODE else None,
-            file_size=csi_data.file_size if settings.RESEARCH_MODE else None,
-            status=csi_data.status,
-            created_at=csi_data.created_at,
-            updated_at=csi_data.updated_at
-        )
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"PicoScenes CSIデータアップロードに失敗しました: {str(e)}"
-        )
 
 @router.get("/", response_model=CSIDataListResponse)
 async def list_csi_data(

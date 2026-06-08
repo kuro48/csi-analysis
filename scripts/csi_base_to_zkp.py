@@ -19,6 +19,8 @@ PicoScenes .csi ファイルを受け取り、ZKP回路（csi_full_similarity.ci
     }
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import logging
@@ -51,8 +53,27 @@ ZKP_FREQ_START: float = 0.0           # 抽出開始周波数 Hz
 ZKP_FREQ_END: float = 0.60            # 抽出終了周波数 Hz
 ZKP_SCALE: int = 10000                # 整数化スケール
 
-GUARD_BANDS: list[tuple[int, int]] = [(-128, -122), (122, 127)]
-PILOTS: list[int] = [-103, -75, -39, -11, 11, 39, 75, 103]
+# 80MHz (VHT80 / HE80): subcarrier indices -128..+127
+_CFG_80: dict = {
+    "guard_bands": [(-128, -122), (122, 127)],
+    "pilots": [-103, -75, -39, -11, 11, 39, 75, 103],
+}
+
+# 160MHz (VHT160 / HE160): subcarrier indices -256..+255
+# IEEE 802.11ac/ax 準拠: 外側ガード左7本・右6本、パイロット16本
+_CFG_160: dict = {
+    "guard_bands": [(-256, -250), (250, 255)],
+    "pilots": [
+        -231, -203, -167, -139, -117, -89, -53, -25,
+          25,   53,   89,  117,  139, 167, 203, 231,
+    ],
+}
+
+CHANNEL_CONFIGS: dict[int, dict] = {80: _CFG_80, 160: _CFG_160}
+
+# 後方互換エイリアス（グラフ表示ユーティリティで使用）
+GUARD_BANDS: list[tuple[int, int]] = _CFG_80["guard_bands"]
+PILOTS: list[int] = _CFG_80["pilots"]
 
 # ------------------------------------------------------------------ #
 # グラフ出力ユーティリティ                                              #
@@ -111,16 +132,18 @@ def _plot_step2_3(
     after_frame_count: int,
     before_sc_cols: list[str],
     df: pd.DataFrame,
+    bandwidth_mhz: int = 80,
 ) -> None:
     """Step 2–3: 無効行削除 + 不要サブキャリア除去の結果を1画面で表示"""
     after_sc_cols = _mag_cols(df)
     dropped_frames = before_frame_count - after_frame_count
     frame_drop_rate = dropped_frames / before_frame_count * 100 if before_frame_count > 0 else 0.0
 
+    cfg = CHANNEL_CONFIGS.get(bandwidth_mhz, _CFG_80)
     removed_sc = set(before_sc_cols) - set(after_sc_cols)
     removed_dc = 1 if "0" in removed_sc else 0
-    removed_guard = sum(1 for s, e in GUARD_BANDS for i in range(s, e + 1) if str(i) in removed_sc)
-    removed_pilot = sum(1 for p in PILOTS if str(p) in removed_sc)
+    removed_guard = sum(1 for s, e in cfg["guard_bands"] for i in range(s, e + 1) if str(i) in removed_sc)
+    removed_pilot = sum(1 for p in cfg["pilots"] if str(p) in removed_sc)
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
@@ -358,10 +381,16 @@ def load_csi_to_dataframe(file_path: str) -> pd.DataFrame:
     duration_s = (ts_series.iloc[-1] - ts_series.iloc[0]).total_seconds()
     sampling_rate_hz = (valid_count - 1) / duration_s if duration_s > 0 else 0.0
 
+    # サブキャリアインデックスの最大絶対値から帯域幅を推定
+    max_abs_sc = int(np.max(np.abs(subcarrier_indices))) if subcarrier_indices.size > 0 else 0
+    detected_bw = 160 if max_abs_sc > 200 else 80
+    df.attrs["bandwidth_mhz"] = detected_bw
+
     logger.info(
         f"DataFrame 作成完了: フレーム={valid_count}, サブキャリア={num_tones}, "
         f"位相={'あり' if has_phase else 'なし'}, "
-        f"計測時間={duration_s:.2f}s, サンプリングレート={sampling_rate_hz:.2f} Hz"
+        f"計測時間={duration_s:.2f}s, サンプリングレート={sampling_rate_hz:.2f} Hz, "
+        f"帯域幅={detected_bw} MHz"
     )
     return df
 
@@ -395,10 +424,17 @@ def drop_invalid_rows(df: pd.DataFrame) -> pd.DataFrame:
 # Step 3: 不要サブキャリア削除                                          #
 # ------------------------------------------------------------------ #
 
-def remove_unnecessary_subcarriers(df: pd.DataFrame) -> pd.DataFrame:
+def remove_unnecessary_subcarriers(
+    df: pd.DataFrame,
+    bandwidth_mhz: int = 80,
+) -> pd.DataFrame:
     """DC / ガードバンド / パイロットサブキャリアを削除する。対応する位相列も同時に削除する。"""
     if df.empty:
         return df
+
+    cfg = CHANNEL_CONFIGS.get(bandwidth_mhz, _CFG_80)
+    guard_bands: list[tuple[int, int]] = cfg["guard_bands"]
+    pilots: list[int] = cfg["pilots"]
 
     def _drop_with_phase(frame: pd.DataFrame, mag_cols: list[str]) -> pd.DataFrame:
         phase_cols = [f"{c}_phase" for c in mag_cols if f"{c}_phase" in frame.columns]
@@ -407,17 +443,17 @@ def remove_unnecessary_subcarriers(df: pd.DataFrame) -> pd.DataFrame:
     if "0" in df.columns:
         df = _drop_with_phase(df, ["0"])
 
-    for start, end in GUARD_BANDS:
+    for start, end in guard_bands:
         cols = [str(i) for i in range(start, end + 1) if str(i) in df.columns]
         if cols:
             df = _drop_with_phase(df, cols)
 
-    pilot_cols = [str(i) for i in PILOTS if str(i) in df.columns]
+    pilot_cols = [str(i) for i in pilots if str(i) in df.columns]
     if pilot_cols:
         df = _drop_with_phase(df, pilot_cols)
 
     remaining = len(_mag_cols(df))
-    logger.info(f"サブキャリアフィルタ後: {remaining} 列")
+    logger.info(f"サブキャリアフィルタ後 ({bandwidth_mhz} MHz): {remaining} 列")
     return df
 
 
@@ -599,12 +635,28 @@ def _run_step5_6(
     return matrix
 
 
-def process_base_csi(csi_file: str, show_plots: bool = True) -> dict:
-    """ベースCSIファイルを処理してZKP基準行列を返す。"""
+def process_base_csi(
+    csi_file: str,
+    show_plots: bool = True,
+    bandwidth_mhz: int | None = None,
+) -> dict:
+    """ベースCSIファイルを処理してZKP基準行列を返す。
+
+    Args:
+        bandwidth_mhz: チャンネル帯域幅 (80 または 160)。None の場合は自動検出。
+    """
     df = load_csi_to_dataframe(csi_file)
     ts = pd.to_datetime(df["timestamp"])
     duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
     sampling_rate_hz = (len(df) - 1) / duration_s if duration_s > 0 else 0.0
+
+    # 帯域幅: 引数優先、未指定なら自動検出値を使用
+    bw = bandwidth_mhz if bandwidth_mhz is not None else int(df.attrs.get("bandwidth_mhz", 80))
+    if bw not in CHANNEL_CONFIGS:
+        logger.warning(f"未対応の帯域幅 {bw} MHz → 80 MHz にフォールバック")
+        bw = 80
+    logger.info(f"使用帯域幅: {bw} MHz")
+
     if show_plots:
         _plot_step1(df)
 
@@ -613,9 +665,9 @@ def process_base_csi(csi_file: str, show_plots: bool = True) -> dict:
     if df.empty:
         raise ValueError("有効なデータ行がありません")
     before_sc_cols = _mag_cols(df)
-    df = remove_unnecessary_subcarriers(df)
+    df = remove_unnecessary_subcarriers(df, bandwidth_mhz=bw)
     if show_plots:
-        _plot_step2_3(before_frame_count, len(df), before_sc_cols, df)
+        _plot_step2_3(before_frame_count, len(df), before_sc_cols, df, bandwidth_mhz=bw)
 
     subcarrier_medians = compute_subcarrier_medians(df)
     logger.info(f"サブキャリア別メジアン計算完了: {len(subcarrier_medians)} サブキャリア")
@@ -634,6 +686,7 @@ def process_base_csi(csi_file: str, show_plots: bool = True) -> dict:
         "num_freq_points": len(fft_matrix),
         "num_subcarriers": len(fft_matrix[0]) if fft_matrix else 0,
         "sampling_rate_hz": round(sampling_rate_hz, 4),
+        "bandwidth_mhz": bw,
         "source_file": str(Path(csi_file).resolve()),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -654,6 +707,13 @@ def main() -> None:
         action="store_true",
         help="グラフ表示を無効にする",
     )
+    parser.add_argument(
+        "--bandwidth",
+        type=str,
+        default="auto",
+        choices=["auto", "80", "160"],
+        help="チャンネル帯域幅 MHz (デフォルト: auto = PicoScenesメタから自動検出)",
+    )
     args = parser.parse_args()
 
     csi_path = Path(args.csi_file)
@@ -661,10 +721,16 @@ def main() -> None:
         logger.error(f"ファイルが見つかりません: {csi_path}")
         sys.exit(1)
 
+    bandwidth_arg: int | None = None if args.bandwidth == "auto" else int(args.bandwidth)
+
     logger.info(f"=== ベースCSI処理開始: {csi_path} ===")
 
     try:
-        result = process_base_csi(str(csi_path), show_plots=not args.no_plot)
+        result = process_base_csi(
+            str(csi_path),
+            show_plots=not args.no_plot,
+            bandwidth_mhz=bandwidth_arg,
+        )
     except Exception as exc:
         logger.error(f"処理失敗: {exc}", exc_info=True)
         sys.exit(1)

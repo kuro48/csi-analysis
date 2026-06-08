@@ -74,7 +74,6 @@ class BaseCSIService:
     def process_base_csi_registration(
         db: Session,
         base_csi_id: uuid.UUID,
-        parser_mode: str = "standard",
     ) -> Optional[BaseCSI]:
         base_csi = db.query(BaseCSI).filter(BaseCSI.id == base_csi_id).first()
 
@@ -84,22 +83,14 @@ class BaseCSIService:
 
         try:
             if not base_csi.source_pcap_path:
-                raise ValueError("PCAPファイルパスが未設定です")
+                raise ValueError("CSIファイルパスが未設定です")
 
             analyzer = PCAPAnalyzer()
-            source_path = base_csi.source_pcap_path
-            inferred_parser_mode = parser_mode
-            if Path(source_path).suffix.lower() == ".csi":
-                inferred_parser_mode = "picoscenes"
-
-            if inferred_parser_mode == "picoscenes":
-                analysis_result = analyzer.analyze_csi_file_with_picoscenes(source_path)
-            else:
-                analysis_result = analyzer.analyze_pcap_file(source_path)
+            analysis_result = analyzer.analyze_file(base_csi.source_pcap_path)
 
             fft_df = analysis_result["fft"]
             if fft_df.empty:
-                raise ValueError("PCAP解析結果が空です")
+                raise ValueError("CSI解析結果が空です")
 
             base_csi.fft_dataframe = BaseCSIService._serialize_dataframe(fft_df) or {}
             base_csi.wavelet_dataframe = BaseCSIService._serialize_dataframe(analysis_result["wavelet"])

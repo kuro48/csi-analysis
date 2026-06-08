@@ -14,23 +14,7 @@ import numpy as np
 import pandas as pd
 
 from app.core.config import settings
-from app.services.pcap_analyzer_common import _build_empty_analysis_result
-
-
-def _select_picoscenes_subcarriers(
-    self,
-    subcarrier_indices: np.ndarray,
-    max_subcarriers: int = 245,
-) -> np.ndarray:
-    """PicoScenes の高密度トーンから既存パイプライン向けにサブキャリアを間引く。"""
-    if subcarrier_indices.size <= max_subcarriers:
-        return np.arange(subcarrier_indices.size)
-
-    # 等間隔サンプリング: 周波数ダイバーシティを均等に保持する
-    positions = np.round(
-        np.linspace(0, subcarrier_indices.size - 1, max_subcarriers)
-    ).astype(int)
-    return np.sort(np.unique(positions))
+from app.services.pcap_analyzer_common import _build_empty_analysis_result, _detect_band
 
 
 def _convert_picoscenes_to_dataframe(
@@ -82,7 +66,12 @@ def _convert_picoscenes_to_dataframe_with_python(
     self,
     file_path: str,
 ) -> pd.DataFrame:
-    """PicoScenes for Python Toolbox で .csi を DataFrame に変換する。"""
+    """PicoScenes for Python Toolbox で .csi を DataFrame に変換する。
+
+    振幅・位相の両方を抽出し、サブキャリアインデックスの最大絶対値から
+    帯域幅を自動検出して df.attrs["bandwidth_mhz"] に格納する。
+    RxSBasic.centerFreq からバンド（"5GHz"/"6GHz"）を検出して df.attrs["band"] に格納する。
+    """
     try:
         from picoscenes import Picoscenes
     except ImportError as exc:
@@ -108,18 +97,19 @@ def _convert_picoscenes_to_dataframe_with_python(
     if num_tones <= 0 or subcarrier_indices.size != num_tones:
         raise ValueError("Invalid PicoScenes CSI metadata: numTones/SubcarrierIndex mismatch")
 
-    selected_positions = self._select_picoscenes_subcarriers(subcarrier_indices)
-    selected_indices = subcarrier_indices[selected_positions]
-
-    # 事前に配列を確保してフレームごとにベクトル代入（Pythonのdictループを排除）
-    mag_array = np.empty((len(raw_frames), len(selected_positions)), dtype=np.float32)
+    mag_array = np.empty((len(raw_frames), num_tones), dtype=np.float32)
+    phase_array = np.empty((len(raw_frames), num_tones), dtype=np.float32)
     timestamps: list = []
     valid_count = 0
     fallback_ns = None
+    has_phase = False
+
     for frame_idx, frame in enumerate(raw_frames):
         frame_csi = frame.get("CSI") or {}
         frame_rx = frame.get("RxSBasic") or {}
         mag = np.asarray(frame_csi.get("Mag", []), dtype=np.float32)
+        phase_raw = np.asarray(frame_csi.get("Phase", []), dtype=np.float32)
+
         if mag.size != num_tones * num_sts * num_rx:
             self.logger.debug(
                 "Skipping PicoScenes frame %s due to unexpected Mag size: %s",
@@ -128,9 +118,15 @@ def _convert_picoscenes_to_dataframe_with_python(
             )
             continue
 
-        # Toolbox examples reshape CSI in Fortran order. Mag follows the same layout.
+        # Toolbox examples reshape CSI in Fortran order.
         mag_matrix = mag.reshape((num_tones, num_sts, num_rx), order="F")
-        tone_vector = mag_matrix[:, 0, 0]
+        tone_mag = mag_matrix[:, 0, 0]
+
+        if phase_raw.size == num_tones * num_sts * num_rx:
+            tone_phase = phase_raw.reshape((num_tones, num_sts, num_rx), order="F")[:, 0, 0]
+            has_phase = True
+        else:
+            tone_phase = np.zeros(num_tones, dtype=np.float32)
 
         system_ns = frame_rx.get("systemns")
         if system_ns is None:
@@ -140,116 +136,48 @@ def _convert_picoscenes_to_dataframe_with_python(
                 fallback_ns += int(self.DOWNSAMPLE_INTERVAL_S * 1_000_000_000)
             system_ns = fallback_ns
 
-        mag_array[valid_count, :] = tone_vector[selected_positions]
+        mag_array[valid_count, :] = tone_mag
+        phase_array[valid_count, :] = tone_phase
         timestamps.append(pd.to_datetime(int(system_ns), unit="ns", errors="coerce"))
         valid_count += 1
 
     if valid_count == 0:
         raise ValueError("No valid PicoScenes frames could be converted")
 
-    col_names = [str(int(i)) for i in selected_indices]
+    col_names = [str(int(i)) for i in subcarrier_indices]
+    phase_col_names = [f"{str(int(i))}_phase" for i in subcarrier_indices]
+
     df = pd.DataFrame(mag_array[:valid_count], columns=col_names)
+    if has_phase:
+        phase_df = pd.DataFrame(phase_array[:valid_count], columns=phase_col_names)
+        df = pd.concat([df, phase_df], axis=1)
     df.insert(0, "timestamp", timestamps)
+
+    # サブキャリアインデックスの最大絶対値から帯域幅を自動検出
+    max_abs_sc = int(np.max(np.abs(subcarrier_indices))) if subcarrier_indices.size > 0 else 0
+    detected_bw = 160 if max_abs_sc > 200 else 80
+
+    # 中心周波数からバンドを検出
+    center_freq_mhz = float(rx_info.get("centerFreq", 0) or 0)
+    detected_band = _detect_band(center_freq_mhz)
+
+    df.attrs["bandwidth_mhz"] = detected_bw
+    df.attrs["band"] = detected_band
+
     self.logger.info(
-        "PicoScenes DataFrame作成完了: frames=%s, selected_subcarriers=%s, original_tones=%s, cbw=%s",
-        len(df),
-        len(selected_indices),
+        "PicoScenes DataFrame作成完了: frames=%s, subcarriers=%s, "
+        "phase=%s, band=%s, bandwidth=%s MHz",
+        valid_count,
         num_tones,
-        rx_info.get("CBW"),
+        has_phase,
+        detected_band,
+        detected_bw,
     )
     return df
 
 
 def _matlab_quote(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
-
-
-# --- OLD: PicoScenes .csi を MATLAB Toolbox で CSV 化する実装 ------------
-# def _convert_picoscenes_to_dataframe_with_matlab(
-#     self,
-#     file_path: str,
-# ) -> pd.DataFrame:
-#     """PicoScenes MATLAB Toolbox で .csi を CSV 化し、DataFrame に変換する。"""
-#     helper_dir = Path(__file__).resolve().parent / "matlab"
-#     helper_path = helper_dir / "convert_picoscenes_to_csv.m"
-#     if not helper_path.exists():
-#         raise RuntimeError(f"MATLAB PicoScenes converter is missing: {helper_path}")
-#
-#     with tempfile.TemporaryDirectory() as temp_dir:
-#         output_csv = str(Path(temp_dir) / "picoscenes.csv")
-#         addpath_commands = [f"addpath({_matlab_quote(str(helper_dir))})"]
-#         if settings.PICOSCENES_MATLAB_TOOLBOX_PATH:
-#             addpath_commands.insert(
-#                 0,
-#                 "addpath(genpath("
-#                 f"{_matlab_quote(settings.PICOSCENES_MATLAB_TOOLBOX_PATH)}"
-#                 "))",
-#             )
-#
-#         batch_command = "; ".join(
-#             addpath_commands
-#             + [
-#                 "convert_picoscenes_to_csv("
-#                 f"{_matlab_quote(str(Path(file_path).resolve()))}, "
-#                 f"{_matlab_quote(output_csv)}, "
-#                 "245"
-#                 ")"
-#             ]
-#         )
-#         command = shlex.split(settings.MATLAB_COMMAND) + ["-batch", batch_command]
-#
-#         self.logger.info(
-#             "PicoScenes MATLAB変換開始: file=%s, command=%s",
-#             file_path,
-#             settings.MATLAB_COMMAND,
-#         )
-#         try:
-#             completed = subprocess.run(
-#                 command,
-#                 check=True,
-#                 capture_output=True,
-#                 text=True,
-#                 timeout=settings.PICOSCENES_MATLAB_TIMEOUT_SECONDS,
-#             )
-#         except FileNotFoundError as exc:
-#             raise RuntimeError(
-#                 "MATLAB command was not found. Set MATLAB_COMMAND or use "
-#                 "PICOSCENES_PARSER=python to use the Python toolbox."
-#             ) from exc
-#         except subprocess.TimeoutExpired as exc:
-#             raise RuntimeError(
-#                 "PicoScenes MATLAB parsing timed out after "
-#                 f"{settings.PICOSCENES_MATLAB_TIMEOUT_SECONDS} seconds"
-#             ) from exc
-#         except subprocess.CalledProcessError as exc:
-#             stderr = (exc.stderr or "").strip()
-#             stdout = (exc.stdout or "").strip()
-#             detail = stderr or stdout or str(exc)
-#             raise RuntimeError(f"PicoScenes MATLAB parsing failed: {detail[-2000:]}") from exc
-#
-#         if completed.stderr:
-#             self.logger.debug("PicoScenes MATLAB stderr: %s", completed.stderr.strip())
-#
-#         df = pd.read_csv(output_csv)
-#
-#     if df.empty:
-#         raise ValueError("PicoScenes MATLAB parser returned no frames")
-#     if "timestamp" not in df.columns:
-#         raise ValueError("PicoScenes MATLAB parser output is missing timestamp column")
-#
-#     df["timestamp"] = pd.to_datetime(df["timestamp"].astype("int64"), unit="ns", errors="coerce")
-#     for col in df.columns:
-#         if col == "timestamp":
-#             continue
-#         df[col] = pd.to_numeric(df[col], errors="coerce")
-#
-#     self.logger.info(
-#         "PicoScenes MATLAB DataFrame作成完了: frames=%s, selected_subcarriers=%s",
-#         len(df),
-#         len([col for col in df.columns if col != "timestamp"]),
-#     )
-#     return df
-# -------------------------------------------------------------------------
 
 
 def _convert_csv_to_dataframe_with_matlab(
@@ -367,7 +295,7 @@ def _analyze_dataframe(
     include_wavelet: bool = True,
     include_music: bool = True,
 ) -> Dict[str, Any]:
-    """変換済み DataFrame を解析し、各手法の周波数表現と呼吸推定値を返す。"""
+    """変換済み DataFrame を解析し、FFT・Wavelet・MUSIC の周波数表現と呼吸推定値を返す。"""
     empty_result = _build_empty_analysis_result(self)
 
     df = self.drop_invalid_rows(df)
@@ -377,7 +305,9 @@ def _analyze_dataframe(
 
     self.logger.info(f"データクリーニング後: {len(df)}行")
 
-    df = self.remove_unnecessary_subcarriers(df, channel_width="80MHz")
+    bandwidth_mhz = int(df.attrs.get("bandwidth_mhz", 80))
+    band = str(df.attrs.get("band", "5GHz"))
+    df = self.remove_unnecessary_subcarriers(df, band=band, bandwidth_mhz=bandwidth_mhz)
     remaining_subcarriers = len([col for col in df.columns if col.lstrip("-").isdigit()])
 
     fft_df = self.apply_fourier_transform(df, self.DOWNSAMPLE_INTERVAL_S)
@@ -422,7 +352,7 @@ def _analyze_dataframe(
         f"サブキャリア: {no_subcarriers} → {remaining_subcarriers}, "
         f"有効行: {len(df)}, "
         f"FFTビン: {len(binned_fft_df)}, "
-        f"ウェーブレットビン: {len(binned_wavelet_df)}, "
+        f"Waveletビン: {len(binned_wavelet_df)}, "
         f"MUSICビン: {len(binned_music_df)}, "
         f"最大周波数: {max_freq:.2f}Hz, "
         f"呼吸推定 [{', '.join(br_info)}]"
@@ -439,6 +369,29 @@ def _analyze_dataframe(
     }
 
 
+_PCAP_EXTENSIONS = frozenset({".pcap", ".pcapng", ".cap"})
+_PICOSCENES_EXTENSIONS = frozenset({".csi", ".csv"})
+SUPPORTED_CSI_EXTENSIONS = _PCAP_EXTENSIONS | _PICOSCENES_EXTENSIONS
+
+
+def analyze_file(
+    self,
+    file_path: str,
+    include_wavelet: bool = True,
+    include_music: bool = True,
+) -> Dict[str, Any]:
+    """ファイル拡張子に応じて適切なパーサーを選択し解析する。"""
+    suffix = Path(file_path).suffix.lower()
+    if suffix in _PCAP_EXTENSIONS:
+        return analyze_pcap_file(self, file_path, include_wavelet, include_music)
+    if suffix in _PICOSCENES_EXTENSIONS:
+        return analyze_csi_file_with_picoscenes(self, file_path, include_wavelet, include_music)
+    raise ValueError(
+        f"未対応のファイル形式です: {suffix}。"
+        f"対応形式: {', '.join(sorted(SUPPORTED_CSI_EXTENSIONS))}"
+    )
+
+
 def analyze_pcap_file(
     self,
     file_path: str,
@@ -446,9 +399,6 @@ def analyze_pcap_file(
     include_music: bool = True,
 ) -> Dict[str, Any]:
     """PCAP を解析し、各手法の周波数表現と呼吸推定値を返す。"""
-    if Path(file_path).suffix.lower() == ".csi":
-        raise ValueError("Use analyze_csi_file_with_picoscenes for .csi files")
-
     reader = get_reader(file_path)
     csi_data = reader.read_file(file_path, scaled=True)
     csi_matrix, no_frames, no_subcarriers = csitools.get_CSI(csi_data)
@@ -470,13 +420,7 @@ def analyze_csi_file_with_picoscenes(
     include_wavelet: bool = True,
     include_music: bool = True,
 ) -> Dict[str, Any]:
-    """CSI ファイルを解析する。
-
-    MATLAB パーサー選択時は .csv を受け取る。
-    Python パーサー選択時は従来どおり PicoScenes .csi を受け取る。
-    """
-    # --- OLD: .csi 専用だった呼び出し ---
-    # df = self._convert_picoscenes_to_dataframe(file_path)
+    """PicoScenes .csi / .csv ファイルを解析する。"""
     df = self._convert_picoscenes_to_dataframe(file_path)
     no_frames = len(df)
     no_subcarriers = len([col for col in df.columns if col.lstrip("-").isdigit()])

@@ -27,7 +27,8 @@ def apply_fourier_transform(
     """各サブキャリアに FFT を適用する。
 
     実際のタイムスタンプから実サンプリングレートを計算し、
-    等間隔リサンプリング・デトレンド・Hann窓を適用してから FFT する。
+    デトレンド・Hann窓を適用してから FFT する。
+    リサンプリングは行わず、実測サンプリングレートをそのまま使用する。
     """
     if df is None or df.empty:
         return pd.DataFrame()
@@ -37,22 +38,21 @@ def apply_fourier_transform(
         self.logger.warning("FFT適用可能な列が見つかりません")
         return pd.DataFrame()
 
-    # --- 実サンプリングレートをタイムスタンプから計算 ---
+    # 実サンプリングレートをタイムスタンプから計算
     if time_col in df.columns and len(df) >= 2:
         ts = pd.to_datetime(df[time_col])
         duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
         if duration_s > 0:
-            actual_fs = (len(df) - 1) / duration_s        # 実際の Hz
-            target_fs = 1.0 / sampling_interval            # 目標 Hz (100 Hz)
-            resample_factor = actual_fs / target_fs
+            actual_fs = (len(df) - 1) / duration_s
         else:
             actual_fs = 1.0 / sampling_interval
-            resample_factor = 1.0
     else:
         actual_fs = 1.0 / sampling_interval
-        resample_factor = 1.0
 
-    self.logger.info(f"実サンプリングレート: {actual_fs:.2f} Hz (目標: {1/sampling_interval:.0f} Hz)")
+    actual_interval = 1.0 / actual_fs
+    self.logger.info(f"FFT 実サンプリングレート: {actual_fs:.4f} Hz (サンプル間隔: {actual_interval:.4f} s)")
+
+    from scipy.signal import detrend
 
     all_fft_results = []
     for col in data_cols:
@@ -60,23 +60,11 @@ def apply_fourier_transform(
         if len(signal) < 4:
             continue
 
-        # 等間隔リサンプリング（実レート → 目標レート）
-        if abs(resample_factor - 1.0) > 0.05:
-            from scipy.signal import resample
-            n_target = max(4, int(round(len(signal) / resample_factor)))
-            signal = resample(signal, n_target)
-
-        # デトレンド（線形トレンドと DC を除去）
-        from scipy.signal import detrend
         signal = detrend(signal, type="linear")
+        signal = signal * np.hanning(len(signal))
 
-        # Hann 窓（スペクトル漏れ抑制）
-        window = np.hanning(len(signal))
-        signal = signal * window
-
-        sample_count = len(signal)
         yf = np.fft.rfft(signal)
-        xf = np.fft.rfftfreq(sample_count, d=sampling_interval)
+        xf = np.fft.rfftfreq(len(signal), d=actual_interval)
 
         positive_mask = xf > 0
         fft_df = pd.DataFrame({
@@ -492,22 +480,3 @@ def compare_breathing_rate_methods(
     return comparison
 
 
-def compare_breathing_rate_estimates(
-    self,
-    fft_bpm: Optional[float],
-    wavelet_bpm: Optional[float],
-) -> Dict[str, Any]:
-    """既存互換のための 2 手法比較ラッパー。"""
-    comparison = self.compare_breathing_rate_methods({
-        "fft": fft_bpm,
-        "wavelet": wavelet_bpm,
-    })
-    return {
-        "fft_bpm": comparison["methods"].get("fft_bpm"),
-        "wavelet_bpm": comparison["methods"].get("wavelet_bpm"),
-        "difference_bpm": comparison["spread_bpm"],
-        "difference_ratio": comparison["spread_ratio"],
-        "agreement_threshold_bpm": comparison["agreement_threshold_bpm"],
-        "is_consistent": comparison["is_consistent"],
-        "preferred_method": comparison["preferred_method"],
-    }

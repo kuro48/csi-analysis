@@ -107,18 +107,31 @@ def make_bins(self, max_val: float, step: float) -> List[float]:
     return [i * step for i in range(num_steps + 1)]
 
 
+def _detect_band(center_freq_mhz: float) -> str:
+    """center_freq_mhz からバンド名を返す。"""
+    if center_freq_mhz >= 5925:
+        return "6GHz"
+    if center_freq_mhz >= 5000:
+        return "5GHz"
+    return "2.4GHz"
+
+
 def remove_unnecessary_subcarriers(
     self,
     df: pd.DataFrame,
-    channel_width: str = "80MHz",
+    band: str = "5GHz",
+    bandwidth_mhz: int = 80,
 ) -> pd.DataFrame:
-    """ガードバンド・パイロット・DC サブキャリアを削除する。"""
+    """ガードバンド・パイロット・DC サブキャリアを削除する。対応する位相列も同時に削除する。"""
     if df is None or df.empty:
         return df
 
-    if channel_width not in self.CHANNEL_CONFIGS:
-        self.logger.warning(f"未サポートのチャネル幅: {channel_width}")
-        return df
+    key = (band, bandwidth_mhz)
+    if key not in self.CHANNEL_CONFIGS:
+        self.logger.warning(
+            f"未サポートの設定: band={band}, bandwidth={bandwidth_mhz} MHz → ('5GHz', 80) にフォールバック"
+        )
+        key = ("5GHz", 80)
 
     subcarrier_cols = [col for col in df.columns if col.lstrip("-").isdigit()]
     if not subcarrier_cols:
@@ -127,26 +140,30 @@ def remove_unnecessary_subcarriers(
 
     original_count = len(subcarrier_cols)
 
+    def _drop_with_phase(frame: pd.DataFrame, mag_cols: List[str]) -> pd.DataFrame:
+        phase_cols = [f"{c}_phase" for c in mag_cols if f"{c}_phase" in frame.columns]
+        return frame.drop(columns=mag_cols + phase_cols)
+
     if "0" in df.columns:
-        df = df.drop(columns=["0"])
+        df = _drop_with_phase(df, ["0"])
         self.logger.debug("DC成分（サブキャリア0）を削除")
 
-    config = self.CHANNEL_CONFIGS[channel_width]
+    config = self.CHANNEL_CONFIGS[key]
 
     for start, end in config["guard_bands"]:
         guard_cols = [str(i) for i in range(start, end + 1) if str(i) in df.columns]
         if guard_cols:
-            df = df.drop(columns=guard_cols)
+            df = _drop_with_phase(df, guard_cols)
             self.logger.debug(f"ガードバンド削除: {start}～{end} ({len(guard_cols)}列)")
 
     pilot_cols = [str(i) for i in config["pilots"] if str(i) in df.columns]
     if pilot_cols:
-        df = df.drop(columns=pilot_cols)
+        df = _drop_with_phase(df, pilot_cols)
         self.logger.debug(f"パイロット削除: {len(pilot_cols)}列")
 
     remaining_count = len([col for col in df.columns if col.lstrip("-").isdigit()])
     self.logger.info(
-        f"不要サブキャリア削除: {original_count}列 → {remaining_count}列 "
+        f"不要サブキャリア削除 ({band} {bandwidth_mhz} MHz): {original_count}列 → {remaining_count}列 "
         f"({original_count - remaining_count}列削除)"
     )
 
