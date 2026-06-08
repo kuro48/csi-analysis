@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { UploadSection } from "./UploadSection";
 
 export default function UploadPage() {
@@ -5,6 +6,12 @@ export default function UploadPage() {
     <main className="min-h-screen bg-neutral-100 px-4 py-10">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8">
+          <Link
+            href="/"
+            className="mb-4 inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-800 transition-colors"
+          >
+            ← ホームへ戻る
+          </Link>
           <h1 className="text-2xl font-bold text-neutral-900">CSI アップロード & 解析</h1>
           <p className="mt-1 text-sm text-neutral-500">
             ベースCSI とメインCSI を個別にアップロードして解析結果を確認します

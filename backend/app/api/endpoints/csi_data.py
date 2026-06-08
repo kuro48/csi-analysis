@@ -206,17 +206,17 @@ async def _run_base_csi_comparison(
         for i, (idx, sim) in enumerate(zip(indices, sims))
     ]
 
-    def load_base_dataframe(method: str):
+    async def load_base_dataframe(method: str):
         stored = getattr(base_csi, f"{method}_dataframe", None)
         if stored:
-            return pd.DataFrame(stored)
+            return await asyncio.to_thread(pd.DataFrame, stored)
 
         source_path = getattr(base_csi, "source_pcap_path", None)
         if not source_path:
             return pd.DataFrame()
 
         try:
-            fallback_result = analyzer.analyze_pcap_file(source_path)
+            fallback_result = await asyncio.to_thread(analyzer.analyze_pcap_file, source_path)
             return fallback_result.get(method, pd.DataFrame())
         except Exception as e:
             logger.warning(f"Failed to rebuild {method} dataframe from base PCAP: {e}", exc_info=True)
@@ -227,8 +227,10 @@ async def _run_base_csi_comparison(
             logger.warning(f"Skipping {method} ZKP comparison because dataframe is empty")
             return None
 
-        base_data = analyzer.extract_full_subcarrier_vectors(base_df, **extract_kwargs)
-        upload_data = analyzer.extract_full_subcarrier_vectors(upload_df, **extract_kwargs)
+        base_data, upload_data = await asyncio.gather(
+            asyncio.to_thread(analyzer.extract_full_subcarrier_vectors, base_df, **extract_kwargs),
+            asyncio.to_thread(analyzer.extract_full_subcarrier_vectors, upload_df, **extract_kwargs),
+        )
 
         if base_data["num_freq_points"] == 0 or upload_data["num_freq_points"] == 0:
             logger.warning(f"Skipping {method} ZKP comparison because extracted vectors are empty")
@@ -241,19 +243,13 @@ async def _run_base_csi_comparison(
             reference_matrix=reference_matrix,
             candidate_matrix=candidate_matrix
         )
-        python_similarity = zkp_service.compute_python_similarity(
-            reference_matrix=reference_matrix,
-            candidate_matrix=candidate_matrix
+        python_similarity, python_top_n_result = await asyncio.gather(
+            asyncio.to_thread(zkp_service.compute_python_similarity, reference_matrix, candidate_matrix),
+            asyncio.to_thread(zkp_service.select_top_n_subcarriers, reference_matrix, candidate_matrix, 5),
         )
-        python_top_n_result = zkp_service.select_top_n_subcarriers(
-            reference_matrix=reference_matrix,
-            candidate_matrix=candidate_matrix,
-            top_n=5
-        )
-        zkp_top_n_result = zkp_service.extract_top_n_from_similarities(
-            zkp_similarities=similarity_result.get("similarities", []),
-            scale=10000,
-            top_n=5
+        zkp_top_n_result = await asyncio.to_thread(
+            zkp_service.extract_top_n_from_similarities,
+            similarity_result.get("similarities", []), 10000, 5,
         )
 
         selected_similarity = similarity_result.get("selectedSubcarrierSimilarity")
@@ -299,7 +295,8 @@ async def _run_base_csi_comparison(
         "wavelet": wavelet_dataframe,
         "music": music_dataframe,
     }.items():
-        result = await compare_method(method_name, load_base_dataframe(method_name), upload_df)
+        base_df = await load_base_dataframe(method_name)
+        result = await compare_method(method_name, base_df, upload_df)
         if result:
             method_results[method_name] = result
 
@@ -467,7 +464,7 @@ async def _process_and_generate_zkp_background(
         csi_data = db.query(CSIData).filter_by(id=csi_data_id).first()
         if csi_data:
             csi_data.status = "processing"
-            db.commit()
+            await asyncio.to_thread(db.commit)
 
         analyzer = PCAPAnalyzer()
         zkp_service = ZKPService(auto_compile=settings.ZKP_AUTO_COMPILE)
@@ -485,9 +482,15 @@ async def _process_and_generate_zkp_background(
 
         # --- グラフ保存（ZKP入力前の状態を可視化） ---
         csi_id_str = str(csi_data_id)
-        fft_matrix = analyzer.extract_matrix_for_zkp(binned_fft_df)
-        wavelet_matrix = analyzer.extract_matrix_for_zkp(binned_wavelet_df) if not binned_wavelet_df.empty else []
-        music_matrix = analyzer.extract_music_matrix_for_zkp(binned_music_df) if not binned_music_df.empty else []
+        fft_matrix = await asyncio.to_thread(analyzer.extract_matrix_for_zkp, binned_fft_df)
+        wavelet_matrix = (
+            await asyncio.to_thread(analyzer.extract_matrix_for_zkp, binned_wavelet_df)
+            if not binned_wavelet_df.empty else []
+        )
+        music_matrix = (
+            await asyncio.to_thread(analyzer.extract_music_matrix_for_zkp, binned_music_df)
+            if not binned_music_df.empty else []
+        )
         if fft_matrix:
             await asyncio.to_thread(save_fft_graph, fft_matrix, csi_id_str)
         if wavelet_matrix:
@@ -535,10 +538,15 @@ async def _process_and_generate_zkp_background(
         # --- DB保存 ---
         if csi_data:
             csi_data.status = "completed"
+            fft_ser, wav_ser, mus_ser = await asyncio.gather(
+                asyncio.to_thread(_serialize_fft_dataframe, binned_fft_df),
+                asyncio.to_thread(_serialize_fft_dataframe, binned_wavelet_df),
+                asyncio.to_thread(_serialize_fft_dataframe, binned_music_df),
+            )
             processed_data: dict = {
-                "fft_dataframe": _serialize_fft_dataframe(binned_fft_df),
-                "wavelet_dataframe": _serialize_fft_dataframe(binned_wavelet_df),
-                "music_dataframe": _serialize_fft_dataframe(binned_music_df),
+                "fft_dataframe": fft_ser,
+                "wavelet_dataframe": wav_ser,
+                "music_dataframe": mus_ser,
                 "breathing_rate_comparison": analysis_result["breathing_rate_comparison"],
                 "wavelet_zkp": transform_zkp_results.get("wavelet"),
                 "music_zkp": transform_zkp_results.get("music"),
@@ -546,7 +554,7 @@ async def _process_and_generate_zkp_background(
             if base_csi_comparison:
                 processed_data["base_csi_comparison"] = base_csi_comparison
             csi_data.processed_data = processed_data
-            db.commit()
+            await asyncio.to_thread(db.commit)
 
             # --- FFT ZKP ブロックチェーン記録 ---
             if base_csi_comparison:
@@ -576,7 +584,7 @@ async def _process_and_generate_zkp_background(
                 "error_type": "ValidationError",
                 "error_category": "pcap_analysis_failed",
             }
-            db.commit()
+            await asyncio.to_thread(db.commit)
 
     except Exception as e:
         logger.error(f"Background processing failed for CSI data {csi_data_id}: {e}", exc_info=True)
@@ -587,7 +595,7 @@ async def _process_and_generate_zkp_background(
                 "error_type": type(e).__name__,
                 "error_category": "processing_failed",
             }
-            db.commit()
+            await asyncio.to_thread(db.commit)
 
     finally:
         if not settings.RESEARCH_MODE and file_path:
@@ -601,9 +609,9 @@ async def _process_and_generate_zkp_background(
             if db and csi_data:
                 csi_data.file_path = None
                 csi_data.file_size = None
-                db.commit()
+                await asyncio.to_thread(db.commit)
         if db:
-            db.close()
+            await asyncio.to_thread(db.close)
 
 @router.post("/upload", response_model=CSIDataResponse)
 async def upload_csi_data(

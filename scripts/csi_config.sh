@@ -27,7 +27,7 @@ MAIN_CSI_DURATION="${CSI_MAIN_DURATION:-60}"   # メインCSI計測時間 [秒]
 # ============================================================
 # アップロード先URL
 # ============================================================
-BASE_CSI_UPLOAD_URL="${API_BASE}/base-csi/register-picoscenes"
+BASE_CSI_UPLOAD_URL="${API_BASE}/base-csi/register"
 MAIN_CSI_UPLOAD_URL="${API_BASE}/csi-data/upload-picoscenes"
 
 # ============================================================

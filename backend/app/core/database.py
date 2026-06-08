@@ -16,7 +16,7 @@ engine = create_engine(
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,
-    echo=os.getenv("DEBUG", "false").lower() == "true",
+    echo=False,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

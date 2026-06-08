@@ -290,7 +290,7 @@ class ZKPService:
                 f"{len(reference_matrix)} freq points × {len(reference_matrix[0])} subcarriers (before resize)"
             )
 
-            input_data = self._prepare_input(reference_matrix, candidate_matrix)
+            input_data = await asyncio.to_thread(self._prepare_input, reference_matrix, candidate_matrix)
             witness_file = await self._generate_witness(input_data)
             proof, public_signals = await self._generate_groth16_proof(witness_file)
 
@@ -302,15 +302,11 @@ class ZKPService:
 
             # 表示用メタデータ: ZKP証明の外でPython計算（プライバシーに影響しない）
             # 全体コサイン類似度（行列全体のflattened cosine）を正規化類似度として使用
-            python_sim = self.compute_python_similarity(
-                reference_matrix=reference_matrix,
-                candidate_matrix=candidate_matrix
+            python_sim, per_sub = await asyncio.gather(
+                asyncio.to_thread(self.compute_python_similarity, reference_matrix, candidate_matrix),
+                asyncio.to_thread(self.select_lowest_subcarrier, reference_matrix, candidate_matrix),
             )
             normalized_similarity = python_sim.get("cosine_similarity", 0.0)
-            per_sub = self.select_lowest_subcarrier(
-                reference_matrix=reference_matrix,
-                candidate_matrix=candidate_matrix
-            )
             selected_sub_index = per_sub.get("lowest_index")
 
             result = {

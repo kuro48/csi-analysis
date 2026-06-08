@@ -23,14 +23,18 @@ def configure_logging() -> None:
             logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
         )
         root_logger.addHandler(handler)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 
 configure_logging()
 
 
 class HealthCheckFilter(logging.Filter):
+    _SKIP = ("/health", '"GET /api/v2/csi-data/')
+
     def filter(self, record: logging.LogRecord) -> bool:
-        return "/health" not in record.getMessage()
+        msg = record.getMessage()
+        return not any(s in msg for s in self._SKIP)
 
 
 app = FastAPI(
