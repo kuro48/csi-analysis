@@ -48,7 +48,7 @@ services:
       - POSTGRES_DB=csi_system
       - REDIS_HOST=redis
       - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
-      - ALLOWED_ORIGINS=http://localhost,http://127.0.0.1,http://localhost:3000,https://api.csi.kur048.com
+      - ALLOWED_ORIGINS=http://localhost,http://127.0.0.1,http://localhost:3000,https://csi.kur048.com,https://api.csi.kur048.com
       - DEBUG=True
       - ZKP_AUTO_COMPILE=TRUE
       - PICOSCENES_PARSER=python
@@ -83,13 +83,24 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://api.csi.kur048.com
+        NEXT_PUBLIC_API_URL: https://csi.kur048.com
     container_name: csi_frontend
+    ports:
+      - "3000:3000"
     depends_on:
       backend:
         condition: service_healthy
     networks:
       - csi_network
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: csi_cloudflared
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    network_mode: host
     restart: unless-stopped
 
   nginx:

@@ -14,8 +14,8 @@ interface Props {
 }
 
 const LABELS: Record<Mode, { title: string; accept: string }> = {
-  base: { title: "ベースCSI", accept: ".pcap,.pcapng,.cap" },
-  main: { title: "メインCSI", accept: ".pcap,.pcapng,.cap" },
+  base: { title: "ベースCSI", accept: ".pcap,.pcapng,.cap,.csi,.csv" },
+  main: { title: "メインCSI", accept: ".pcap,.pcapng,.cap,.csi,.csv" },
 };
 
 export function UploadSection({ mode }: Props) {
