@@ -471,9 +471,29 @@ async def _process_and_generate_zkp_background(
         wavelet_zkp_service = ZKPWaveletService(auto_compile=settings.ZKP_AUTO_COMPILE)
         music_zkp_service = ZKPMusicService(auto_compile=settings.ZKP_AUTO_COMPILE)
 
+        base_csi_for_background = None
+        if base_csi_id:
+            base_csi_for_background = BaseCSIService.get_base_csi_by_id(
+                db, base_csi_id, user_id=None, status="completed"
+            )
+        else:
+            base_csis, _ = BaseCSIService.get_base_csi_list(
+                db=db, user_id=None, include_expired=False, status="completed", page=1, page_size=1
+            )
+            base_csi_for_background = base_csis[0] if base_csis else None
+        background_subcarrier_medians = (
+            getattr(base_csi_for_background, "subcarrier_medians", None)
+            if base_csi_for_background
+            else None
+        )
+
         # --- CSI解析（FFT + ウェーブレット + MUSIC） ---
         logger.info(f"Analyzing CSI file: {file_path}")
-        analysis_result = await asyncio.to_thread(analyzer.analyze_file, file_path)
+        analysis_result = await asyncio.to_thread(
+            analyzer.analyze_file,
+            file_path,
+            background_subcarrier_medians=background_subcarrier_medians,
+        )
         binned_fft_df = analysis_result["fft"]
         binned_wavelet_df = analysis_result["wavelet"]
         binned_music_df = analysis_result["music"]

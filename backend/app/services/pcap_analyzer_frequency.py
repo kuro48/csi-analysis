@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 import pandas as pd
 
-from app.services.pcap_analyzer_common import _numeric_data_columns
+from app.services.pcap_analyzer_common import _subcarrier_data_columns
 
 try:
     import pywt
@@ -33,7 +33,7 @@ def apply_fourier_transform(
     if df is None or df.empty:
         return pd.DataFrame()
 
-    data_cols = _numeric_data_columns(df, time_col=time_col)
+    data_cols = _subcarrier_data_columns(df)
     if not data_cols:
         self.logger.warning("FFT適用可能な列が見つかりません")
         return pd.DataFrame()
@@ -100,7 +100,7 @@ def apply_wavelet_transform(
     if df is None or df.empty:
         return pd.DataFrame()
 
-    data_cols = _numeric_data_columns(df, time_col=time_col)
+    data_cols = _subcarrier_data_columns(df)
     if not data_cols:
         self.logger.warning("ウェーブレット変換適用可能な列が見つかりません")
         return pd.DataFrame()
@@ -263,7 +263,7 @@ def apply_music_transform(
     if df is None or df.empty:
         return pd.DataFrame()
 
-    data_cols = _numeric_data_columns(df, time_col=time_col)
+    data_cols = _subcarrier_data_columns(df)
     if not data_cols:
         self.logger.warning("MUSIC適用可能な列が見つかりません")
         return pd.DataFrame()
@@ -478,5 +478,4 @@ def compare_breathing_rate_methods(
         )
 
     return comparison
-
 

@@ -23,6 +23,13 @@ def _numeric_data_columns(
     ]
 
 
+def _subcarrier_data_columns(df: pd.DataFrame) -> List[str]:
+    return [
+        col for col in df.columns
+        if col.lstrip("-").isdigit() and pd.api.types.is_numeric_dtype(df[col])
+    ]
+
+
 def _empty_extracted_vectors() -> Dict[str, Any]:
     return {
         "csi_matrix": [[0]],
@@ -43,6 +50,7 @@ def _build_empty_analysis_result(self) -> Dict[str, Any]:
         "breathing_rate_comparison": self.compare_breathing_rate_methods(
             {"fft": None, "wavelet": None, "music": None}
         ),
+        "subcarrier_medians": {},
     }
 
 

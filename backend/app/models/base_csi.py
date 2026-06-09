@@ -14,6 +14,7 @@ class BaseCSI(Base):
     fft_dataframe = Column(JSON, nullable=False)
     wavelet_dataframe = Column(JSON, nullable=True)
     music_dataframe = Column(JSON, nullable=True)
+    subcarrier_medians = Column(JSON, nullable=True)
     source_pcap_path = Column(String(500), nullable=True)
     source_pcap_size = Column(Integer, nullable=True)
     # processing, completed, error
@@ -38,6 +39,7 @@ class BaseCSI(Base):
             "fft_dataframe": self.fft_dataframe,
             "wavelet_dataframe": self.wavelet_dataframe,
             "music_dataframe": self.music_dataframe,
+            "subcarrier_medians": self.subcarrier_medians,
             "source_pcap_path": self.source_pcap_path,
             "source_pcap_size": self.source_pcap_size,
             "status": self.status,

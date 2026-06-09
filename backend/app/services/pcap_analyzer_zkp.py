@@ -53,6 +53,7 @@ def extract_full_subcarrier_vectors(
     subcarrier_cols = [
         col for col in breathing_df.columns
         if col not in [freq_col, "freq_interval", "freq_mid", "_mean"]
+        and col.lstrip("-").isdigit()
         and pd.api.types.is_numeric_dtype(breathing_df[col])
     ]
     if not subcarrier_cols:

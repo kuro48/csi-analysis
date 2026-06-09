@@ -27,6 +27,7 @@ class BaseCSIResponse(BaseModel):
     fft_dataframe: Optional[Dict[str, Any]] = None
     wavelet_dataframe: Optional[Dict[str, Any]] = None
     music_dataframe: Optional[Dict[str, Any]] = None
+    subcarrier_medians: Optional[Dict[str, float]] = None
     source_pcap_path: Optional[str]
     source_pcap_size: Optional[int]
     status: str

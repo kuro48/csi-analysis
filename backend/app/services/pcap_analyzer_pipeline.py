@@ -6,7 +6,7 @@ from pathlib import Path
 import shlex
 import subprocess
 import tempfile
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from CSIKit.reader import get_reader
 from CSIKit.util import csitools
@@ -294,9 +294,13 @@ def _analyze_dataframe(
     no_subcarriers: int,
     include_wavelet: bool = True,
     include_music: bool = True,
+    include_breathing: bool = True,
+    background_subcarrier_medians: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """変換済み DataFrame を解析し、FFT・Wavelet・MUSIC の周波数表現と呼吸推定値を返す。"""
     empty_result = _build_empty_analysis_result(self)
+    if not include_breathing:
+        empty_result["breathing_rate_comparison"] = None
 
     df = self.drop_invalid_rows(df)
     if df.empty:
@@ -309,16 +313,35 @@ def _analyze_dataframe(
     band = str(df.attrs.get("band", "5GHz"))
     df = self.remove_unnecessary_subcarriers(df, band=band, bandwidth_mhz=bandwidth_mhz)
     remaining_subcarriers = len([col for col in df.columns if col.lstrip("-").isdigit()])
+    subcarrier_cols = [col for col in df.columns if col.lstrip("-").isdigit()]
+    subcarrier_medians = {
+        col: float(np.median(df[col].values))
+        for col in subcarrier_cols
+    }
+    if background_subcarrier_medians:
+        df = df.copy()
+        for col in subcarrier_cols:
+            base_offset = float(background_subcarrier_medians.get(col, 0.0))
+            df[col] = np.maximum(df[col].values - base_offset, 0.0)
+        self.logger.info(
+            "背景差分除去完了: %s サブキャリア",
+            len(background_subcarrier_medians),
+        )
 
     fft_df = self.apply_fourier_transform(df, self.DOWNSAMPLE_INTERVAL_S)
     if fft_df.empty:
         self.logger.warning("FFT結果が空です")
+        empty_result["subcarrier_medians"] = subcarrier_medians
         return empty_result
 
     max_freq = fft_df["frequency"].max()
     bins = self.make_bins(max_freq, self.FREQUENCY_BIN_STEP)
     binned_fft_df = self.average_magnitude_by_frequency_bins(fft_df, bins)
-    breathing_rate_fft = self.estimate_breathing_rate(fft_df, freq_col="frequency")
+    breathing_rate_fft = (
+        self.estimate_breathing_rate(fft_df, freq_col="frequency")
+        if include_breathing
+        else None
+    )
 
     wavelet_df = self.apply_wavelet_transform(df, self.DOWNSAMPLE_INTERVAL_S) if include_wavelet else pd.DataFrame()
     music_df = self.apply_music_transform(df, self.DOWNSAMPLE_INTERVAL_S) if include_music else pd.DataFrame()
@@ -330,17 +353,23 @@ def _analyze_dataframe(
 
     if not wavelet_df.empty:
         binned_wavelet_df = self.average_magnitude_by_frequency_bins(wavelet_df, bins)
-        breathing_rate_wavelet = self.estimate_breathing_rate(wavelet_df, freq_col="frequency")
+        if include_breathing:
+            breathing_rate_wavelet = self.estimate_breathing_rate(wavelet_df, freq_col="frequency")
 
     if not music_df.empty:
         binned_music_df = self.average_magnitude_by_frequency_bins(music_df, bins)
-        breathing_rate_music = self.estimate_breathing_rate(music_df, freq_col="frequency")
+        if include_breathing:
+            breathing_rate_music = self.estimate_breathing_rate(music_df, freq_col="frequency")
 
-    breathing_rate_comparison = self.compare_breathing_rate_methods({
-        "fft": breathing_rate_fft,
-        "wavelet": breathing_rate_wavelet,
-        "music": breathing_rate_music,
-    })
+    breathing_rate_comparison = (
+        self.compare_breathing_rate_methods({
+            "fft": breathing_rate_fft,
+            "wavelet": breathing_rate_wavelet,
+            "music": breathing_rate_music,
+        })
+        if include_breathing
+        else None
+    )
 
     br_info = (
         f"FFT={breathing_rate_fft:.1f}bpm" if breathing_rate_fft else "FFT=N/A",
@@ -366,6 +395,7 @@ def _analyze_dataframe(
         "breathing_rate_wavelet_bpm": breathing_rate_wavelet,
         "breathing_rate_music_bpm": breathing_rate_music,
         "breathing_rate_comparison": breathing_rate_comparison,
+        "subcarrier_medians": subcarrier_medians,
     }
 
 
@@ -379,13 +409,21 @@ def analyze_file(
     file_path: str,
     include_wavelet: bool = True,
     include_music: bool = True,
+    include_breathing: bool = True,
+    background_subcarrier_medians: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """ファイル拡張子に応じて適切なパーサーを選択し解析する。"""
     suffix = Path(file_path).suffix.lower()
     if suffix in _PCAP_EXTENSIONS:
-        return analyze_pcap_file(self, file_path, include_wavelet, include_music)
+        return analyze_pcap_file(
+            self, file_path, include_wavelet, include_music,
+            include_breathing, background_subcarrier_medians,
+        )
     if suffix in _PICOSCENES_EXTENSIONS:
-        return analyze_csi_file_with_picoscenes(self, file_path, include_wavelet, include_music)
+        return analyze_csi_file_with_picoscenes(
+            self, file_path, include_wavelet, include_music,
+            include_breathing, background_subcarrier_medians,
+        )
     raise ValueError(
         f"未対応のファイル形式です: {suffix}。"
         f"対応形式: {', '.join(sorted(SUPPORTED_CSI_EXTENSIONS))}"
@@ -397,6 +435,8 @@ def analyze_pcap_file(
     file_path: str,
     include_wavelet: bool = True,
     include_music: bool = True,
+    include_breathing: bool = True,
+    background_subcarrier_medians: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """PCAP を解析し、各手法の周波数表現と呼吸推定値を返す。"""
     reader = get_reader(file_path)
@@ -411,6 +451,8 @@ def analyze_pcap_file(
         no_subcarriers=no_subcarriers,
         include_wavelet=include_wavelet,
         include_music=include_music,
+        include_breathing=include_breathing,
+        background_subcarrier_medians=background_subcarrier_medians,
     )
 
 
@@ -419,6 +461,8 @@ def analyze_csi_file_with_picoscenes(
     file_path: str,
     include_wavelet: bool = True,
     include_music: bool = True,
+    include_breathing: bool = True,
+    background_subcarrier_medians: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """PicoScenes .csi / .csv ファイルを解析する。"""
     df = self._convert_picoscenes_to_dataframe(file_path)
@@ -435,4 +479,6 @@ def analyze_csi_file_with_picoscenes(
         no_subcarriers=no_subcarriers,
         include_wavelet=include_wavelet,
         include_music=include_music,
+        include_breathing=include_breathing,
+        background_subcarrier_medians=background_subcarrier_medians,
     )
