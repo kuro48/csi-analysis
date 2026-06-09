@@ -30,7 +30,7 @@ configure_logging()
 
 
 class HealthCheckFilter(logging.Filter):
-    _SKIP = ("/health", '"GET /api/v2/csi-data/')
+    _SKIP = ("/health", '"GET /api/v2/csi-data/', '"GET /api/v2/base-csi/')
 
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()

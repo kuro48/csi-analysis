@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 import pandas as pd
 
-from app.services.pcap_analyzer_common import _subcarrier_data_columns
+from app.services.pcap_analyzer_common import _numeric_data_columns, _subcarrier_data_columns
 
 try:
     import pywt

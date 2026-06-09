@@ -279,15 +279,10 @@ class ZKPService:
             if not reference_matrix or not candidate_matrix:
                 raise ValueError("Reference and candidate matrices cannot be empty")
 
-            if len(reference_matrix) != len(candidate_matrix):
-                raise ValueError("Reference and candidate must have same number of frequency points")
-
-            if len(reference_matrix[0]) != len(candidate_matrix[0]):
-                raise ValueError("Reference and candidate must have same number of subcarriers")
-
             logger.info(
                 f"Generating ZKP proof: "
-                f"{len(reference_matrix)} freq points × {len(reference_matrix[0])} subcarriers (before resize)"
+                f"ref={len(reference_matrix)}×{len(reference_matrix[0])}, "
+                f"cand={len(candidate_matrix)}×{len(candidate_matrix[0])} (before resize)"
             )
 
             input_data = await asyncio.to_thread(self._prepare_input, reference_matrix, candidate_matrix)

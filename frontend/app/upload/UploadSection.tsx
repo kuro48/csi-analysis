@@ -7,6 +7,13 @@ import { StatusBadge } from "./StatusBadge";
 import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS, TERMINAL_STATUSES } from "./constants";
 import type { BaseCSIResponse, CSIStatus, MainCSIResponse } from "./types";
 
+function formatElapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds}秒`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}分${s}秒` : `${m}分`;
+}
+
 type Mode = "base" | "main";
 
 interface Props {
@@ -28,8 +35,11 @@ export function UploadSection({ mode }: Props) {
   const [baseRecord, setBaseRecord] = useState<BaseCSIResponse | null>(null);
   const [mainRecord, setMainRecord] = useState<MainCSIResponse | null>(null);
 
+  const [elapsed, setElapsed] = useState<number | null>(null);
+
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number>(0);
   const pollRef = useRef<(id: string, abort: AbortController) => Promise<void>>(async () => {});
 
@@ -38,6 +48,20 @@ export function UploadSection({ mode }: Props) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+  };
+
+  const clearTicker = () => {
+    if (tickerRef.current) {
+      clearInterval(tickerRef.current);
+      tickerRef.current = null;
+    }
+  };
+
+  const startTicker = () => {
+    clearTicker();
+    tickerRef.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+    }, 1000);
   };
 
   const poll = useCallback(
@@ -52,14 +76,20 @@ export function UploadSection({ mode }: Props) {
           const rec = await getBaseCSI(id, abort.signal);
           setBaseRecord(rec);
           setStatus(rec.status as CSIStatus);
-          if (!TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
+          if (TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
+            clearTicker();
+            setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+          } else {
             timerRef.current = setTimeout(() => pollRef.current(id, abort), POLL_INTERVAL_MS);
           }
         } else {
           const rec = await getMainCSI(id, abort.signal);
           setMainRecord(rec);
           setStatus(rec.status as CSIStatus);
-          if (!TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
+          if (TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
+            clearTicker();
+            setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+          } else {
             timerRef.current = setTimeout(() => pollRef.current(id, abort), POLL_INTERVAL_MS);
           }
         }
@@ -79,6 +109,7 @@ export function UploadSection({ mode }: Props) {
   useEffect(() => {
     return () => {
       clearTimer();
+      clearTicker();
       abortRef.current?.abort();
     };
   }, []);
@@ -97,20 +128,30 @@ export function UploadSection({ mode }: Props) {
     setStatus(null);
     setBaseRecord(null);
     setMainRecord(null);
+    setElapsed(null);
+    clearTicker();
 
     try {
       if (mode === "base") {
         const rec = await uploadBaseCSI(file, abort.signal);
+        startTicker();
         setBaseRecord(rec);
         setStatus(rec.status as CSIStatus);
-        if (!TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
+        if (TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
+          clearTicker();
+          setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+        } else {
           timerRef.current = setTimeout(() => poll(rec.id, abort), POLL_INTERVAL_MS);
         }
       } else {
         const rec = await uploadMainCSI(file, abort.signal);
+        startTicker();
         setMainRecord(rec);
         setStatus(rec.status as CSIStatus);
-        if (!TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
+        if (TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
+          clearTicker();
+          setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+        } else {
           timerRef.current = setTimeout(() => poll(rec.id, abort), POLL_INTERVAL_MS);
         }
       }
@@ -149,8 +190,15 @@ export function UploadSection({ mode }: Props) {
       </div>
 
       {status && (
-        <div className="mt-3">
+        <div className="mt-3 flex items-center gap-2">
           <StatusBadge status={status} />
+          {elapsed !== null && (
+            <span className="text-xs text-neutral-500">
+              {TERMINAL_STATUSES.includes(status as typeof TERMINAL_STATUSES[number])
+                ? `(${formatElapsed(elapsed)})`
+                : `(${formatElapsed(elapsed)}経過)`}
+            </span>
+          )}
         </div>
       )}
 

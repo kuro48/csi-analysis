@@ -116,6 +116,8 @@ services:
     networks:
       - csi_network
     restart: unless-stopped
+    logging:
+      driver: none
 
   ganache:
     build:
