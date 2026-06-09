@@ -47,21 +47,41 @@ def _parse_json_field(value) -> Optional[dict]:
 
 
 def _serialize_fft_dataframe(fft_df) -> dict:
-    """FFTデータフレームをJSON化できる辞書に変換"""
+    """FFTデータフレームからフロントエンド表示用サマリーをJSON化する。
+
+    全サブキャリア列（60×1942）の代わりに frequency と magnitude_avg の
+    2列だけを返すことでペイロードを大幅に削減する。
+    """
     if not hasattr(fft_df, "to_dict"):
         return {}
 
     import numpy as np
 
-    fft_df_copy = fft_df.copy()
+    df = fft_df.copy()
 
-    # freq_interval列がInterval型の場合は文字列に変換
-    if "freq_interval" in fft_df_copy.columns:
-        fft_df_copy["freq_interval"] = fft_df_copy["freq_interval"].astype(str)
+    # 周波数列を特定して数値に変換
+    if "freq_interval" in df.columns:
+        from app.services.pcap_analyzer_common import _interval_midpoint
+        df["frequency"] = df["freq_interval"].apply(_interval_midpoint).astype(float)
+    elif "frequency" not in df.columns:
+        return {}
 
-    # NaN, inf, -infをNoneに置き換え（JSONで有効な値に変換）
-    fft_df_copy = fft_df_copy.replace([np.nan, np.inf, -np.inf], None)
-    return fft_df_copy.to_dict()
+    # 数値サブキャリア列の平均を magnitude_avg として計算
+    exclude = {"frequency", "freq_interval", "freq_mid", "_mean"}
+    data_cols = [
+        c for c in df.columns
+        if c not in exclude and str(c).lstrip("-").replace(".", "", 1).isdigit()
+    ]
+    if data_cols:
+        df["magnitude_avg"] = df[data_cols].replace([np.inf, -np.inf], np.nan).mean(axis=1)
+    elif "_mean" in df.columns:
+        df["magnitude_avg"] = df["_mean"]
+    else:
+        df["magnitude_avg"] = np.nan
+
+    summary = df[["frequency", "magnitude_avg"]].copy()
+    summary = summary.replace([np.nan, np.inf, -np.inf], None)
+    return summary.to_dict()
 
 
 def _validate_upload_file(file_name: Optional[str], file_size: int) -> str:
