@@ -289,26 +289,25 @@ class ZKPService:
             witness_file = await self._generate_witness(input_data)
             proof, public_signals = await self._generate_groth16_proof(witness_file)
 
-            # public_signals = [isNormal] の1値のみ
+            # public_signals = [isNormal, selectedSubcarrierIndex]
             actual_len = len(public_signals)
-            logger.info(f"Public signals length: actual={actual_len}, expected=1 (isNormal only)")
+            logger.info(f"Public signals length: actual={actual_len}, expected=2 (isNormal, selectedSubcarrierIndex)")
 
             is_normal = bool(int(public_signals[0])) if actual_len >= 1 else False
+            # 回路内でコサイン類似度が最小（ベースとの差異が最大）のサブキャリアを選択した結果
+            selected_sub_index = int(public_signals[1]) if actual_len >= 2 else None
 
-            # 表示用メタデータ: ZKP証明の外でPython計算（プライバシーに影響しない）
-            # 全体コサイン類似度（行列全体のflattened cosine）を正規化類似度として使用
-            python_sim, per_sub = await asyncio.gather(
-                asyncio.to_thread(self.compute_python_similarity, reference_matrix, candidate_matrix),
-                asyncio.to_thread(self.select_lowest_subcarrier, reference_matrix, candidate_matrix),
+            # 表示用メタデータ: 全体コサイン類似度（行列全体のflattened cosine）
+            normalized_similarity = await asyncio.to_thread(
+                self.compute_python_similarity, reference_matrix, candidate_matrix
             )
-            normalized_similarity = python_sim.get("cosine_similarity", 0.0)
-            selected_sub_index = per_sub.get("lowest_index")
+            normalized_similarity = normalized_similarity.get("cosine_similarity", 0.0)
 
             result = {
                 "proof": proof,
                 "publicSignals": public_signals,
                 "isNormal": is_normal,
-                # 以下は表示用（ZKP証明の公開出力ではなくPython計算値）
+                # 回路の公開出力: 最小コサイン類似度サブキャリアのインデックス
                 "selectedSubcarrierIndex": selected_sub_index,
                 "normalizedSimilarity": normalized_similarity,
                 "similarity": normalized_similarity,
@@ -319,7 +318,7 @@ class ZKPService:
             logger.info("=" * 80)
             logger.info(f"✅ ZKP Proof Generation COMPLETED in {total_time:.3f} seconds")
             logger.info(f"   Is Normal (ZKP public output): {is_normal}")
-            logger.info(f"   Selected Subcarrier (display): {selected_sub_index}")
+            logger.info(f"   Selected Subcarrier (ZKP public output): {selected_sub_index}")
             logger.info(f"   Similarity (display): {normalized_similarity:.4f}")
             logger.info("=" * 80)
 

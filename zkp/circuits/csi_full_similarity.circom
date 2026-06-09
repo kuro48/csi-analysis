@@ -88,6 +88,7 @@ template NormalBreathingCheck(
     signal input referenceMatrix[NUM_FREQ_POINTS][NUM_SUBCARRIERS];
     signal input candidateMatrix[NUM_FREQ_POINTS][NUM_SUBCARRIERS];
     signal output isNormal;
+    signal output selectedSubcarrierIndex;  // 最小コサイン類似度サブキャリアのインデックス（0-based）
 
     // ===== ステップ1: コサイン類似度比較 + 最小類似度サブキャリア選択 =====
     //
@@ -101,6 +102,12 @@ template NormalBreathingCheck(
     //   result = term_a - term_b + old_val   ← lt=1: new_val, lt=0: old_val
     //
     // lt=1 のとき term_a - term_b = new_val - old_val; 符号問わず BN254 上で正しく収束
+    //
+    // インデックス追跡:
+    //   minIdx[sc]: sc まで見た中で最小コサイン類似度サブキャリアのインデックス
+    //   idx_term_b[sc] = lt × minIdx[sc-1]  （quadratic 中間項）
+    //   minIdx[sc] = sc * lt - idx_term_b[sc] + minIdx[sc-1]
+    //     lt=1 → sc, lt=0 → minIdx[sc-1]
 
     component dn[NUM_SUBCARRIERS];
     signal dots[NUM_SUBCARRIERS];
@@ -110,6 +117,7 @@ template NormalBreathingCheck(
     signal minDot[NUM_SUBCARRIERS];
     signal minNr[NUM_SUBCARRIERS];
     signal minNc[NUM_SUBCARRIERS];
+    signal minIdx[NUM_SUBCARRIERS];
 
     // 比較用中間信号（sc=0 はダミー 0 で初期化）
     signal dot_sq[NUM_SUBCARRIERS];        // dots[sc]²
@@ -125,6 +133,7 @@ template NormalBreathingCheck(
     signal nr_term_b[NUM_SUBCARRIERS];
     signal nc_term_a[NUM_SUBCARRIERS];
     signal nc_term_b[NUM_SUBCARRIERS];
+    signal idx_term_b[NUM_SUBCARRIERS];
 
     signal selectedSpec[NUM_SUBCARRIERS][NUM_FREQ_POINTS];
     signal spec_term_a[NUM_SUBCARRIERS][NUM_FREQ_POINTS];
@@ -150,6 +159,7 @@ template NormalBreathingCheck(
             minDot[0]      <== dots[0];
             minNr[0]       <== nrs[0];
             minNc[0]       <== ncs[0];
+            minIdx[0]      <== 0;
             minDot_sq[0]   <== 0;
             minNr_minNc[0] <== 0;
             lhs_cos[0]     <== 0;
@@ -160,6 +170,7 @@ template NormalBreathingCheck(
             nr_term_b[0]   <== 0;
             nc_term_a[0]   <== 0;
             nc_term_b[0]   <== 0;
+            idx_term_b[0]  <== 0;
             for (var f = 0; f < NUM_FREQ_POINTS; f++) {
                 selectedSpec[0][f] <== candidateMatrix[f][0];
                 spec_term_a[0][f]  <== 0;
@@ -191,6 +202,11 @@ template NormalBreathingCheck(
             nc_term_b[sc] <== lt_cos[sc].out * minNc[sc-1];
             minNc[sc] <== nc_term_a[sc] - nc_term_b[sc] + minNc[sc-1];
 
+            // minIdx 更新: lt=1 → sc, lt=0 → minIdx[sc-1]
+            // sc は定数なので sc * lt_cos[sc].out は線形制約
+            idx_term_b[sc] <== lt_cos[sc].out * minIdx[sc-1];
+            minIdx[sc] <== sc * lt_cos[sc].out - idx_term_b[sc] + minIdx[sc-1];
+
             // 選択スペクトラム更新: lt=1 → candidateMatrix[*][sc], lt=0 → 前回値
             for (var f = 0; f < NUM_FREQ_POINTS; f++) {
                 spec_term_a[sc][f] <== lt_cos[sc].out * candidateMatrix[f][sc];
@@ -199,6 +215,8 @@ template NormalBreathingCheck(
             }
         }
     }
+
+    selectedSubcarrierIndex <== minIdx[NUM_SUBCARRIERS - 1];
 
     // ===== ステップ2: 選択スペクトラムの argmax =====
     // maxIdx[f] は bins [0..f] の中でのピークビン
