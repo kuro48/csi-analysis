@@ -23,12 +23,25 @@ export function pickBreathingBpm(data: ProcessedData | null): {
   music: number | null;
   final: number | null;
 } {
-  const methods = data?.breathing_rate_comparison?.methods ?? {};
+  const comparison = data?.breathing_rate_comparison;
+  const methods = comparison?.methods ?? {};
+  const fft = methods["fft"] ?? methods["fft_bpm"] ?? comparison?.fft_bpm ?? null;
+  const wavelet = methods["wavelet"] ?? methods["wavelet_bpm"] ?? comparison?.wavelet_bpm ?? null;
+  const music = methods["music"] ?? methods["music_bpm"] ?? comparison?.music_bpm ?? null;
+  const preferredMethod = comparison?.preferred_method;
+  const preferred = preferredMethod === "fft"
+    ? fft
+    : preferredMethod === "wavelet"
+      ? wavelet
+      : preferredMethod === "music"
+        ? music
+        : null;
+
   return {
-    fft: methods["fft"] ?? null,
-    wavelet: methods["wavelet"] ?? null,
-    music: methods["music"] ?? null,
-    final: data?.breathing_rate_comparison?.final_bpm ?? null,
+    fft,
+    wavelet,
+    music,
+    final: comparison?.final_bpm ?? preferred,
   };
 }
 
