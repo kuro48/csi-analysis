@@ -86,7 +86,11 @@ settings = Settings()
 
 
 def validate_security_settings():
-    """本番環境では必須環境変数をチェックし、未設定なら起動を停止する"""
+    """必須環境変数をチェックする。main.py の startup_event から呼ばれる。
+
+    NOTE: import 時に自動実行しない。起動時のみ呼ぶことで
+    テスト実行時や開発中の import エラーを防ぐ。
+    """
     import sys
 
     required_vars = {
@@ -97,14 +101,9 @@ def validate_security_settings():
     missing_vars = [k for k, v in required_vars.items() if not v]
 
     if missing_vars:
-        error_msg = f"🚨 SECURITY ERROR: Missing required environment variables: {', '.join(missing_vars)}"
+        error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
         if not settings.DEBUG:
-            print(error_msg)
+            print(f"SECURITY ERROR: {error_msg}")
             sys.exit(1)
         else:
-            print(f"⚠️ WARNING: {error_msg}")
-    else:
-        print("✅ Security settings validated successfully")
-
-
-validate_security_settings()
+            print(f"SECURITY WARNING: {error_msg}")

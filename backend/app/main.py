@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.core.config import settings
+from app.core.config import settings, validate_security_settings as _check_required_env_vars
 from app.core.errors import setup_error_handlers
 from app.api.routes import api_router
 from app.services.zkp_service import ZKPService
@@ -246,7 +246,8 @@ async def startup_event():
 
         logger.info("Starting application initialization...")
 
-        _validate_security_settings()
+        _check_required_env_vars()   # 必須環境変数の存在チェック（config.py）
+        _validate_security_settings()  # JWT_SECRET_KEY の強度チェック
         logger.info("Security settings validated")
 
         if settings.ZKP_AUTO_COMPILE:
