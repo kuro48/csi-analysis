@@ -64,6 +64,8 @@ def _build_empty_analysis_result(self) -> Dict[str, Any]:
         "breathing_rate_phase_comparison": self.compare_breathing_rate_methods(
             {"fft": None, "wavelet": None, "music": None}
         ),
+        "raw_signal": None,
+        "filtered_signal": None,
     }
 
 

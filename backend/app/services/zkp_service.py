@@ -40,6 +40,197 @@ class ZKPService(ZKPCircuitService):
         )
 
     # ------------------------------------------------------------------ #
+    # セットアップ                                                          #
+    # ------------------------------------------------------------------ #
+
+    def _get_circuit_hash(self) -> str:
+        """回路ファイルのMD5ハッシュを返す（WASM/zkey との整合性確認用）。"""
+        import hashlib
+        circuit_file = self.zkp_dir / "circuits" / "csi_full_similarity.circom"
+        if not circuit_file.exists():
+            return ""
+        with open(circuit_file, "rb") as f:
+            return hashlib.md5(f.read()).hexdigest()
+
+    def _check_setup(self) -> None:
+        """ZKP環境のセットアップが完了しているか確認（自動コンパイル対応）。
+
+        回路ファイルのハッシュを使って WASM/zkey の鮮度を検証し、
+        回路が変更されていれば古い zkey を削除してTrusted Setupのみ再実行する。
+        """
+        circuit_name  = "csi_full_similarity"
+        full_sim_wasm = self.build_dir / f"{circuit_name}_js" / f"{circuit_name}.wasm"
+        full_sim_zkey = self.keys_dir / f"{circuit_name}_final.zkey"
+        hash_file     = self.keys_dir / f"{circuit_name}_circuit_hash.txt"
+
+        has_files     = full_sim_wasm.exists() and full_sim_zkey.exists()
+        current_hash  = self._get_circuit_hash()
+        stored_hash   = hash_file.read_text().strip() if hash_file.exists() else ""
+        hash_ok       = bool(current_hash) and current_hash == stored_hash
+
+        if has_files and hash_ok:
+            logger.info("Full Similarity ZKP circuit is ready")
+            return
+
+        if not self.auto_compile:
+            logger.warning(
+                "ZKP circuit files not found or outdated. Please run:\n"
+                "  cd zkp && npm run compile:full_similarity && npm run setup:full_similarity"
+            )
+            return
+
+        # 回路が変更された場合は古い zkey だけ削除して Trusted Setup を再実行
+        if has_files and not hash_ok:
+            logger.warning(
+                "Circuit source has changed since the zkey was generated. "
+                "Deleting stale zkeys and re-running Trusted Setup..."
+            )
+            for stale in self.keys_dir.glob(f"{circuit_name}*.zkey"):
+                stale.unlink(missing_ok=True)
+        else:
+            logger.warning("ZKP circuit files not found. Starting auto-compilation...")
+
+        try:
+            self._auto_compile_circuits()
+            if current_hash:
+                hash_file.write_text(current_hash)
+        except Exception as e:
+            logger.error(f"Auto-compilation failed: {e}")
+            logger.warning(
+                "ZKP circuits not available. Please manually run:\n"
+                "  cd zkp && npm run compile:full_similarity && npm run setup:full_similarity"
+            )
+
+    def _auto_compile_circuits(self) -> None:
+        """ZKP回路の自動コンパイルとセットアップ。
+
+        - WASM が存在しない場合: circom コンパイル → Trusted Setup
+        - WASM が存在するが zkey が存在しない場合: Trusted Setup のみ（再コンパイルをスキップ）
+        - 両方存在する場合: スキップ
+        """
+        circuit_name = "csi_full_similarity"
+        circuit_file = self.zkp_dir / "circuits" / f"{circuit_name}.circom"
+
+        node_modules = self.zkp_dir / "node_modules"
+        if not node_modules.exists():
+            logger.info("Installing npm packages...")
+            result = subprocess.run(
+                ["npm", "install"],
+                cwd=str(self.zkp_dir),
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"npm install failed: {result.stderr}")
+
+        wasm_file = self.build_dir / f"{circuit_name}_js" / f"{circuit_name}.wasm"
+        zkey_file = self.keys_dir / f"{circuit_name}_final.zkey"
+
+        if wasm_file.exists() and zkey_file.exists():
+            logger.info("Circuit already compiled and zkey exists, skipping...")
+            return
+
+        if not wasm_file.exists():
+            # WASM が無い → circom でフルコンパイル
+            if not circuit_file.exists():
+                raise RuntimeError(f"Circuit file not found: {circuit_file}")
+
+            logger.warning("Compiling circuit (this may take several minutes)...")
+            compile_cmd = [
+                "circom",
+                str(circuit_file),
+                "--r1cs",
+                "--wasm",
+                "--sym",
+                "--c",
+                "-o", str(self.build_dir),
+                "-l", str(self.zkp_dir / "node_modules")
+            ]
+
+            result = subprocess.run(
+                compile_cmd,
+                cwd=str(self.zkp_dir),
+                capture_output=True,
+                text=True
+            )
+
+            if result.returncode != 0:
+                raise RuntimeError(f"Circuit compilation failed: {result.stderr}")
+
+            logger.info("Circuit compilation completed")
+        else:
+            # WASM は最新だが zkey が古い/存在しない → Trusted Setup のみ
+            logger.warning(
+                "WASM exists but zkey is missing or stale. "
+                "Running Trusted Setup only (skipping circuit compilation)..."
+            )
+
+        self._run_trusted_setup(circuit_name, "Full Similarity")
+
+    def _run_trusted_setup(self, circuit_name: str, display_name: str) -> None:
+        """
+        Trusted Setup（Groth16 Setup + Contribute + Verification Key Export）
+
+        Args:
+            circuit_name: 回路名（例: csi_full_similarity）
+            display_name: ログ用表示名
+        """
+        logger.warning(f"Starting Trusted Setup for {display_name} (this may take 10-60 minutes)...")
+
+        ptau_file = self.keys_dir / "powersOfTau28_hez_final_19.ptau"
+        if not ptau_file.exists():
+            logger.info("Downloading Powers of Tau 2^19 file...")
+            ptau_url = "https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_19.ptau"
+            import urllib.request
+            try:
+                urllib.request.urlretrieve(ptau_url, str(ptau_file))
+                logger.info("Powers of Tau file downloaded successfully")
+            except Exception as e:
+                raise RuntimeError(f"Failed to download Powers of Tau file: {e}")
+
+        r1cs_file = self.build_dir / f"{circuit_name}.r1cs"
+        zkey_0     = self.keys_dir / f"{circuit_name}_0000.zkey"
+        zkey_final = self.keys_dir / f"{circuit_name}_final.zkey"
+        vkey_file  = self.keys_dir / f"{circuit_name}_verification_key.json"
+
+        logger.info(f"Running groth16 setup for {display_name}...")
+        result = subprocess.run(
+            ["snarkjs", "groth16", "setup", str(r1cs_file), str(ptau_file), str(zkey_0)],
+            cwd=str(self.zkp_dir),
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"Groth16 setup failed: {result.stderr}")
+
+        logger.info(f"Running zkey contribution for {display_name}...")
+        result = subprocess.run(
+            ["snarkjs", "zkey", "contribute", str(zkey_0), str(zkey_final),
+             "--name=Auto-generated contribution", "-v"],
+            cwd=str(self.zkp_dir),
+            input=secrets.token_hex(32) + "\n",
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"zkey contribution failed: {result.stderr}")
+
+        logger.info(f"Exporting verification key for {display_name}...")
+        result = subprocess.run(
+            ["snarkjs", "zkey", "export", "verificationkey", str(zkey_final), str(vkey_file)],
+            cwd=str(self.zkp_dir),
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"Verification key export failed: {result.stderr}")
+
+        logger.info(f"Trusted Setup completed for {display_name}")
+        logger.info(f"  WASM: {self.build_dir}/{circuit_name}_js/{circuit_name}.wasm")
+        logger.info(f"  zkey: {zkey_final}")
+        logger.info(f"  vkey: {vkey_file}")
+
+    # ------------------------------------------------------------------ #
     # 証明生成（override）
     # ------------------------------------------------------------------ #
 

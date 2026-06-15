@@ -5,12 +5,28 @@ export type DataframeDict = {
   magnitude_avg?: Record<string, number | null>;
 } | null;
 
+export type SignalDict = {
+  start_timestamp?: string | null;
+  time?: Record<string, number | null>;
+  amplitude_avg?: Record<string, number | null>;
+} | null;
+
+export interface SignalPoint {
+  /** 開始からの経過秒 */
+  time: number;
+  /** エポックミリ秒（start_timestamp がある場合のみ設定） */
+  ts?: number;
+  amplitude: number;
+}
+
 export interface BaseCSIResponse {
   id: string;
   name: string;
   fft_dataframe: DataframeDict;
   wavelet_dataframe: DataframeDict;
   music_dataframe: DataframeDict;
+  raw_signal_dataframe?: SignalDict;
+  filtered_signal_dataframe?: SignalDict;
   source_pcap_size: number | null;
   status: CSIStatus;
   error_message: string | null;
@@ -70,6 +86,8 @@ export interface ProcessedData {
   fft_dataframe?: DataframeDict;
   wavelet_dataframe?: DataframeDict;
   music_dataframe?: DataframeDict;
+  raw_signal?: SignalDict;
+  filtered_signal?: SignalDict;
   breathing_rate_comparison?: BreathingRateComparison;
   fft_phase_dataframe?: DataframeDict;
   wavelet_phase_dataframe?: DataframeDict;

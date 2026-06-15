@@ -1,4 +1,23 @@
-import type { DataframeDict, ProcessedData, SpectrumPoint } from "./types";
+import type { DataframeDict, ProcessedData, SignalDict, SignalPoint, SpectrumPoint } from "./types";
+
+export function signalDictToPoints(signal: SignalDict): SignalPoint[] {
+  if (!signal?.time || !signal?.amplitude_avg) return [];
+
+  const timeMap = signal.time;
+  const ampMap = signal.amplitude_avg;
+  const startMs = signal.start_timestamp ? new Date(signal.start_timestamp).getTime() : null;
+
+  const points: SignalPoint[] = [];
+  for (const key of Object.keys(timeMap)) {
+    const time = timeMap[key];
+    const amp = ampMap[key];
+    if (time == null || amp == null || !isFinite(time) || !isFinite(amp)) continue;
+    const ts = startMs != null ? startMs + time * 1000 : undefined;
+    points.push({ time, ts, amplitude: amp });
+  }
+
+  return points.sort((a, b) => a.time - b.time);
+}
 
 export function dataframeToSpectrumPoints(df: DataframeDict): SpectrumPoint[] {
   if (!df?.frequency || !df?.magnitude_avg) return [];

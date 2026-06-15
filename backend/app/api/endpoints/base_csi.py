@@ -2,11 +2,15 @@
 ベースCSI管理エンドポイント
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status as http_status, File, UploadFile, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, File, Form, UploadFile, BackgroundTasks
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 import uuid
 import math
 import logging
+import shutil
+import tempfile
+from pathlib import Path
 
 from app.core.database import get_db
 from app.core.database import SessionLocal
@@ -27,6 +31,68 @@ def _process_base_csi_background(base_csi_id: uuid.UUID):
     finally:
         db.close()
 
+
+
+_CHUNK_TMP_DIR = Path(tempfile.gettempdir()) / "csi_chunks"
+
+
+@router.post("/upload-chunk")
+async def upload_base_csi_chunk(
+    background_tasks: BackgroundTasks,
+    chunk: UploadFile = File(...),
+    upload_id: Optional[str] = Form(None),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    filename: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """
+    チャンク分割アップロード（Cloudflare 524対策）
+
+    ファイルを 2MB ずつ分割して送る。最後のチャンク受信時に
+    組み立てて /register と同じ処理を実行する。
+    """
+    _validate_base_csi_upload(filename, 1)  # size check is skipped per-chunk
+
+    if not upload_id:
+        upload_id = uuid.uuid4().hex
+
+    session_dir = _CHUNK_TMP_DIR / upload_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    chunk_path = session_dir / f"chunk_{chunk_index:05d}"
+    chunk_data = await chunk.read()
+    chunk_path.write_bytes(chunk_data)
+
+    received = sorted(session_dir.glob("chunk_*"))
+    if len(received) < total_chunks:
+        return JSONResponse({"upload_id": upload_id, "chunks_received": len(received)})
+
+    # 全チャンク揃ったので組み立て
+    extension = Path(filename).suffix.lower() or ".pcap"
+    assembled_path = session_dir / f"assembled{extension}"
+    with assembled_path.open("wb") as out:
+        for chunk_file in received:
+            out.write(chunk_file.read_bytes())
+
+    assembled_bytes = assembled_path.read_bytes()
+
+    # 後始末
+    try:
+        shutil.rmtree(session_dir, ignore_errors=True)
+    except Exception:
+        pass
+
+    register_info = BaseCSIRegister(name=filename)
+    base_csi = BaseCSIService.create_base_csi_record(
+        db=db,
+        pcap_file_data=assembled_bytes,
+        pcap_filename=filename,
+        register_info=register_info,
+    )
+    background_tasks.add_task(_process_base_csi_background, base_csi.id)
+
+    return JSONResponse({"upload_id": upload_id, "chunks_received": total_chunks, "base_csi": base_csi.to_dict()})
 
 
 @router.post("/register", response_model=BaseCSIResponse)

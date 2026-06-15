@@ -21,6 +21,83 @@ from app.services.pcap_analyzer_common import (
 )
 
 
+def _resample_to_target_rate(
+    self,
+    df: pd.DataFrame,
+    target_interval_s: float = 0.01,
+) -> pd.DataFrame:
+    """実サンプリングレートが目標より高い場合、ダウンサンプリングする。"""
+    if "timestamp" not in df.columns or len(df) < 2:
+        return df
+
+    ts = pd.to_datetime(df["timestamp"])
+    duration_s = (ts.iloc[-1] - ts.iloc[0]).total_seconds()
+    if duration_s <= 0:
+        return df
+
+    actual_fs = (len(df) - 1) / duration_s
+    target_fs = 1.0 / target_interval_s
+
+    if actual_fs <= target_fs * 1.1:
+        return df
+
+    attrs = df.attrs.copy()
+    data_cols = [col for col in df.columns if col != "timestamp"]
+    rule = f"{int(target_interval_s * 1000)}ms"
+
+    resampled = (
+        df.set_index("timestamp")[data_cols]
+        .resample(rule)
+        .mean()
+        .dropna(how="all")
+        .reset_index()
+    )
+    resampled.attrs = attrs
+
+    self.logger.info(
+        "ダウンサンプリング: %.1f Hz → %.1f Hz (%d → %d フレーム)",
+        actual_fs,
+        target_fs,
+        len(df),
+        len(resampled),
+    )
+    return resampled
+
+
+def _compute_signal_series(df: pd.DataFrame, max_points: int = 500) -> Optional[Dict[str, Any]]:
+    """サブキャリア平均振幅の時系列データを返す（最大 max_points 点）。"""
+    data_cols = [col for col in df.columns if col.lstrip("-").isdigit()]
+    if not data_cols or df.empty:
+        return None
+
+    amplitude_avg = df[data_cols].mean(axis=1).values.astype(float)
+
+    start_timestamp: Optional[str] = None
+    if "timestamp" in df.columns:
+        ts = pd.to_datetime(df["timestamp"])
+        time_s = (ts - ts.iloc[0]).dt.total_seconds().values.astype(float)
+        first_ts = ts.iloc[0]
+        if not pd.isnull(first_ts):
+            start_timestamp = first_ts.isoformat()
+    else:
+        time_s = np.arange(len(df), dtype=float) * 0.01
+
+    n = len(amplitude_avg)
+    if n > max_points:
+        indices = np.linspace(0, n - 1, max_points, dtype=int)
+        amplitude_avg = amplitude_avg[indices]
+        time_s = time_s[indices]
+
+    return {
+        "start_timestamp": start_timestamp,
+        "time": {str(i): float(t) for i, t in enumerate(time_s)},
+        "amplitude_avg": {
+            str(i): float(a) if np.isfinite(a) else None
+            for i, a in enumerate(amplitude_avg)
+        },
+    }
+
+
 def _convert_picoscenes_to_dataframe(
     self,
     file_path: str,
@@ -332,14 +409,22 @@ def _analyze_dataframe(
             len(background_subcarrier_medians),
         )
 
+    raw_signal = _compute_signal_series(df)
+    df = self.apply_bandpass_filter(df, self.DOWNSAMPLE_INTERVAL_S)
+    filtered_signal = _compute_signal_series(df)
+
     fft_df = self.apply_fourier_transform(df, self.DOWNSAMPLE_INTERVAL_S)
     if fft_df.empty:
         self.logger.warning("FFT結果が空です")
         empty_result["subcarrier_medians"] = subcarrier_medians
         return empty_result
 
-    max_freq = fft_df["frequency"].max()
-    bins = self.make_bins(max_freq, self.FREQUENCY_BIN_STEP)
+    fft_df = fft_df[
+        (fft_df["frequency"] >= self.BREATHING_MIN_FREQ)
+        & (fft_df["frequency"] <= self.BREATHING_MAX_FREQ)
+    ].reset_index(drop=True)
+
+    bins = self.make_bins(self.BREATHING_MAX_FREQ, self.FREQUENCY_BIN_STEP)
     binned_fft_df = self.average_magnitude_by_frequency_bins(fft_df, bins)
     breathing_rate_fft = (
         self.estimate_breathing_rate(fft_df, freq_col="frequency")
@@ -356,11 +441,19 @@ def _analyze_dataframe(
     breathing_rate_music = None
 
     if not wavelet_df.empty:
+        wavelet_df = wavelet_df[
+            (wavelet_df["frequency"] >= self.BREATHING_MIN_FREQ)
+            & (wavelet_df["frequency"] <= self.BREATHING_MAX_FREQ)
+        ].reset_index(drop=True)
         binned_wavelet_df = self.average_magnitude_by_frequency_bins(wavelet_df, bins)
         if include_breathing:
             breathing_rate_wavelet = self.estimate_breathing_rate(wavelet_df, freq_col="frequency")
 
     if not music_df.empty:
+        music_df = music_df[
+            (music_df["frequency"] >= self.BREATHING_MIN_FREQ)
+            & (music_df["frequency"] <= self.BREATHING_MAX_FREQ)
+        ].reset_index(drop=True)
         binned_music_df = self.average_magnitude_by_frequency_bins(music_df, bins)
         if include_breathing:
             breathing_rate_music = self.estimate_breathing_rate(music_df, freq_col="frequency")
@@ -450,7 +543,7 @@ def _analyze_dataframe(
         f"FFTビン: {len(binned_fft_df)}, "
         f"Waveletビン: {len(binned_wavelet_df)}, "
         f"MUSICビン: {len(binned_music_df)}, "
-        f"最大周波数: {max_freq:.2f}Hz, "
+        f"表示範囲: {self.BREATHING_MIN_FREQ:.2f}–{self.BREATHING_MAX_FREQ:.2f}Hz, "
         f"位相解析: {'有効' if has_phase else '位相データなし'}, "
         f"呼吸推定 振幅[{', '.join(br_info)}] "
         f"位相[{', '.join(br_phase_info)}]"
@@ -472,12 +565,142 @@ def _analyze_dataframe(
         "breathing_rate_wavelet_phase_bpm": breathing_rate_wavelet_phase,
         "breathing_rate_music_phase_bpm": breathing_rate_music_phase,
         "breathing_rate_phase_comparison": breathing_rate_phase_comparison,
+        "raw_signal": raw_signal,
+        "filtered_signal": filtered_signal,
     }
 
 
 _PCAP_EXTENSIONS = frozenset({".pcap", ".pcapng", ".cap"})
 _PICOSCENES_EXTENSIONS = frozenset({".csi", ".csv"})
 SUPPORTED_CSI_EXTENSIONS = _PCAP_EXTENSIONS | _PICOSCENES_EXTENSIONS
+
+_PACKET_FORMAT_NAMES = {
+    0: "NonHT",
+    1: "HT",
+    2: "VHT",
+    3: "HE-SU",
+    4: "HE-MU",
+    5: "HE-TB",
+    6: "EHT-SU",
+}
+
+
+def parse_picoscenes_metadata(
+    self,
+    file_path: str,
+) -> Dict[str, Any]:
+    """PicoScenes .csi ファイルからタイムスタンプと信号メタデータを抽出する。
+
+    Returns:
+        {
+            "num_frames": int,
+            "timestamps": list[str],          # ISO 8601, フレームごと
+            "duration_seconds": float,
+            "signal": {                        # ファイル全体のサマリー
+                "center_freq_mhz": float,
+                "band": str,
+                "bandwidth_mhz": int,
+                "packet_format": str,
+                "num_rx": int,
+                "num_sts": int,
+            },
+            "per_frame": list[dict],           # フレームごとの詳細
+        }
+    """
+    try:
+        from picoscenes import Picoscenes
+    except ImportError as exc:
+        raise RuntimeError(
+            "PicoScenes for Python Toolbox is not installed."
+        ) from exc
+
+    frames = Picoscenes(file_path)
+    raw_frames = getattr(frames, "raw", None)
+    if not raw_frames:
+        raise ValueError("PicoScenes file contains no frames")
+
+    per_frame: list = []
+    fallback_ns: Optional[int] = None
+
+    for frame_idx, frame in enumerate(raw_frames):
+        rx = frame.get("RxSBasic") or {}
+
+        system_ns = rx.get("systemns")
+        if system_ns is None:
+            if fallback_ns is None:
+                fallback_ns = 0
+            else:
+                fallback_ns += int(self.DOWNSAMPLE_INTERVAL_S * 1_000_000_000)
+            system_ns = fallback_ns
+
+        ts = pd.to_datetime(int(system_ns), unit="ns", errors="coerce")
+
+        center_freq = float(rx.get("centerFreq", 0) or 0)
+        cbw = int(rx.get("cbw", 0) or 0)
+        pkt_fmt_raw = rx.get("packetFormat")
+        pkt_fmt = _PACKET_FORMAT_NAMES.get(int(pkt_fmt_raw), str(pkt_fmt_raw)) if pkt_fmt_raw is not None else "Unknown"
+        rssi_raw = rx.get("rssi")
+        rssi = float(rssi_raw) if rssi_raw is not None else None
+        noise_floor_raw = rx.get("noiseFloor")
+        noise_floor = float(noise_floor_raw) if noise_floor_raw is not None else None
+        num_rx = int(rx.get("numRx", 0) or 0)
+        num_sts = int(rx.get("numSTS", 0) or 0)
+
+        per_frame.append({
+            "frame_index": frame_idx,
+            "timestamp": ts.isoformat() if not pd.isnull(ts) else None,
+            "timestamp_ns": int(system_ns),
+            "center_freq_mhz": center_freq,
+            "bandwidth_mhz": cbw,
+            "packet_format": pkt_fmt,
+            "rssi_dbm": rssi,
+            "noise_floor_dbm": noise_floor,
+            "num_rx": num_rx,
+            "num_sts": num_sts,
+        })
+
+    if not per_frame:
+        raise ValueError("No frames found in PicoScenes file")
+
+    first = per_frame[0]
+    ts_list = [f["timestamp"] for f in per_frame]
+
+    valid_ns = [f["timestamp_ns"] for f in per_frame if f["timestamp_ns"] is not None]
+    duration_s = (max(valid_ns) - min(valid_ns)) / 1e9 if len(valid_ns) >= 2 else 0.0
+
+    rssi_vals = [f["rssi_dbm"] for f in per_frame if f["rssi_dbm"] is not None]
+    rssi_mean = float(np.mean(rssi_vals)) if rssi_vals else None
+
+    csi_info = (raw_frames[0].get("CSI") or {})
+    sc_idx = np.asarray(csi_info.get("SubcarrierIndex", []), dtype=np.int32)
+    max_abs_sc = int(np.max(np.abs(sc_idx))) if sc_idx.size > 0 else 0
+    detected_bw = int(first["bandwidth_mhz"]) or (160 if max_abs_sc > 200 else 80)
+    detected_band = _detect_band(first["center_freq_mhz"])
+
+    self.logger.info(
+        "PicoScenesメタデータ解析完了: frames=%s, duration=%.2fs, band=%s, bw=%sMHz, format=%s",
+        len(per_frame),
+        duration_s,
+        detected_band,
+        detected_bw,
+        first["packet_format"],
+    )
+
+    return {
+        "num_frames": len(per_frame),
+        "timestamps": ts_list,
+        "duration_seconds": duration_s,
+        "signal": {
+            "center_freq_mhz": first["center_freq_mhz"],
+            "band": detected_band,
+            "bandwidth_mhz": detected_bw,
+            "packet_format": first["packet_format"],
+            "num_rx": first["num_rx"],
+            "num_sts": first["num_sts"],
+            "rssi_mean_dbm": rssi_mean,
+        },
+        "per_frame": per_frame,
+    }
 
 
 def analyze_file(

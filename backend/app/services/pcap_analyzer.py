@@ -15,6 +15,7 @@ from app.services.pcap_analyzer_common import (
 )
 from app.services.pcap_analyzer_frequency import (
     _compute_music_pseudospectrum,
+    apply_bandpass_filter,
     apply_fourier_transform,
     apply_music_transform,
     apply_wavelet_transform,
@@ -24,6 +25,7 @@ from app.services.pcap_analyzer_frequency import (
 from app.services.pcap_analyzer_pipeline import (
     SUPPORTED_CSI_EXTENSIONS,
     _analyze_dataframe,
+    _resample_to_target_rate,
     _convert_csi_to_dataframe,
     _convert_csv_to_dataframe_with_matlab,
     _convert_picoscenes_to_dataframe,
@@ -32,6 +34,7 @@ from app.services.pcap_analyzer_pipeline import (
     analyze_csi_file_with_picoscenes,
     analyze_file,
     analyze_pcap_file,
+    parse_picoscenes_metadata,
 )
 from app.services.pcap_analyzer_zkp import (
     analyze_and_generate_zkp,
@@ -75,8 +78,9 @@ class PCAPAnalyzer:
     DOWNSAMPLE_INTERVAL_S = 0.01
     FREQUENCY_BIN_STEP = 0.01
 
-    BREATHING_MIN_FREQ = 0.15
-    BREATHING_MAX_FREQ = 0.4
+    BREATHING_MIN_FREQ = 0.17
+    BREATHING_MAX_FREQ = 0.5
+    BANDPASS_FILTER_ORDER = 4
 
     ZKP_FREQ_START = 0.0
     ZKP_FREQ_END = 0.60
@@ -110,6 +114,7 @@ class PCAPAnalyzer:
     remove_unnecessary_subcarriers = remove_unnecessary_subcarriers
     average_magnitude_by_frequency_bins = average_magnitude_by_frequency_bins
 
+    apply_bandpass_filter = apply_bandpass_filter
     apply_fourier_transform = apply_fourier_transform
     apply_wavelet_transform = apply_wavelet_transform
     _compute_music_pseudospectrum = _compute_music_pseudospectrum
@@ -130,7 +135,12 @@ class PCAPAnalyzer:
     _convert_picoscenes_to_dataframe_with_python = _convert_picoscenes_to_dataframe_with_python
     _convert_csv_to_dataframe_with_matlab = _convert_csv_to_dataframe_with_matlab
     _read_csv_directly = _read_csv_directly
+    _resample_to_target_rate = _resample_to_target_rate
     _analyze_dataframe = _analyze_dataframe
     analyze_file = analyze_file
     analyze_pcap_file = analyze_pcap_file
     analyze_csi_file_with_picoscenes = analyze_csi_file_with_picoscenes
+    parse_picoscenes_metadata = parse_picoscenes_metadata
+
+
+pcap_analyzer = PCAPAnalyzer()

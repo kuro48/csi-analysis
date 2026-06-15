@@ -15,6 +15,8 @@ class BaseCSI(Base):
     wavelet_dataframe = Column(JSON, nullable=True)
     music_dataframe = Column(JSON, nullable=True)
     subcarrier_medians = Column(JSON, nullable=True)
+    raw_signal_dataframe = Column(JSON, nullable=True)
+    filtered_signal_dataframe = Column(JSON, nullable=True)
     source_pcap_path = Column(String(500), nullable=True)
     source_pcap_size = Column(Integer, nullable=True)
     # processing, completed, error
@@ -40,6 +42,8 @@ class BaseCSI(Base):
             "wavelet_dataframe": self.wavelet_dataframe,
             "music_dataframe": self.music_dataframe,
             "subcarrier_medians": self.subcarrier_medians,
+            "raw_signal_dataframe": self.raw_signal_dataframe,
+            "filtered_signal_dataframe": self.filtered_signal_dataframe,
             "source_pcap_path": self.source_pcap_path,
             "source_pcap_size": self.source_pcap_size,
             "status": self.status,

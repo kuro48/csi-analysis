@@ -28,6 +28,8 @@ class BaseCSIResponse(BaseModel):
     wavelet_dataframe: Optional[Dict[str, Any]] = None
     music_dataframe: Optional[Dict[str, Any]] = None
     subcarrier_medians: Optional[Dict[str, float]] = None
+    raw_signal_dataframe: Optional[Dict[str, Any]] = None
+    filtered_signal_dataframe: Optional[Dict[str, Any]] = None
     source_pcap_path: Optional[str]
     source_pcap_size: Optional[int]
     status: str

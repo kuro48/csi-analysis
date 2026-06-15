@@ -100,6 +100,8 @@ class BaseCSIService:
             base_csi.wavelet_dataframe = BaseCSIService._serialize_dataframe(analysis_result["wavelet"])
             base_csi.music_dataframe = BaseCSIService._serialize_dataframe(analysis_result["music"])
             base_csi.subcarrier_medians = analysis_result.get("subcarrier_medians") or {}
+            base_csi.raw_signal_dataframe = analysis_result.get("raw_signal")
+            base_csi.filtered_signal_dataframe = analysis_result.get("filtered_signal")
             base_csi.status = "completed"
             base_csi.error_message = None
             db.commit()

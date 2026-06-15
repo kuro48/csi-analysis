@@ -219,6 +219,8 @@ export function UploadSection({ mode }: Props) {
             fft_dataframe={baseRecord.fft_dataframe}
             wavelet_dataframe={baseRecord.wavelet_dataframe}
             music_dataframe={baseRecord.music_dataframe}
+            raw_signal_dataframe={baseRecord.raw_signal_dataframe}
+            filtered_signal_dataframe={baseRecord.filtered_signal_dataframe}
           />
         </div>
       )}

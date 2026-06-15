@@ -2,20 +2,24 @@
 
 import { useState } from "react";
 import { MetricCard } from "./MetricCard";
+import { SignalChart } from "./SignalChart";
 import { SpectrumChart } from "./SpectrumChart";
 import {
   dataframeToSpectrumPoints,
   pickBreathingBpm,
   pickSimilarityScores,
+  signalDictToPoints,
   type SignalSource,
 } from "./transformers";
-import type { DataframeDict, ProcessedData, TransformZKPResult } from "./types";
+import type { DataframeDict, ProcessedData, SignalDict, TransformZKPResult } from "./types";
 
 interface BaseCSIData {
   mode: "base";
   fft_dataframe: DataframeDict;
   wavelet_dataframe: DataframeDict;
   music_dataframe: DataframeDict;
+  raw_signal_dataframe?: SignalDict;
+  filtered_signal_dataframe?: SignalDict;
 }
 
 interface MainCSIData {
@@ -34,13 +38,19 @@ function formatProofId(value: string | null | undefined): string {
   return value && value.length > 0 ? value : "未記録";
 }
 
-function BasePanel({ fft_dataframe, wavelet_dataframe, music_dataframe }: BaseCSIData) {
+function BasePanel({ fft_dataframe, wavelet_dataframe, music_dataframe, raw_signal_dataframe, filtered_signal_dataframe }: BaseCSIData) {
   const fftPoints = dataframeToSpectrumPoints(fft_dataframe);
   const waveletPoints = dataframeToSpectrumPoints(wavelet_dataframe);
   const musicPoints = dataframeToSpectrumPoints(music_dataframe);
+  const rawPoints = signalDictToPoints(raw_signal_dataframe ?? null);
+  const filteredPoints = signalDictToPoints(filtered_signal_dataframe ?? null);
 
   return (
     <div className="space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">処理過程</p>
+      <SignalChart title="生CSI振幅（時系列）" points={rawPoints} color="#6366f1" />
+      <SignalChart title="バンドパスフィルタ後（時系列）" points={filteredPoints} color="#f59e0b" />
+      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">周波数スペクトル</p>
       <SpectrumChart title="FFT スペクトル" points={fftPoints} />
       <SpectrumChart title="Wavelet スペクトル" points={waveletPoints} />
       <SpectrumChart title="MUSIC スペクトル" points={musicPoints} />
@@ -150,6 +160,12 @@ function MainPanel({ processedData }: MainCSIData) {
     processedData.music_phase_dataframe != null ||
     processedData.breathing_rate_phase_comparison != null;
 
+  const fftPoints = dataframeToSpectrumPoints(processedData.fft_dataframe ?? null);
+  const waveletPoints = dataframeToSpectrumPoints(processedData.wavelet_dataframe ?? null);
+  const musicPoints = dataframeToSpectrumPoints(processedData.music_dataframe ?? null);
+  const rawPoints = signalDictToPoints(processedData.raw_signal ?? null);
+  const filteredPoints = signalDictToPoints(processedData.filtered_signal ?? null);
+
   return (
     <div className="space-y-4">
       <div className="flex border-b border-neutral-300">
@@ -253,6 +269,16 @@ function MainPanel({ processedData }: MainCSIData) {
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">処理過程</p>
+        <SignalChart title="生CSI振幅（時系列）" points={rawPoints} color="#6366f1" />
+        <SignalChart title="バンドパスフィルタ後（時系列）" points={filteredPoints} color="#f59e0b" />
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">周波数スペクトル</p>
+        <SpectrumChart title="FFT スペクトル" points={fftPoints} />
+        <SpectrumChart title="Wavelet スペクトル" points={waveletPoints} />
+        <SpectrumChart title="MUSIC スペクトル" points={musicPoints} />
       </div>
     </div>
   );
