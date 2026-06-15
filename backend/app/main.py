@@ -69,6 +69,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(api_router, prefix=settings.API_V2_PREFIX)
 setup_error_handlers(app)
+app.state.config = settings
 
 _GRAPHS_DIR = Path("/app/outputs/graphs")
 _GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
@@ -243,27 +244,23 @@ async def startup_event():
     try:
         logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
-        print("⏳ Starting application initialization...")
         logger.info("Starting application initialization...")
 
         _validate_security_settings()
-        print("✅ Security settings validated")
+        logger.info("Security settings validated")
 
         if settings.ZKP_AUTO_COMPILE:
-            print("⏳ Checking ZKP circuits (auto-compile enabled)...")
+            logger.info("Checking ZKP circuits (auto-compile enabled)...")
             try:
                 ZKPService(auto_compile=True)
-                print("✅ ZKP circuits ready (auto-compile checked)")
+                logger.info("ZKP circuits ready (auto-compile checked)")
             except Exception as e:
                 logger.error(f"ZKP circuit setup failed: {e}", exc_info=True)
-                print(f"❌ ZKP circuit setup failed: {e}")
 
-        logger.info("✅ Application startup completed successfully")
-        print("✅ Application startup completed successfully")
+        logger.info("Application startup completed successfully")
     except Exception as e:
         error_msg = f"Failed to initialize application: {e}"
         logger.error(error_msg)
-        print(f"❌ {error_msg}")
         import traceback
         traceback.print_exc()
         raise
