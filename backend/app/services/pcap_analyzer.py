@@ -134,6 +134,3 @@ class PCAPAnalyzer:
     analyze_file = analyze_file
     analyze_pcap_file = analyze_pcap_file
     analyze_csi_file_with_picoscenes = analyze_csi_file_with_picoscenes
-
-
-pcap_analyzer = PCAPAnalyzer()
