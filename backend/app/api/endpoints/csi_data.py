@@ -27,6 +27,7 @@ from app.services.csi_visualizer import save_fft_graph, save_wavelet_graph, save
 from app.services.base_csi import BaseCSIService
 from app.services.blockchain_service import BlockchainService
 from app.api.endpoints.blockchain import get_blockchain_service
+from app.services.file_validation import validate_csi_upload
 from app.schemas.csi_data import (
     CSIDataUpload, CSIDataResponse, CSIDataListResponse, CSIDataFilter,
     SessionCreate
@@ -34,7 +35,6 @@ from app.schemas.csi_data import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-from app.services.pcap_analyzer_pipeline import SUPPORTED_CSI_EXTENSIONS
 
 
 def _parse_json_field(value) -> Optional[dict]:
@@ -83,43 +83,6 @@ def _serialize_fft_dataframe(fft_df) -> dict:
     summary = summary.replace([np.nan, np.inf, -np.inf], None)
     return summary.to_dict()
 
-
-def _validate_upload_file(file_name: Optional[str], file_size: int) -> str:
-    """アップロード対象がサポート対象かを検証し、正規化した拡張子を返す。"""
-    if not file_name:
-        raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST,
-            detail="ファイル名が必要です",
-        )
-
-    extension = Path(file_name).suffix.lower()
-    if extension not in SUPPORTED_CSI_EXTENSIONS:
-        raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "未対応のファイル形式です。"
-                f"対応形式: {', '.join(sorted(SUPPORTED_CSI_EXTENSIONS))}"
-            ),
-        )
-
-    if extension == ".csi":
-        if not settings.PICOSCENES_ENABLED:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail="PicoScenes .csi の受付は現在無効化されています",
-            )
-
-        max_bytes = settings.PICOSCENES_MAX_FILE_SIZE_MB * 1024 * 1024
-        if file_size > max_bytes:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "PicoScenes .csi ファイルが大きすぎます。"
-                    f"上限: {settings.PICOSCENES_MAX_FILE_SIZE_MB}MB"
-                ),
-            )
-
-    return extension
 
 
 async def _record_zkp_proof_on_chain(
@@ -667,7 +630,7 @@ async def upload_csi_data(
                 detail="アップロードファイルが空です"
             )
 
-        _validate_upload_file(file.filename, len(file_data))
+        validate_csi_upload(file.filename, len(file_data))
 
         # アップロード情報構築
         upload_info = CSIDataUpload(

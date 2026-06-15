@@ -4,20 +4,17 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, File, UploadFile, BackgroundTasks
 from sqlalchemy.orm import Session
-from typing import Optional
 import uuid
 import math
 import logging
-from pathlib import Path
 
 from app.core.database import get_db
 from app.core.database import SessionLocal
 from app.services.base_csi import BaseCSIService
-from app.services.pcap_analyzer_pipeline import SUPPORTED_CSI_EXTENSIONS
+from app.services.file_validation import validate_csi_upload
 from app.schemas.base_csi import (
     BaseCSIRegister, BaseCSIResponse, BaseCSIListResponse, BaseCSIUpdate
 )
-from app.core.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -30,39 +27,6 @@ def _process_base_csi_background(base_csi_id: uuid.UUID):
     finally:
         db.close()
 
-
-def _validate_base_csi_upload(file_name: Optional[str], file_size: int) -> None:
-    if not file_name:
-        raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST,
-            detail="ファイル名が必要です",
-        )
-
-    extension = Path(file_name).suffix.lower()
-    if extension not in SUPPORTED_CSI_EXTENSIONS:
-        raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "未対応のファイル形式です。"
-                f"対応形式: {', '.join(sorted(SUPPORTED_CSI_EXTENSIONS))}"
-            ),
-        )
-
-    if extension == ".csi":
-        if not settings.PICOSCENES_ENABLED:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail="PicoScenes .csi の受付は現在無効化されています",
-            )
-        max_bytes = settings.PICOSCENES_MAX_FILE_SIZE_MB * 1024 * 1024
-        if file_size > max_bytes:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "PicoScenes .csi ファイルが大きすぎます。"
-                    f"上限: {settings.PICOSCENES_MAX_FILE_SIZE_MB}MB"
-                ),
-            )
 
 
 @router.post("/register", response_model=BaseCSIResponse)
@@ -86,7 +50,7 @@ async def register_base_csi(
                 detail="アップロードファイルが空です"
             )
 
-        _validate_base_csi_upload(file.filename, len(file_data))
+        validate_csi_upload(file.filename, len(file_data))
 
         register_info = BaseCSIRegister(name=file.filename or "base_csi")
 
