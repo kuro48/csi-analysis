@@ -330,7 +330,3 @@ def save_combined_graph(
     except Exception as exc:
         logger.error(f"Failed to save combined graph: {exc}", exc_info=True)
         return None
-
-    except Exception as exc:
-        logger.error(f"Failed to save MUSIC graph: {exc}", exc_info=True)
-        return None
