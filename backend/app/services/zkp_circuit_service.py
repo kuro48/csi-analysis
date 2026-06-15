@@ -17,6 +17,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from app.services.zkp_paths import resolve_zkp_dir
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,15 +39,7 @@ class ZKPCircuitService:
         # "csi_music_similarity" → "Music"
         self.label = circuit_name.replace("csi_", "").replace("_similarity", "").capitalize()
 
-        if zkp_dir is None:
-            zkp_dir_env = os.getenv("ZKP_DIR")
-            if zkp_dir_env:
-                zkp_dir = zkp_dir_env
-            else:
-                docker_zkp = Path("/zkp")
-                zkp_dir = docker_zkp if docker_zkp.exists() else Path(__file__).resolve().parent.parent.parent.parent / "zkp"
-
-        self.zkp_dir = Path(zkp_dir)
+        self.zkp_dir = resolve_zkp_dir(zkp_dir)
         self.build_dir = self.zkp_dir / "build"
         self.keys_dir = self.zkp_dir / "keys"
         self.auto_compile = auto_compile
