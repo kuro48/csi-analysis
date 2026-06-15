@@ -246,6 +246,230 @@ def save_music_graph(
         return None
 
 
+def _save_spectrum_graph(
+    matrix: List[List[int]],
+    csi_data_id: str,
+    out_filename: str,
+    title_prefix: str,
+    cmap: str,
+    line_color: str,
+    amplitude_label: str,
+    output_dir: Optional[Path],
+) -> Optional[Path]:
+    """ヒートマップ + 平均スペクトルの2パネル PNG を保存する共通実装。"""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        save_dir = _resolve_output_dir(output_dir) / str(csi_data_id)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        out_path = save_dir / out_filename
+
+        data = np.array(matrix, dtype=np.float64)
+        num_freq_points = data.shape[0] if data.ndim == 2 else ZKP_FREQ_POINTS
+        freqs = _freq_axis(num_freq_points)
+        num_subcarriers = data.shape[1] if data.ndim == 2 else 0
+
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+        fig.suptitle(f"{title_prefix} — {csi_data_id}", fontsize=12)
+
+        ax0 = axes[0]
+        im = ax0.imshow(
+            data,
+            aspect="auto",
+            origin="lower",
+            cmap=cmap,
+            extent=[0, num_subcarriers, freqs[0], freqs[-1]],
+        )
+        ax0.set_xlabel("Subcarrier index")
+        ax0.set_ylabel("Frequency (Hz)")
+        ax0.set_title("Heatmap: freq × subcarrier")
+        ax0.axhline(NORMAL_LOW_HZ, color="red", linestyle="--", linewidth=0.8, label=f"{NORMAL_LOW_HZ} Hz")
+        ax0.axhline(NORMAL_HIGH_HZ, color="orange", linestyle="--", linewidth=0.8, label=f"{NORMAL_HIGH_HZ} Hz")
+        ax0.legend(fontsize=8)
+        fig.colorbar(im, ax=ax0, label=amplitude_label)
+
+        ax1 = axes[1]
+        mean_spec = data.mean(axis=1)
+        ax1.plot(freqs, mean_spec, color=line_color, linewidth=1.2)
+        ax1.axvspan(NORMAL_LOW_HZ, NORMAL_HIGH_HZ, alpha=0.15, color="green", label="Normal range")
+        ax1.set_xlabel("Frequency (Hz)")
+        ax1.set_ylabel(amplitude_label)
+        ax1.set_title("Mean spectrum across subcarriers")
+        ax1.legend(fontsize=8)
+
+        fig.tight_layout()
+        fig.savefig(out_path, dpi=120, bbox_inches="tight")
+        plt.close(fig)
+
+        logger.info(f"Graph saved: {out_path}")
+        return out_path
+
+    except Exception as exc:
+        logger.error(f"Failed to save graph {out_filename}: {exc}", exc_info=True)
+        return None
+
+
+def save_fft_phase_graph(
+    fft_matrix: List[List[int]],
+    csi_data_id: str,
+    output_dir: Optional[Path] = None,
+) -> Optional[Path]:
+    """位相 FFT スペクトル行列をヒートマップ + 平均スペクトルで保存する。"""
+    return _save_spectrum_graph(
+        matrix=fft_matrix,
+        csi_data_id=csi_data_id,
+        out_filename="fft_phase.png",
+        title_prefix="FFT Spectrum [Phase] (ZKP Input)",
+        cmap="cividis",
+        line_color="navy",
+        amplitude_label="Phase magnitude (scaled)",
+        output_dir=output_dir,
+    )
+
+
+def save_wavelet_phase_graph(
+    wavelet_matrix: List[List[int]],
+    csi_data_id: str,
+    output_dir: Optional[Path] = None,
+) -> Optional[Path]:
+    """位相 Wavelet スペクトル行列をヒートマップ + 平均スペクトルで保存する。"""
+    return _save_spectrum_graph(
+        matrix=wavelet_matrix,
+        csi_data_id=csi_data_id,
+        out_filename="wavelet_phase.png",
+        title_prefix="Wavelet Spectrum [Phase] (linear-rebinned)",
+        cmap="magma",
+        line_color="indigo",
+        amplitude_label="Phase magnitude (scaled)",
+        output_dir=output_dir,
+    )
+
+
+def save_music_phase_graph(
+    music_matrix: List[List[int]],
+    csi_data_id: str,
+    output_dir: Optional[Path] = None,
+) -> Optional[Path]:
+    """位相 MUSIC 擬似スペクトル行列をヒートマップ + 平均スペクトルで保存する。"""
+    return _save_spectrum_graph(
+        matrix=music_matrix,
+        csi_data_id=csi_data_id,
+        out_filename="music_phase.png",
+        title_prefix="MUSIC Pseudo-spectrum [Phase] (log-compressed)",
+        cmap="cubehelix",
+        line_color="darkred",
+        amplitude_label="Normalized phase pseudo-spectrum (scaled)",
+        output_dir=output_dir,
+    )
+
+
+def save_combined_phase_graph(
+    fft_matrix: List[List[int]],
+    wavelet_matrix: List[List[int]],
+    music_matrix: List[List[int]],
+    csi_data_id: str,
+    output_dir: Optional[Path] = None,
+) -> Optional[Path]:
+    """位相版 FFT・Wavelet・MUSIC を縦に並べた比較グラフを PNG/SVG/PDF で保存する。"""
+    return _save_combined_graph_impl(
+        fft_matrix=fft_matrix,
+        wavelet_matrix=wavelet_matrix,
+        music_matrix=music_matrix,
+        csi_data_id=csi_data_id,
+        out_basename="combined_phase",
+        title_prefix="CSI Spectrum Comparison [Phase]",
+        cmaps={"FFT": "cividis", "Wavelet": "magma", "MUSIC": "cubehelix"},
+        line_colors={"FFT": "navy", "Wavelet": "indigo", "MUSIC": "darkred"},
+        amplitude_label="Phase magnitude (scaled)",
+        output_dir=output_dir,
+    )
+
+
+def _save_combined_graph_impl(
+    fft_matrix: List[List[int]],
+    wavelet_matrix: List[List[int]],
+    music_matrix: List[List[int]],
+    csi_data_id: str,
+    out_basename: str,
+    title_prefix: str,
+    cmaps: dict,
+    line_colors: dict,
+    amplitude_label: str,
+    output_dir: Optional[Path],
+) -> Optional[Path]:
+    """combined グラフ生成の共通実装（振幅版・位相版両方で使用）。"""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from matplotlib.gridspec import GridSpec
+
+        save_dir = _resolve_output_dir(output_dir) / str(csi_data_id)
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        datasets = []
+        if fft_matrix:
+            datasets.append(("FFT", np.array(fft_matrix, dtype=np.float64), cmaps["FFT"], line_colors["FFT"]))
+        if wavelet_matrix:
+            datasets.append(("Wavelet", np.array(wavelet_matrix, dtype=np.float64), cmaps["Wavelet"], line_colors["Wavelet"]))
+        if music_matrix:
+            datasets.append(("MUSIC", np.array(music_matrix, dtype=np.float64), cmaps["MUSIC"], line_colors["MUSIC"]))
+
+        if not datasets:
+            logger.warning(f"No matrix data available for {out_basename}")
+            return None
+
+        n_methods = len(datasets)
+        fig = plt.figure(figsize=(14, 5 * n_methods))
+        fig.suptitle(f"{title_prefix} — {csi_data_id}", fontsize=13, y=1.01)
+        gs = GridSpec(n_methods, 2, figure=fig, hspace=0.45, wspace=0.3)
+
+        for row, (label, matrix, cmap, line_color) in enumerate(datasets):
+            num_freq_points = matrix.shape[0]
+            freqs = _freq_axis(num_freq_points)
+            num_subcarriers = matrix.shape[1] if matrix.ndim == 2 else 0
+            mean_spec = matrix.mean(axis=1)
+
+            ax_heat = fig.add_subplot(gs[row, 0])
+            im = ax_heat.imshow(
+                matrix, aspect="auto", origin="lower", cmap=cmap,
+                extent=[0, num_subcarriers, freqs[0], freqs[-1]],
+            )
+            ax_heat.set_xlabel("Subcarrier index")
+            ax_heat.set_ylabel("Frequency (Hz)")
+            ax_heat.set_title(f"{label} — Heatmap")
+            ax_heat.axhline(NORMAL_LOW_HZ, color="red", linestyle="--", linewidth=0.8, label=f"{NORMAL_LOW_HZ} Hz")
+            ax_heat.axhline(NORMAL_HIGH_HZ, color="orange", linestyle="--", linewidth=0.8, label=f"{NORMAL_HIGH_HZ} Hz")
+            ax_heat.legend(fontsize=7)
+            fig.colorbar(im, ax=ax_heat, label=amplitude_label)
+
+            ax_spec = fig.add_subplot(gs[row, 1])
+            ax_spec.plot(freqs, mean_spec, color=line_color, linewidth=1.2)
+            ax_spec.axvspan(NORMAL_LOW_HZ, NORMAL_HIGH_HZ, alpha=0.15, color="green", label="Normal range")
+            ax_spec.set_xlabel("Frequency (Hz)")
+            ax_spec.set_ylabel(amplitude_label)
+            ax_spec.set_title(f"{label} — Mean spectrum")
+            ax_spec.legend(fontsize=7)
+
+        png_path = save_dir / f"{out_basename}.png"
+        svg_path = save_dir / f"{out_basename}.svg"
+        pdf_path = save_dir / f"{out_basename}.pdf"
+
+        fig.savefig(png_path, dpi=120, bbox_inches="tight")
+        fig.savefig(svg_path, bbox_inches="tight")
+        fig.savefig(pdf_path, bbox_inches="tight")
+        plt.close(fig)
+
+        logger.info(f"Combined graph saved: {png_path} / .svg / .pdf")
+        return png_path
+
+    except Exception as exc:
+        logger.error(f"Failed to save {out_basename}: {exc}", exc_info=True)
+        return None
+
+
 def save_combined_graph(
     fft_matrix: List[List[int]],
     wavelet_matrix: List[List[int]],

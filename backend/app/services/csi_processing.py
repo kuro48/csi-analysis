@@ -20,9 +20,13 @@ from app.services.base_csi import BaseCSIService
 from app.services.blockchain_service import BlockchainService
 from app.services.csi_visualizer import (
     save_combined_graph,
+    save_combined_phase_graph,
     save_fft_graph,
+    save_fft_phase_graph,
     save_music_graph,
+    save_music_phase_graph,
     save_wavelet_graph,
+    save_wavelet_phase_graph,
 )
 from app.services.pcap_analyzer import PCAPAnalyzer
 from app.services.zkp_circuit_service import ZKPMusicService, ZKPWaveletService
@@ -446,6 +450,9 @@ async def process_csi_in_background(
         binned_fft_df = analysis_result["fft"]
         binned_wavelet_df = analysis_result["wavelet"]
         binned_music_df = analysis_result["music"]
+        binned_fft_phase_df = analysis_result.get("fft_phase", pd.DataFrame())
+        binned_wavelet_phase_df = analysis_result.get("wavelet_phase", pd.DataFrame())
+        binned_music_phase_df = analysis_result.get("music_phase", pd.DataFrame())
         if binned_fft_df.empty:
             raise ValueError("PCAP解析に失敗しました: データが空です")
 
@@ -467,6 +474,31 @@ async def process_csi_in_background(
         if music_matrix:
             await asyncio.to_thread(save_music_graph, music_matrix, csi_id_str)
         await asyncio.to_thread(save_combined_graph, fft_matrix, wavelet_matrix, music_matrix, csi_id_str)
+
+        # --- 位相パイプライン: グラフ保存（ZKP には送らず可視化のみ） ---
+        fft_phase_matrix = (
+            await asyncio.to_thread(analyzer.extract_matrix_for_zkp, binned_fft_phase_df)
+            if not binned_fft_phase_df.empty else []
+        )
+        wavelet_phase_matrix = (
+            await asyncio.to_thread(analyzer.extract_matrix_for_zkp, binned_wavelet_phase_df)
+            if not binned_wavelet_phase_df.empty else []
+        )
+        music_phase_matrix = (
+            await asyncio.to_thread(analyzer.extract_music_matrix_for_zkp, binned_music_phase_df)
+            if not binned_music_phase_df.empty else []
+        )
+        if fft_phase_matrix:
+            await asyncio.to_thread(save_fft_phase_graph, fft_phase_matrix, csi_id_str)
+        if wavelet_phase_matrix:
+            await asyncio.to_thread(save_wavelet_phase_graph, wavelet_phase_matrix, csi_id_str)
+        if music_phase_matrix:
+            await asyncio.to_thread(save_music_phase_graph, music_phase_matrix, csi_id_str)
+        if fft_phase_matrix or wavelet_phase_matrix or music_phase_matrix:
+            await asyncio.to_thread(
+                save_combined_phase_graph,
+                fft_phase_matrix, wavelet_phase_matrix, music_phase_matrix, csi_id_str,
+            )
 
         device_id = getattr(csi_data, "device_id", None) if csi_data else None
 
@@ -507,10 +539,20 @@ async def process_csi_in_background(
         # --- DB保存 ---
         if csi_data:
             csi_data.status = "completed"
-            fft_ser, wav_ser, mus_ser = await asyncio.gather(
+            (
+                fft_ser,
+                wav_ser,
+                mus_ser,
+                fft_phase_ser,
+                wav_phase_ser,
+                mus_phase_ser,
+            ) = await asyncio.gather(
                 asyncio.to_thread(serialize_fft_dataframe, binned_fft_df),
                 asyncio.to_thread(serialize_fft_dataframe, binned_wavelet_df),
                 asyncio.to_thread(serialize_fft_dataframe, binned_music_df),
+                asyncio.to_thread(serialize_fft_dataframe, binned_fft_phase_df),
+                asyncio.to_thread(serialize_fft_dataframe, binned_wavelet_phase_df),
+                asyncio.to_thread(serialize_fft_dataframe, binned_music_phase_df),
             )
             processed_data: dict = {
                 "fft_dataframe": fft_ser,
@@ -519,6 +561,12 @@ async def process_csi_in_background(
                 "breathing_rate_comparison": analysis_result["breathing_rate_comparison"],
                 "wavelet_zkp": transform_zkp_results.get("wavelet"),
                 "music_zkp": transform_zkp_results.get("music"),
+                "fft_phase_dataframe": fft_phase_ser,
+                "wavelet_phase_dataframe": wav_phase_ser,
+                "music_phase_dataframe": mus_phase_ser,
+                "breathing_rate_phase_comparison": analysis_result.get(
+                    "breathing_rate_phase_comparison"
+                ),
             }
             if base_csi_comparison:
                 processed_data["base_csi_comparison"] = base_csi_comparison

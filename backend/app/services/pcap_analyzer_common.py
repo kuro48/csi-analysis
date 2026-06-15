@@ -6,6 +6,10 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+from scipy.signal import detrend as _scipy_detrend
+
+
+PHASE_COLUMN_SUFFIX = "_phase"
 
 
 def _numeric_data_columns(
@@ -51,6 +55,15 @@ def _build_empty_analysis_result(self) -> Dict[str, Any]:
             {"fft": None, "wavelet": None, "music": None}
         ),
         "subcarrier_medians": {},
+        "fft_phase": pd.DataFrame(),
+        "wavelet_phase": pd.DataFrame(),
+        "music_phase": pd.DataFrame(),
+        "breathing_rate_fft_phase_bpm": None,
+        "breathing_rate_wavelet_phase_bpm": None,
+        "breathing_rate_music_phase_bpm": None,
+        "breathing_rate_phase_comparison": self.compare_breathing_rate_methods(
+            {"fft": None, "wavelet": None, "music": None}
+        ),
     }
 
 
@@ -113,6 +126,51 @@ def make_bins(self, max_val: float, step: float) -> List[float]:
 
     num_steps = int(max_val / step)
     return [i * step for i in range(num_steps + 1)]
+
+
+def extract_phase_dataframe(
+    df: pd.DataFrame,
+    time_col: str = "timestamp",
+) -> pd.DataFrame:
+    """位相列のみを抽出し、振幅版と同じフォーマットの DataFrame を返す。
+
+    手順:
+        1. ``<idx>_phase`` 列を抽出し、列名を ``<idx>`` にリネーム
+        2. 時系列方向に ``np.unwrap`` で 2π ジャンプを除去
+        3. 線形 detrend で CFO/SFO 由来のドリフトを除去
+        4. ``timestamp`` 列と ``df.attrs`` を引き継ぐ
+
+    位相列が存在しない・DataFrame が空の場合は空 DataFrame を返す。
+    """
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    phase_cols = [c for c in df.columns if c.endswith(PHASE_COLUMN_SUFFIX)]
+    if not phase_cols:
+        return pd.DataFrame()
+
+    rename_map = {c: c[: -len(PHASE_COLUMN_SUFFIX)] for c in phase_cols}
+    numeric_cols = [c for c in phase_cols if pd.api.types.is_numeric_dtype(df[c])]
+    if not numeric_cols:
+        return pd.DataFrame()
+
+    matrix = df[numeric_cols].to_numpy(dtype=np.float64)
+    matrix = np.nan_to_num(matrix, nan=0.0, posinf=0.0, neginf=0.0)
+
+    if matrix.shape[0] >= 2:
+        matrix = np.unwrap(matrix, axis=0)
+        matrix = _scipy_detrend(matrix, axis=0, type="linear")
+
+    new_names = [rename_map[c] for c in numeric_cols]
+    result = pd.DataFrame(matrix, columns=new_names, index=df.index)
+
+    if time_col in df.columns:
+        result.insert(0, time_col, df[time_col].values)
+
+    for key, value in df.attrs.items():
+        result.attrs[key] = value
+
+    return result
 
 
 def _detect_band(center_freq_mhz: float) -> str:

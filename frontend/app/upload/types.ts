@@ -71,6 +71,10 @@ export interface ProcessedData {
   wavelet_dataframe?: DataframeDict;
   music_dataframe?: DataframeDict;
   breathing_rate_comparison?: BreathingRateComparison;
+  fft_phase_dataframe?: DataframeDict;
+  wavelet_phase_dataframe?: DataframeDict;
+  music_phase_dataframe?: DataframeDict;
+  breathing_rate_phase_comparison?: BreathingRateComparison;
   base_csi_comparison?: BaseCSIComparison;
   wavelet_zkp?: TransformZKPResult | null;
   music_zkp?: TransformZKPResult | null;

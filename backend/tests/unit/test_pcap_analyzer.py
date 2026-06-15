@@ -9,6 +9,7 @@ pd = pytest.importorskip("pandas")
 pytest.importorskip("CSIKit")
 
 from app.services.pcap_analyzer import PCAPAnalyzer
+from app.services.pcap_analyzer_common import extract_phase_dataframe
 from app.models.base_csi import BaseCSI
 from app.services import base_csi as base_csi_service_module
 from app.services.base_csi import BaseCSIService
@@ -135,6 +136,135 @@ def test_frequency_transforms_ignore_phase_columns():
 
     assert "1" in fft_df.columns
     assert "1_phase" not in fft_df.columns
+
+
+@pytest.mark.unit
+def test_extract_phase_dataframe_renames_and_detrends():
+    """位相列が抽出され、列名がリネームされ、線形 detrend が適用される。"""
+    sample_count = 64
+    timestamps = pd.date_range("2026-01-01", periods=sample_count, freq="10ms")
+    # 線形ランプ位相 (CFO/SFO 由来のドリフト相当) → detrend で 0 になるはず
+    linear_ramp = np.linspace(0, 6 * np.pi, sample_count)
+    df = pd.DataFrame({
+        "timestamp": timestamps,
+        "-1": np.random.randn(sample_count),
+        "1": np.random.randn(sample_count),
+        "-1_phase": linear_ramp,
+        "1_phase": -linear_ramp,
+    })
+    df.attrs["bandwidth_mhz"] = 80
+    df.attrs["band"] = "5GHz"
+
+    result = extract_phase_dataframe(df)
+
+    assert list(result.columns) == ["timestamp", "-1", "1"]
+    assert result.attrs.get("bandwidth_mhz") == 80
+    assert result.attrs.get("band") == "5GHz"
+    assert len(result) == sample_count
+    # 線形ランプは detrend で消えるため、残差は数値誤差レベル
+    assert np.allclose(result["-1"].values, 0.0, atol=1e-9)
+    assert np.allclose(result["1"].values, 0.0, atol=1e-9)
+
+
+@pytest.mark.unit
+def test_extract_phase_dataframe_returns_empty_when_no_phase_columns():
+    """位相列が無い DataFrame は空 DataFrame を返す。"""
+    df = pd.DataFrame({
+        "timestamp": pd.date_range("2026-01-01", periods=4, freq="10ms"),
+        "1": [1.0, 2.0, 3.0, 4.0],
+        "2": [5.0, 6.0, 7.0, 8.0],
+    })
+
+    result = extract_phase_dataframe(df)
+
+    assert result.empty
+
+
+@pytest.mark.unit
+def test_extract_phase_dataframe_unwraps_2pi_jumps():
+    """位相に 2π ジャンプが含まれている場合、np.unwrap が適用される。"""
+    sample_count = 16
+    # 0, 1, 2, ..., 7 (rad) のような連続値に強制的に 2π ジャンプを入れる
+    raw_phase = np.arange(sample_count, dtype=np.float64) * 0.5
+    raw_phase[8:] -= 2 * np.pi  # 8 番目で 2π 落ちる
+    df = pd.DataFrame({
+        "timestamp": pd.date_range("2026-01-01", periods=sample_count, freq="10ms"),
+        "1_phase": raw_phase,
+    })
+
+    result = extract_phase_dataframe(df)
+
+    # 線形 detrend がかかるので値は 0 に近いが、unwrap が無いとジャンプが残って detrend だけでは消えない。
+    # 検証: unwrap 後にきれいな線形になっていれば detrend で全要素が 0 近傍に落ちる。
+    assert np.allclose(result["1"].values, 0.0, atol=1e-9)
+
+
+@pytest.mark.unit
+def test_analyze_dataframe_includes_phase_results_when_phase_columns_present():
+    """位相列を含む DataFrame の場合、戻り値辞書に位相パイプライン結果が含まれる。"""
+    analyzer = PCAPAnalyzer()
+    sample_count = 1200
+    time_axis = np.arange(sample_count) * analyzer.DOWNSAMPLE_INTERVAL_S
+    breathing_hz = 0.25  # 15 BPM
+    amp_signal = np.sin(2 * np.pi * breathing_hz * time_axis) + 3.0
+    # 位相にも同じ周波数成分を載せる
+    phase_signal = 0.5 * np.sin(2 * np.pi * breathing_hz * time_axis)
+
+    df = pd.DataFrame({
+        "timestamp": pd.date_range("2026-01-01", periods=sample_count, freq="10ms"),
+        "1": amp_signal,
+        "2": amp_signal * 0.9,
+        "1_phase": phase_signal,
+        "2_phase": phase_signal * 0.95,
+    })
+
+    result = analyzer._analyze_dataframe(
+        df=df,
+        no_frames=sample_count,
+        no_subcarriers=2,
+        include_wavelet=False,
+        include_music=False,
+        include_breathing=True,
+    )
+
+    assert "fft_phase" in result
+    assert "wavelet_phase" in result
+    assert "music_phase" in result
+    assert "breathing_rate_fft_phase_bpm" in result
+    assert "breathing_rate_phase_comparison" in result
+    assert not result["fft_phase"].empty
+    # 位相 FFT からも呼吸数が推定できているはず
+    assert result["breathing_rate_fft_phase_bpm"] is not None
+
+
+@pytest.mark.unit
+def test_analyze_dataframe_phase_fields_empty_when_phase_columns_absent():
+    """位相列が無い場合、戻り値辞書の位相フィールドは空 / None になる。"""
+    analyzer = PCAPAnalyzer()
+    sample_count = 120
+    signal = np.sin(2 * np.pi * 0.2 * np.arange(sample_count) * analyzer.DOWNSAMPLE_INTERVAL_S)
+    df = pd.DataFrame({
+        "timestamp": pd.date_range("2026-01-01", periods=sample_count, freq="10ms"),
+        "1": signal + 3.0,
+        "2": signal * 0.5 + 6.0,
+    })
+
+    result = analyzer._analyze_dataframe(
+        df=df,
+        no_frames=sample_count,
+        no_subcarriers=2,
+        include_wavelet=False,
+        include_music=False,
+        include_breathing=True,
+    )
+
+    assert result["fft_phase"].empty
+    assert result["wavelet_phase"].empty
+    assert result["music_phase"].empty
+    assert result["breathing_rate_fft_phase_bpm"] is None
+    assert result["breathing_rate_wavelet_phase_bpm"] is None
+    assert result["breathing_rate_music_phase_bpm"] is None
+    assert result["breathing_rate_phase_comparison"] is None
 
 
 @pytest.mark.unit

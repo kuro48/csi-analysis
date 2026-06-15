@@ -14,7 +14,11 @@ import numpy as np
 import pandas as pd
 
 from app.core.config import settings
-from app.services.pcap_analyzer_common import _build_empty_analysis_result, _detect_band
+from app.services.pcap_analyzer_common import (
+    _build_empty_analysis_result,
+    _detect_band,
+    extract_phase_dataframe,
+)
 
 
 def _convert_picoscenes_to_dataframe(
@@ -371,10 +375,73 @@ def _analyze_dataframe(
         else None
     )
 
+    # --- 位相パイプライン (振幅と並列に実行) ---
+    phase_df = extract_phase_dataframe(df)
+    has_phase = not phase_df.empty
+    binned_fft_phase_df = pd.DataFrame()
+    binned_wavelet_phase_df = pd.DataFrame()
+    binned_music_phase_df = pd.DataFrame()
+    breathing_rate_fft_phase = None
+    breathing_rate_wavelet_phase = None
+    breathing_rate_music_phase = None
+    breathing_rate_phase_comparison = None
+
+    if has_phase:
+        fft_phase_df = self.apply_fourier_transform(phase_df, self.DOWNSAMPLE_INTERVAL_S)
+        if not fft_phase_df.empty:
+            binned_fft_phase_df = self.average_magnitude_by_frequency_bins(fft_phase_df, bins)
+            if include_breathing:
+                breathing_rate_fft_phase = self.estimate_breathing_rate(
+                    fft_phase_df, freq_col="frequency"
+                )
+
+        wavelet_phase_df = (
+            self.apply_wavelet_transform(phase_df, self.DOWNSAMPLE_INTERVAL_S)
+            if include_wavelet
+            else pd.DataFrame()
+        )
+        if not wavelet_phase_df.empty:
+            binned_wavelet_phase_df = self.average_magnitude_by_frequency_bins(
+                wavelet_phase_df, bins
+            )
+            if include_breathing:
+                breathing_rate_wavelet_phase = self.estimate_breathing_rate(
+                    wavelet_phase_df, freq_col="frequency"
+                )
+
+        music_phase_df = (
+            self.apply_music_transform(phase_df, self.DOWNSAMPLE_INTERVAL_S)
+            if include_music
+            else pd.DataFrame()
+        )
+        if not music_phase_df.empty:
+            binned_music_phase_df = self.average_magnitude_by_frequency_bins(
+                music_phase_df, bins
+            )
+            if include_breathing:
+                breathing_rate_music_phase = self.estimate_breathing_rate(
+                    music_phase_df, freq_col="frequency"
+                )
+
+        breathing_rate_phase_comparison = (
+            self.compare_breathing_rate_methods({
+                "fft": breathing_rate_fft_phase,
+                "wavelet": breathing_rate_wavelet_phase,
+                "music": breathing_rate_music_phase,
+            })
+            if include_breathing
+            else None
+        )
+
     br_info = (
         f"FFT={breathing_rate_fft:.1f}bpm" if breathing_rate_fft else "FFT=N/A",
         f"Wavelet={breathing_rate_wavelet:.1f}bpm" if breathing_rate_wavelet else "Wavelet=N/A",
         f"MUSIC={breathing_rate_music:.1f}bpm" if breathing_rate_music else "MUSIC=N/A",
+    )
+    br_phase_info = (
+        f"FFT={breathing_rate_fft_phase:.1f}bpm" if breathing_rate_fft_phase else "FFT=N/A",
+        f"Wavelet={breathing_rate_wavelet_phase:.1f}bpm" if breathing_rate_wavelet_phase else "Wavelet=N/A",
+        f"MUSIC={breathing_rate_music_phase:.1f}bpm" if breathing_rate_music_phase else "MUSIC=N/A",
     )
     self.logger.info(
         f"解析完了 - フレーム数: {no_frames}, "
@@ -384,7 +451,9 @@ def _analyze_dataframe(
         f"Waveletビン: {len(binned_wavelet_df)}, "
         f"MUSICビン: {len(binned_music_df)}, "
         f"最大周波数: {max_freq:.2f}Hz, "
-        f"呼吸推定 [{', '.join(br_info)}]"
+        f"位相解析: {'有効' if has_phase else '位相データなし'}, "
+        f"呼吸推定 振幅[{', '.join(br_info)}] "
+        f"位相[{', '.join(br_phase_info)}]"
     )
 
     return {
@@ -396,6 +465,13 @@ def _analyze_dataframe(
         "breathing_rate_music_bpm": breathing_rate_music,
         "breathing_rate_comparison": breathing_rate_comparison,
         "subcarrier_medians": subcarrier_medians,
+        "fft_phase": binned_fft_phase_df,
+        "wavelet_phase": binned_wavelet_phase_df,
+        "music_phase": binned_music_phase_df,
+        "breathing_rate_fft_phase_bpm": breathing_rate_fft_phase,
+        "breathing_rate_wavelet_phase_bpm": breathing_rate_wavelet_phase,
+        "breathing_rate_music_phase_bpm": breathing_rate_music_phase,
+        "breathing_rate_phase_comparison": breathing_rate_phase_comparison,
     }
 
 

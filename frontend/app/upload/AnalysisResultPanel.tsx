@@ -1,6 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import { MetricCard } from "./MetricCard";
 import { SpectrumChart } from "./SpectrumChart";
-import { dataframeToSpectrumPoints, pickBreathingBpm, pickSimilarityScores } from "./transformers";
+import {
+  dataframeToSpectrumPoints,
+  pickBreathingBpm,
+  pickSimilarityScores,
+  type SignalSource,
+} from "./transformers";
 import type { DataframeDict, ProcessedData, TransformZKPResult } from "./types";
 
 interface BaseCSIData {
@@ -40,37 +48,129 @@ function BasePanel({ fft_dataframe, wavelet_dataframe, music_dataframe }: BaseCS
   );
 }
 
+interface SignalSpectrumSectionProps {
+  processedData: ProcessedData;
+  source: SignalSource;
+}
+
+function SignalSpectrumSection({ processedData, source }: SignalSpectrumSectionProps) {
+  const bpm = pickBreathingBpm(processedData, source);
+  const hasAnyBreathingBpm = [bpm.final, bpm.fft, bpm.wavelet, bpm.music].some(
+    (value) => value != null,
+  );
+
+  const labelSuffix = source === "phase" ? " (位相)" : " (振幅)";
+  const fftDf =
+    source === "phase" ? processedData.fft_phase_dataframe : processedData.fft_dataframe;
+  const waveletDf =
+    source === "phase"
+      ? processedData.wavelet_phase_dataframe
+      : processedData.wavelet_dataframe;
+  const musicDf =
+    source === "phase" ? processedData.music_phase_dataframe : processedData.music_dataframe;
+
+  const fftPoints = dataframeToSpectrumPoints(fftDf ?? null);
+  const waveletPoints = dataframeToSpectrumPoints(waveletDf ?? null);
+  const musicPoints = dataframeToSpectrumPoints(musicDf ?? null);
+  const hasAnySpectrum = fftPoints.length + waveletPoints.length + musicPoints.length > 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MetricCard label={`呼吸数 (合意)${labelSuffix}`} value={bpm.final} unit="BPM" />
+        <MetricCard label={`FFT BPM${labelSuffix}`} value={bpm.fft} unit="BPM" />
+        <MetricCard label={`Wavelet BPM${labelSuffix}`} value={bpm.wavelet} unit="BPM" />
+        <MetricCard label={`MUSIC BPM${labelSuffix}`} value={bpm.music} unit="BPM" />
+      </div>
+      {!hasAnyBreathingBpm && (
+        <p className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500">
+          {source === "phase"
+            ? "位相解析の呼吸数データはありません。位相情報を含む CSI ファイルではない可能性があります。"
+            : "呼吸数データはありません。"}
+        </p>
+      )}
+
+      {hasAnySpectrum ? (
+        <div className="space-y-3">
+          <SpectrumChart title={`FFT スペクトル${labelSuffix}`} points={fftPoints} />
+          <SpectrumChart title={`Wavelet スペクトル${labelSuffix}`} points={waveletPoints} />
+          <SpectrumChart title={`MUSIC スペクトル${labelSuffix}`} points={musicPoints} />
+        </div>
+      ) : (
+        source === "phase" && (
+          <p className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500">
+            位相スペクトルデータはありません。
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
+interface TabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+function TabButton({ active, onClick, children }: TabButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={
+        active
+          ? "rounded-t-lg border border-b-0 border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-900"
+          : "rounded-t-lg border border-transparent px-4 py-2 text-sm text-neutral-500 hover:text-neutral-800"
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
 function MainPanel({ processedData }: MainCSIData) {
+  const [activeTab, setActiveTab] = useState<SignalSource>("amplitude");
+
   if (!processedData) return null;
 
   if (processedData.error) {
     return <p className="text-sm text-red-600">{processedData.error}</p>;
   }
 
-  const bpm = pickBreathingBpm(processedData);
   const similarity = pickSimilarityScores(processedData);
   const comparison = processedData.base_csi_comparison;
   const primaryMethod = comparison?.primary_method ?? comparison?.comparison_summary?.primary_method;
   const dimensions = comparison?.data_dimensions;
-  const hasAnyBreathingBpm = [bpm.final, bpm.fft, bpm.wavelet, bpm.music].some((value) => value != null);
 
-  const fftPoints = dataframeToSpectrumPoints(processedData.fft_dataframe ?? null);
-  const waveletPoints = dataframeToSpectrumPoints(processedData.wavelet_dataframe ?? null);
-  const musicPoints = dataframeToSpectrumPoints(processedData.music_dataframe ?? null);
+  const hasPhaseData =
+    processedData.fft_phase_dataframe != null ||
+    processedData.wavelet_phase_dataframe != null ||
+    processedData.music_phase_dataframe != null ||
+    processedData.breathing_rate_phase_comparison != null;
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MetricCard label="呼吸数 (合意)" value={bpm.final} unit="BPM" />
-        <MetricCard label="FFT BPM" value={bpm.fft} unit="BPM" />
-        <MetricCard label="Wavelet BPM" value={bpm.wavelet} unit="BPM" />
-        <MetricCard label="MUSIC BPM" value={bpm.music} unit="BPM" />
+      <div className="flex border-b border-neutral-300">
+        <TabButton
+          active={activeTab === "amplitude"}
+          onClick={() => setActiveTab("amplitude")}
+        >
+          振幅解析
+        </TabButton>
+        <TabButton
+          active={activeTab === "phase"}
+          onClick={() => setActiveTab("phase")}
+        >
+          位相解析
+          {!hasPhaseData && (
+            <span className="ml-2 text-xs text-neutral-400">(データなし)</span>
+          )}
+        </TabButton>
       </div>
-      {!hasAnyBreathingBpm && (
-        <p className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500">
-          呼吸数データはありません。
-        </p>
-      )}
+
+      <SignalSpectrumSection processedData={processedData} source={activeTab} />
 
       {Object.keys(similarity).length > 0 && (
         <div className="grid grid-cols-3 gap-3">
@@ -124,7 +224,9 @@ function MainPanel({ processedData }: MainCSIData) {
       )}
 
       <div className="rounded-lg border border-neutral-200 bg-white p-4">
-        <p className="text-sm font-semibold text-neutral-800">ZKP / ブロックチェーン記録</p>
+        <p className="text-sm font-semibold text-neutral-800">
+          ZKP / ブロックチェーン記録 (振幅ベース)
+        </p>
         <div className="mt-3 grid gap-3 text-xs text-neutral-600 sm:grid-cols-3">
           <div className="rounded-lg bg-neutral-50 p-3">
             <p className="text-neutral-500">FFT Proof ID</p>
@@ -151,12 +253,6 @@ function MainPanel({ processedData }: MainCSIData) {
             </p>
           </div>
         </div>
-      </div>
-
-      <div className="space-y-3">
-        <SpectrumChart title="FFT スペクトル" points={fftPoints} />
-        <SpectrumChart title="Wavelet スペクトル" points={waveletPoints} />
-        <SpectrumChart title="MUSIC スペクトル" points={musicPoints} />
       </div>
     </div>
   );

@@ -17,13 +17,21 @@ export function dataframeToSpectrumPoints(df: DataframeDict): SpectrumPoint[] {
   return points.sort((a, b) => a.frequency - b.frequency);
 }
 
-export function pickBreathingBpm(data: ProcessedData | null): {
+export type SignalSource = "amplitude" | "phase";
+
+export function pickBreathingBpm(
+  data: ProcessedData | null,
+  source: SignalSource = "amplitude",
+): {
   fft: number | null;
   wavelet: number | null;
   music: number | null;
   final: number | null;
 } {
-  const comparison = data?.breathing_rate_comparison;
+  const comparison =
+    source === "phase"
+      ? data?.breathing_rate_phase_comparison
+      : data?.breathing_rate_comparison;
   const methods = comparison?.methods ?? {};
   const fft = methods["fft"] ?? methods["fft_bpm"] ?? comparison?.fft_bpm ?? null;
   const wavelet = methods["wavelet"] ?? methods["wavelet_bpm"] ?? comparison?.wavelet_bpm ?? null;
