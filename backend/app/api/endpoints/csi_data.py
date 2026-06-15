@@ -9,7 +9,10 @@ import logging
 import math
 import uuid
 from datetime import datetime
-from typing import Optional
+from pathlib import Path
+from typing import Optional, List
+
+import pandas as pd
 
 from fastapi import (
     APIRouter,
@@ -22,13 +25,24 @@ from fastapi import (
     UploadFile,
     status as http_status,
 )
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal, get_db
 from app.core.config import settings
+from app.models.csi_data import CSIData
+from app.models.base_csi import BaseCSI
 from app.services.csi_data import CSIDataService
 from app.services.csi_processing import parse_json_field, process_csi_in_background
 from app.services.file_validation import validate_csi_upload
+from app.services.pcap_analyzer import PCAPAnalyzer
+from app.services.pcap_analyzer_pipeline import SUPPORTED_CSI_EXTENSIONS
+from app.services.base_csi import BaseCSIService
+from app.services.blockchain_service import BlockchainService
+from app.services.zkp_service import ZKPService
+from app.services.zkp_circuit_service import ZKPMusicService, ZKPWaveletService
+from app.services.csi_visualizer import save_fft_graph, save_wavelet_graph, save_music_graph, save_combined_graph
+from app.api.endpoints.blockchain import get_blockchain_service
 from app.schemas.csi_data import (
     CSIDataFilter,
     CSIDataListResponse,
