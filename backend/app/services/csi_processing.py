@@ -72,15 +72,13 @@ def serialize_fft_dataframe(fft_df) -> dict:
     elif "frequency" not in df.columns:
         return {}
 
-    exclude = {"frequency", "freq_interval", "freq_mid", "_mean"}
+    exclude = {"frequency", "freq_interval", "freq_mid"}
     data_cols = [
         c for c in df.columns
         if c not in exclude and str(c).lstrip("-").replace(".", "", 1).isdigit()
     ]
     if data_cols:
         df["magnitude_avg"] = df[data_cols].replace([np.inf, -np.inf], np.nan).mean(axis=1)
-    elif "_mean" in df.columns:
-        df["magnitude_avg"] = df["_mean"]
     else:
         df["magnitude_avg"] = np.nan
 

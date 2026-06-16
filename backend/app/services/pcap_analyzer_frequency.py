@@ -208,48 +208,38 @@ def apply_wavelet_transform(
 
     method = "fft" if signal_len >= self.WAVELET_FFT_METHOD_MIN_SIGNAL_LEN else "conv"
 
-    # --- 平均信号 CWT（BPM 推定用・コヒーレント積算）---
-    # 呼吸信号は全サブキャリアで同位相に乗るため加算で強調され、
-    # 無相関なノイズは平均化で抑制される（MUSIC の _mean 列と同じ戦略）
-    mean_signal = signal_matrix.mean(axis=1)  # shape: [T]
-    mean_coeff, frequency_axis = pywt.cwt(
-        mean_signal,
-        scales,
-        self.WAVELET_NAME,
-        sampling_period=actual_interval,
-        method=method,
-    )
-    mean_amplitude = np.mean(np.abs(mean_coeff), axis=1).astype(np.float32)
-
-    # --- サブキャリア別 CWT（ZKP・可視化用）---
+    # サブキャリア間の位相整合に依存しないように、各サブキャリアを独立に CWT し、
+    # 上位レイヤでスペクトル平均を取る（フロントエンド magnitude_avg と整合）。
     amplitude_rows = []
     valid_cols = []
+    frequency_axis: Optional[np.ndarray] = None
     for col_idx, col in enumerate(data_cols):
         signal = signal_matrix[:, col_idx]
         if np.allclose(signal, 0.0):
             self.logger.debug(f"サブキャリア {col}: 全ゼロのためスキップ")
             continue
-        coefficients, _ = pywt.cwt(
+        coefficients, freqs = pywt.cwt(
             signal,
             scales,
             self.WAVELET_NAME,
             sampling_period=actual_interval,
             method=method,
         )
+        if frequency_axis is None:
+            frequency_axis = freqs
         amplitude_rows.append(np.mean(np.abs(coefficients), axis=1).astype(np.float32, copy=False))
         valid_cols.append(col)
 
-    if not amplitude_rows:
+    if not amplitude_rows or frequency_axis is None:
         self.logger.warning("ウェーブレット変換結果が空です")
         return pd.DataFrame()
 
     wavelet_matrix = np.stack(amplitude_rows, axis=1)
     merged_wavelet_df = pd.DataFrame(wavelet_matrix, columns=valid_cols)
-    merged_wavelet_df.insert(0, "_mean", mean_amplitude)
     merged_wavelet_df.insert(0, "frequency", frequency_axis)
 
     self.logger.info(
-        f"ウェーブレット変換完了: {len(valid_cols)}サブキャリア (+平均信号), "
+        f"ウェーブレット変換完了: {len(valid_cols)}サブキャリア, "
         f"{len(merged_wavelet_df)}周波数ポイント "
         f"({self.WAVELET_FREQ_MIN:.3f}–{float(np.max(frequency_axis)):.3f} Hz)"
     )
@@ -376,18 +366,9 @@ def apply_music_transform(
     angular = 2.0 * np.pi * target_freqs * actual_interval
     precomputed_steering = np.exp(-1j * np.outer(sample_indices, angular))  # [L, n_freqs]
 
-    # --- 平均信号 MUSIC（BPM 推定用・コヒーレント積算）---
-    mean_signal = signal_matrix.mean(axis=1)  # shape: [T]
-    mean_spectrum = self._compute_music_pseudospectrum(
-        mean_signal, actual_interval, target_freqs,
-        embedding_dim=embedding_dim, model_order=model_order,
-        precomputed_steering=precomputed_steering,
-    )
-    if mean_spectrum.size == 0:
-        self.logger.warning("MUSIC平均信号スペクトル生成不可")
-        return pd.DataFrame()
-
     # --- バッチ MUSIC（全サブキャリアを一括ベクトル処理）---
+    # サブキャリア間の位相整合に依存しないように、各サブキャリアを独立に
+    # MUSIC 擬似スペクトル化し、上位レイヤで平均する（magnitude_avg と整合）。
     snapshot_count = signal_length - embedding_dim + 1
 
     # ゼロ信号を除外
@@ -397,11 +378,7 @@ def apply_music_transform(
 
     if valid_signals.shape[1] == 0 or snapshot_count < 2:
         self.logger.warning("MUSIC変換結果が空です")
-        merged_music_df = pd.DataFrame({
-            "frequency": target_freqs.astype(np.float32),
-            "_mean": mean_spectrum.astype(np.float32),
-        })
-        return self.drop_invalid_rows(merged_music_df)
+        return pd.DataFrame()
 
     # Hankel 行列をスライディングウィンドウで一括構築し連続メモリに配置
     # windows shape: [snapshot_count, n_valid, embedding_dim]
@@ -429,9 +406,8 @@ def apply_music_transform(
     denominator_batch = np.maximum(denominator_batch, 1e-12)
     spectra_batch = (1.0 / denominator_batch).astype(np.float32)  # [n_valid, n_freqs]
 
-    # 出力 DataFrame 構築（既存の列構造を維持）
+    # 出力 DataFrame 構築
     merged_music_df = pd.DataFrame(spectra_batch.T, columns=valid_cols)
-    merged_music_df.insert(0, "_mean", mean_spectrum.astype(np.float32, copy=False))
     merged_music_df.insert(0, "frequency", target_freqs.astype(np.float32, copy=False))
 
     self.logger.info(
@@ -463,17 +439,11 @@ def estimate_breathing_rate(
     if not data_cols:
         return None
 
-    # MUSIC の場合は平均信号スペクトル列（_mean）を優先する。
-    # 各サブキャリアのMUSICピークが異なる周波数に出るのを避けるため、
-    # コヒーレント積算済みの _mean 列を直接使う。
-    if "_mean" in data_cols:
-        mean_amplitude = breathing_df["_mean"]
-    else:
-        # FFT / Wavelet: ピーク振幅が大きい上位10%サブキャリアの平均
-        subcarrier_peaks = breathing_df[data_cols].max(axis=0)
-        n_top = max(1, len(data_cols) // 10)
-        top_cols = subcarrier_peaks.nlargest(n_top).index.tolist()
-        mean_amplitude = breathing_df[top_cols].mean(axis=1)
+    # 全サブキャリアのスペクトルを平均（フロントエンド magnitude_avg と同じ定義）。
+    # コヒーレント積算（時系列平均→変換）はサブキャリア間の位相オフセットで打ち消し
+    # 合うため、位相パイプラインで偽ピークを生む。インコヒーレント積算（変換→平均）に
+    # 統一することで、グラフのピーク位置と推定 BPM が一致する。
+    mean_amplitude = breathing_df[data_cols].mean(axis=1)
     if mean_amplitude.empty or mean_amplitude.isna().all():
         return None
 
