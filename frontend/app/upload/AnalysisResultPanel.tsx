@@ -160,9 +160,6 @@ function MainPanel({ processedData }: MainCSIData) {
     processedData.music_phase_dataframe != null ||
     processedData.breathing_rate_phase_comparison != null;
 
-  const fftPoints = dataframeToSpectrumPoints(processedData.fft_dataframe ?? null);
-  const waveletPoints = dataframeToSpectrumPoints(processedData.wavelet_dataframe ?? null);
-  const musicPoints = dataframeToSpectrumPoints(processedData.music_dataframe ?? null);
   const rawPoints = signalDictToPoints(processedData.raw_signal ?? null);
   const filteredPoints = signalDictToPoints(processedData.filtered_signal ?? null);
 
@@ -275,10 +272,6 @@ function MainPanel({ processedData }: MainCSIData) {
         <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">処理過程</p>
         <SignalChart title="生CSI振幅（時系列）" points={rawPoints} color="#6366f1" />
         <SignalChart title="バンドパスフィルタ後（時系列）" points={filteredPoints} color="#f59e0b" />
-        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">周波数スペクトル</p>
-        <SpectrumChart title="FFT スペクトル" points={fftPoints} />
-        <SpectrumChart title="Wavelet スペクトル" points={waveletPoints} />
-        <SpectrumChart title="MUSIC スペクトル" points={musicPoints} />
       </div>
     </div>
   );

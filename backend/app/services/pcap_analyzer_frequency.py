@@ -453,7 +453,32 @@ def estimate_breathing_rate(
         from scipy.ndimage import gaussian_filter1d
         values = gaussian_filter1d(values, sigma=2)
 
-    peak_idx_pos = int(np.argmax(values))
+    # バンドパスフィルタ端のロールオフを誤検出しないよう端を除外して探索
+    freqs = breathing_df[freq_col].values.astype(np.float64)
+    band_width = self.BREATHING_MAX_FREQ - self.BREATHING_MIN_FREQ
+    edge_margin = band_width * self.BREATHING_EDGE_MARGIN_RATIO
+    inner_mask = (freqs >= self.BREATHING_MIN_FREQ + edge_margin) & (
+        freqs <= self.BREATHING_MAX_FREQ - edge_margin
+    )
+    search_values = values.copy()
+    search_values[~inner_mask] = 0.0
+
+    # find_peaks + prominence でロールオフの傾斜ではなく真の山を選ぶ
+    from scipy.signal import find_peaks
+    prominence_threshold = np.max(search_values) * self.BREATHING_PEAK_PROMINENCE_RATIO
+    peaks, props = find_peaks(search_values, prominence=prominence_threshold)
+
+    if peaks.size > 0:
+        # 最大 prominence のピークを採用
+        peak_idx_pos = int(peaks[np.argmax(props["prominences"])])
+    else:
+        # 真の山が見つからない場合は内側マージン内の argmax にフォールバック
+        if inner_mask.any():
+            inner_indices = np.where(inner_mask)[0]
+            peak_idx_pos = int(inner_indices[np.argmax(values[inner_mask])])
+        else:
+            peak_idx_pos = int(np.argmax(values))
+
     peak_freq_hz = float(breathing_df[freq_col].iloc[peak_idx_pos])
     return peak_freq_hz * 60.0
 

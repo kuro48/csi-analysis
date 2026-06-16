@@ -483,8 +483,15 @@ def _analyze_dataframe(
     breathing_rate_phase_comparison = None
 
     if has_phase:
+        # 振幅と同様にバンドパスフィルタを適用
+        phase_df = self.apply_bandpass_filter(phase_df, self.DOWNSAMPLE_INTERVAL_S)
         fft_phase_df = self.apply_fourier_transform(phase_df, self.DOWNSAMPLE_INTERVAL_S)
         if not fft_phase_df.empty:
+            # 振幅と同様に呼吸帯域にフィルタリング
+            fft_phase_df = fft_phase_df[
+                (fft_phase_df["frequency"] >= self.BREATHING_MIN_FREQ)
+                & (fft_phase_df["frequency"] <= self.BREATHING_MAX_FREQ)
+            ].reset_index(drop=True)
             binned_fft_phase_df = self.average_magnitude_by_frequency_bins(fft_phase_df, bins)
             if include_breathing:
                 breathing_rate_fft_phase = self.estimate_breathing_rate(
@@ -500,6 +507,10 @@ def _analyze_dataframe(
             else pd.DataFrame()
         )
         if not wavelet_phase_df.empty:
+            wavelet_phase_df = wavelet_phase_df[
+                (wavelet_phase_df["frequency"] >= self.BREATHING_MIN_FREQ)
+                & (wavelet_phase_df["frequency"] <= self.BREATHING_MAX_FREQ)
+            ].reset_index(drop=True)
             binned_wavelet_phase_df = self.average_magnitude_by_frequency_bins(
                 wavelet_phase_df, bins
             )
@@ -514,6 +525,10 @@ def _analyze_dataframe(
             else pd.DataFrame()
         )
         if not music_phase_df.empty:
+            music_phase_df = music_phase_df[
+                (music_phase_df["frequency"] >= self.BREATHING_MIN_FREQ)
+                & (music_phase_df["frequency"] <= self.BREATHING_MAX_FREQ)
+            ].reset_index(drop=True)
             binned_music_phase_df = self.average_magnitude_by_frequency_bins(
                 music_phase_df, bins
             )

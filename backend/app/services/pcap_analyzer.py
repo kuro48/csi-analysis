@@ -98,12 +98,16 @@ class PCAPAnalyzer:
     WAVELET_FFT_METHOD_MIN_SIGNAL_LEN = 256
 
     BREATHING_RATE_AGREEMENT_THRESHOLD_BPM = 3.0
+    # バンドパスフィルタ端のロールオフ誤検出防止: 帯域幅に対する両端除外比率
+    BREATHING_EDGE_MARGIN_RATIO = 0.15
+    # find_peaks の prominence 閾値: スペクトル最大値に対する比率
+    BREATHING_PEAK_PROMINENCE_RATIO = 0.05
 
     MUSIC_FREQ_MIN = 0.01
     MUSIC_FREQ_MAX = 2.0
     MUSIC_N_FREQS = 128
     MUSIC_EMBEDDING_DIM = 32
-    MUSIC_MODEL_ORDER = 1
+    MUSIC_MODEL_ORDER = 2
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
