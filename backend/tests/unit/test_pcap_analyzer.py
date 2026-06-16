@@ -43,6 +43,73 @@ def test_apply_music_transform_estimates_breathing_rate():
 
 
 @pytest.mark.unit
+def test_compute_music_pseudospectrum_matches_paper_noise_fft_method():
+    analyzer = PCAPAnalyzer()
+    sampling_interval = 0.1
+    embedding_dim = 8
+    model_order = 1
+    n_fft = 64
+    time_axis = np.arange(80) * sampling_interval
+    signal = (
+        np.sin(2 * np.pi * 0.25 * time_axis)
+        + 0.25 * np.sin(2 * np.pi * 0.42 * time_axis)
+    )
+    frequencies = np.arange(n_fft, dtype=np.float64) * (1.0 / sampling_interval) / n_fft
+
+    cleaned = signal - np.mean(signal)
+    windows = np.lib.stride_tricks.sliding_window_view(cleaned, embedding_dim)
+    covariance = (windows.T @ windows) / (embedding_dim - 1)
+    _, eigvecs = np.linalg.eigh(covariance)
+    noise_subspace = eigvecs[:, : embedding_dim - model_order]
+    noise_fft = np.fft.fft(noise_subspace, n=n_fft, axis=0)
+    denominator = np.sum(np.abs(noise_fft) ** 2, axis=1)
+    expected = 1.0 / np.maximum(denominator, 1e-12)
+
+    actual = analyzer._compute_music_pseudospectrum(
+        signal,
+        sampling_interval,
+        frequencies,
+        embedding_dim=embedding_dim,
+        model_order=model_order,
+    )
+
+    assert actual == pytest.approx(expected.astype(np.float32), rel=1e-6, abs=1e-6)
+
+
+@pytest.mark.unit
+def test_analyze_dataframe_runs_music_at_paper_10hz_rate():
+    analyzer = PCAPAnalyzer()
+    sample_count = 1200
+    time_axis = np.arange(sample_count) * analyzer.DOWNSAMPLE_INTERVAL_S
+    signal = np.sin(2 * np.pi * 0.25 * time_axis) + 3.0
+    df = pd.DataFrame({
+        "timestamp": pd.date_range("2026-01-01", periods=sample_count, freq="10ms"),
+        "1": signal,
+        "2": signal * 0.9,
+    })
+
+    captured_intervals = []
+
+    def fake_music(frame, sampling_interval):
+        captured_intervals.append(sampling_interval)
+        return pd.DataFrame({"frequency": [0.25], "1": [1.0]})
+
+    analyzer.apply_music_transform = fake_music
+
+    analyzer._analyze_dataframe(
+        df=df,
+        no_frames=sample_count,
+        no_subcarriers=2,
+        include_wavelet=False,
+        include_music=True,
+        include_breathing=True,
+    )
+
+    assert analyzer.MUSIC_DOWNSAMPLE_INTERVAL_S == pytest.approx(0.1)
+    assert captured_intervals == [pytest.approx(analyzer.MUSIC_DOWNSAMPLE_INTERVAL_S)]
+
+
+@pytest.mark.unit
 def test_compare_breathing_rate_methods_includes_music():
     analyzer = PCAPAnalyzer()
 
@@ -61,7 +128,7 @@ def test_compare_breathing_rate_methods_includes_music():
 @pytest.mark.unit
 def test_analyze_dataframe_can_skip_breathing_estimation():
     analyzer = PCAPAnalyzer()
-    sample_count = 120
+    sample_count = 1200
     signal = np.sin(2 * np.pi * 0.2 * np.arange(sample_count) * analyzer.DOWNSAMPLE_INTERVAL_S)
     df = pd.DataFrame({
         "timestamp": pd.date_range("2026-01-01", periods=sample_count, freq="10ms"),
@@ -95,8 +162,8 @@ def test_analyze_dataframe_uses_only_magnitude_columns_and_subtracts_background(
     captured = {}
 
     def fake_fft(frame, sampling_interval):
-        captured["frame"] = frame.copy()
-        return pd.DataFrame({"frequency": [0.01, 0.02], "1": [1.0, 2.0]})
+        captured.setdefault("frame", frame.copy())
+        return pd.DataFrame({"frequency": [0.2, 0.3], "1": [1.0, 2.0]})
 
     analyzer.apply_fourier_transform = fake_fft
 
@@ -117,7 +184,7 @@ def test_analyze_dataframe_uses_only_magnitude_columns_and_subtracts_background(
     )
 
     assert not result["fft"].empty
-    assert captured["frame"]["1"].tolist() == [0.0, 0.0, 1.0, 3.0]
+    assert captured["frame"]["1"].tolist() == pytest.approx([0.0, 0.0, 1.0, 3.0], abs=1e-9)
     assert captured["frame"]["1_phase"].tolist() == [100.0, 101.0, 102.0, 103.0]
     assert result["subcarrier_medians"] == {"1": pytest.approx(4.0)}
 

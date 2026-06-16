@@ -79,8 +79,8 @@ class PCAPAnalyzer:
     WAVELET_DOWNSAMPLE_INTERVAL_S = 0.2  # 5 Hz: バンドパス後(0.5Hz上限)はナイキスト条件を満たす
     FREQUENCY_BIN_STEP = 0.01
 
-    BREATHING_MIN_FREQ = 0.17
-    BREATHING_MAX_FREQ = 0.5
+    BREATHING_MIN_FREQ = 0.16
+    BREATHING_MAX_FREQ = 0.6
     BANDPASS_FILTER_ORDER = 4
 
     ZKP_FREQ_START = 0.0
@@ -103,8 +103,9 @@ class PCAPAnalyzer:
     # find_peaks の prominence 閾値: スペクトル最大値に対する比率
     BREATHING_PEAK_PROMINENCE_RATIO = 0.05
 
-    MUSIC_FREQ_MIN = 0.01
-    MUSIC_FREQ_MAX = 2.0
+    MUSIC_DOWNSAMPLE_INTERVAL_S = 0.1  # 10 Hz, matching the MUSIC paper setup.
+    MUSIC_FREQ_MIN = 0.16
+    MUSIC_FREQ_MAX = 0.6
     MUSIC_N_FREQS = 128
     MUSIC_EMBEDDING_DIM = 32
     MUSIC_MODEL_ORDER = 2

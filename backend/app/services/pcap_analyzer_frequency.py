@@ -258,8 +258,7 @@ def _compute_music_pseudospectrum(
 ) -> np.ndarray:
     """1次元信号に対する MUSIC 擬似スペクトルを計算する。
 
-    precomputed_steering: 事前計算済みステアリング行列 [embedding_dim, n_freqs]。
-    指定時はステアリング計算をスキップして再利用する。
+    precomputed_steering: 後方互換用の未使用引数。
     """
     if signal.size < 4:
         return np.array([], dtype=np.float32)
@@ -278,32 +277,24 @@ def _compute_music_pseudospectrum(
     if snapshot_count < 2:
         return np.array([], dtype=np.float32)
 
-    hankel = np.column_stack([
-        cleaned[start:start + embedding_dim]
-        for start in range(snapshot_count)
-    ])
-    covariance = (hankel @ hankel.conj().T) / snapshot_count
+    windows = np.lib.stride_tricks.sliding_window_view(cleaned, embedding_dim)
+    covariance = (windows.conj().T @ windows) / max(embedding_dim - 1, 1)
 
-    eigvals, eigvecs = np.linalg.eigh(covariance)
-    sort_idx = np.argsort(eigvals)[::-1]
-    eigvecs = eigvecs[:, sort_idx]
+    _, eigvecs = np.linalg.eigh(covariance)
 
     model_order = model_order or self.MUSIC_MODEL_ORDER
     model_order = max(1, min(model_order, embedding_dim - 1))
-    noise_subspace = eigvecs[:, model_order:]
+    noise_subspace = eigvecs[:, : embedding_dim - model_order]
 
     if noise_subspace.size == 0:
         return np.array([], dtype=np.float32)
 
-    if precomputed_steering is not None:
-        steering = precomputed_steering
-    else:
-        sample_indices = np.arange(embedding_dim, dtype=np.float64)
-        angular = 2.0 * np.pi * frequencies * sampling_interval
-        steering = np.exp(-1j * np.outer(sample_indices, angular))
+    n_fft = len(frequencies)
+    if n_fft == 0:
+        return np.array([], dtype=np.float32)
 
-    projection = noise_subspace.conj().T @ steering
-    denominator = np.sum(np.abs(projection) ** 2, axis=0)
+    noise_fft = np.fft.fft(noise_subspace, n=n_fft, axis=0)
+    denominator = np.sum(np.abs(noise_fft) ** 2, axis=1)
     denominator = np.maximum(denominator, 1e-12)
 
     return (1.0 / denominator).astype(np.float32, copy=False)
@@ -335,15 +326,6 @@ def apply_music_transform(
 
     self.logger.info(f"MUSIC実サンプリング間隔: {actual_interval*1000:.2f} ms")
 
-    actual_fs = 1.0 / actual_interval
-    n_freqs = n_freqs or self.MUSIC_N_FREQS
-    target_freqs = np.linspace(
-        self.MUSIC_FREQ_MIN,
-        min(self.MUSIC_FREQ_MAX, actual_fs / 2.0),
-        n_freqs,
-        dtype=np.float64,
-    )
-
     from scipy.signal import detrend
 
     # --- 全サブキャリアのバッチ前処理 ---
@@ -355,16 +337,21 @@ def apply_music_transform(
     signal_matrix = detrend(signal_matrix, axis=0, type="linear")
 
     signal_length, n_subcarriers = signal_matrix.shape
+    actual_fs = 1.0 / actual_interval
+    n_freqs = n_freqs or self.MUSIC_N_FREQS
+    n_fft = max(n_freqs, signal_length)
+    fft_freqs = np.arange(n_fft, dtype=np.float64) * actual_fs / n_fft
+    max_music_freq = min(self.MUSIC_FREQ_MAX, actual_fs / 2.0)
+    target_mask = (fft_freqs >= self.MUSIC_FREQ_MIN) & (fft_freqs <= max_music_freq)
+    target_freqs = fft_freqs[target_mask]
+    if target_freqs.size == 0:
+        self.logger.warning("MUSIC対象周波数が空です")
+        return pd.DataFrame()
 
     # embedding_dim を一度だけ計算（全サブキャリアで同一）
     max_embedding = max(4, min(signal_length // 2, self.MUSIC_EMBEDDING_DIM))
     embedding_dim = max(4, min(max_embedding, signal_length - 1))
     model_order = max(1, min(self.MUSIC_MODEL_ORDER, embedding_dim - 1))
-
-    # ステアリング行列を事前計算（全サブキャリアで共有）
-    sample_indices = np.arange(embedding_dim, dtype=np.float64)
-    angular = 2.0 * np.pi * target_freqs * actual_interval
-    precomputed_steering = np.exp(-1j * np.outer(sample_indices, angular))  # [L, n_freqs]
 
     # --- バッチ MUSIC（全サブキャリアを一括ベクトル処理）---
     # サブキャリア間の位相整合に依存しないように、各サブキャリアを独立に
@@ -387,24 +374,23 @@ def apply_music_transform(
     hankel_batch = np.ascontiguousarray(windows.transpose(1, 2, 0))  # [n_valid, L, snapshot_count]
 
     # バッチ共分散行列: [n_valid, L, L]
-    cov_batch = (hankel_batch @ hankel_batch.transpose(0, 2, 1)) / snapshot_count
+    cov_batch = (hankel_batch @ hankel_batch.transpose(0, 2, 1)) / max(embedding_dim - 1, 1)
 
     # バッチ固有値分解（NumPy の batched eigh）
     _, eigvecs_batch = np.linalg.eigh(cov_batch)  # eigvecs: [n_valid, L, L]
 
-    # 固有値は昇順のため、列を逆順に並べ替えて降順にする
-    eigvecs_sorted = eigvecs_batch[..., ::-1]  # [n_valid, L, L]
+    # 固有値は昇順。論文式どおり、最大 E 個を信号部分空間、残りをノイズ部分空間とする。
+    noise_subspaces = eigvecs_batch[:, :, : embedding_dim - model_order]
 
-    # ノイズ部分空間: [n_valid, L, n_noise]
-    noise_subspaces = eigvecs_sorted[:, :, model_order:]
-
-    # バッチ擬似スペクトル計算
-    # noise_T: [n_valid, n_noise, L]  ×  steering: [L, n_freqs]  →  [n_valid, n_noise, n_freqs]
-    noise_T = np.ascontiguousarray(noise_subspaces.conj().transpose(0, 2, 1))
-    projection_batch = noise_T @ precomputed_steering  # [n_valid, n_noise, n_freqs]
-    denominator_batch = np.sum(np.abs(projection_batch) ** 2, axis=1)  # [n_valid, n_freqs]
+    noise_fft = np.fft.fft(noise_subspaces, n=n_fft, axis=1)  # [n_valid, n_fft, n_noise]
+    denominator_batch = np.sum(np.abs(noise_fft) ** 2, axis=2)[:, target_mask]
     denominator_batch = np.maximum(denominator_batch, 1e-12)
     spectra_batch = (1.0 / denominator_batch).astype(np.float32)  # [n_valid, n_freqs]
+
+    # 論文式のノイズ部分空間FFTに、観測信号自体の周波数成分を重み付けする。
+    # 低域端の数値的な擬似ピークを抑え、呼吸由来の実ピークを推定に反映させる。
+    signal_fft = np.abs(np.fft.fft(valid_signals, n=n_fft, axis=0)).T[:, target_mask]
+    spectra_batch *= signal_fft.astype(np.float32, copy=False)
 
     # 出力 DataFrame 構築
     merged_music_df = pd.DataFrame(spectra_batch.T, columns=valid_cols)
@@ -449,7 +435,7 @@ def estimate_breathing_rate(
 
     # ガウシアン平滑化してからピーク検出（雑音耐性向上）
     values = mean_amplitude.values.astype(np.float64)
-    if len(values) >= 5:
+    if len(values) >= 9:
         from scipy.ndimage import gaussian_filter1d
         values = gaussian_filter1d(values, sigma=2)
 
@@ -540,4 +526,3 @@ def compare_breathing_rate_methods(
         )
 
     return comparison
-
