@@ -76,6 +76,7 @@ class PCAPAnalyzer:
     }
 
     DOWNSAMPLE_INTERVAL_S = 0.01
+    WAVELET_DOWNSAMPLE_INTERVAL_S = 0.2  # 5 Hz: バンドパス後(0.5Hz上限)はナイキスト条件を満たす
     FREQUENCY_BIN_STEP = 0.01
 
     BREATHING_MIN_FREQ = 0.17

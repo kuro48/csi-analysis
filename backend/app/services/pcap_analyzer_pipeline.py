@@ -413,6 +413,9 @@ def _analyze_dataframe(
     df = self.apply_bandpass_filter(df, self.DOWNSAMPLE_INTERVAL_S)
     filtered_signal = _compute_signal_series(df)
 
+    # バンドパス後(最高0.5 Hz)は5 Hzで情報完全保存 → Wavelet/MUSIC前にダウンサンプル
+    df_wavelet = self._resample_to_target_rate(df, target_interval_s=self.WAVELET_DOWNSAMPLE_INTERVAL_S)
+
     fft_df = self.apply_fourier_transform(df, self.DOWNSAMPLE_INTERVAL_S)
     if fft_df.empty:
         self.logger.warning("FFT結果が空です")
@@ -432,8 +435,8 @@ def _analyze_dataframe(
         else None
     )
 
-    wavelet_df = self.apply_wavelet_transform(df, self.DOWNSAMPLE_INTERVAL_S) if include_wavelet else pd.DataFrame()
-    music_df = self.apply_music_transform(df, self.DOWNSAMPLE_INTERVAL_S) if include_music else pd.DataFrame()
+    wavelet_df = self.apply_wavelet_transform(df_wavelet, self.WAVELET_DOWNSAMPLE_INTERVAL_S) if include_wavelet else pd.DataFrame()
+    music_df = self.apply_music_transform(df_wavelet, self.WAVELET_DOWNSAMPLE_INTERVAL_S) if include_music else pd.DataFrame()
 
     binned_wavelet_df = pd.DataFrame()
     binned_music_df = pd.DataFrame()
@@ -488,8 +491,11 @@ def _analyze_dataframe(
                     fft_phase_df, freq_col="frequency"
                 )
 
+        phase_df_wavelet = self._resample_to_target_rate(
+            phase_df, target_interval_s=self.WAVELET_DOWNSAMPLE_INTERVAL_S
+        )
         wavelet_phase_df = (
-            self.apply_wavelet_transform(phase_df, self.DOWNSAMPLE_INTERVAL_S)
+            self.apply_wavelet_transform(phase_df_wavelet, self.WAVELET_DOWNSAMPLE_INTERVAL_S)
             if include_wavelet
             else pd.DataFrame()
         )
@@ -503,7 +509,7 @@ def _analyze_dataframe(
                 )
 
         music_phase_df = (
-            self.apply_music_transform(phase_df, self.DOWNSAMPLE_INTERVAL_S)
+            self.apply_music_transform(phase_df_wavelet, self.WAVELET_DOWNSAMPLE_INTERVAL_S)
             if include_music
             else pd.DataFrame()
         )
