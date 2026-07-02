@@ -144,22 +144,26 @@ else
   echo "FullSimilarityVerifier contract is available."
 fi
 
-# ZKP回路の事前コンパイル（Wavelet・MUSIC）
+# ZKP回路の事前コンパイル・Trusted Setup（全3回路）
 if [ "${ZKP_AUTO_COMPILE:-TRUE}" = "TRUE" ] || [ "${ZKP_AUTO_COMPILE:-true}" = "true" ]; then
   ZKP_DIR="${ZKP_DIR:-/zkp}"
+  FFT_WASM="$ZKP_DIR/build/csi_full_similarity_js/csi_full_similarity.wasm"
+  FFT_ZKEY="$ZKP_DIR/keys/csi_full_similarity_final.zkey"
   WAVELET_WASM="$ZKP_DIR/build/csi_wavelet_similarity_js/csi_wavelet_similarity.wasm"
   WAVELET_ZKEY="$ZKP_DIR/keys/csi_wavelet_similarity_final.zkey"
   MUSIC_WASM="$ZKP_DIR/build/csi_music_similarity_js/csi_music_similarity.wasm"
   MUSIC_ZKEY="$ZKP_DIR/keys/csi_music_similarity_final.zkey"
   PTAU_FILE="$ZKP_DIR/keys/powersOfTau28_hez_final_19.ptau"
 
+  NEED_FFT=false
   NEED_WAVELET=false
   NEED_MUSIC=false
-  [ ! -f "$WAVELET_WASM" ] || [ ! -f "$WAVELET_ZKEY" ] && NEED_WAVELET=true
-  [ ! -f "$MUSIC_WASM" ]   || [ ! -f "$MUSIC_ZKEY" ]   && NEED_MUSIC=true
+  { [ ! -f "$FFT_WASM" ] || [ ! -f "$FFT_ZKEY" ]; } && NEED_FFT=true
+  { [ ! -f "$WAVELET_WASM" ] || [ ! -f "$WAVELET_ZKEY" ]; } && NEED_WAVELET=true
+  { [ ! -f "$MUSIC_WASM" ] || [ ! -f "$MUSIC_ZKEY" ]; } && NEED_MUSIC=true
 
-  if $NEED_WAVELET || $NEED_MUSIC; then
-    echo "ZKP circuits (wavelet/MUSIC) not found. Starting pre-compilation..."
+  if $NEED_FFT || $NEED_WAVELET || $NEED_MUSIC; then
+    echo "ZKP circuits missing. Starting pre-compilation and Trusted Setup..."
     set +e
 
     # node_modules がなければ npm install
@@ -168,7 +172,7 @@ if [ "${ZKP_AUTO_COMPILE:-TRUE}" = "TRUE" ] || [ "${ZKP_AUTO_COMPILE:-true}" = "
       npm install --prefix "$ZKP_DIR"
     fi
 
-    # ptauファイルがなければダウンロード（FFT回路でも共有）
+    # ptauファイルがなければダウンロード（全回路で共有）
     if [ ! -f "$PTAU_FILE" ]; then
       echo "Downloading Powers of Tau file (~200MB)..."
       PTAU_URL="https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_19.ptau"
@@ -177,29 +181,39 @@ if [ "${ZKP_AUTO_COMPILE:-TRUE}" = "TRUE" ] || [ "${ZKP_AUTO_COMPILE:-true}" = "
         || { echo "WARNING: Failed to download ptau file. Circuit setup will fail."; }
     fi
 
+    # FFT回路（full_similarity）のコンパイル・セットアップ
+    if $NEED_FFT; then
+      echo "Compiling full_similarity ZKP circuit (this may take 10-60 minutes)..."
+      (cd "$ZKP_DIR" && npm run compile:full_similarity && npm run setup:full_similarity) \
+        && echo "full_similarity ZKP circuit is ready." \
+        || echo "WARNING: full_similarity ZKP circuit setup failed."
+    else
+      echo "full_similarity ZKP circuit is already compiled."
+    fi
+
     # Wavelet回路のコンパイル・セットアップ
     if $NEED_WAVELET; then
-      echo "Compiling wavelet ZKP circuit..."
+      echo "Compiling wavelet ZKP circuit (this may take 10-60 minutes)..."
       (cd "$ZKP_DIR" && npm run compile:wavelet && npm run setup:wavelet) \
         && echo "Wavelet ZKP circuit is ready." \
-        || echo "WARNING: Wavelet ZKP circuit compilation failed. Auto-compile will retry on first upload."
+        || echo "WARNING: Wavelet ZKP circuit setup failed."
     else
       echo "Wavelet ZKP circuit is already compiled."
     fi
 
-    # MUSIC回路のコンパイル・セットアップ（制約数が多いため数十分かかる場合あり）
+    # MUSIC回路のコンパイル・セットアップ
     if $NEED_MUSIC; then
       echo "Compiling MUSIC ZKP circuit (this may take 10-60 minutes)..."
       (cd "$ZKP_DIR" && npm run compile:music && npm run setup:music) \
         && echo "MUSIC ZKP circuit is ready." \
-        || echo "WARNING: MUSIC ZKP circuit compilation failed. Auto-compile will retry on first upload."
+        || echo "WARNING: MUSIC ZKP circuit setup failed."
     else
       echo "MUSIC ZKP circuit is already compiled."
     fi
 
     set -e
   else
-    echo "All ZKP circuits (wavelet/MUSIC) are already compiled. Skipping."
+    echo "All ZKP circuits are already compiled. Skipping."
   fi
 fi
 

@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 class ZKPCircuitService:
     """Circom/snarkjs Groth16 回路汎用ZKP証明生成サービス。"""
 
-    EXPECTED_FREQ_POINTS = 31
-    EXPECTED_SUBCARRIERS = 245
+    EXPECTED_FREQ_POINTS = 45
+    EXPECTED_SUBCARRIERS = 971
     DEFAULT_SCALE = 100
 
     def __init__(
@@ -313,11 +313,123 @@ class ZKPCircuitService:
         return proof, public_signals
 
 
+class ZKPWaveletService(ZKPCircuitService):
+    """ウェーブレット DFT 近似回路サービス。
+
+    入力: avg_csi[T] — 時系列 CSI 平均振幅 (整数、T=150固定)
+    回路: csi_wavelet_similarity.circom (WaveletDFTBreathingCheck)
+    """
+
+    T = 150  # 時系列長 (30s × 5Hz)
+
+    def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True) -> None:
+        super().__init__("csi_wavelet_similarity", zkp_dir=zkp_dir, auto_compile=auto_compile)
+
+    async def generate_proof(
+        self,
+        avg_csi: Optional[List[int]] = None,
+        scale: int = ZKPCircuitService.DEFAULT_SCALE,
+        # 旧シグネチャとの後方互換 (無視される)
+        reference_matrix: Optional[List[List[int]]] = None,
+        candidate_matrix: Optional[List[List[int]]] = None,
+    ) -> Dict[str, Any]:
+        import time
+
+        if avg_csi is None:
+            raise ValueError("avg_csi is required for WaveletDFTBreathingCheck")
+
+        wasm = self.build_dir / f"{self.circuit_name}_js" / f"{self.circuit_name}.wasm"
+        zkey = self.keys_dir / f"{self.circuit_name}_final.zkey"
+        if not wasm.exists() or not zkey.exists():
+            raise FileNotFoundError(
+                f"{self.label} ZKP circuit files not found. "
+                f"Run: cd zkp && npm run compile:wavelet && npm run setup:wavelet"
+            )
+
+        logger.info("[%s] Generating ZKP proof: avg_csi[%d]", self.label, len(avg_csi))
+        start = time.time()
+        input_data = self._prepare_wavelet_input(avg_csi)
+        witness_file = await self._generate_witness(input_data)
+        proof, public_signals = await self._generate_groth16_proof(witness_file)
+
+        is_normal = bool(int(public_signals[0])) if public_signals else False
+        logger.info("[%s] ZKP proof done in %.3fs — isNormal=%s", self.label, time.time() - start, is_normal)
+        return {
+            "proof": proof,
+            "publicSignals": public_signals,
+            "isNormal": is_normal,
+            "isValid": is_normal,
+            "method": "wavelet",
+        }
+
+    def _prepare_wavelet_input(self, avg_csi: List[int]) -> Dict[str, Any]:
+        T = self.T
+        if len(avg_csi) >= T:
+            csi_fixed = [int(v) for v in avg_csi[:T]]
+        else:
+            csi_fixed = [int(v) for v in avg_csi] + [0] * (T - len(avg_csi))
+        return {"csi": csi_fixed}
+
+
 class ZKPMusicService(ZKPCircuitService):
+    """MUSIC ノイズ部分空間回路サービス。
+
+    入力: en[L][K] — ノイズ固有ベクトル行列 (整数、L=32, K=30固定)
+    回路: csi_music_similarity.circom (MUSICNoiseSubspaceCheck)
+    """
+
+    L = 32  # MUSIC_EMBEDDING_DIM
+    K = 30  # L - MUSIC_MODEL_ORDER (32 - 2)
+    EN_SCALE = 1000
+
     def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True) -> None:
         super().__init__("csi_music_similarity", zkp_dir=zkp_dir, auto_compile=auto_compile)
 
+    async def generate_proof(
+        self,
+        noise_subspace: Optional[List[List[int]]] = None,
+        scale: int = ZKPCircuitService.DEFAULT_SCALE,
+        # 旧シグネチャとの後方互換 (無視される)
+        reference_matrix: Optional[List[List[int]]] = None,
+        candidate_matrix: Optional[List[List[int]]] = None,
+    ) -> Dict[str, Any]:
+        import time
 
-class ZKPWaveletService(ZKPCircuitService):
-    def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True) -> None:
-        super().__init__("csi_wavelet_similarity", zkp_dir=zkp_dir, auto_compile=auto_compile)
+        if noise_subspace is None:
+            raise ValueError("noise_subspace is required for MUSICNoiseSubspaceCheck")
+
+        wasm = self.build_dir / f"{self.circuit_name}_js" / f"{self.circuit_name}.wasm"
+        zkey = self.keys_dir / f"{self.circuit_name}_final.zkey"
+        if not wasm.exists() or not zkey.exists():
+            raise FileNotFoundError(
+                f"{self.label} ZKP circuit files not found. "
+                f"Run: cd zkp && npm run compile:music && npm run setup:music"
+            )
+
+        logger.info("[%s] Generating ZKP proof: en[%d][%d]", self.label, len(noise_subspace), len(noise_subspace[0]) if noise_subspace else 0)
+        start = time.time()
+        input_data = self._prepare_music_input(noise_subspace)
+        witness_file = await self._generate_witness(input_data)
+        proof, public_signals = await self._generate_groth16_proof(witness_file)
+
+        is_normal = bool(int(public_signals[0])) if public_signals else False
+        logger.info("[%s] ZKP proof done in %.3fs — isNormal=%s", self.label, time.time() - start, is_normal)
+        return {
+            "proof": proof,
+            "publicSignals": public_signals,
+            "isNormal": is_normal,
+            "isValid": is_normal,
+            "method": "music",
+        }
+
+    def _prepare_music_input(self, noise_subspace: List[List[int]]) -> Dict[str, Any]:
+        L, K = self.L, self.K
+        en = []
+        for m in range(L):
+            if m < len(noise_subspace):
+                row = list(noise_subspace[m])
+            else:
+                row = []
+            row = row[:K] + [0] * max(0, K - len(row))
+            en.append([int(v) for v in row])
+        return {"en": en}

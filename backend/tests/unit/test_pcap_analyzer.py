@@ -119,10 +119,9 @@ def test_compare_breathing_rate_methods_includes_music():
         "music": 15.2,
     })
 
-    assert comparison["available_methods"] == ["fft", "wavelet", "music"]
+    assert comparison["fft_bpm"] == pytest.approx(15.0)
+    assert comparison["wavelet_bpm"] == pytest.approx(14.4)
     assert comparison["music_bpm"] == pytest.approx(15.2)
-    assert comparison["is_consistent"] is True
-    assert comparison["preferred_method"] == "fft"
 
 
 @pytest.mark.unit

@@ -45,30 +45,16 @@ export function pickBreathingBpm(
   fft: number | null;
   wavelet: number | null;
   music: number | null;
-  final: number | null;
 } {
   const comparison =
     source === "phase"
       ? data?.breathing_rate_phase_comparison
       : data?.breathing_rate_comparison;
-  const methods = comparison?.methods ?? {};
-  const fft = methods["fft"] ?? methods["fft_bpm"] ?? comparison?.fft_bpm ?? null;
-  const wavelet = methods["wavelet"] ?? methods["wavelet_bpm"] ?? comparison?.wavelet_bpm ?? null;
-  const music = methods["music"] ?? methods["music_bpm"] ?? comparison?.music_bpm ?? null;
-  const preferredMethod = comparison?.preferred_method;
-  const preferred = preferredMethod === "fft"
-    ? fft
-    : preferredMethod === "wavelet"
-      ? wavelet
-      : preferredMethod === "music"
-        ? music
-        : null;
 
   return {
-    fft,
-    wavelet,
-    music,
-    final: comparison?.final_bpm ?? preferred,
+    fft: comparison?.fft_bpm ?? null,
+    wavelet: comparison?.wavelet_bpm ?? null,
+    music: comparison?.music_bpm ?? null,
   };
 }
 

@@ -473,56 +473,9 @@ def compare_breathing_rate_methods(
     self,
     method_rates: Dict[str, Optional[float]],
 ) -> Dict[str, Any]:
-    """複数手法の呼吸レート推定結果を比較する。"""
-    normalized_rates = {
-        method: (float(rate) if rate is not None else None)
-        for method, rate in method_rates.items()
+    """3手法の呼吸レートをそれぞれ返す。"""
+    return {
+        "fft_bpm": float(method_rates["fft"]) if method_rates.get("fft") is not None else None,
+        "wavelet_bpm": float(method_rates["wavelet"]) if method_rates.get("wavelet") is not None else None,
+        "music_bpm": float(method_rates["music"]) if method_rates.get("music") is not None else None,
     }
-    available = {method: rate for method, rate in normalized_rates.items() if rate is not None}
-
-    comparison: Dict[str, Any] = {
-        "methods": {f"{method}_bpm": rate for method, rate in normalized_rates.items()},
-        "available_methods": list(available.keys()),
-        "agreement_threshold_bpm": self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM,
-        "min_bpm": min(available.values()) if available else None,
-        "max_bpm": max(available.values()) if available else None,
-        "spread_bpm": None,
-        "spread_ratio": None,
-        "is_consistent": None,
-        "preferred_method": None,
-    }
-    comparison.update({f"{method}_bpm": rate for method, rate in normalized_rates.items()})
-
-    if not available:
-        return comparison
-
-    preferred_order = ["fft", "wavelet", "music"]
-    if len(available) == 1:
-        comparison["preferred_method"] = next(iter(available))
-        return comparison
-
-    min_bpm = comparison["min_bpm"]
-    max_bpm = comparison["max_bpm"]
-    spread_bpm = max_bpm - min_bpm
-    spread_ratio = (spread_bpm / max_bpm) if max_bpm and max_bpm > 0 else 0.0
-
-    comparison["spread_bpm"] = spread_bpm
-    comparison["spread_ratio"] = spread_ratio
-    comparison["is_consistent"] = spread_bpm <= self.BREATHING_RATE_AGREEMENT_THRESHOLD_BPM
-
-    if comparison["is_consistent"]:
-        for method in preferred_order:
-            if method in available:
-                comparison["preferred_method"] = method
-                break
-    else:
-        median_rate = float(np.median(list(available.values())))
-        comparison["preferred_method"] = min(
-            available,
-            key=lambda method: (
-                abs(available[method] - median_rate),
-                preferred_order.index(method) if method in preferred_order else len(preferred_order),
-            ),
-        )
-
-    return comparison

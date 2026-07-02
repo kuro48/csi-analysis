@@ -10,6 +10,8 @@ CSI呼吸解析結果からZero-Knowledge Proofを生成するサービス
 
 import asyncio
 import logging
+import secrets
+import subprocess
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -27,10 +29,10 @@ class ZKPService(ZKPCircuitService):
     """
 
     # 回路パラメータ（csi_full_similarity.circom の component main 宣言と同期）
-    ZKP_FREQ_START = 0.0       # Hz
-    ZKP_FREQ_STEP  = 0.02      # Hz
-    ZKP_NORMAL_LOW_BIN  = 5    # 0.10Hz
-    ZKP_NORMAL_HIGH_BIN = 25   # 0.50Hz
+    ZKP_FREQ_START = 0.15      # Hz
+    ZKP_FREQ_STEP  = 0.01      # Hz
+    ZKP_NORMAL_LOW_BIN  = 0    # 0.15Hz
+    ZKP_NORMAL_HIGH_BIN = 35   # 0.505Hz ≈ 0.50Hz
 
     def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True) -> None:
         super().__init__(
@@ -72,6 +74,13 @@ class ZKPService(ZKPCircuitService):
             logger.info("Full Similarity ZKP circuit is ready")
             return
 
+        # ハッシュファイルが存在しないが zkey は有効: ハッシュファイルを再生成して終了
+        # （ハッシュファイルを削除しただけで zkey 自体は最新の場合）
+        if has_files and not hash_file.exists() and current_hash:
+            hash_file.write_text(current_hash)
+            logger.info("Full Similarity ZKP circuit is ready (hash file regenerated)")
+            return
+
         if not self.auto_compile:
             logger.warning(
                 "ZKP circuit files not found or outdated. Please run:\n"
@@ -79,7 +88,7 @@ class ZKPService(ZKPCircuitService):
             )
             return
 
-        # 回路が変更された場合は古い zkey だけ削除して Trusted Setup を再実行
+        # ハッシュが不一致（回路ソース変更）の場合のみ古い zkey を削除して再実行
         if has_files and not hash_ok:
             logger.warning(
                 "Circuit source has changed since the zkey was generated. "
@@ -177,10 +186,11 @@ class ZKPService(ZKPCircuitService):
         """
         logger.warning(f"Starting Trusted Setup for {display_name} (this may take 10-60 minutes)...")
 
-        ptau_file = self.keys_dir / "powersOfTau28_hez_final_19.ptau"
+        # csi_full_similarity は 626K constraints → ptau20 (2^20=1048576) が必要
+        ptau_file = self.keys_dir / "powersOfTau28_hez_final_20.ptau"
         if not ptau_file.exists():
-            logger.info("Downloading Powers of Tau 2^19 file...")
-            ptau_url = "https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_19.ptau"
+            logger.info("Downloading Powers of Tau 2^20 file...")
+            ptau_url = "https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_20.ptau"
             import urllib.request
             try:
                 urllib.request.urlretrieve(ptau_url, str(ptau_file))

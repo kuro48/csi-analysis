@@ -7,7 +7,11 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from app.services.pcap_analyzer_common import _empty_extracted_vectors, _interval_midpoint
+from app.services.pcap_analyzer_common import (
+    _empty_extracted_vectors,
+    _interval_midpoint,
+    _subcarrier_data_columns,
+)
 
 
 def extract_full_subcarrier_vectors(
@@ -195,6 +199,96 @@ async def analyze_and_generate_zkp(
             "zkp_proof": None,
             "error": str(exc),
         }
+
+
+def _compute_wavelet_zkp_input(
+    self,
+    df: pd.DataFrame,
+    t_target: int = 150,
+    zkp_scale: int = 100,
+) -> Optional[List[int]]:
+    """ウェーブレット ZKP 用の時系列入力 avg_csi[T] を計算する。
+
+    デトレンド・全サブキャリア平均・min-max 正規化後に整数化。
+    t_target に満たない場合はゼロパディング、超過する場合は先頭を使用。
+    """
+    if df is None or df.empty:
+        return None
+
+    data_cols = _subcarrier_data_columns(df)
+    if not data_cols:
+        return None
+
+    from scipy.signal import detrend
+
+    signal_matrix = np.stack(
+        [df[col].to_numpy(dtype=np.float64, copy=False) for col in data_cols], axis=1
+    )
+    signal_matrix = np.nan_to_num(signal_matrix, nan=0.0, posinf=0.0, neginf=0.0)
+
+    avg_signal = np.mean(signal_matrix, axis=1)
+    avg_signal = detrend(avg_signal, type="linear")
+
+    t_actual = len(avg_signal)
+    if t_actual >= t_target:
+        avg_signal = avg_signal[:t_target]
+    else:
+        avg_signal = np.pad(avg_signal, (0, t_target - t_actual))
+
+    sig_min, sig_max = avg_signal.min(), avg_signal.max()
+    if sig_max - sig_min > 0:
+        avg_signal = (avg_signal - sig_min) / (sig_max - sig_min) * zkp_scale
+    else:
+        avg_signal = np.zeros(t_target)
+
+    return [int(round(float(v))) for v in avg_signal]
+
+
+def _compute_music_zkp_input(
+    self,
+    df: pd.DataFrame,
+    en_scale: int = 1000,
+) -> Optional[List[List[int]]]:
+    """MUSIC ZKP 用ノイズ部分空間 en[L][K] を計算する。
+
+    全サブキャリア平均信号から共分散行列を構築し固有値分解。
+    最小 K 個の固有ベクトル（ノイズ部分空間）を en_scale 倍して整数化。
+    L = MUSIC_EMBEDDING_DIM, K = L - MUSIC_MODEL_ORDER。
+    """
+    if df is None or df.empty:
+        return None
+
+    data_cols = _subcarrier_data_columns(df)
+    if not data_cols:
+        return None
+
+    from scipy.signal import detrend
+
+    signal_matrix = np.stack(
+        [df[col].to_numpy(dtype=np.float64, copy=False) for col in data_cols], axis=1
+    )
+    signal_matrix = np.nan_to_num(signal_matrix, nan=0.0, posinf=0.0, neginf=0.0)
+
+    avg_signal = np.mean(signal_matrix, axis=1)
+    avg_signal = detrend(avg_signal, type="linear")
+    avg_signal = avg_signal - np.mean(avg_signal)
+
+    L = self.MUSIC_EMBEDDING_DIM
+    model_order = self.MUSIC_MODEL_ORDER
+    K = L - model_order
+
+    if len(avg_signal) < L + 1:
+        self.logger.warning("MUSIC ZKP: 信号長不足 (%d < %d)", len(avg_signal), L + 1)
+        return None
+
+    windows = np.lib.stride_tricks.sliding_window_view(avg_signal, L)
+    cov = (windows.T @ windows) / max(L - 1, 1)
+
+    _, eigvecs = np.linalg.eigh(cov)
+    noise_subspace = eigvecs[:, :K]
+
+    en_int = np.round(noise_subspace * en_scale).astype(int)
+    return en_int.tolist()
 
 
 def extract_matrix_for_zkp(

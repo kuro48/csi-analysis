@@ -74,12 +74,9 @@ export interface BaseCSIComparison {
 }
 
 export interface BreathingRateComparison {
-  final_bpm?: number | null;
-  preferred_method?: string | null;
   fft_bpm?: number | null;
   wavelet_bpm?: number | null;
   music_bpm?: number | null;
-  methods?: Record<string, number | null>;
 }
 
 export interface ProcessedData {

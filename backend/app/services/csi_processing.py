@@ -10,7 +10,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import pandas as pd
 
@@ -323,6 +323,8 @@ async def generate_transform_zkp_proofs(
     music_service: ZKPMusicService,
     device_id: Optional[str],
     csi_data_id: uuid.UUID,
+    zkp_wavelet_input: Optional[List[int]] = None,
+    zkp_music_input: Optional[List[List[int]]] = None,
 ) -> dict:
     """ウェーブレット・MUSIC 専用 ZKP 証明を生成してブロックチェーンに記録する。
 
@@ -331,62 +333,55 @@ async def generate_transform_zkp_proofs(
     """
     results: dict = {"wavelet": None, "music": None}
 
-    if base_csi_id:
-        base_csi = BaseCSIService.get_base_csi_by_id(db, base_csi_id, user_id=None, status="completed")
-    else:
-        base_csis, _ = BaseCSIService.get_base_csi_list(
-            db=db, user_id=None, include_expired=False, status="completed", page=1, page_size=1
-        )
-        base_csi = base_csis[0] if base_csis else None
-
-    if not base_csi:
-        logger.warning("[TransformZKP] No base CSI found; skipping wavelet/music ZKP proofs")
-        return results
-
-    async def load_base_df(method: str) -> pd.DataFrame:
-        stored = getattr(base_csi, f"{method}_dataframe", None)
-        if stored:
-            return pd.DataFrame(stored)
-        source_path = getattr(base_csi, "source_pcap_path", None)
-        if not source_path:
-            return pd.DataFrame()
-        try:
-            result = await asyncio.to_thread(analyzer.analyze_pcap_file, source_path)
-            return result.get(method, pd.DataFrame())
-        except Exception as exc:
-            logger.warning(f"[TransformZKP] Failed to rebuild {method} base DF: {exc}")
-            return pd.DataFrame()
-
-    async def run_proof(method: str, base_df: pd.DataFrame, upload_df: pd.DataFrame, service):
-        if base_df.empty or upload_df.empty:
-            logger.warning(f"[TransformZKP] Skipping {method}: empty dataframe")
+    # ウェーブレット / MUSIC ZKP は時系列 or ノイズ部分空間から単体で証明生成できる。
+    # ベースCSIとの比較は不要になったが、入力が渡されていない場合は旧方式にフォールバック。
+    async def run_wavelet_proof() -> Optional[dict]:
+        if zkp_wavelet_input:
+            try:
+                return await wavelet_service.generate_proof(avg_csi=zkp_wavelet_input)
+            except Exception as exc:
+                logger.error("[TransformZKP] wavelet proof failed: %s", exc, exc_info=True)
+                return None
+        # フォールバック: 旧方式（周波数域行列）
+        if upload_wavelet_df.empty:
+            logger.warning("[TransformZKP] Skipping wavelet: no input available")
             return None
-        if method == "music":
-            ref_matrix = analyzer.extract_music_matrix_for_zkp(base_df)
-            cand_matrix = analyzer.extract_music_matrix_for_zkp(upload_df)
-        else:
-            ref_matrix = analyzer.extract_matrix_for_zkp(base_df)
-            cand_matrix = analyzer.extract_matrix_for_zkp(upload_df)
-        if not ref_matrix or not cand_matrix:
-            logger.warning(f"[TransformZKP] Skipping {method}: empty matrix after extraction")
+        cand_matrix = analyzer.extract_matrix_for_zkp(upload_wavelet_df)
+        if not cand_matrix:
             return None
         try:
-            result = await service.generate_proof(
-                reference_matrix=ref_matrix,
-                candidate_matrix=cand_matrix,
+            return await wavelet_service.generate_proof(
+                reference_matrix=cand_matrix, candidate_matrix=cand_matrix
             )
-            return result
         except Exception as exc:
-            logger.error(f"[TransformZKP] {method} proof failed: {exc}", exc_info=True)
+            logger.error("[TransformZKP] wavelet proof (fallback) failed: %s", exc, exc_info=True)
             return None
 
-    base_wavelet_df, base_music_df = await asyncio.gather(
-        load_base_df("wavelet"),
-        load_base_df("music"),
-    )
+    async def run_music_proof() -> Optional[dict]:
+        if zkp_music_input:
+            try:
+                return await music_service.generate_proof(noise_subspace=zkp_music_input)
+            except Exception as exc:
+                logger.error("[TransformZKP] music proof failed: %s", exc, exc_info=True)
+                return None
+        # フォールバック: 旧方式（周波数域行列）
+        if upload_music_df.empty:
+            logger.warning("[TransformZKP] Skipping music: no input available")
+            return None
+        cand_matrix = analyzer.extract_music_matrix_for_zkp(upload_music_df)
+        if not cand_matrix:
+            return None
+        try:
+            return await music_service.generate_proof(
+                reference_matrix=cand_matrix, candidate_matrix=cand_matrix
+            )
+        except Exception as exc:
+            logger.error("[TransformZKP] music proof (fallback) failed: %s", exc, exc_info=True)
+            return None
+
     wavelet_result, music_result = await asyncio.gather(
-        run_proof("wavelet", base_wavelet_df, upload_wavelet_df, wavelet_service),
-        run_proof("music", base_music_df, upload_music_df, music_service),
+        run_wavelet_proof(),
+        run_music_proof(),
     )
 
     blockchain_service = _get_blockchain_service()
@@ -448,6 +443,8 @@ async def process_csi_in_background(
         binned_fft_df = analysis_result["fft"]
         binned_wavelet_df = analysis_result["wavelet"]
         binned_music_df = analysis_result["music"]
+        zkp_wavelet_input = analysis_result.get("zkp_wavelet_input")
+        zkp_music_input = analysis_result.get("zkp_music_input")
         binned_fft_phase_df = analysis_result.get("fft_phase", pd.DataFrame())
         binned_wavelet_phase_df = analysis_result.get("wavelet_phase", pd.DataFrame())
         binned_music_phase_df = analysis_result.get("music_phase", pd.DataFrame())
@@ -530,6 +527,8 @@ async def process_csi_in_background(
                 music_service=music_zkp_service,
                 device_id=device_id,
                 csi_data_id=csi_data_id,
+                zkp_wavelet_input=zkp_wavelet_input,
+                zkp_music_input=zkp_music_input,
             )
         except Exception as e:
             logger.warning(f"Transform ZKP proofs failed: {e}", exc_info=True)

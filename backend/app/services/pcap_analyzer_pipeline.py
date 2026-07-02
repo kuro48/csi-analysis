@@ -439,6 +439,9 @@ def _analyze_dataframe(
     wavelet_df = self.apply_wavelet_transform(df_wavelet, self.WAVELET_DOWNSAMPLE_INTERVAL_S) if include_wavelet else pd.DataFrame()
     music_df = self.apply_music_transform(df_music, self.MUSIC_DOWNSAMPLE_INTERVAL_S) if include_music else pd.DataFrame()
 
+    zkp_wavelet_input = self._compute_wavelet_zkp_input(df_wavelet) if include_wavelet else None
+    zkp_music_input = self._compute_music_zkp_input(df_music) if include_music else None
+
     binned_wavelet_df = pd.DataFrame()
     binned_music_df = pd.DataFrame()
     breathing_rate_wavelet = None
@@ -592,6 +595,8 @@ def _analyze_dataframe(
         "breathing_rate_phase_comparison": breathing_rate_phase_comparison,
         "raw_signal": raw_signal,
         "filtered_signal": filtered_signal,
+        "zkp_wavelet_input": zkp_wavelet_input,
+        "zkp_music_input": zkp_music_input,
     }
 
 

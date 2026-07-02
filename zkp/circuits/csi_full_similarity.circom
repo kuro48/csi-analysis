@@ -21,17 +21,16 @@ include "circomlib/circuits/comparators.circom";
  *     ⟺  dot_A / sqrt(nrA × ncA) < dot_B / sqrt(nrB × ncB)
  *     ⟺  dot_A² × nrB × ncB < dot_B² × nrA × ncA   （全値非負のため成立）
  *
- * ビット幅（ZKP_SCALE=10000, N=31）:
- *   dot ≤ 31 × 10000² ≈ 3.1×10⁹ < 2^32
- *   normRef2, normCand2 < 2^32
- *   dot_sq < 2^64 ;  nrB×ncB < 2^64
- *   lhs = dot_sq × (nrB×ncB) < 2^128  → LessThan(128) を使用
+ * ビット幅（ZKP_SCALE=10000, N=45）:
+ *   dot ≤ 45 × 10000² = 4.5×10⁹ < 2^33
+ *   normRef2, normCand2 < 2^33
+ *   dot_sq < 2^65 ;  nrB×ncB < 2^65
+ *   lhs = dot_sq × (nrB×ncB) < 2^130  → LessThan(130) を使用
  *
- * 周波数マッピング（0.02Hz刻み）:
- *   bin  0 → 0.00Hz
- *   bin  5 → 0.10Hz  ← NORMAL_LOW_BIN
- *   bin 25 → 0.50Hz  ← NORMAL_HIGH_BIN
- *   bin 30 → 0.60Hz
+ * 周波数マッピング（0.01Hz刻み、ビン中点基準）:
+ *   bin  0 → 0.155Hz ≈ 0.15Hz  ← NORMAL_LOW_BIN
+ *   bin 35 → 0.505Hz ≈ 0.50Hz  ← NORMAL_HIGH_BIN
+ *   bin 44 → 0.595Hz ≈ 0.60Hz
  */
 
 // ===== サブ回路 =====
@@ -183,7 +182,7 @@ template NormalBreathingCheck(
             lhs_cos[sc]     <== dot_sq[sc]    * minNr_minNc[sc];
             rhs_cos[sc]     <== minDot_sq[sc] * nr_nc[sc];
 
-            lt_cos[sc] = LessThan(128);
+            lt_cos[sc] = LessThan(130);
             lt_cos[sc].in[0] <== lhs_cos[sc];
             lt_cos[sc].in[1] <== rhs_cos[sc];
 
@@ -270,9 +269,9 @@ template NormalBreathingCheck(
 
 /**
  * パラメータ:
- *   NUM_FREQ_POINTS = 31  (0.00～0.60Hz, 0.02Hz刻み)
- *   NUM_SUBCARRIERS = 245
- *   NORMAL_LOW_BIN  = 5   (0.10Hz)
- *   NORMAL_HIGH_BIN = 25  (0.50Hz)
+ *   NUM_FREQ_POINTS = 45  (0.15～0.60Hz, 0.01Hz刻みビン、ビン中点 0.155～0.595Hz)
+ *   NUM_SUBCARRIERS = 971 (実測取得サブキャリア数)
+ *   NORMAL_LOW_BIN  = 0   (0.155Hz ≈ 0.15Hz)
+ *   NORMAL_HIGH_BIN = 35  (0.505Hz ≈ 0.50Hz)
  */
-component main = NormalBreathingCheck(31, 245, 5, 25);
+component main = NormalBreathingCheck(45, 971, 0, 35);

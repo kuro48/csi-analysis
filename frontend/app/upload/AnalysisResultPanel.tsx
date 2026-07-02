@@ -65,7 +65,7 @@ interface SignalSpectrumSectionProps {
 
 function SignalSpectrumSection({ processedData, source }: SignalSpectrumSectionProps) {
   const bpm = pickBreathingBpm(processedData, source);
-  const hasAnyBreathingBpm = [bpm.final, bpm.fft, bpm.wavelet, bpm.music].some(
+  const hasAnyBreathingBpm = [bpm.fft, bpm.wavelet, bpm.music].some(
     (value) => value != null,
   );
 
@@ -86,8 +86,7 @@ function SignalSpectrumSection({ processedData, source }: SignalSpectrumSectionP
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MetricCard label={`呼吸数 (合意)${labelSuffix}`} value={bpm.final} unit="BPM" />
+      <div className="grid grid-cols-3 gap-3">
         <MetricCard label={`FFT BPM${labelSuffix}`} value={bpm.fft} unit="BPM" />
         <MetricCard label={`Wavelet BPM${labelSuffix}`} value={bpm.wavelet} unit="BPM" />
         <MetricCard label={`MUSIC BPM${labelSuffix}`} value={bpm.music} unit="BPM" />

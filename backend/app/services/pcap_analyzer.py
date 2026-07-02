@@ -37,6 +37,8 @@ from app.services.pcap_analyzer_pipeline import (
     parse_picoscenes_metadata,
 )
 from app.services.pcap_analyzer_zkp import (
+    _compute_music_zkp_input,
+    _compute_wavelet_zkp_input,
     analyze_and_generate_zkp,
     extract_full_subcarrier_vectors,
     extract_matrix_for_zkp,
@@ -79,20 +81,20 @@ class PCAPAnalyzer:
     WAVELET_DOWNSAMPLE_INTERVAL_S = 0.2  # 5 Hz: バンドパス後(0.5Hz上限)はナイキスト条件を満たす
     FREQUENCY_BIN_STEP = 0.01
 
-    BREATHING_MIN_FREQ = 0.16
+    BREATHING_MIN_FREQ = 0.15
     BREATHING_MAX_FREQ = 0.6
     BANDPASS_FILTER_ORDER = 4
 
-    ZKP_FREQ_START = 0.0
+    ZKP_FREQ_START = 0.15
     ZKP_FREQ_END = 0.60
-    ZKP_FREQ_STEP = 0.02
+    ZKP_FREQ_STEP = 0.01
     ZKP_VECTOR_DIM = 4
     ZKP_SCALE = 10000
     MAX_FREQ_POINTS = 5000
     MAX_SUBCARRIERS = 256
 
-    WAVELET_FREQ_MIN = 0.01
-    WAVELET_FREQ_MAX = 2.0
+    WAVELET_FREQ_MIN = 0.15
+    WAVELET_FREQ_MAX = 0.6
     WAVELET_N_FREQS = 100
     WAVELET_NAME = "cmor1.5-1.0"
     WAVELET_FFT_METHOD_MIN_SIGNAL_LEN = 256
@@ -104,7 +106,7 @@ class PCAPAnalyzer:
     BREATHING_PEAK_PROMINENCE_RATIO = 0.05
 
     MUSIC_DOWNSAMPLE_INTERVAL_S = 0.1  # 10 Hz, matching the MUSIC paper setup.
-    MUSIC_FREQ_MIN = 0.16
+    MUSIC_FREQ_MIN = 0.15
     MUSIC_FREQ_MAX = 0.6
     MUSIC_N_FREQS = 128
     MUSIC_EMBEDDING_DIM = 32
@@ -133,6 +135,8 @@ class PCAPAnalyzer:
     extract_music_matrix_for_zkp = extract_music_matrix_for_zkp
     prepare_zkp_vectors_from_fft = prepare_zkp_vectors_from_fft
     analyze_and_generate_zkp = analyze_and_generate_zkp
+    _compute_wavelet_zkp_input = _compute_wavelet_zkp_input
+    _compute_music_zkp_input = _compute_music_zkp_input
 
     SUPPORTED_CSI_EXTENSIONS = SUPPORTED_CSI_EXTENSIONS
 
