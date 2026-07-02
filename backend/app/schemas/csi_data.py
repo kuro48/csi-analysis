@@ -1,7 +1,8 @@
-from datetime import datetime
-from typing import Optional, Dict, Any, List, Union
-from pydantic import BaseModel, Field
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
+
+from pydantic import BaseModel
 
 
 class CSIDataUpload(BaseModel):
@@ -49,32 +50,3 @@ class ProcessingStatus(BaseModel):
     error_message: Optional[str] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-
-
-class SessionCreate(BaseModel):
-    session_name: Optional[str] = None
-    start_time: datetime
-    metadata: Optional[Dict[str, Any]] = None
-
-
-class SessionUpdate(BaseModel):
-    session_name: Optional[str] = None
-    end_time: Optional[datetime] = None
-    duration: Optional[int] = None
-    status: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-
-
-class SessionResponse(BaseModel):
-    id: uuid.UUID
-    session_name: Optional[str]
-    start_time: datetime
-    end_time: Optional[datetime]
-    duration: Optional[int]
-    status: str
-    metadata: Optional[Dict[str, Any]]
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True

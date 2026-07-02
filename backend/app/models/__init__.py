@@ -3,14 +3,7 @@
 """
 
 from .base import BaseModel
-from .user import User
-from .csi_data import CSIData, Session
 from .base_csi import BaseCSI
+from .csi_data import CSIData
 
-__all__ = [
-    "BaseModel",
-    "User",
-    "CSIData",
-    "Session",
-    "BaseCSI"
-]
+__all__ = ["BaseModel", "CSIData", "BaseCSI"]

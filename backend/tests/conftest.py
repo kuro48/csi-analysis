@@ -12,11 +12,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 # プロジェクトルートをPYTHONPATHに追加
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.core.database import Base, get_db
-from app.main import app
-
+from app.core.database import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
 
 # テスト用インメモリデータベース
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -57,35 +56,3 @@ def client(db) -> Generator:
         yield test_client
 
     app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def test_user_data():
-    """テストユーザーデータ"""
-    return {
-        "username": "testuser",
-        "email": "test@example.com",
-        "password": "testpassword123",
-        "full_name": "Test User"
-    }
-
-
-@pytest.fixture
-def authenticated_client(client, test_user_data) -> TestClient:
-    """認証済みテストクライアント"""
-    # ユーザー登録
-    response = client.post("/api/v2/auth/register", json=test_user_data)
-    assert response.status_code == 200
-
-    # ログイン
-    login_data = {
-        "username": test_user_data["username"],
-        "password": test_user_data["password"]
-    }
-    response = client.post("/api/v2/auth/login", data=login_data)
-    assert response.status_code == 200
-
-    token = response.json()["access_token"]
-    client.headers.update({"Authorization": f"Bearer {token}"})
-
-    return client
