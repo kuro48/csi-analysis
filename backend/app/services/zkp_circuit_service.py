@@ -4,6 +4,7 @@ ZKP証明生成サービス（汎用Circom回路版）
 使用回路:
   - csi_music_similarity.circom  → ZKPMusicService
   - csi_wavelet_similarity.circom → ZKPWaveletService
+  - csi_breathing_normality.circom → ZKPBreathingService
 """
 
 import asyncio
@@ -433,3 +434,63 @@ class ZKPMusicService(ZKPCircuitService):
             row = row[:K] + [0] * max(0, K - len(row))
             en.append([int(v) for v in row])
         return {"en": en}
+
+
+class ZKPBreathingService(ZKPCircuitService):
+    """5-1.ipynb パイプライン呼吸正常判定回路サービス。
+
+    入力: vmd[T] — VMDで抽出した呼吸成分の時系列
+          (ゼロ中心化・±100 正規化済み整数、T=150固定、5Hz)
+    回路: csi_breathing_normality.circom (BreathingNormalityCheck)
+    判定: 回路内 DFT のグローバルピークが 6〜22 bpm 内 → isNormal=1
+    """
+
+    T = 150  # 時系列長 (30s × 5Hz)
+
+    def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True) -> None:
+        super().__init__("csi_breathing_normality", zkp_dir=zkp_dir, auto_compile=auto_compile)
+
+    async def generate_proof(
+        self,
+        vmd_signal: Optional[List[int]] = None,
+        scale: int = ZKPCircuitService.DEFAULT_SCALE,
+        # 基底クラスシグネチャとの互換 (無視される)
+        reference_matrix: Optional[List[List[int]]] = None,
+        candidate_matrix: Optional[List[List[int]]] = None,
+    ) -> Dict[str, Any]:
+        import time
+
+        if vmd_signal is None:
+            raise ValueError("vmd_signal is required for BreathingNormalityCheck")
+
+        wasm = self.build_dir / f"{self.circuit_name}_js" / f"{self.circuit_name}.wasm"
+        zkey = self.keys_dir / f"{self.circuit_name}_final.zkey"
+        if not wasm.exists() or not zkey.exists():
+            raise FileNotFoundError(
+                f"{self.label} ZKP circuit files not found. "
+                f"Run: cd zkp && npm run compile:breathing_normality && npm run setup:breathing_normality"
+            )
+
+        logger.info("[%s] Generating ZKP proof: vmd[%d]", self.label, len(vmd_signal))
+        start = time.time()
+        input_data = self._prepare_breathing_input(vmd_signal)
+        witness_file = await self._generate_witness(input_data)
+        proof, public_signals = await self._generate_groth16_proof(witness_file)
+
+        is_normal = bool(int(public_signals[0])) if public_signals else False
+        logger.info("[%s] ZKP proof done in %.3fs — isNormal=%s", self.label, time.time() - start, is_normal)
+        return {
+            "proof": proof,
+            "publicSignals": public_signals,
+            "isNormal": is_normal,
+            "isValid": is_normal,
+            "method": "breathing_normality",
+        }
+
+    def _prepare_breathing_input(self, vmd_signal: List[int]) -> Dict[str, Any]:
+        T = self.T
+        if len(vmd_signal) >= T:
+            vmd_fixed = [int(v) for v in vmd_signal[:T]]
+        else:
+            vmd_fixed = [int(v) for v in vmd_signal] + [0] * (T - len(vmd_signal))
+        return {"vmd": vmd_fixed}

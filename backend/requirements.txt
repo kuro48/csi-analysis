@@ -52,5 +52,9 @@ picoscenes @ git+https://github.com/wifisensing/PicoScenes-Python-Toolbox.git@f6
 
 # PicoScenes .csi は CSIKit 2.5 の reader で扱う
 
+# 5-1.ipynb 呼吸推定パイプライン（breathing_pipeline.py）
+scikit-learn>=1.3.0
+vmdpy==0.2
+
 # 環境変数管理
 python-dotenv==1.0.0

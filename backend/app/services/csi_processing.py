@@ -10,7 +10,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import pandas as pd
 
@@ -410,6 +410,59 @@ async def generate_transform_zkp_proofs(
     return results
 
 
+async def run_breathing_normality_zkp(
+    file_path: str,
+    device_id: Optional[str],
+    csi_data_id: uuid.UUID,
+) -> Tuple[Optional[dict], Optional[dict]]:
+    """5-1.ipynb 呼吸推定パイプラインを実行し、正常判定 ZKP 証明を生成・記録する。
+
+    正常判定（呼吸あり/なし）は Python 側では行わず、
+    csi_breathing_normality 回路の公開出力 isNormal として得る。
+
+    Returns:
+        (notebook_breathing_summary, breathing_zkp_result)
+        PicoScenes .csi 以外のファイルでは (None, None)。
+    """
+    if Path(file_path).suffix.lower() != ".csi":
+        logger.info("[BreathingZKP] Skipping: not a PicoScenes .csi file (%s)", file_path)
+        return None, None
+
+    # 依存パッケージ（picoscenes / scikit-learn / vmdpy）を必要時のみ読み込む
+    from app.services.breathing_pipeline import run_breathing_pipeline
+    from app.services.zkp_circuit_service import ZKPBreathingService
+
+    pipeline_result = await asyncio.to_thread(run_breathing_pipeline, file_path)
+    zkp_input = pipeline_result["zkp_input"]
+    # 生の時系列（秘密入力）は DB に保存しない
+    summary = {k: v for k, v in pipeline_result.items() if k != "zkp_input"}
+
+    breathing_service = await asyncio.to_thread(
+        ZKPBreathingService, auto_compile=settings.ZKP_AUTO_COMPILE
+    )
+    proof_result = await breathing_service.generate_proof(vmd_signal=zkp_input)
+    is_normal = proof_result.get("isNormal", False)
+
+    proof_id = None
+    blockchain_service = _get_blockchain_service()
+    if blockchain_service.is_available() and device_id:
+        try:
+            proof_id = await blockchain_service.record_zkp_proof(
+                device_id=device_id,
+                proof=proof_result["proof"],
+                public_signals=proof_result["publicSignals"],
+                proof_type="breathing_normality",
+            )
+            logger.info(
+                f"[BreathingZKP] proof recorded on blockchain: "
+                f"CSI {csi_data_id}, proof_id={proof_id}, isNormal={is_normal}"
+            )
+        except Exception as exc:
+            logger.warning(f"[BreathingZKP] blockchain record failed: {exc}")
+
+    return summary, {"is_normal": is_normal, "proof_id": proof_id}
+
+
 async def process_csi_in_background(
     csi_data_id: uuid.UUID,
     file_path: str,
@@ -533,6 +586,19 @@ async def process_csi_in_background(
         except Exception as e:
             logger.warning(f"Transform ZKP proofs failed: {e}", exc_info=True)
 
+        # --- 5-1.ipynb 呼吸推定パイプライン + 正常判定 ZKP（.csi のみ） ---
+        notebook_breathing: Optional[dict] = None
+        breathing_zkp_result: Optional[dict] = None
+        try:
+            notebook_breathing, breathing_zkp_result = await run_breathing_normality_zkp(
+                file_path=file_path,
+                device_id=device_id,
+                csi_data_id=csi_data_id,
+            )
+        except Exception as e:
+            logger.warning(f"Breathing normality ZKP failed: {e}", exc_info=True)
+            notebook_breathing = {"error": str(e), "error_type": type(e).__name__}
+
         # --- DB保存 ---
         if csi_data:
             csi_data.status = "completed"
@@ -564,6 +630,8 @@ async def process_csi_in_background(
                 "breathing_rate_phase_comparison": analysis_result.get(
                     "breathing_rate_phase_comparison"
                 ),
+                "notebook_breathing": notebook_breathing,
+                "breathing_normality_zkp": breathing_zkp_result,
             }
             if base_csi_comparison:
                 processed_data["base_csi_comparison"] = base_csi_comparison
