@@ -1,15 +1,18 @@
-from sqlalchemy import BigInteger, Column, Index, String
+from sqlalchemy import JSON, BigInteger, Column, Index, String
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.base import BaseModel
+
+# PostgreSQL では JSONB、それ以外（テスト用SQLite等）では JSON にフォールバック
+_JSONB = JSON().with_variant(JSONB(), "postgresql")
 
 
 class CSIData(BaseModel):
     __tablename__ = "csi_data"
 
     session_id = Column(String(255), nullable=True, index=True)
-    raw_data = Column(JSONB, nullable=True)
-    processed_data = Column(JSONB, nullable=True)
+    raw_data = Column(_JSONB, nullable=True)
+    processed_data = Column(_JSONB, nullable=True)
     file_path = Column(String(500), nullable=True)
     file_size = Column(BigInteger, nullable=True, index=True)
     device_id = Column(String(255), nullable=True, index=True)

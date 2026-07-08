@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Integer, JSON
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, DateTime, Integer, JSON, Uuid
 
 from app.core.database import Base
 
@@ -9,7 +8,7 @@ from app.core.database import Base
 class BaseCSI(Base):
     __tablename__ = "base_csi"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     fft_dataframe = Column(JSON, nullable=False)
     wavelet_dataframe = Column(JSON, nullable=True)

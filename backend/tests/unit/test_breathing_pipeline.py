@@ -199,6 +199,9 @@ def test_run_breathing_pipeline_from_matrix_end_to_end():
     # Assert: 15bpm 近傍を推定し、ZKP入力が回路仕様を満たす
     assert abs(result["breathing_rate_bpm"] - 15.0) < 1.5
     assert result["n_subcarriers_total"] == 20
+    # 呼吸波形（Webサイトの波形表示・結果ダウンロード用）が全サンプル分含まれること
+    assert len(result["respiration_waveform"]) == result["n_samples"]
+    assert all(isinstance(v, float) for v in result["respiration_waveform"])
     assert len(result["zkp_input"]) == ZKP_T
     assert max(abs(v) for v in result["zkp_input"]) <= ZKP_SIGNAL_SCALE
     assert result["bpm_range"] == {"min": BPM_MIN, "max": BPM_MAX}

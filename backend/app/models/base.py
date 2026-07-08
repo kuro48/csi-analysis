@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, UUID
+from sqlalchemy import Column, DateTime, Uuid
 from sqlalchemy.sql import func
 import uuid as uuid_pkg
 
@@ -9,7 +9,7 @@ class BaseModel(Base):
     __abstract__ = True
 
     id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         primary_key=True,
         default=uuid_pkg.uuid4,
         unique=True,

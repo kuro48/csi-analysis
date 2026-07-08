@@ -1,4 +1,6 @@
-from datetime import timezone
+import os
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict
 import uvicorn
@@ -71,8 +73,13 @@ app.include_router(api_router, prefix=settings.API_V2_PREFIX)
 setup_error_handlers(app)
 app.state.config = settings
 
-_GRAPHS_DIR = Path("/app/outputs/graphs")
-_GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
+_GRAPHS_DIR = Path(os.environ.get("GRAPH_OUTPUT_DIR", "/app/outputs/graphs"))
+try:
+    _GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    # Docker外（ローカル開発・テスト）では /app を作成できないため一時領域へ退避
+    _GRAPHS_DIR = Path(tempfile.gettempdir()) / "csi_graphs"
+    _GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @app.get("/graphs", response_class=Response)
@@ -309,6 +316,7 @@ async def health_check() -> Dict[str, str]:
         "status": "healthy",
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

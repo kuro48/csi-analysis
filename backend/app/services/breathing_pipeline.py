@@ -460,6 +460,7 @@ def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]
     )
 
     return {
+        "respiration_waveform": [float(v) for v in vmd_respiration],
         "breathing_rate_bpm": float(breathing_rate_bpm),
         "peak_freq_hz": float(peak_freq),
         "selected_pc": int(best_pc_idx + 1),

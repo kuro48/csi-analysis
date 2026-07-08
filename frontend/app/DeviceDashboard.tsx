@@ -101,12 +101,20 @@ export function DeviceDashboard() {
               エッジデバイスからアップロードされたCSIデータと、FFT・Wavelet・MUSIC解析結果を表示します。
             </p>
           </div>
-          <Link
-            href="/upload"
-            className="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-neutral-700"
-          >
-            手動アップロード
-          </Link>
+          <div className="flex gap-3">
+            <Link
+              href="/analyze"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              呼吸解析
+            </Link>
+            <Link
+              href="/upload"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-neutral-700"
+            >
+              手動アップロード
+            </Link>
+          </div>
         </header>
 
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
