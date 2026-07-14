@@ -31,6 +31,7 @@ from app.services.csi_visualizer import (
 from app.services.pcap_analyzer import PCAPAnalyzer
 from app.services.zkp_circuit_service import ZKPMusicService, ZKPWaveletService
 from app.services.zkp_service import ZKPService
+from app.services.verifiable_breathing_service import VerifiableBreathingService
 
 logger = logging.getLogger(__name__)
 
@@ -484,6 +485,21 @@ async def process_csi_in_background(
         if csi_data:
             csi_data.status = "processing"
             await asyncio.to_thread(db.commit)
+
+        # 現行の主解析経路: 5-1.ipynb 由来の Python 解析を1回実行し、
+        # Python+Circom と RISC Zero zkVM を並列で証明する。
+        # FFT+コサイン類似度、Wavelet、MUSIC は意図的にこの経路から外す。
+        verifiable_result = await VerifiableBreathingService().analyze(file_path)
+        if csi_data:
+            csi_data.status = "completed"
+            csi_data.processed_data = verifiable_result
+            await asyncio.to_thread(db.commit)
+        logger.info(
+            "5-1 verifiable processing completed for CSI data %s: status=%s",
+            csi_data_id,
+            verifiable_result.get("status"),
+        )
+        return
 
         analyzer = PCAPAnalyzer()
         zkp_service = ZKPService(auto_compile=settings.ZKP_AUTO_COMPILE)

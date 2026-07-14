@@ -13,10 +13,15 @@ from app.services.breathing_pipeline import (  # noqa: E402
     FS,
     HIGHCUT,
     LOWCUT,
+    VMD_K,
+    ZKP_CERT_MODE_MAX_ABS,
+    ZKP_CERT_SIGNAL_SCALE,
     ZKP_SIGNAL_SCALE,
     ZKP_T,
     bandpass_filter,
+    prepare_breathing_certificate_input,
     prepare_breathing_zkp_input,
+    prepare_zkvm_input,
     respiration_score_fft,
     select_respiration_pc,
     select_subcarriers_by_snr,
@@ -68,9 +73,7 @@ def test_select_subcarriers_by_snr_prefers_breathing_subcarriers():
     amplitude = np.stack(columns, axis=1) + 10.0
 
     # Act
-    selected, indices, snr = select_subcarriers_by_snr(
-        amplitude, fs=FS, lowcut=LOWCUT, highcut=HIGHCUT, n_select=5
-    )
+    selected, indices, snr = select_subcarriers_by_snr(amplitude, fs=FS, lowcut=LOWCUT, highcut=HIGHCUT, n_select=5)
 
     # Assert: SNR 上位5列は呼吸信号入りの列（index 0-4）
     assert selected.shape == (len(t), 5)
@@ -107,9 +110,7 @@ def test_select_respiration_pc_picks_breathing_component():
     )
 
     # Act
-    respiration_pc, best_idx, scores = select_respiration_pc(
-        pcs, fs=FS, lowcut=LOWCUT, highcut=HIGHCUT
-    )
+    respiration_pc, best_idx, scores = select_respiration_pc(pcs, fs=FS, lowcut=LOWCUT, highcut=HIGHCUT)
 
     # Assert
     assert best_idx == 1
@@ -137,8 +138,16 @@ def test_estimate_breathing_rate_by_vmd_recovers_15bpm():
 
     # Act
     _, mode_infos, best_info = estimate_breathing_rate_by_vmd_global_peak(
-        signal=signal, fs=FS, bpm_min=BPM_MIN, bpm_max=BPM_MAX,
-        K=VMD_K, alpha=VMD_ALPHA, tau=VMD_TAU, DC=VMD_DC, init=VMD_INIT, tol=VMD_TOL,
+        signal=signal,
+        fs=FS,
+        bpm_min=BPM_MIN,
+        bpm_max=BPM_MAX,
+        K=VMD_K,
+        alpha=VMD_ALPHA,
+        tau=VMD_TAU,
+        DC=VMD_DC,
+        init=VMD_INIT,
+        tol=VMD_TOL,
     )
 
     # Assert: 推定bpmが 15±1、選択モードは呼吸範囲内
@@ -177,6 +186,112 @@ def test_prepare_breathing_zkp_input_rejects_invalid_fs():
 
 
 @pytest.mark.unit
+def test_prepare_zkvm_input_is_flattened_bounded_and_deterministic():
+    matrix = np.array(
+        [
+            [3 + 4j, 1 + 0j, 0 + 2j],
+            [0 + 5j, 2 + 0j, 0 + 3j],
+            [4 + 3j, 3 + 0j, 0 + 4j],
+        ],
+        dtype=np.complex128,
+    )
+
+    first = prepare_zkvm_input(matrix, scale=100)
+    second = prepare_zkvm_input(matrix, scale=100)
+
+    assert first == second
+    assert first["samples"] == 3
+    assert first["subcarriers"] == 3
+    assert len(first["amplitudes"]) == 9
+    assert all(isinstance(value, int) for value in first["amplitudes"])
+    assert max(first["amplitudes"]) <= 100
+    assert len(first["input_commitment"]) == 64
+
+
+# ---------------------------------------------------------------------------
+# 証明書回路入力（案A）
+# ---------------------------------------------------------------------------
+def _make_certificate_signals(freqs, weights, seconds=40.0):
+    """freqs 各周波数の正弦波をモードとし、その総和＋DCオフセットを VMD 入力とする。
+
+    Σ_k modes = 呼吸PC（中心化前）となるので、中心化後の再構成性が保たれる。
+    """
+    t = _make_time_axis(seconds)
+    modes = np.vstack([w * np.sin(2 * np.pi * f * t) for f, w in zip(freqs, weights)])
+    respiration_pc = modes.sum(axis=0) + 4.0  # DCオフセット（中心化処理を検証）
+    return respiration_pc, modes
+
+
+@pytest.mark.unit
+def test_prepare_breathing_certificate_input_shapes_and_onehot():
+    # Arrange: mode0 = 12bpm(0.2Hz), 他は別帯域
+    freqs = [0.2, 0.7, 0.05, 1.3, 2.0]
+    weights = [1.0, 0.3, 0.3, 0.2, 0.2]
+    respiration_pc, modes = _make_certificate_signals(freqs, weights)
+
+    # Act
+    out = prepare_breathing_certificate_input(respiration_pc, modes, selected_mode_index=0)
+
+    # Assert: 形状・one-hot・整数化・スケール上限
+    assert len(out["vmdInput"]) == ZKP_T
+    assert len(out["modes"]) == VMD_K
+    assert all(len(m) == ZKP_T for m in out["modes"])
+    assert out["sel"] == [1, 0, 0, 0, 0]
+    assert sum(out["sel"]) == 1
+    assert all(isinstance(v, int) for v in out["vmdInput"])
+    assert max(abs(v) for v in out["vmdInput"]) <= ZKP_CERT_SIGNAL_SCALE
+    assert out["diagnostics"]["max_mode_abs"] <= ZKP_CERT_MODE_MAX_ABS
+
+
+@pytest.mark.unit
+def test_prepare_breathing_certificate_input_reconstruction_holds():
+    # Arrange: モードの総和が信号を厳密に再構成するケース
+    freqs = [0.2, 0.6, 0.9, 1.2, 1.8]
+    weights = [1.0, 0.4, 0.3, 0.2, 0.2]
+    respiration_pc, modes = _make_certificate_signals(freqs, weights)
+
+    # Act
+    out = prepare_breathing_certificate_input(respiration_pc, modes, selected_mode_index=0)
+    diag = out["diagnostics"]
+
+    # Assert: 整数領域でも Σ modes ≈ vmdInput（回路のハード制約を満たす）
+    assert diag["recon_ok"] is True
+    assert diag["recon_error_ratio"] < diag["recon_error_ratio_threshold"]
+    # 手計算でも再構成誤差比が小さいことを確認
+    recon = np.sum(np.array(out["modes"], dtype=float), axis=0)
+    sig = np.array(out["vmdInput"], dtype=float)
+    ratio = np.sum((recon - sig) ** 2) / (np.sum(sig**2) + 1e-12)
+    assert ratio < 0.5
+
+
+@pytest.mark.unit
+def test_prepare_breathing_certificate_input_common_scale_bounds_modes():
+    # Arrange: 単一モードが信号より大きい（共通スケールで mode 上限を超えないこと）
+    freqs = [0.2, 0.25, 0.3, 0.35, 0.4]
+    weights = [5.0, 5.0, 5.0, 5.0, 5.0]  # 各モードが大振幅
+    respiration_pc, modes = _make_certificate_signals(freqs, weights)
+
+    # Act
+    out = prepare_breathing_certificate_input(respiration_pc, modes, selected_mode_index=0)
+
+    # Assert: 全モードが回路のビット幅上限内に収まる
+    assert out["diagnostics"]["max_mode_abs"] <= ZKP_CERT_MODE_MAX_ABS
+
+
+@pytest.mark.unit
+def test_prepare_breathing_certificate_input_rejects_bad_index():
+    _, modes = _make_certificate_signals([0.2, 0.5, 0.7, 0.9, 1.1], [1, 1, 1, 1, 1])
+    with pytest.raises(ValueError):
+        prepare_breathing_certificate_input(modes.sum(axis=0), modes, selected_mode_index=99)
+
+
+@pytest.mark.unit
+def test_prepare_breathing_certificate_input_rejects_non_2d_modes():
+    with pytest.raises(ValueError):
+        prepare_breathing_certificate_input(np.ones(100), np.ones(100), selected_mode_index=0)
+
+
+@pytest.mark.unit
 def test_run_breathing_pipeline_from_matrix_end_to_end():
     pytest.importorskip("sklearn")
     pytest.importorskip("vmdpy")
@@ -204,6 +319,13 @@ def test_run_breathing_pipeline_from_matrix_end_to_end():
     assert all(isinstance(v, float) for v in result["respiration_waveform"])
     assert len(result["zkp_input"]) == ZKP_T
     assert max(abs(v) for v in result["zkp_input"]) <= ZKP_SIGNAL_SCALE
+    # 証明書回路入力（案A）が回路仕様を満たすこと
+    cert = result["certificate_input"]
+    assert len(cert["vmdInput"]) == ZKP_T
+    assert len(cert["modes"]) == VMD_K
+    assert all(len(m) == ZKP_T for m in cert["modes"])
+    assert sum(cert["sel"]) == 1
+    assert cert["diagnostics"]["max_mode_abs"] <= ZKP_CERT_MODE_MAX_ABS
     assert result["bpm_range"] == {"min": BPM_MIN, "max": BPM_MAX}
     assert len(result["vmd_mode_summaries"]) == 5
     # 判定キーが Python 側に存在しないこと（判定は ZKP 回路の責務）

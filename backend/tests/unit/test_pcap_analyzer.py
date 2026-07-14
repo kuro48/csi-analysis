@@ -347,8 +347,16 @@ def test_process_base_csi_registration_saves_subcarrier_medians(db, monkeypatch)
     db.refresh(base_csi)
 
     class FakeAnalyzer:
-        def analyze_file(self, file_path, include_breathing=True):
+        def analyze_file(
+            self,
+            file_path,
+            include_wavelet=True,
+            include_music=True,
+            include_breathing=True,
+        ):
             assert file_path == "/tmp/base.csi"
+            assert include_wavelet is False
+            assert include_music is False
             assert include_breathing is False
             return {
                 "fft": pd.DataFrame({"freq_interval": ["[0.0, 0.01)"], "1": [1.0]}),

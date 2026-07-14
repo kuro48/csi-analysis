@@ -1,4 +1,16 @@
 services:
+  zkvm-builder:
+    # RISC Zero の公式 guest toolchain は linux/amd64 を対象とする。
+    # Apple Silicon でも builder/backend を同じ ABI で動かす。
+    platform: linux/amd64
+    build:
+      context: ./zkvm
+      dockerfile: Dockerfile
+    container_name: csi_zkvm_builder
+    volumes:
+      - csi_zkvm_bin:/out
+    restart: "no"
+
   postgres:
     image: postgres:15-alpine
     container_name: csi_postgres
@@ -35,6 +47,7 @@ services:
       - csi_network
 
   backend:
+    platform: linux/amd64
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -51,6 +64,8 @@ services:
       - ALLOWED_ORIGINS=http://localhost,http://127.0.0.1,http://localhost:3000,https://csi.kur048.com,https://api.csi.kur048.com
       - DEBUG=True
       - ZKP_AUTO_COMPILE=TRUE
+      - CSI_ZKVM_BINARY=/opt/csi-zkvm/csi-zkvm-host
+      - CSI_ZKVM_TIMEOUT_SECONDS=1800
       - PICOSCENES_PARSER=python
       - MATLAB_COMMAND=matlab
       - PICOSCENES_MATLAB_TOOLBOX_PATH=
@@ -61,10 +76,13 @@ services:
     volumes:
       - ./backend:/app
       - ./zkp:/zkp
+      - csi_zkvm_bin:/opt/csi-zkvm:ro
       - csi_uploads:/app/uploads
     ports:
       - "8000:8000"
     depends_on:
+      zkvm-builder:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -156,6 +174,8 @@ volumes:
   csi_uploads:
     driver: local
   ganache_data:
+    driver: local
+  csi_zkvm_bin:
     driver: local
 
 networks:

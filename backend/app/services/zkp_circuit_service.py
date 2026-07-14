@@ -67,14 +67,16 @@ class ZKPCircuitService:
                 except Exception as exc:
                     logger.error("Auto-compilation failed: %s", exc)
                     logger.warning(
-                        "Please manually run:\n"
-                        "  cd zkp && npm run compile:%s && npm run setup:%s",
-                        self.label.lower(), self.label.lower(),
+                        "Please manually run:\n" "  cd zkp && npm run compile:%s && npm run setup:%s",
+                        self.label.lower(),
+                        self.label.lower(),
                     )
             else:
                 logger.warning(
                     "%s ZKP circuit files not found. Please run: cd zkp && npm run compile:%s && npm run setup:%s",
-                    self.label, self.label.lower(), self.label.lower(),
+                    self.label,
+                    self.label.lower(),
+                    self.label.lower(),
                 )
         else:
             logger.info("%s ZKP circuit is ready", self.label)
@@ -85,7 +87,10 @@ class ZKPCircuitService:
         node_modules = self.zkp_dir / "node_modules"
         if not node_modules.exists():
             result = subprocess.run(
-                ["npm", "install"], cwd=str(self.zkp_dir), capture_output=True, text=True,
+                ["npm", "install"],
+                cwd=str(self.zkp_dir),
+                capture_output=True,
+                text=True,
             )
             if result.returncode != 0:
                 raise RuntimeError(f"npm install failed: {result.stderr}")
@@ -101,10 +106,16 @@ class ZKPCircuitService:
         logger.info("Compiling %s circuit (this may take several minutes)...", self.label)
         result = subprocess.run(
             [
-                "circom", str(circuit_file),
-                "--r1cs", "--wasm", "--sym", "--c",
-                "-o", str(self.build_dir),
-                "-l", str(self.zkp_dir / "node_modules"),
+                "circom",
+                str(circuit_file),
+                "--r1cs",
+                "--wasm",
+                "--sym",
+                "--c",
+                "-o",
+                str(self.build_dir),
+                "-l",
+                str(self.zkp_dir / "node_modules"),
             ],
             cwd=str(self.zkp_dir),
             capture_output=True,
@@ -116,13 +127,12 @@ class ZKPCircuitService:
         self._run_trusted_setup()
 
     def _run_trusted_setup(self) -> None:
-        logger.warning(
-            "Starting Trusted Setup for %s circuit (this may take 10-60 minutes)...", self.label
-        )
+        logger.warning("Starting Trusted Setup for %s circuit (this may take 10-60 minutes)...", self.label)
 
         ptau_file = self.keys_dir / "powersOfTau28_hez_final_19.ptau"
         if not ptau_file.exists():
             import urllib.request
+
             urllib.request.urlretrieve(
                 "https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_19.ptau",
                 str(ptau_file),
@@ -135,18 +145,25 @@ class ZKPCircuitService:
 
         subprocess.run(
             ["snarkjs", "groth16", "setup", str(r1cs), str(ptau_file), str(zkey_0)],
-            cwd=str(self.zkp_dir), capture_output=True, text=True, check=True,
+            cwd=str(self.zkp_dir),
+            capture_output=True,
+            text=True,
+            check=True,
         )
         subprocess.run(
-            ["snarkjs", "zkey", "contribute", str(zkey_0), str(zkey_final),
-             f"--name={self.label} contribution", "-v"],
+            ["snarkjs", "zkey", "contribute", str(zkey_0), str(zkey_final), f"--name={self.label} contribution", "-v"],
             cwd=str(self.zkp_dir),
             input=secrets.token_hex(32) + "\n",
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         subprocess.run(
             ["snarkjs", "zkey", "export", "verificationkey", str(zkey_final), str(vkey)],
-            cwd=str(self.zkp_dir), capture_output=True, text=True, check=True,
+            cwd=str(self.zkp_dir),
+            capture_output=True,
+            text=True,
+            check=True,
         )
         logger.info("%s Trusted Setup completed", self.label)
 
@@ -175,7 +192,9 @@ class ZKPCircuitService:
 
         logger.info(
             "[%s] Generating ZKP proof: %d freq × %d subcarriers",
-            self.label, len(reference_matrix), len(reference_matrix[0]),
+            self.label,
+            len(reference_matrix),
+            len(reference_matrix[0]),
         )
 
         start = time.time()
@@ -186,7 +205,9 @@ class ZKPCircuitService:
         is_normal = bool(int(public_signals[0])) if public_signals else False
         logger.info(
             "[%s] ZKP proof done in %.3fs — isNormal=%s",
-            self.label, time.time() - start, is_normal,
+            self.label,
+            time.time() - start,
+            is_normal,
         )
         return {
             "proof": proof,
@@ -217,7 +238,9 @@ class ZKPCircuitService:
             result = subprocess.run(
                 ["npx", "snarkjs", "groth16", "verify", vkey_path, signals_path, proof_path],
                 cwd=str(self.zkp_dir),
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             return result.returncode == 0 and "OK" in result.stdout
         except Exception as exc:
@@ -259,17 +282,25 @@ class ZKPCircuitService:
         if not generate_witness_js.exists():
             raise RuntimeError(f"generate_witness.js not found: {generate_witness_js}")
 
-        with open(input_file, "w") as f:
-            json.dump(input_data, f)
+        try:
+            with open(input_file, "w") as f:
+                json.dump(input_data, f)
+            input_file.chmod(0o600)
 
-        env = {**os.environ, "NODE_OPTIONS": "--max-old-space-size=4096"}
-        proc = await asyncio.create_subprocess_exec(
-            "node", str(generate_witness_js), str(wasm), str(input_file), str(witness_file),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=env,
-        )
-        stdout, stderr = await proc.communicate()
+            env = {**os.environ, "NODE_OPTIONS": "--max-old-space-size=4096"}
+            proc = await asyncio.create_subprocess_exec(
+                "node",
+                str(generate_witness_js),
+                str(wasm),
+                str(input_file),
+                str(witness_file),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+            )
+            stdout, stderr = await proc.communicate()
+        finally:
+            input_file.unlink(missing_ok=True)
 
         if proc.returncode != 0:
             raise RuntimeError(
@@ -277,6 +308,7 @@ class ZKPCircuitService:
                 f"stdout: {stdout.decode(errors='replace') if stdout else ''}\n"
                 f"stderr: {stderr.decode(errors='replace') if stderr else ''}"
             )
+        witness_file.chmod(0o600)
         return str(witness_file)
 
     async def _generate_groth16_proof(self, witness_file: str) -> Tuple[Dict[str, Any], List[str]]:
@@ -290,28 +322,37 @@ class ZKPCircuitService:
             raise RuntimeError(f"Witness file not found: {witness_file}")
 
         env = {**os.environ, "NODE_OPTIONS": "--max-old-space-size=4096"}
-        proc = await asyncio.create_subprocess_exec(
-            "snarkjs", "groth16", "prove",
-            str(zkey), str(witness_file), str(proof_file), str(public_file),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=env,
-        )
-        stdout, stderr = await proc.communicate()
-
-        if proc.returncode != 0:
-            raise RuntimeError(
-                f"[{self.label}] Proof generation failed: returncode={proc.returncode}\n"
-                f"stdout: {stdout.decode(errors='replace') if stdout else ''}\n"
-                f"stderr: {stderr.decode(errors='replace') if stderr else ''}"
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "snarkjs",
+                "groth16",
+                "prove",
+                str(zkey),
+                str(witness_file),
+                str(proof_file),
+                str(public_file),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
+            stdout, stderr = await proc.communicate()
 
-        with open(proof_file) as f:
-            proof = json.load(f)
-        with open(public_file) as f:
-            public_signals = json.load(f)
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"[{self.label}] Proof generation failed: returncode={proc.returncode}\n"
+                    f"stdout: {stdout.decode(errors='replace') if stdout else ''}\n"
+                    f"stderr: {stderr.decode(errors='replace') if stderr else ''}"
+                )
 
-        return proof, public_signals
+            with open(proof_file) as f:
+                proof = json.load(f)
+            with open(public_file) as f:
+                public_signals = json.load(f)
+            return proof, public_signals
+        finally:
+            Path(witness_file).unlink(missing_ok=True)
+            proof_file.unlink(missing_ok=True)
+            public_file.unlink(missing_ok=True)
 
 
 class ZKPWaveletService(ZKPCircuitService):
@@ -407,7 +448,12 @@ class ZKPMusicService(ZKPCircuitService):
                 f"Run: cd zkp && npm run compile:music && npm run setup:music"
             )
 
-        logger.info("[%s] Generating ZKP proof: en[%d][%d]", self.label, len(noise_subspace), len(noise_subspace[0]) if noise_subspace else 0)
+        logger.info(
+            "[%s] Generating ZKP proof: en[%d][%d]",
+            self.label,
+            len(noise_subspace),
+            len(noise_subspace[0]) if noise_subspace else 0,
+        )
         start = time.time()
         input_data = self._prepare_music_input(noise_subspace)
         witness_file = await self._generate_witness(input_data)

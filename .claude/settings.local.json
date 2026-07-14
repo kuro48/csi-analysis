@@ -75,7 +75,14 @@
       "Bash(git push *)",
       "Bash(jupyter nbconvert *)",
       "Bash(circom circuits/csi_breathing_normality.circom --r1cs --wasm --sym -o build -l node_modules)",
-      "Bash(/private/tmp/claude-501/-Users-ryunosukekurokawa-Documents-class-lab-M1------csi-web-platform/c866eaad-3f94-4447-986d-c874c989ae8e/scratchpad/venv/bin/pip install *)"
+      "Bash(/private/tmp/claude-501/-Users-ryunosukekurokawa-Documents-class-lab-M1------csi-web-platform/c866eaad-3f94-4447-986d-c874c989ae8e/scratchpad/venv/bin/pip install *)",
+      "Bash(uv run *)",
+      "Bash(zsh '/private/tmp/claude-501/-Users-ryunosukekurokawa-Documents-class-lab-M1------csi-web-platform/da2d2ec6-cfee-4806-b0e8-215e333c3394/scratchpad/run_pytest.sh' tests/unit/test_breathing_endpoint.py -q --no-cov)",
+      "Bash(zsh '/private/tmp/claude-501/-Users-ryunosukekurokawa-Documents-class-lab-M1------csi-web-platform/da2d2ec6-cfee-4806-b0e8-215e333c3394/scratchpad/run_pytest.sh' tests/unit/test_health.py -q --no-cov)",
+      "Bash(zsh '/private/tmp/claude-501/-Users-ryunosukekurokawa-Documents-class-lab-M1------csi-web-platform/da2d2ec6-cfee-4806-b0e8-215e333c3394/scratchpad/run_pytest.sh' tests/unit/test_health.py tests/unit/test_breathing_endpoint.py -q --no-cov)",
+      "Bash(zsh '/private/tmp/claude-501/-Users-ryunosukekurokawa-Documents-class-lab-M1------csi-web-platform/da2d2ec6-cfee-4806-b0e8-215e333c3394/scratchpad/run_pytest.sh' tests/unit/test_health.py::test_health_check --no-cov)",
+      "Bash(zsh '/private/tmp/claude-501/-Users-ryunosukekurokawa-Documents-class-lab-M1------csi-web-platform/da2d2ec6-cfee-4806-b0e8-215e333c3394/scratchpad/run_pytest.sh' tests/unit/test_health.py::test_health_check --no-cov -s)",
+      "Bash(zsh '/private/tmp/claude-501/-Users-ryunosukekurokawa-Documents-class-lab-M1------csi-web-platform/da2d2ec6-cfee-4806-b0e8-215e333c3394/scratchpad/run_pytest.sh' tests/unit -q --no-cov)"
     ],
     "deny": [],
     "ask": []

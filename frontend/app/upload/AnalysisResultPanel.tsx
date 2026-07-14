@@ -148,6 +148,79 @@ function MainPanel({ processedData }: MainCSIData) {
     return <p className="text-sm text-red-600">{processedData.error}</p>;
   }
 
+  if (processedData.analysis) {
+    const analysis = processedData.analysis;
+    const circom = processedData.proofs?.python_circom;
+    const zkvm = processedData.proofs?.zkvm;
+    const proofLabel = (proof: typeof circom) => {
+      if (!proof) return "未実行";
+      if (proof.status === "failed") return `失敗: ${proof.error ?? "unknown error"}`;
+      return proof.isValid
+        ? proof.isNormal
+          ? "valid / normal"
+          : "valid / abnormal"
+        : "invalid";
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <MetricCard
+            label="5-1 呼吸数"
+            value={analysis.breathing_rate_bpm ?? null}
+            unit="BPM"
+          />
+          <MetricCard
+            label="ピーク周波数"
+            value={analysis.peak_freq_hz ?? null}
+            unit="Hz"
+            digits={3}
+          />
+          <MetricCard
+            label="zkVM 呼吸数"
+            value={
+              zkvm?.journal?.breathing_rate_milli_bpm != null
+                ? zkvm.journal.breathing_rate_milli_bpm / 1000
+                : null
+            }
+            unit="BPM"
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-neutral-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Python + Circom
+            </p>
+            <p className="mt-2 text-sm font-semibold text-neutral-900">{proofLabel(circom)}</p>
+            <p className="mt-1 text-xs text-neutral-500">
+              {circom?.method ?? "breathing_certificate"}
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              RISC Zero zkVM
+            </p>
+            <p className="mt-2 text-sm font-semibold text-neutral-900">{proofLabel(zkvm)}</p>
+            <p className="mt-1 text-xs text-neutral-500">
+              {zkvm?.journal?.algorithm_version ?? zkvm?.method ?? "5-1-fixed-v1"}
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs text-neutral-600">
+          <p>解析パイプライン: {analysis.pipeline ?? "5-1.ipynb"}</p>
+          <p className="mt-1 break-all font-mono">
+            入力コミットメント: {analysis.input_commitment ?? "—"}
+          </p>
+          <p className="mt-2">
+            一時無効: {(processedData.disabled_methods ?? []).join(", ") || "なし"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const similarity = pickSimilarityScores(processedData);
   const comparison = processedData.base_csi_comparison;
   const primaryMethod = comparison?.primary_method ?? comparison?.comparison_summary?.primary_method;

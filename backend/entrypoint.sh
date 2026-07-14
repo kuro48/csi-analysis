@@ -144,8 +144,38 @@ else
   echo "FullSimilarityVerifier contract is available."
 fi
 
-# ZKP回路の事前コンパイル・Trusted Setup（全3回路）
+# 5-1 Python+Circom 経路の証明書回路だけを事前準備する。
 if [ "${ZKP_AUTO_COMPILE:-TRUE}" = "TRUE" ] || [ "${ZKP_AUTO_COMPILE:-true}" = "true" ]; then
+  ZKP_DIR="${ZKP_DIR:-/zkp}"
+  CERT_WASM="$ZKP_DIR/build/csi_breathing_certificate_js/csi_breathing_certificate.wasm"
+  CERT_ZKEY="$ZKP_DIR/keys/csi_breathing_certificate_final.zkey"
+  PTAU_FILE="$ZKP_DIR/keys/powersOfTau28_hez_final_19.ptau"
+
+  if [ ! -f "$CERT_WASM" ] || [ ! -f "$CERT_ZKEY" ]; then
+    echo "Preparing breathing certificate circuit..."
+    set +e
+    if [ ! -d "$ZKP_DIR/node_modules" ]; then
+      npm install --prefix "$ZKP_DIR"
+    fi
+    if [ ! -f "$PTAU_FILE" ]; then
+      PTAU_URL="https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_19.ptau"
+      wget -q -O "$PTAU_FILE" "$PTAU_URL" || curl -sL -o "$PTAU_FILE" "$PTAU_URL"
+    fi
+    (cd "$ZKP_DIR" \
+      && npm run generate:breathing_certificate \
+      && npm run compile:breathing_certificate \
+      && npm run setup:breathing_certificate) \
+      && echo "Breathing certificate circuit is ready." \
+      || echo "WARNING: Breathing certificate circuit setup failed."
+    set -e
+  else
+    echo "Breathing certificate circuit is already compiled."
+  fi
+fi
+
+# 旧 FFT/Wavelet/MUSIC 回路は現在の解析経路では使わない。
+# 再実験する場合に限り、明示的に ZKP_LEGACY_AUTO_COMPILE=true を指定する。
+if [ "${ZKP_LEGACY_AUTO_COMPILE:-false}" = "TRUE" ] || [ "${ZKP_LEGACY_AUTO_COMPILE:-false}" = "true" ]; then
   ZKP_DIR="${ZKP_DIR:-/zkp}"
   FFT_WASM="$ZKP_DIR/build/csi_full_similarity_js/csi_full_similarity.wasm"
   FFT_ZKEY="$ZKP_DIR/keys/csi_full_similarity_final.zkey"

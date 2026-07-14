@@ -89,6 +89,8 @@ class BaseCSIService:
             analyzer = PCAPAnalyzer()
             analysis_result = analyzer.analyze_file(
                 base_csi.source_pcap_path,
+                include_wavelet=False,
+                include_music=False,
                 include_breathing=False,
             )
 

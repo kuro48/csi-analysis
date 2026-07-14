@@ -18,7 +18,9 @@
 移植したもの。挙動を変える修正を加えないこと（描画関数のみ移植対象外）。
 """
 
+import hashlib
 import logging
+import struct
 import time
 from collections import Counter
 from contextlib import contextmanager
@@ -71,6 +73,13 @@ ZKP_TARGET_FS = 5.0
 ZKP_T = 150
 ZKP_SIGNAL_SCALE = 100
 
+# 証明書回路入力仕様（csi_breathing_certificate.circom と一致させること）
+ZKP_CERT_K = VMD_K  # 回路 K と一致（VMD モード数）
+ZKP_CERT_SIGNAL_SCALE = 100  # 回路 SIGNAL_SCALE と一致（signal 目標スケール）
+ZKP_CERT_MODE_MAX_ABS = 1000  # 回路 MODE_MAX_ABS と一致（モード絶対値上限）
+ZKP_CERT_RECON_ERR_RATIO = 0.5  # 回路 RECON_ERR_NUM/RECON_ERR_DEN と一致（再構成誤差エネルギー許容比）
+ZKP_CERT_NARROW_RATIO = 0.05  # 回路 NARROW_NUM/NARROW_DEN と一致（narrowband ピーク比下限）
+
 
 # =========================================================
 # 計算処理関数（5-1.ipynb から無改変で移植 — 変更禁止）
@@ -110,10 +119,7 @@ def load_csi_matrix(csi_file):
     length_counter = Counter(lengths)
     target_len = length_counter.most_common(1)[0][0]
 
-    csi_matrix = np.array([
-        csi for csi in csi_list
-        if len(csi) == target_len
-    ])
+    csi_matrix = np.array([csi for csi in csi_list if len(csi) == target_len])
 
     print("CSI lengths:", length_counter)
     print("Selected TARGET_LEN:", target_len)
@@ -219,12 +225,7 @@ def select_respiration_pc(principal_components, fs, lowcut, highcut):
     scores = []
 
     for i in range(principal_components.shape[1]):
-        score = respiration_score_fft(
-            principal_components[:, i],
-            fs,
-            lowcut,
-            highcut
-        )
+        score = respiration_score_fft(principal_components[:, i], fs, lowcut, highcut)
         scores.append(score)
 
     best_idx = int(np.argmax(scores))
@@ -239,33 +240,14 @@ def select_respiration_pc(principal_components, fs, lowcut, highcut):
     return respiration_pc, best_idx, scores
 
 
-def estimate_breathing_rate_by_vmd_global_peak(
-    signal,
-    fs,
-    bpm_min,
-    bpm_max,
-    K,
-    alpha,
-    tau,
-    DC,
-    init,
-    tol
-):
+def estimate_breathing_rate_by_vmd_global_peak(signal, fs, bpm_min, bpm_max, K, alpha, tau, DC, init, tol):
     """
     VMDで信号をK個のモードに分解し、
     各モードの最大ピーク周波数が呼吸範囲内かを評価する。
     """
     signal = signal - np.mean(signal)
 
-    vmd_modes, _, _ = VMD(
-        signal,
-        alpha,
-        tau,
-        K,
-        DC,
-        init,
-        tol
-    )
+    vmd_modes, _, _ = VMD(signal, alpha, tau, K, DC, init, tol)
 
     low_hz = bpm_min / 60
     high_hz = bpm_max / 60
@@ -294,22 +276,21 @@ def estimate_breathing_rate_by_vmd_global_peak(
 
         is_valid = low_hz <= global_peak_freq <= high_hz
 
-        mode_infos.append({
-            "mode_index": i,
-            "mode": mode,
-            "freqs": freqs,
-            "power": power,
-            "global_peak_freq": global_peak_freq,
-            "global_peak_bpm": global_peak_bpm,
-            "global_peak_power": global_peak_power,
-            "global_peak_ratio": global_peak_ratio,
-            "is_valid": is_valid
-        })
+        mode_infos.append(
+            {
+                "mode_index": i,
+                "mode": mode,
+                "freqs": freqs,
+                "power": power,
+                "global_peak_freq": global_peak_freq,
+                "global_peak_bpm": global_peak_bpm,
+                "global_peak_power": global_peak_power,
+                "global_peak_ratio": global_peak_ratio,
+                "is_valid": is_valid,
+            }
+        )
 
-    valid_modes = [
-        info for info in mode_infos
-        if info["is_valid"]
-    ]
+    valid_modes = [info for info in mode_infos if info["is_valid"]]
 
     if len(valid_modes) > 0:
         best_info = max(valid_modes, key=lambda x: x["global_peak_ratio"])
@@ -359,6 +340,168 @@ def prepare_breathing_zkp_input(
     return [int(round(float(v))) for v in signal]
 
 
+def prepare_zkvm_input(
+    csi_matrix: np.ndarray,
+    scale: int = 10_000,
+) -> Dict[str, Any]:
+    """zkVM 内の 5-1 固定小数点パイプラインへ渡す CSI 振幅行列を作る。
+
+    PicoScenes バイナリの構造解析はホスト側に残し、複素 CSI から後の
+    振幅抽出→SNR選択→バンドパス→PCA→VMD→呼吸判定を guest で再実行する。
+    入力は全体の最大振幅で固定小数点化し、SHA-256 コミットメントを
+    公開 journal と照合できるようにする。
+    """
+    matrix = np.asarray(csi_matrix)
+    if matrix.ndim != 2 or matrix.shape[0] == 0 or matrix.shape[1] == 0:
+        raise ValueError("csi_matrix は空でない 2 次元行列である必要があります")
+    if scale <= 0:
+        raise ValueError("scale は正の整数である必要があります")
+
+    amplitudes = np.abs(matrix).astype(np.float64)
+    if not np.all(np.isfinite(amplitudes)):
+        raise ValueError("CSI 振幅に非有限値が含まれています")
+    max_amplitude = float(np.max(amplitudes))
+    if max_amplitude <= 0:
+        raise ValueError("CSI 振幅が全てゼロです")
+
+    quantized = np.rint(amplitudes / max_amplitude * scale).astype(np.int64)
+    samples, subcarriers = quantized.shape
+    flattened = [int(value) for value in quantized.ravel(order="C")]
+
+    digest = hashlib.sha256()
+    digest.update(struct.pack("<III", int(samples), int(subcarriers), int(scale)))
+    for value in flattened:
+        digest.update(struct.pack("<i", value))
+
+    return {
+        "samples": int(samples),
+        "subcarriers": int(subcarriers),
+        "amplitudes": flattened,
+        "scale": int(scale),
+        "sample_rate_hz": FS,
+        "bpm_min": BPM_MIN,
+        "bpm_max": BPM_MAX,
+        "input_commitment": digest.hexdigest(),
+        "algorithm_version": "5-1-fixed-v1",
+    }
+
+
+def prepare_breathing_certificate_input(
+    respiration_pc: np.ndarray,
+    vmd_modes: np.ndarray,
+    selected_mode_index: int,
+    fs: float = FS,
+    target_fs: float = ZKP_TARGET_FS,
+    t_target: int = ZKP_T,
+    signal_scale: int = ZKP_CERT_SIGNAL_SCALE,
+    mode_max_abs: int = ZKP_CERT_MODE_MAX_ABS,
+) -> Dict[str, Any]:
+    """証明書回路 csi_breathing_certificate.circom の秘密入力を作る。
+
+    docs/ZKP_PIPELINE_EXTENSION_IDEAS.md テーマ1・案A の入力準備。
+
+    再構成性 Σ_k modes[k][t] ≈ vmdInput[t] を整数領域で保つため、VMD 入力信号と
+    全モードに *同一* のスケール係数を適用する（単一モードを個別正規化する
+    prepare_breathing_zkp_input とは異なる）。
+
+    処理:
+      1. VMD 入力（respiration_pc）を中心化
+         （estimate_breathing_rate_by_vmd_global_peak と同一の前処理）。
+         モードは VMD が中心化済み信号を分解した出力なので再中心化しない。
+      2. target_fs へ間引き、先頭 t_target サンプルを使用（不足分ゼロパディング）。
+      3. signal ≤ signal_scale かつ 全モード ≤ mode_max_abs を保証する共通スケール係数を
+         求め、signal と全モードへ一括適用して整数化。
+      4. sel は選択モードを指す one-hot。
+
+    Returns:
+        {"vmdInput": [T], "modes": [K][T], "sel": [K], "diagnostics": {...}}
+        diagnostics は回路のハード制約・判定に対応する参考値。
+    """
+    modes = np.asarray(vmd_modes, dtype=np.float64)
+    if modes.ndim != 2:
+        raise ValueError("vmd_modes は [K, N] の2次元配列である必要があります")
+
+    k_modes = modes.shape[0]
+    if not (0 <= selected_mode_index < k_modes):
+        raise ValueError("selected_mode_index が範囲外です")
+    if fs <= 0 or target_fs <= 0 or fs < target_fs:
+        raise ValueError("fs / target_fs の設定を確認してください。")
+
+    step = int(round(fs / target_fs))
+
+    # VMD 入力の中心化（VMD はこの中心化済み信号を分解している）
+    sig = np.asarray(respiration_pc, dtype=np.float64)
+    sig = sig - np.mean(sig)
+
+    def downsample(arr: np.ndarray) -> np.ndarray:
+        d = np.asarray(arr, dtype=np.float64)[::step]
+        if len(d) >= t_target:
+            return d[:t_target]
+        return np.pad(d, (0, t_target - len(d)))
+
+    sig_ds = downsample(sig)
+    modes_ds = np.vstack([downsample(modes[k]) for k in range(k_modes)])
+
+    sig_max = float(np.max(np.abs(sig_ds)))
+    mode_max = float(np.max(np.abs(modes_ds)))
+    if sig_max <= 0:
+        raise ValueError("VMD 入力信号が全てゼロです")
+
+    # signal ≤ signal_scale を基本とし、モードが上限を超える場合のみ更に縮小
+    factor = signal_scale / sig_max
+    if mode_max > 0:
+        factor = min(factor, mode_max_abs / mode_max)
+
+    vmd_input_int = [int(round(float(v) * factor)) for v in sig_ds]
+    modes_int = [[int(round(float(v) * factor)) for v in modes_ds[k]] for k in range(k_modes)]
+    sel = [1 if k == selected_mode_index else 0 for k in range(k_modes)]
+
+    # ---- 診断メトリクス（回路のハード制約・判定に対応する参考値） ----
+    sig_arr = np.array(vmd_input_int, dtype=np.float64)
+    recon = np.sum(np.array(modes_int, dtype=np.float64), axis=0)
+    err_energy = float(np.sum((recon - sig_arr) ** 2))
+    sig_energy = float(np.sum(sig_arr**2))
+    recon_error_ratio = err_energy / sig_energy if sig_energy > 0 else float("inf")
+
+    sel_mode = np.array(modes_int[selected_mode_index], dtype=np.float64)
+    sel_mode = sel_mode - np.mean(sel_mode)
+    power = np.abs(np.fft.rfft(sel_mode)) ** 2
+    if len(power) > 1:
+        peak_power = float(np.max(power[1:]))  # DC を除いたグローバルピーク（5-1と同様）
+    else:
+        peak_power = 0.0
+    narrow_ratio = peak_power / (float(np.sum(power)) + 1e-12)
+
+    max_mode_abs = int(np.max(np.abs(np.array(modes_int)))) if k_modes else 0
+
+    diagnostics = {
+        "recon_error_ratio": recon_error_ratio,
+        "recon_error_ratio_threshold": ZKP_CERT_RECON_ERR_RATIO,
+        "recon_ok": recon_error_ratio <= ZKP_CERT_RECON_ERR_RATIO,
+        "narrow_ratio": narrow_ratio,
+        "narrow_ratio_threshold": ZKP_CERT_NARROW_RATIO,
+        "narrow_ok": narrow_ratio >= ZKP_CERT_NARROW_RATIO,
+        "max_mode_abs": max_mode_abs,
+        "mode_max_abs_limit": mode_max_abs,
+        "scale_factor": float(factor),
+    }
+
+    if not diagnostics["recon_ok"]:
+        logger.warning(
+            "Certificate input: reconstruction error ratio %.3f exceeds threshold %.3f "
+            "(circuit will reject). Consider raising VMD_K or the circuit RECON_ERR ratio.",
+            recon_error_ratio,
+            ZKP_CERT_RECON_ERR_RATIO,
+        )
+
+    return {
+        "vmdInput": vmd_input_int,
+        "modes": modes_int,
+        "sel": sel,
+        "diagnostics": diagnostics,
+    }
+
+
 # =========================================================
 # パイプライン実行（5-1.ipynb の main() と同じ手順、描画・判定を除く）
 # =========================================================
@@ -371,9 +514,7 @@ def _check_dependencies(require_loader: bool) -> None:
     if VMD is None:
         missing.append("vmdpy")
     if missing:
-        raise RuntimeError(
-            f"呼吸推定パイプラインに必要なパッケージが未インストールです: {', '.join(missing)}"
-        )
+        raise RuntimeError(f"呼吸推定パイプラインに必要なパッケージが未インストールです: {', '.join(missing)}")
 
 
 def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]:
@@ -395,22 +536,12 @@ def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]
     # 3. サブキャリア選択
     with timer("FFT/SNRによるサブキャリア選択"):
         selected_amplitude, selected_indices, snr = select_subcarriers_by_snr(
-            amplitude_all=amplitude_all,
-            fs=FS,
-            lowcut=LOWCUT,
-            highcut=HIGHCUT,
-            n_select=N_SELECT
+            amplitude_all=amplitude_all, fs=FS, lowcut=LOWCUT, highcut=HIGHCUT, n_select=N_SELECT
         )
 
     # 4. バンドパスフィルタ
     with timer("選択サブキャリアへのバンドパス"):
-        pca_input = bandpass_filter(
-            selected_amplitude,
-            fs=FS,
-            lowcut=LOWCUT,
-            highcut=HIGHCUT,
-            order=4
-        )
+        pca_input = bandpass_filter(selected_amplitude, fs=FS, lowcut=LOWCUT, highcut=HIGHCUT, order=4)
         print("PCA input shape:", pca_input.shape)
 
     # 5. PCA
@@ -425,10 +556,7 @@ def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]
     # 6. 呼吸PC選択
     with timer("FFTによる呼吸PC選択"):
         respiration_pc, best_pc_idx, pc_scores = select_respiration_pc(
-            principal_components,
-            fs=FS,
-            lowcut=LOWCUT,
-            highcut=HIGHCUT
+            principal_components, fs=FS, lowcut=LOWCUT, highcut=HIGHCUT
         )
 
     # 7. VMD
@@ -443,7 +571,7 @@ def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]
             tau=VMD_TAU,
             DC=VMD_DC,
             init=VMD_INIT,
-            tol=VMD_TOL
+            tol=VMD_TOL,
         )
 
     vmd_respiration = best_vmd_info["mode"]
@@ -453,10 +581,23 @@ def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]
     # 8. ZKP 回路入力の準備（正常判定は回路内で行う）
     zkp_input = prepare_breathing_zkp_input(vmd_respiration)
 
+    # 8b. 証明書回路入力の準備（案A: 全モード＋入力信号で再構成性も証明）
+    certificate_input = prepare_breathing_certificate_input(
+        respiration_pc=respiration_pc,
+        vmd_modes=vmd_modes,
+        selected_mode_index=int(best_vmd_info["mode_index"]),
+    )
+
+    # zkVM は同じ生 CSI 行列に対して数値パイプライン全体を再実行する。
+    zkvm_input = prepare_zkvm_input(csi_matrix)
+
     elapsed = time.perf_counter() - total_start
     logger.info(
         "Breathing pipeline completed: bpm=%.2f, PC%d, VMD Mode %d, %.3fs",
-        breathing_rate_bpm, best_pc_idx + 1, best_vmd_info["mode_index"] + 1, elapsed,
+        breathing_rate_bpm,
+        best_pc_idx + 1,
+        best_vmd_info["mode_index"] + 1,
+        elapsed,
     )
 
     return {
@@ -482,6 +623,8 @@ def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]
         "bpm_range": {"min": BPM_MIN, "max": BPM_MAX},
         "processing_time_seconds": float(elapsed),
         "zkp_input": zkp_input,
+        "certificate_input": certificate_input,
+        "zkvm_input": zkvm_input,
     }
 
 

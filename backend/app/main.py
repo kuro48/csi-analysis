@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings, validate_security_settings as _check_required_env_vars
 from app.core.errors import setup_error_handlers
 from app.api.routes import api_router
-from app.services.zkp_service import ZKPService
+from app.services.breathing_certificate_service import BreathingCertificateService
 import logging
 
 
@@ -258,10 +258,10 @@ async def startup_event():
         logger.info("Security settings validated")
 
         if settings.ZKP_AUTO_COMPILE:
-            logger.info("Checking ZKP circuits (auto-compile enabled)...")
+            logger.info("Checking breathing certificate circuit (auto-compile enabled)...")
             try:
-                ZKPService(auto_compile=True)
-                logger.info("ZKP circuits ready (auto-compile checked)")
+                BreathingCertificateService(auto_compile=True)
+                logger.info("Breathing certificate circuit ready (auto-compile checked)")
             except Exception as e:
                 logger.error(f"ZKP circuit setup failed: {e}", exc_info=True)
 

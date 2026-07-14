@@ -22,7 +22,7 @@ interface Props {
 
 const LABELS: Record<Mode, { title: string; accept: string }> = {
   base: { title: "ベースCSI", accept: ".pcap,.pcapng,.cap,.csi,.csv" },
-  main: { title: "メインCSI", accept: ".pcap,.pcapng,.cap,.csi,.csv" },
+  main: { title: "メインCSI (5-1 + Circom / zkVM)", accept: ".csi" },
 };
 
 export function UploadSection({ mode }: Props) {

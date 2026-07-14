@@ -80,6 +80,20 @@ export interface BreathingRateComparison {
 }
 
 export interface ProcessedData {
+  status?: "completed" | "partial" | "failed";
+  analysis?: {
+    pipeline?: string;
+    breathing_rate_bpm?: number;
+    peak_freq_hz?: number;
+    selected_pc?: number;
+    selected_vmd_mode?: number;
+    input_commitment?: string;
+  };
+  proofs?: {
+    python_circom?: VerifiableProofResult;
+    zkvm?: VerifiableProofResult;
+  };
+  disabled_methods?: string[];
   fft_dataframe?: DataframeDict;
   wavelet_dataframe?: DataframeDict;
   music_dataframe?: DataframeDict;
@@ -96,6 +110,21 @@ export interface ProcessedData {
   blockchain_proof_id?: string;
   blockchain_proof_data?: Record<string, unknown>;
   error?: string;
+}
+
+export interface VerifiableProofResult {
+  status: "completed" | "failed";
+  isNormal?: boolean;
+  isValid?: boolean;
+  method?: string;
+  error?: string;
+  error_type?: string;
+  journal?: {
+    algorithm_version?: string;
+    breathing_rate_milli_bpm?: number;
+    is_normal?: boolean;
+    input_commitment?: string;
+  };
 }
 
 export interface MainCSIResponse {
