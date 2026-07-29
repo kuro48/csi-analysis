@@ -35,6 +35,11 @@ from app.services.verifiable_breathing_service import VerifiableBreathingService
 
 logger = logging.getLogger(__name__)
 
+# CSI parsing and proof generation are memory-heavy.  BackgroundTasks can run
+# once per upload, so without a guard a second upload starts another full
+# matrix/prover in the same backend process and can make the container exit.
+_CSI_PROCESSING_SEMAPHORE = asyncio.Semaphore(1)
+
 
 def _get_blockchain_service() -> BlockchainService:
     """BlockchainService を設定から直接生成する（エンドポイント層に依存しない）。"""
@@ -69,15 +74,13 @@ def serialize_fft_dataframe(fft_df) -> dict:
 
     if "freq_interval" in df.columns:
         from app.services.pcap_analyzer_common import _interval_midpoint
+
         df["frequency"] = df["freq_interval"].apply(_interval_midpoint).astype(float)
     elif "frequency" not in df.columns:
         return {}
 
     exclude = {"frequency", "freq_interval", "freq_mid"}
-    data_cols = [
-        c for c in df.columns
-        if c not in exclude and str(c).lstrip("-").replace(".", "", 1).isdigit()
-    ]
+    data_cols = [c for c in df.columns if c not in exclude and str(c).lstrip("-").replace(".", "", 1).isdigit()]
     if data_cols:
         df["magnitude_avg"] = df[data_cols].replace([np.inf, -np.inf], np.nan).mean(axis=1)
     else:
@@ -121,15 +124,10 @@ async def record_zkp_proof_on_chain(
         )
 
         if not proof_id:
-            logger.warning(
-                f"Failed to record ZKP proof on blockchain for CSI data {csi_data_id}"
-            )
+            logger.warning(f"Failed to record ZKP proof on blockchain for CSI data {csi_data_id}")
             return
 
-        logger.info(
-            f"ZKP proof automatically recorded on blockchain: "
-            f"CSI data {csi_data_id}, proof ID {proof_id}"
-        )
+        logger.info(f"ZKP proof automatically recorded on blockchain: " f"CSI data {csi_data_id}, proof ID {proof_id}")
 
         csi_data.processed_data["blockchain_proof_id"] = proof_id
         csi_data.processed_data["blockchain_proof_data"] = {
@@ -174,15 +172,14 @@ async def run_base_csi_comparison(
     logger.info(f"Comparing with base CSI: {base_csi.id} ({base_csi.name})")
 
     extract_kwargs = dict(
-        freq_col="freq_interval", use_binned=True,
-        freq_min=analyzer.ZKP_FREQ_START, freq_max=analyzer.ZKP_FREQ_END,
+        freq_col="freq_interval",
+        use_binned=True,
+        freq_min=analyzer.ZKP_FREQ_START,
+        freq_max=analyzer.ZKP_FREQ_END,
     )
 
     def subcarrier_entry(indices, sims):
-        return [
-            {"index": idx, "similarity": sim, "rank": i + 1}
-            for i, (idx, sim) in enumerate(zip(indices, sims))
-        ]
+        return [{"index": idx, "similarity": sim, "rank": i + 1} for i, (idx, sim) in enumerate(zip(indices, sims))]
 
     async def load_base_dataframe(method: str):
         stored = getattr(base_csi, f"{method}_dataframe", None)
@@ -225,7 +222,9 @@ async def run_base_csi_comparison(
         )
         zkp_top_n_result = await asyncio.to_thread(
             zkp_service.extract_top_n_from_similarities,
-            similarity_result.get("similarities", []), 10000, 5,
+            similarity_result.get("similarities", []),
+            10000,
+            5,
         )
 
         selected_similarity = similarity_result.get("selectedSubcarrierSimilarity")
@@ -351,9 +350,7 @@ async def generate_transform_zkp_proofs(
         if not cand_matrix:
             return None
         try:
-            return await wavelet_service.generate_proof(
-                reference_matrix=cand_matrix, candidate_matrix=cand_matrix
-            )
+            return await wavelet_service.generate_proof(reference_matrix=cand_matrix, candidate_matrix=cand_matrix)
         except Exception as exc:
             logger.error("[TransformZKP] wavelet proof (fallback) failed: %s", exc, exc_info=True)
             return None
@@ -373,9 +370,7 @@ async def generate_transform_zkp_proofs(
         if not cand_matrix:
             return None
         try:
-            return await music_service.generate_proof(
-                reference_matrix=cand_matrix, candidate_matrix=cand_matrix
-            )
+            return await music_service.generate_proof(reference_matrix=cand_matrix, candidate_matrix=cand_matrix)
         except Exception as exc:
             logger.error("[TransformZKP] music proof (fallback) failed: %s", exc, exc_info=True)
             return None
@@ -429,6 +424,23 @@ async def run_breathing_normality_zkp(
         logger.info("[BreathingZKP] Skipping: not a PicoScenes .csi file (%s)", file_path)
         return None, None
 
+    skip_above_mb = settings.PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB
+    if skip_above_mb > 0:
+        file_size = Path(file_path).stat().st_size
+        skip_above_bytes = skip_above_mb * 1024 * 1024
+        if file_size > skip_above_bytes:
+            logger.info(
+                "[BreathingZKP] Skipping for large file: %s bytes exceeds %s MB threshold",
+                file_size,
+                skip_above_mb,
+            )
+            return {
+                "skipped": True,
+                "reason": "file_too_large_for_breathing_normality_zkp",
+                "file_size": file_size,
+                "threshold_mb": skip_above_mb,
+            }, None
+
     # 依存パッケージ（picoscenes / scikit-learn / vmdpy）を必要時のみ読み込む
     from app.services.breathing_pipeline import run_breathing_pipeline
     from app.services.zkp_circuit_service import ZKPBreathingService
@@ -438,9 +450,7 @@ async def run_breathing_normality_zkp(
     # 生の時系列（秘密入力）は DB に保存しない
     summary = {k: v for k, v in pipeline_result.items() if k != "zkp_input"}
 
-    breathing_service = await asyncio.to_thread(
-        ZKPBreathingService, auto_compile=settings.ZKP_AUTO_COMPILE
-    )
+    breathing_service = await asyncio.to_thread(ZKPBreathingService, auto_compile=settings.ZKP_AUTO_COMPILE)
     proof_result = await breathing_service.generate_proof(vmd_signal=zkp_input)
     is_normal = proof_result.get("isNormal", False)
 
@@ -475,6 +485,10 @@ async def process_csi_in_background(
 
     ファイル形式（.pcap / .csi など）は拡張子から自動判定する。
     """
+    if _CSI_PROCESSING_SEMAPHORE.locked():
+        logger.info("CSI data %s is queued behind another analysis", csi_data_id)
+
+    await _CSI_PROCESSING_SEMAPHORE.acquire()
     db = None
     csi_data = None
     try:
@@ -486,8 +500,8 @@ async def process_csi_in_background(
             csi_data.status = "processing"
             await asyncio.to_thread(db.commit)
 
-        # 現行の主解析経路: 5-1.ipynb 由来の Python 解析を1回実行し、
-        # Python+Circom と RISC Zero zkVM を並列で証明する。
+        # 現行の主解析経路: 5-1.ipynb 由来の Python 解析と Circom 証明。
+        # zkVM 実装は保持し、CSI_ZKVM_ENABLED=true の場合のみ追加実行する。
         # FFT+コサイン類似度、Wavelet、MUSIC は意図的にこの経路から外す。
         verifiable_result = await VerifiableBreathingService().analyze(file_path)
         if csi_data:
@@ -525,11 +539,13 @@ async def process_csi_in_background(
         fft_matrix = await asyncio.to_thread(analyzer.extract_matrix_for_zkp, binned_fft_df)
         wavelet_matrix = (
             await asyncio.to_thread(analyzer.extract_matrix_for_zkp, binned_wavelet_df)
-            if not binned_wavelet_df.empty else []
+            if not binned_wavelet_df.empty
+            else []
         )
         music_matrix = (
             await asyncio.to_thread(analyzer.extract_music_matrix_for_zkp, binned_music_df)
-            if not binned_music_df.empty else []
+            if not binned_music_df.empty
+            else []
         )
         if fft_matrix:
             await asyncio.to_thread(save_fft_graph, fft_matrix, csi_id_str)
@@ -542,15 +558,18 @@ async def process_csi_in_background(
         # --- 位相パイプライン: グラフ保存（ZKP には送らず可視化のみ） ---
         fft_phase_matrix = (
             await asyncio.to_thread(analyzer.extract_matrix_for_zkp, binned_fft_phase_df)
-            if not binned_fft_phase_df.empty else []
+            if not binned_fft_phase_df.empty
+            else []
         )
         wavelet_phase_matrix = (
             await asyncio.to_thread(analyzer.extract_matrix_for_zkp, binned_wavelet_phase_df)
-            if not binned_wavelet_phase_df.empty else []
+            if not binned_wavelet_phase_df.empty
+            else []
         )
         music_phase_matrix = (
             await asyncio.to_thread(analyzer.extract_music_matrix_for_zkp, binned_music_phase_df)
-            if not binned_music_phase_df.empty else []
+            if not binned_music_phase_df.empty
+            else []
         )
         if fft_phase_matrix:
             await asyncio.to_thread(save_fft_phase_graph, fft_phase_matrix, csi_id_str)
@@ -561,7 +580,10 @@ async def process_csi_in_background(
         if fft_phase_matrix or wavelet_phase_matrix or music_phase_matrix:
             await asyncio.to_thread(
                 save_combined_phase_graph,
-                fft_phase_matrix, wavelet_phase_matrix, music_phase_matrix, csi_id_str,
+                fft_phase_matrix,
+                wavelet_phase_matrix,
+                music_phase_matrix,
+                csi_id_str,
             )
 
         device_id = getattr(csi_data, "device_id", None) if csi_data else None
@@ -643,9 +665,7 @@ async def process_csi_in_background(
                 "fft_phase_dataframe": fft_phase_ser,
                 "wavelet_phase_dataframe": wav_phase_ser,
                 "music_phase_dataframe": mus_phase_ser,
-                "breathing_rate_phase_comparison": analysis_result.get(
-                    "breathing_rate_phase_comparison"
-                ),
+                "breathing_rate_phase_comparison": analysis_result.get("breathing_rate_phase_comparison"),
                 "notebook_breathing": notebook_breathing,
                 "breathing_normality_zkp": breathing_zkp_result,
             }
@@ -702,6 +722,7 @@ async def process_csi_in_background(
             await asyncio.to_thread(db.commit)
 
     finally:
+        _CSI_PROCESSING_SEMAPHORE.release()
         if not settings.RESEARCH_MODE and file_path:
             temp_path = Path(file_path)
             if temp_path.exists():

@@ -21,9 +21,12 @@
 import hashlib
 import logging
 import struct
+import tempfile
 import time
 from collections import Counter
 from contextlib import contextmanager
+from contextvars import ContextVar
+from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
@@ -80,6 +83,14 @@ ZKP_CERT_MODE_MAX_ABS = 1000  # 回路 MODE_MAX_ABS と一致（モード絶対�
 ZKP_CERT_RECON_ERR_RATIO = 0.5  # 回路 RECON_ERR_NUM/RECON_ERR_DEN と一致（再構成誤差エネルギー許容比）
 ZKP_CERT_NARROW_RATIO = 0.05  # 回路 NARROW_NUM/NARROW_DEN と一致（narrowband ピーク比下限）
 
+# The official parser stores every decoded frame in ``raw``.  Decode a small
+# batch at a time so a large capture does not expand to several GB in memory.
+PICOSCENES_PARSE_BATCH_FRAMES = 32
+_TIMING_COLLECTOR: ContextVar[List[Dict[str, Any]] | None] = ContextVar(
+    "breathing_pipeline_timing_collector",
+    default=None,
+)
+
 
 # =========================================================
 # 計算処理関数（5-1.ipynb から無改変で移植 — 変更禁止）
@@ -89,7 +100,64 @@ def timer(label):
     start = time.perf_counter()
     yield
     elapsed = time.perf_counter() - start
+    collector = _TIMING_COLLECTOR.get()
+    if collector is not None:
+        collector.append({"process": label, "seconds": float(elapsed)})
     print(f"[TIME] {label}: {elapsed:.3f} 秒")
+
+
+@contextmanager
+def collect_pipeline_timings():
+    """Collect nested pipeline timer results without changing production output."""
+    collected: List[Dict[str, Any]] = []
+    token = _TIMING_COLLECTOR.set(collected)
+    try:
+        yield collected
+    finally:
+        _TIMING_COLLECTOR.reset(token)
+
+
+def _iter_picoscenes_frame_batches(csi_file: str, batch_size: int):
+    """Yield (byte offset, frame count) batches without decoding frame bodies."""
+    if batch_size <= 0:
+        raise ValueError("PicoScenes parse batch size must be positive")
+
+    file_size = Path(csi_file).stat().st_size
+    position = 0
+    batch_start = 0
+    batch_count = 0
+
+    with open(csi_file, "rb") as source:
+        while position < file_size:
+            source.seek(position)
+            header = source.read(4)
+            if not header:
+                break
+            if len(header) != 4:
+                raise ValueError(f"PicoScenesフレームヘッダーが不完全です: offset={position}")
+
+            frame_size = int.from_bytes(header, byteorder="little", signed=False) + 4
+            if frame_size <= 4 or position + frame_size > file_size:
+                raise ValueError(f"PicoScenesフレーム長が不正です: offset={position}, size={frame_size}")
+
+            if batch_count == 0:
+                batch_start = position
+            batch_count += 1
+            position += frame_size
+
+            if batch_count == batch_size:
+                yield batch_start, batch_count
+                batch_count = 0
+
+    if batch_count:
+        yield batch_start, batch_count
+
+
+def _new_chunked_picoscenes_parser():
+    # Picoscenes.__cinit__ always calls read().  Construct it against an empty
+    # file, then use seek(real_file, offset, count) for bounded batches.
+    with tempfile.NamedTemporaryFile(suffix=".csi") as empty_file:
+        return Picoscenes(empty_file.name, False)
 
 
 def load_csi_matrix(csi_file):
@@ -97,29 +165,43 @@ def load_csi_matrix(csi_file):
     PicoScenesのCSIを読み込み、
     最も多いCSI長のデータだけを使って行列化する。
     """
-    frames = Picoscenes(csi_file)
+    parser = _new_chunked_picoscenes_parser()
+    length_counter = Counter()
 
-    csi_list = []
-    lengths = []
+    # First pass: identify the modal CSI width without retaining decoded frames.
+    for offset, count in _iter_picoscenes_frame_batches(csi_file, PICOSCENES_PARSE_BATCH_FRAMES):
+        parser.seek(str(csi_file), offset, count)
+        for frame in parser.raw:
+            csi = frame.get("CSI")
+            if csi is None or csi.get("CSI") is None:
+                continue
+            length_counter[np.asarray(csi.get("CSI")).size] += 1
+        parser.raw.clear()
 
-    for frame in frames.raw:
-        csi = frame.get("CSI")
-
-        if csi is None:
-            continue
-
-        complex_csi = np.array(csi.get("CSI")).flatten()
-
-        csi_list.append(complex_csi)
-        lengths.append(len(complex_csi))
-
-    if len(csi_list) == 0:
+    if not length_counter:
         raise ValueError("CSIデータが見つかりません。")
 
-    length_counter = Counter(lengths)
     target_len = length_counter.most_common(1)[0][0]
+    target_rows = length_counter[target_len]
+    csi_matrix = np.empty((target_rows, target_len), dtype=np.complex128)
 
-    csi_matrix = np.array([csi for csi in csi_list if len(csi) == target_len])
+    # Second pass: fill the final dense matrix directly, still keeping only one
+    # decoded batch in the parser's ``raw`` list.
+    row = 0
+    for offset, count in _iter_picoscenes_frame_batches(csi_file, PICOSCENES_PARSE_BATCH_FRAMES):
+        parser.seek(str(csi_file), offset, count)
+        for frame in parser.raw:
+            csi = frame.get("CSI")
+            if csi is None or csi.get("CSI") is None:
+                continue
+            values = np.asarray(csi.get("CSI")).reshape(-1)
+            if values.size == target_len:
+                csi_matrix[row] = values
+                row += 1
+        parser.raw.clear()
+
+    if row != target_rows:
+        raise RuntimeError(f"CSI行列の構築件数が一致しません: expected={target_rows}, actual={row}")
 
     print("CSI lengths:", length_counter)
     print("Selected TARGET_LEN:", target_len)
@@ -517,7 +599,10 @@ def _check_dependencies(require_loader: bool) -> None:
         raise RuntimeError(f"呼吸推定パイプラインに必要なパッケージが未インストールです: {', '.join(missing)}")
 
 
-def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]:
+def run_breathing_pipeline_from_matrix(
+    csi_matrix: np.ndarray,
+    include_zkvm_input: bool = True,
+) -> Dict[str, Any]:
     """複素CSI行列 [n_samples × n_subcarriers] に 5-1.ipynb の処理を適用する。
 
     Returns:
@@ -579,17 +664,22 @@ def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]
     breathing_rate_bpm = best_vmd_info["global_peak_bpm"]
 
     # 8. ZKP 回路入力の準備（正常判定は回路内で行う）
-    zkp_input = prepare_breathing_zkp_input(vmd_respiration)
+    with timer("Circom正常判定入力の準備"):
+        zkp_input = prepare_breathing_zkp_input(vmd_respiration)
 
     # 8b. 証明書回路入力の準備（案A: 全モード＋入力信号で再構成性も証明）
-    certificate_input = prepare_breathing_certificate_input(
-        respiration_pc=respiration_pc,
-        vmd_modes=vmd_modes,
-        selected_mode_index=int(best_vmd_info["mode_index"]),
-    )
+    with timer("Circom証明書入力の準備"):
+        certificate_input = prepare_breathing_certificate_input(
+            respiration_pc=respiration_pc,
+            vmd_modes=vmd_modes,
+            selected_mode_index=int(best_vmd_info["mode_index"]),
+        )
 
     # zkVM は同じ生 CSI 行列に対して数値パイプライン全体を再実行する。
-    zkvm_input = prepare_zkvm_input(csi_matrix)
+    # 大容量ファイルでは Python の int リスト化だけでも数百 MB を消費するため、
+    # 呼び出し側が安全上限を超えたと判断した場合は生成自体を省略する。
+    with timer("zkVM固定小数点入力とcommitmentの準備"):
+        zkvm_input = prepare_zkvm_input(csi_matrix) if include_zkvm_input else None
 
     elapsed = time.perf_counter() - total_start
     logger.info(
@@ -628,7 +718,10 @@ def run_breathing_pipeline_from_matrix(csi_matrix: np.ndarray) -> Dict[str, Any]
     }
 
 
-def run_breathing_pipeline(csi_file: str) -> Dict[str, Any]:
+def run_breathing_pipeline(
+    csi_file: str,
+    include_zkvm_input: bool = True,
+) -> Dict[str, Any]:
     """PicoScenes .csi ファイルに 5-1.ipynb の一連の処理を適用する。"""
     _check_dependencies(require_loader=True)
 
@@ -636,4 +729,4 @@ def run_breathing_pipeline(csi_file: str) -> Dict[str, Any]:
     with timer("CSI読み込み・行列作成"):
         csi_matrix = load_csi_matrix(csi_file)
 
-    return run_breathing_pipeline_from_matrix(csi_matrix)
+    return run_breathing_pipeline_from_matrix(csi_matrix, include_zkvm_input=include_zkvm_input)

@@ -29,7 +29,7 @@ function formatTimestamp(ms: number): string {
 export function SignalChart({ title, points, color = "#3b82f6" }: Props) {
   if (points.length === 0) {
     return (
-      <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
         <p className="mb-2 text-sm font-semibold text-neutral-700">{title}</p>
         <p className="text-xs text-neutral-400">データなし</p>
       </div>
@@ -39,7 +39,7 @@ export function SignalChart({ title, points, color = "#3b82f6" }: Props) {
   const hasAbsoluteTs = points[0]?.ts != null;
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4">
+    <div className="rounded-lg border border-neutral-200 bg-white p-4">
       <p className="mb-3 text-sm font-semibold text-neutral-700">{title}</p>
       <ResponsiveContainer width="100%" height={180}>
         <LineChart

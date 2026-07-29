@@ -3,6 +3,7 @@ breathing_pipeline（5-1.ipynb 移植パイプライン）の単体テスト
 """
 
 import pytest
+import struct
 
 np = pytest.importorskip("numpy")
 pytest.importorskip("scipy")
@@ -28,6 +29,44 @@ from app.services.breathing_pipeline import (  # noqa: E402
 )
 
 BREATHING_HZ = 0.25  # 15 bpm
+
+
+@pytest.mark.unit
+def test_load_csi_matrix_decodes_large_files_in_bounded_batches(monkeypatch, tmp_path):
+    from app.services import breathing_pipeline
+
+    csi_file = tmp_path / "batched.csi"
+    frame = struct.pack("<I", 4) + b"data"
+    csi_file.write_bytes(frame * 3)
+
+    frames_by_offset = {
+        0: [
+            {"CSI": {"CSI": [1 + 1j, 2 + 2j, 3 + 3j]}},
+            {"CSI": {"CSI": [8 + 8j, 9 + 9j]}},
+        ],
+        16: [{"CSI": {"CSI": [4 + 4j, 5 + 5j, 6 + 6j]}}],
+    }
+    seek_calls = []
+
+    class _Parser:
+        def __init__(self, file_path, if_report):
+            self.raw = []
+
+        def seek(self, file_path, offset, count):
+            seek_calls.append((offset, count))
+            self.raw = list(frames_by_offset[offset])
+
+    monkeypatch.setattr(breathing_pipeline, "Picoscenes", _Parser)
+    monkeypatch.setattr(breathing_pipeline, "PICOSCENES_PARSE_BATCH_FRAMES", 2)
+
+    matrix = breathing_pipeline.load_csi_matrix(str(csi_file))
+
+    assert matrix.shape == (2, 3)
+    assert matrix.tolist() == [
+        [1 + 1j, 2 + 2j, 3 + 3j],
+        [4 + 4j, 5 + 5j, 6 + 6j],
+    ]
+    assert seek_calls == [(0, 2), (16, 1), (0, 2), (16, 1)]
 
 
 def _make_time_axis(seconds: float) -> np.ndarray:

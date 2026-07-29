@@ -77,3 +77,51 @@ async def test_background_processing_uses_only_5_1_parallel_proof_pipeline(monke
     assert record.processed_data == expected
     assert db.commits >= 2
     assert db.closed is True
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_background_processing_serializes_memory_heavy_jobs(monkeypatch):
+    import asyncio
+
+    from app.services import csi_processing
+
+    active = 0
+    max_active = 0
+
+    class _VerifiableService:
+        async def analyze(self, file_path):
+            nonlocal active, max_active
+            active += 1
+            max_active = max(max_active, active)
+            await asyncio.sleep(0.02)
+            active -= 1
+            return {"status": "completed", "analysis": {}, "proofs": {}}
+
+    first_id = uuid.uuid4()
+    second_id = uuid.uuid4()
+    first_record = type(
+        "Record",
+        (),
+        {"id": first_id, "status": "uploaded", "processed_data": None, "file_path": "first.csi"},
+    )()
+    second_record = type(
+        "Record",
+        (),
+        {"id": second_id, "status": "uploaded", "processed_data": None, "file_path": "second.csi"},
+    )()
+    first_db = _DB(first_record)
+    second_db = _DB(second_record)
+
+    monkeypatch.setattr(csi_processing, "_CSI_PROCESSING_SEMAPHORE", asyncio.Semaphore(1))
+    monkeypatch.setattr(csi_processing, "VerifiableBreathingService", _VerifiableService)
+    monkeypatch.setattr(csi_processing.settings, "RESEARCH_MODE", True)
+
+    await asyncio.gather(
+        csi_processing.process_csi_in_background(first_id, "first.csi", lambda: first_db),
+        csi_processing.process_csi_in_background(second_id, "second.csi", lambda: second_db),
+    )
+
+    assert max_active == 1
+    assert first_record.status == "completed"
+    assert second_record.status == "completed"

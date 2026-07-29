@@ -1,13 +1,19 @@
 import { API_BASE } from "./constants";
-import type { BaseCSIResponse, CSIDataListResponse, CSIStatus, MainCSIResponse } from "./types";
+import type { CSIDataListResponse, CSIStatus, MainCSIResponse } from "./types";
 
 const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB — 100秒タイムアウト対策
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`${res.status}: ${text}`);
+    let detail = res.statusText;
+    try {
+      const body = (await res.json()) as { detail?: string };
+      detail = body.detail ?? detail;
+    } catch {
+      // Keep statusText for non-JSON responses.
+    }
+    throw new Error(`${res.status}: ${detail}`);
   }
   return res.json() as Promise<T>;
 }
@@ -35,31 +41,17 @@ async function uploadInChunks(
     if (uploadId) form.append("upload_id", uploadId);
     for (const [k, v] of Object.entries(extraFields)) form.append(k, v);
 
-    const res = await request<{ upload_id: string; chunks_received: number; base_csi?: BaseCSIResponse; csi_data?: MainCSIResponse }>(
+    const res = await request<{ upload_id: string; chunks_received: number; csi_data?: MainCSIResponse }>(
       `${API_BASE}${endpoint}`,
       { method: "POST", body: form, signal },
     );
 
     uploadId = res.upload_id;
 
-    if (res.base_csi) return res.base_csi;
     if (res.csi_data) return res.csi_data;
   }
 
   throw new Error("チャンクアップロード完了後にレコードが返されませんでした");
-}
-
-export function uploadBaseCSI(file: File, signal?: AbortSignal): Promise<BaseCSIResponse> {
-  if (file.size <= CHUNK_SIZE) {
-    const form = new FormData();
-    form.append("file", file);
-    return request<BaseCSIResponse>(`${API_BASE}/api/v2/base-csi/register`, { method: "POST", body: form, signal });
-  }
-  return uploadInChunks(file, "/api/v2/base-csi/upload-chunk", {}, signal) as Promise<BaseCSIResponse>;
-}
-
-export function getBaseCSI(id: string, signal?: AbortSignal): Promise<BaseCSIResponse> {
-  return request<BaseCSIResponse>(`${API_BASE}/api/v2/base-csi/${id}`, { signal });
 }
 
 export function uploadMainCSI(file: File, signal?: AbortSignal): Promise<MainCSIResponse> {

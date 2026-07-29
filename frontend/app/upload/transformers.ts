@@ -1,5 +1,8 @@
 import type { DataframeDict, ProcessedData, SignalDict, SignalPoint, SpectrumPoint } from "./types";
 
+export const BREATHING_PIPELINE_FS = 100;
+const MAX_SIGNAL_POINTS = 2000;
+
 export function signalDictToPoints(signal: SignalDict): SignalPoint[] {
   if (!signal?.time || !signal?.amplitude_avg) return [];
 
@@ -34,6 +37,22 @@ export function dataframeToSpectrumPoints(df: DataframeDict): SpectrumPoint[] {
   }
 
   return points.sort((a, b) => a.frequency - b.frequency);
+}
+
+export function waveformToSignalPoints(
+  waveform: number[] | null | undefined,
+  sampleRate = BREATHING_PIPELINE_FS,
+): SignalPoint[] {
+  if (!waveform?.length || sampleRate <= 0) return [];
+
+  const step = Math.max(1, Math.ceil(waveform.length / MAX_SIGNAL_POINTS));
+  const points: SignalPoint[] = [];
+  for (let index = 0; index < waveform.length; index += step) {
+    const amplitude = waveform[index];
+    if (typeof amplitude !== "number" || !isFinite(amplitude)) continue;
+    points.push({ time: index / sampleRate, amplitude });
+  }
+  return points;
 }
 
 export type SignalSource = "amplitude" | "phase";

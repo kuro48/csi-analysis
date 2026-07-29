@@ -1,46 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { uploadBaseCSI, getBaseCSI, uploadMainCSI, getMainCSI } from "./api";
+import { getMainCSI, uploadMainCSI } from "./api";
 import { AnalysisResultPanel } from "./AnalysisResultPanel";
 import { StatusBadge } from "./StatusBadge";
 import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS, TERMINAL_STATUSES } from "./constants";
-import type { BaseCSIResponse, CSIStatus, MainCSIResponse } from "./types";
+import type { CSIStatus, MainCSIResponse } from "./types";
 
 function formatElapsed(seconds: number): string {
   if (seconds < 60) return `${seconds}秒`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s > 0 ? `${m}分${s}秒` : `${m}分`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return remainingSeconds > 0 ? `${minutes}分${remainingSeconds}秒` : `${minutes}分`;
 }
 
-type Mode = "base" | "main";
-
-interface Props {
-  mode: Mode;
-}
-
-const LABELS: Record<Mode, { title: string; accept: string }> = {
-  base: { title: "ベースCSI", accept: ".pcap,.pcapng,.cap,.csi,.csv" },
-  main: { title: "メインCSI (5-1 + Circom / zkVM)", accept: ".csi" },
-};
-
-export function UploadSection({ mode }: Props) {
-  const { title, accept } = LABELS[mode];
-
+export function UploadSection() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<CSIStatus | null>(null);
-  const [baseRecord, setBaseRecord] = useState<BaseCSIResponse | null>(null);
-  const [mainRecord, setMainRecord] = useState<MainCSIResponse | null>(null);
-
+  const [record, setRecord] = useState<MainCSIResponse | null>(null);
   const [elapsed, setElapsed] = useState<number | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startedAtRef = useRef<number>(0);
+  const startedAtRef = useRef(0);
   const pollRef = useRef<(id: string, abort: AbortController) => Promise<void>>(async () => {});
 
   const clearTimer = () => {
@@ -57,50 +42,36 @@ export function UploadSection({ mode }: Props) {
     }
   };
 
-  const startTicker = () => {
-    clearTicker();
-    tickerRef.current = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
-    }, 1000);
-  };
+  const poll = useCallback(async (id: string, abort: AbortController) => {
+    if (Date.now() - startedAtRef.current > POLL_TIMEOUT_MS) {
+      clearTicker();
+      setError("タイムアウト: 解析に時間がかかりすぎています");
+      return;
+    }
 
-  const poll = useCallback(
-    async (id: string, abort: AbortController) => {
-      if (Date.now() - startedAtRef.current > POLL_TIMEOUT_MS) {
-        setError("タイムアウト: 解析に時間がかかりすぎています");
-        return;
-      }
-
-      try {
-        if (mode === "base") {
-          const rec = await getBaseCSI(id, abort.signal);
-          setBaseRecord(rec);
-          setStatus(rec.status as CSIStatus);
-          if (TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
-            clearTicker();
-            setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
-          } else {
-            timerRef.current = setTimeout(() => pollRef.current(id, abort), POLL_INTERVAL_MS);
-          }
-        } else {
-          const rec = await getMainCSI(id, abort.signal);
-          setMainRecord(rec);
-          setStatus(rec.status as CSIStatus);
-          if (TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
-            clearTicker();
-            setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
-          } else {
-            timerRef.current = setTimeout(() => pollRef.current(id, abort), POLL_INTERVAL_MS);
-          }
+    try {
+      const nextRecord = await getMainCSI(id, abort.signal);
+      setRecord(nextRecord);
+      setStatus(nextRecord.status);
+      if (TERMINAL_STATUSES.includes(nextRecord.status as (typeof TERMINAL_STATUSES)[number])) {
+        if (tickerRef.current) {
+          clearInterval(tickerRef.current);
+          tickerRef.current = null;
         }
-      } catch (e) {
-        if ((e as Error).name !== "AbortError") {
-          setError((e as Error).message);
-        }
+        setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+      } else {
+        timerRef.current = setTimeout(
+          () => pollRef.current(nextRecord.id, abort),
+          POLL_INTERVAL_MS,
+        );
       }
-    },
-    [mode]
-  );
+    } catch (cause) {
+      if ((cause as Error).name !== "AbortError") {
+        clearTicker();
+        setError((cause as Error).message);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     pollRef.current = poll;
@@ -116,7 +87,9 @@ export function UploadSection({ mode }: Props) {
 
   const handleUpload = async () => {
     if (!file) return;
+
     clearTimer();
+    clearTicker();
     abortRef.current?.abort();
 
     const abort = new AbortController();
@@ -126,38 +99,28 @@ export function UploadSection({ mode }: Props) {
     setUploading(true);
     setError(null);
     setStatus(null);
-    setBaseRecord(null);
-    setMainRecord(null);
+    setRecord(null);
     setElapsed(null);
-    clearTicker();
 
     try {
-      if (mode === "base") {
-        const rec = await uploadBaseCSI(file, abort.signal);
-        startTicker();
-        setBaseRecord(rec);
-        setStatus(rec.status as CSIStatus);
-        if (TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
-          clearTicker();
-          setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
-        } else {
-          timerRef.current = setTimeout(() => poll(rec.id, abort), POLL_INTERVAL_MS);
-        }
+      const nextRecord = await uploadMainCSI(file, abort.signal);
+      tickerRef.current = setInterval(() => {
+        setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+      }, 1000);
+      setRecord(nextRecord);
+      setStatus(nextRecord.status);
+      if (TERMINAL_STATUSES.includes(nextRecord.status as (typeof TERMINAL_STATUSES)[number])) {
+        clearTicker();
+        setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
       } else {
-        const rec = await uploadMainCSI(file, abort.signal);
-        startTicker();
-        setMainRecord(rec);
-        setStatus(rec.status as CSIStatus);
-        if (TERMINAL_STATUSES.includes(rec.status as typeof TERMINAL_STATUSES[number])) {
-          clearTicker();
-          setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
-        } else {
-          timerRef.current = setTimeout(() => poll(rec.id, abort), POLL_INTERVAL_MS);
-        }
+        timerRef.current = setTimeout(
+          () => pollRef.current(nextRecord.id, abort),
+          POLL_INTERVAL_MS,
+        );
       }
-    } catch (e) {
-      if ((e as Error).name !== "AbortError") {
-        setError((e as Error).message);
+    } catch (cause) {
+      if ((cause as Error).name !== "AbortError") {
+        setError((cause as Error).message);
       }
     } finally {
       setUploading(false);
@@ -165,27 +128,36 @@ export function UploadSection({ mode }: Props) {
   };
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 shadow-sm">
-      <h2 className="mb-4 text-lg font-bold text-neutral-800">{title}</h2>
+    <section className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+      <h2 className="text-lg font-semibold text-neutral-900">5-1 検証可能呼吸解析</h2>
+      <p className="mt-1 mb-4 text-sm text-neutral-500">
+        PicoScenes CSIを保存し、5-1解析とCircom証明を実行します
+      </p>
 
-      <div className="flex items-center gap-3">
-        <label className="flex-1 cursor-pointer">
-          <span className="block rounded-lg border border-dashed border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-500 hover:border-blue-400 hover:text-blue-500">
-            {file ? file.name : "ファイルを選択..."}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <label className="min-w-0 flex-1 cursor-pointer">
+          <span className="block truncate rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-600 hover:border-teal-500 hover:text-teal-700">
+            {file ? file.name : ".csiファイルを選択"}
           </span>
           <input
             type="file"
-            accept={accept}
+            accept=".csi"
             className="sr-only"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              setFile(event.target.files?.[0] ?? null);
+              setError(null);
+              setRecord(null);
+              setStatus(null);
+            }}
           />
         </label>
         <button
+          type="button"
           onClick={handleUpload}
           disabled={!file || uploading}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 hover:bg-blue-700 transition-colors"
+          className="h-10 shrink-0 rounded-lg bg-teal-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {uploading ? "送信中..." : "アップロード"}
+          {uploading ? "送信中..." : "アップロードして解析"}
         </button>
       </div>
 
@@ -194,7 +166,7 @@ export function UploadSection({ mode }: Props) {
           <StatusBadge status={status} />
           {elapsed !== null && (
             <span className="text-xs text-neutral-500">
-              {TERMINAL_STATUSES.includes(status as typeof TERMINAL_STATUSES[number])
+              {TERMINAL_STATUSES.includes(status as (typeof TERMINAL_STATUSES)[number])
                 ? `(${formatElapsed(elapsed)})`
                 : `(${formatElapsed(elapsed)}経過)`}
             </span>
@@ -206,30 +178,17 @@ export function UploadSection({ mode }: Props) {
         <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      {status === "completed" && mode === "base" && baseRecord && (
-        <div className="mt-4 space-y-3">
-          <div className="text-xs text-neutral-500 space-y-1">
-            <p>ID: <span className="font-mono">{baseRecord.id}</span></p>
-            {baseRecord.source_pcap_size && (
-              <p>サイズ: {(baseRecord.source_pcap_size / 1024).toFixed(1)} KB</p>
-            )}
-          </div>
-          <AnalysisResultPanel
-            mode="base"
-            fft_dataframe={baseRecord.fft_dataframe}
-            wavelet_dataframe={baseRecord.wavelet_dataframe}
-            music_dataframe={baseRecord.music_dataframe}
-            raw_signal_dataframe={baseRecord.raw_signal_dataframe}
-            filtered_signal_dataframe={baseRecord.filtered_signal_dataframe}
-          />
-        </div>
+      {status === "error" && record?.processed_data?.error && !error && (
+        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {record.processed_data.error}
+        </p>
       )}
 
-      {status === "completed" && mode === "main" && mainRecord && (
-        <div className="mt-4">
-          <AnalysisResultPanel mode="main" processedData={mainRecord.processed_data} />
+      {status === "completed" && record && (
+        <div className="mt-6 border-t border-neutral-200 pt-6">
+          <AnalysisResultPanel processedData={record.processed_data} />
         </div>
       )}
-    </div>
+    </section>
   );
 }

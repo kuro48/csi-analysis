@@ -5,6 +5,7 @@ CSIデータ関連エンドポイント
 import json
 import logging
 import math
+import shutil
 import tempfile
 import uuid
 from datetime import datetime
@@ -57,20 +58,32 @@ async def upload_csi_data_chunk(
     if len(received) < total_chunks:
         return JSONResponse({"upload_id": upload_id, "chunks_received": len(received)})
 
-    assembled_bytes = b"".join(p.read_bytes() for p in received)
+    assembled_size = sum(p.stat().st_size for p in received)
     try:
-        import shutil as _shutil
+        validate_csi_upload(filename, assembled_size)
+    except HTTPException:
+        shutil.rmtree(session_dir, ignore_errors=True)
+        raise
 
-        _shutil.rmtree(session_dir, ignore_errors=True)
-    except Exception:
-        pass
+    assembled_path = session_dir / "assembled_upload"
+    try:
+        with assembled_path.open("wb") as assembled_file:
+            for chunk_path in received:
+                with chunk_path.open("rb") as chunk_file:
+                    shutil.copyfileobj(chunk_file, assembled_file, length=1024 * 1024)
 
-    upload_info = CSIDataUpload(
-        file_name=filename,
-        session_id=session_id,
-        metadata=json.loads(metadata) if metadata else {},
-    )
-    csi_data = await CSIDataService.upload_csi_data(db=db, file_data=assembled_bytes, upload_info=upload_info)
+        upload_info = CSIDataUpload(
+            file_name=filename,
+            session_id=session_id,
+            metadata=json.loads(metadata) if metadata else {},
+        )
+        csi_data = await CSIDataService.upload_csi_data_from_path(
+            db=db,
+            source_path=assembled_path,
+            upload_info=upload_info,
+        )
+    finally:
+        shutil.rmtree(session_dir, ignore_errors=True)
 
     background_tasks.add_task(
         process_csi_in_background,

@@ -37,14 +37,14 @@ def test_chunk_upload_schedules_shared_csi_processing_pipeline(monkeypatch, tmp_
         device_id = None
         processed_data = None
 
-    async def fake_upload_csi_data(db, file_data, upload_info):
-        assert file_data == b"pcap"
+    async def fake_upload_csi_data(db, source_path, upload_info):
+        assert source_path.read_bytes() == b"pcap"
         assert upload_info.file_name == "sample.pcap"
         assert upload_info.session_id == "session-1"
         return UploadedCSI()
 
     monkeypatch.setattr(csi_endpoint, "_CHUNK_TMP_DIR", tmp_path)
-    monkeypatch.setattr(csi_endpoint.CSIDataService, "upload_csi_data", fake_upload_csi_data)
+    monkeypatch.setattr(csi_endpoint.CSIDataService, "upload_csi_data_from_path", fake_upload_csi_data)
 
     background_tasks = BackgroundTasks()
 
@@ -76,6 +76,64 @@ def test_chunk_header_validation_accepts_size_unknown_csi_file(monkeypatch):
     monkeypatch.setattr("app.services.file_validation.settings.PICOSCENES_ENABLED", True)
 
     assert validate_csi_upload("sample.csi", None) == ".csi"
+
+
+@pytest.mark.unit
+def test_chunk_upload_allows_large_csi_when_limit_is_unlimited(monkeypatch, tmp_path):
+    csi_id = uuid.uuid4()
+
+    class UploadedCSI:
+        id = csi_id
+        file_path = "/tmp/large.csi"
+        status = "uploaded"
+        file_size = 1_400_000
+        created_at = datetime(2026, 7, 2, tzinfo=timezone.utc)
+        updated_at = datetime(2026, 7, 2, tzinfo=timezone.utc)
+        session_id = None
+        device_id = None
+        processed_data = None
+
+    monkeypatch.setattr(csi_endpoint, "_CHUNK_TMP_DIR", tmp_path)
+    monkeypatch.setattr("app.services.file_validation.settings.PICOSCENES_ENABLED", True)
+    monkeypatch.setattr("app.services.file_validation.settings.PICOSCENES_MAX_FILE_SIZE_MB", 0)
+
+    async def fake_upload_csi_data(db, source_path, upload_info):
+        assert source_path.read_bytes() == b"a" * 700_000 + b"b" * 700_000
+        assert upload_info.file_name == "sample.csi"
+        return UploadedCSI()
+
+    monkeypatch.setattr(csi_endpoint.CSIDataService, "upload_csi_data_from_path", fake_upload_csi_data)
+    background_tasks = BackgroundTasks()
+
+    async def run_uploads():
+        await csi_endpoint.upload_csi_data_chunk(
+            background_tasks=background_tasks,
+            chunk=_Chunk(b"a" * 700_000),
+            upload_id="upload-too-large",
+            chunk_index=0,
+            total_chunks=2,
+            filename="sample.csi",
+            session_id=None,
+            metadata=None,
+            db=object(),
+        )
+        return await csi_endpoint.upload_csi_data_chunk(
+            background_tasks=background_tasks,
+            chunk=_Chunk(b"b" * 700_000),
+            upload_id="upload-too-large",
+            chunk_index=1,
+            total_chunks=2,
+            filename="sample.csi",
+            session_id=None,
+            metadata=None,
+            db=object(),
+        )
+
+    response = anyio.run(run_uploads)
+
+    assert json.loads(response.body)["csi_data"]["id"] == str(csi_id)
+    assert not (tmp_path / "upload-too-large").exists()
+    assert len(background_tasks.tasks) == 1
 
 
 @pytest.mark.unit

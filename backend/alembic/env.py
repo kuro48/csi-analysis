@@ -12,8 +12,8 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from app.models.base import BaseModel
-from app.models.user import User
-from app.models.csi_data import CSIData, Session
+from app.models.base_csi import BaseCSI
+from app.models.csi_data import CSIData
 
 # Alembic Config オブジェクト
 config = context.config

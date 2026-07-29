@@ -63,10 +63,14 @@ services:
       - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
       - ALLOWED_ORIGINS=http://localhost,http://127.0.0.1,http://localhost:3000,https://csi.kur048.com,https://api.csi.kur048.com
       - DEBUG=True
-      - ZKP_AUTO_COMPILE=TRUE
+      - ZKP_AUTO_COMPILE=${ZKP_AUTO_COMPILE:-false}
       - CSI_ZKVM_BINARY=/opt/csi-zkvm/csi-zkvm-host
       - CSI_ZKVM_TIMEOUT_SECONDS=1800
+      - CSI_ZKVM_ENABLED=${CSI_ZKVM_ENABLED:-false}
+      - CSI_ZKVM_MAX_FILE_SIZE_MB=${CSI_ZKVM_MAX_FILE_SIZE_MB:-200}
       - PICOSCENES_PARSER=python
+      - PICOSCENES_MAX_FILE_SIZE_MB=${PICOSCENES_MAX_FILE_SIZE_MB:-0}
+      - PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB=${PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB:-200}
       - MATLAB_COMMAND=matlab
       - PICOSCENES_MATLAB_TOOLBOX_PATH=
       - PICOSCENES_MATLAB_TIMEOUT_SECONDS=300
@@ -115,7 +119,7 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: csi_cloudflared
-    command: tunnel --no-autoupdate run
+    command: tunnel --no-autoupdate --protocol http2 run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     network_mode: host

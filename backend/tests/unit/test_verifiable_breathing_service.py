@@ -68,9 +68,10 @@ class _ZkVMService:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_runs_circom_and_zkvm_concurrently_and_hides_private_inputs():
+async def test_runs_circom_and_zkvm_concurrently_and_hides_private_inputs(monkeypatch):
     from app.services.verifiable_breathing_service import VerifiableBreathingService
 
+    monkeypatch.setattr("app.services.verifiable_breathing_service.settings.CSI_ZKVM_ENABLED", True)
     started = set()
     release = asyncio.Event()
     service = VerifiableBreathingService(
@@ -104,8 +105,10 @@ async def test_runs_circom_and_zkvm_concurrently_and_hides_private_inputs():
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_preserves_circom_result_when_zkvm_fails():
+async def test_preserves_circom_result_when_zkvm_fails(monkeypatch):
     from app.services.verifiable_breathing_service import VerifiableBreathingService
+
+    monkeypatch.setattr("app.services.verifiable_breathing_service.settings.CSI_ZKVM_ENABLED", True)
 
     class _WorkingCircom:
         async def generate_proof(self, **kwargs):
@@ -129,4 +132,83 @@ async def test_preserves_circom_result_when_zkvm_fails():
         "status": "failed",
         "error": "prover unavailable",
         "error_type": "RuntimeError",
+    }
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_large_file_skips_zkvm_input_and_keeps_circom_result(monkeypatch, tmp_path):
+    from app.services.verifiable_breathing_service import VerifiableBreathingService
+
+    csi_file = tmp_path / "large.csi"
+    csi_file.write_bytes(b"x" * (1024 * 1024 + 1))
+    monkeypatch.setattr("app.services.verifiable_breathing_service.settings.CSI_ZKVM_ENABLED", True)
+    monkeypatch.setattr("app.services.verifiable_breathing_service.settings.CSI_ZKVM_MAX_FILE_SIZE_MB", 1)
+
+    def pipeline_runner(file_path, include_zkvm_input=True):
+        assert file_path == str(csi_file)
+        assert include_zkvm_input is False
+        return {**PIPELINE_RESULT, "zkvm_input": None}
+
+    class _WorkingCircom:
+        async def generate_proof(self, **kwargs):
+            return {"isNormal": True, "isValid": True, "method": "breathing_certificate"}
+
+    class _ForbiddenZkVM:
+        async def generate_proof(self, pipeline_input):
+            raise AssertionError("zkVM must not run for a file above the safety limit")
+
+    service = VerifiableBreathingService(
+        pipeline_runner=pipeline_runner,
+        circom_service_factory=_WorkingCircom,
+        zkvm_service=_ForbiddenZkVM(),
+    )
+
+    result = await service.analyze(str(csi_file))
+
+    assert result["status"] == "partial"
+    assert result["proofs"]["python_circom"]["status"] == "completed"
+    assert result["proofs"]["zkvm"] == {
+        "status": "skipped",
+        "reason": "file_too_large",
+        "file_size": 1024 * 1024 + 1,
+        "threshold_mb": 1,
+    }
+    assert "input_commitment" not in result["analysis"]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_zkvm_is_disabled_by_default_without_building_its_input(monkeypatch, tmp_path):
+    from app.services.verifiable_breathing_service import VerifiableBreathingService
+
+    csi_file = tmp_path / "sample.csi"
+    csi_file.write_bytes(b"csi")
+    monkeypatch.setattr("app.services.verifiable_breathing_service.settings.CSI_ZKVM_ENABLED", False)
+
+    def pipeline_runner(file_path, include_zkvm_input=True):
+        assert include_zkvm_input is False
+        return {**PIPELINE_RESULT, "zkvm_input": None}
+
+    class _WorkingCircom:
+        async def generate_proof(self, **kwargs):
+            return {"isNormal": True, "isValid": True, "method": "breathing_certificate"}
+
+    class _ForbiddenZkVM:
+        async def generate_proof(self, pipeline_input):
+            raise AssertionError("disabled zkVM must not be invoked")
+
+    service = VerifiableBreathingService(
+        pipeline_runner=pipeline_runner,
+        circom_service_factory=_WorkingCircom,
+        zkvm_service=_ForbiddenZkVM(),
+    )
+
+    result = await service.analyze(str(csi_file))
+
+    assert result["status"] == "completed"
+    assert result["proofs"]["python_circom"]["status"] == "completed"
+    assert result["proofs"]["zkvm"] == {
+        "status": "disabled",
+        "reason": "disabled_by_configuration",
     }

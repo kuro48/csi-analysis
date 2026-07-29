@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CSI Edge Monitor",
-  description: "エッジデバイスのCSI計測データと解析結果を表示します",
+  title: "CSI Verifiable Monitor",
+  description: "5-1呼吸解析とCircom証明の結果を表示します",
 };
 
 export default function RootLayout({

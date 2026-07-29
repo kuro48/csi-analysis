@@ -11,4 +11,3 @@ fn main() {
     let journal = run_pipeline(&input).expect("5-1 fixed-point pipeline rejected its input");
     env::commit(&journal);
 }
-

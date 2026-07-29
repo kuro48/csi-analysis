@@ -51,11 +51,12 @@ def validate_csi_upload(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="PicoScenes .csi の受付は現在無効化されています",
             )
-        max_bytes = settings.PICOSCENES_MAX_FILE_SIZE_MB * 1024 * 1024
-        if file_size is not None and file_size > max_bytes:
+        max_mb = settings.PICOSCENES_MAX_FILE_SIZE_MB
+        max_bytes = max_mb * 1024 * 1024
+        if max_mb > 0 and file_size is not None and file_size > max_bytes:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=("PicoScenes .csi ファイルが大きすぎます。" f"上限: {settings.PICOSCENES_MAX_FILE_SIZE_MB}MB"),
+                detail=("PicoScenes .csi ファイルが大きすぎます。" f"上限: {max_mb}MB"),
             )
 
     return extension

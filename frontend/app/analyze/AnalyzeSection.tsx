@@ -1,60 +1,50 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AnalysisResultPanel } from "../upload/AnalysisResultPanel";
 import { API_BASE } from "../upload/constants";
-import { SignalChart } from "../upload/SignalChart";
-import type { SignalPoint } from "../upload/types";
+import type { ProcessedData } from "../upload/types";
 
-/** breathing_pipeline（5-1.ipynb）のサンプリング周波数 */
-const PIPELINE_FS = 100;
-/** rechartsの描画負荷を抑えるための表示上限点数 */
-const MAX_CHART_POINTS = 2000;
-
-async function requestAnalysis(file: File, signal: AbortSignal): Promise<number[]> {
+async function requestAnalysis(file: File, signal: AbortSignal): Promise<ProcessedData> {
   const form = new FormData();
   form.append("file", file);
 
-  const res = await fetch(`${API_BASE}/api/v2/breathing/analyze`, {
+  const response = await fetch(`${API_BASE}/api/v2/breathing/analyze-verifiable`, {
     method: "POST",
     body: form,
     signal,
   });
 
-  if (!res.ok) {
-    let detail = res.statusText;
+  if (!response.ok) {
+    let detail = response.statusText;
     try {
-      const body = (await res.json()) as { detail?: string };
-      if (body.detail) detail = body.detail;
+      const body = (await response.json()) as { detail?: string };
+      detail = body.detail ?? detail;
     } catch {
-      // JSONでないエラーレスポンスはstatusTextのまま表示する
+      // Keep statusText for non-JSON responses.
     }
-    throw new Error(`${res.status}: ${detail}`);
+    throw new Error(`${response.status}: ${detail}`);
   }
 
-  const data: unknown = await res.json();
-  if (!Array.isArray(data) || data.some((v) => typeof v !== "number")) {
+  const data = (await response.json()) as ProcessedData;
+  if (!data.analysis || !data.proofs || !data.status) {
     throw new Error("サーバーから不正な解析結果が返されました");
   }
-  return data as number[];
+  return data;
 }
 
-function toChartPoints(waveform: number[]): SignalPoint[] {
-  const step = Math.max(1, Math.ceil(waveform.length / MAX_CHART_POINTS));
-  const points: SignalPoint[] = [];
-  for (let i = 0; i < waveform.length; i += step) {
-    points.push({ time: i / PIPELINE_FS, amplitude: waveform[i] });
-  }
-  return points;
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
-function downloadAsJson(waveform: number[], sourceName: string): void {
+function downloadResult(result: ProcessedData, sourceName: string): void {
   const base = sourceName.replace(/\.[^.]+$/, "") || "csi";
-  const blob = new Blob([JSON.stringify(waveform)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${base}_breathing_waveform.json`;
+  anchor.download = `${base}_verifiable_breathing.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -63,15 +53,14 @@ export function AnalyzeSection() {
   const [file, setFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [waveform, setWaveform] = useState<number[] | null>(null);
-  const [sourceName, setSourceName] = useState<string>("");
+  const [result, setResult] = useState<ProcessedData | null>(null);
+  const [sourceName, setSourceName] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  const startedAtRef = useRef(0);
 
-  const chartPoints = useMemo(
-    () => (waveform ? toChartPoints(waveform) : []),
-    [waveform],
-  );
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const handleAnalyze = async () => {
     if (!file) return;
@@ -79,77 +68,102 @@ export function AnalyzeSection() {
     abortRef.current?.abort();
     const abort = new AbortController();
     abortRef.current = abort;
+    startedAtRef.current = Date.now();
 
     setAnalyzing(true);
     setError(null);
-    setWaveform(null);
+    setResult(null);
+    setElapsedSeconds(null);
 
     try {
-      const result = await requestAnalysis(file, abort.signal);
-      setWaveform(result);
+      const analysis = await requestAnalysis(file, abort.signal);
+      setResult(analysis);
       setSourceName(file.name);
-    } catch (e: unknown) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
-      setError(e instanceof Error ? e.message : "解析に失敗しました");
+    } catch (cause: unknown) {
+      if (cause instanceof DOMException && cause.name === "AbortError") return;
+      setError(cause instanceof Error ? cause.message : "解析に失敗しました");
     } finally {
-      setAnalyzing(false);
+      if (!abort.signal.aborted) {
+        setElapsedSeconds(Math.floor((Date.now() - startedAtRef.current) / 1000));
+        setAnalyzing(false);
+      }
     }
   };
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 shadow-sm">
-      <h2 className="mb-1 text-lg font-bold text-neutral-800">CSI呼吸解析</h2>
-      <p className="mb-4 text-sm text-neutral-500">
-        PicoScenes .csi ファイルをアップロードすると、呼吸波形の配列が返ります
-      </p>
+    <div className="space-y-6">
+      <section className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-lg font-semibold text-neutral-900">PicoScenes CSIを解析</h2>
+          <p className="text-sm text-neutral-500">
+            5-1解析後にCircom証明を生成します
+          </p>
+        </div>
 
-      <div className="flex items-center gap-3">
-        <label className="flex-1 cursor-pointer">
-          <span className="block rounded-lg border border-dashed border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-500 hover:border-blue-400 hover:text-blue-500">
-            {file ? file.name : "ファイルを選択..."}
-          </span>
-          <input
-            type="file"
-            accept=".csi"
-            className="sr-only"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-        </label>
-        <button
-          onClick={handleAnalyze}
-          disabled={!file || analyzing}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
-        >
-          {analyzing ? "解析中..." : "解析する"}
-        </button>
-      </div>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <label className="min-w-0 flex-1 cursor-pointer">
+            <span className="block truncate rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-600 hover:border-teal-500 hover:text-teal-700">
+              {file ? file.name : ".csiファイルを選択"}
+            </span>
+            <input
+              type="file"
+              accept=".csi"
+              className="sr-only"
+              onChange={(event) => {
+                setFile(event.target.files?.[0] ?? null);
+                setResult(null);
+                setError(null);
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={handleAnalyze}
+            disabled={!file || analyzing}
+            className="h-10 shrink-0 rounded-lg bg-teal-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {analyzing ? "解析・証明生成中..." : "解析を開始"}
+          </button>
+        </div>
 
-      {analyzing && (
-        <p className="mt-3 text-sm text-neutral-500">
-          サーバーで解析しています。ファイルサイズによって数十秒かかることがあります…
-        </p>
-      )}
+        {file && (
+          <p className="mt-2 text-xs text-neutral-500">
+            {formatFileSize(file.size)} / PicoScenes .csi
+          </p>
+        )}
 
-      {error && (
-        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-      )}
+        {analyzing && (
+          <div className="mt-4 border-l-2 border-teal-600 pl-3">
+            <p className="text-sm font-medium text-neutral-800">5-1解析とCircom証明を実行中</p>
+            <p className="mt-1 text-xs text-neutral-500">
+              ファイルサイズによって解析に時間がかかることがあります。
+            </p>
+          </div>
+        )}
 
-      {waveform && (
-        <div className="mt-5 space-y-4">
-          <div className="flex items-center justify-between gap-3">
+        {error && (
+          <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+      </section>
+
+      {result && (
+        <section className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-neutral-600">
-              解析結果: <span className="font-mono">{waveform.length.toLocaleString()}</span> サンプル
-              （{(waveform.length / PIPELINE_FS).toFixed(1)} 秒 / {PIPELINE_FS}Hz）
+              {sourceName} / 所要時間 {elapsedSeconds ?? 0}秒
             </p>
             <button
-              onClick={() => downloadAsJson(waveform, sourceName)}
-              className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-100"
+              type="button"
+              onClick={() => downloadResult(result, sourceName)}
+              className="h-9 w-fit rounded-lg border border-neutral-300 bg-white px-4 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
             >
-              結果をダウンロード (JSON)
+              JSONを保存
             </button>
           </div>
-          <SignalChart title="呼吸波形（VMD呼吸成分）" points={chartPoints} color="#16a34a" />
-        </div>
+          <AnalysisResultPanel processedData={result} />
+        </section>
       )}
     </div>
   );

@@ -40,6 +40,14 @@ function getLatestCompleted(records: MainCSIResponse[]): MainCSIResponse | null 
   return records.find((record) => record.status === "completed") ?? null;
 }
 
+function proofStatusLabel(record: MainCSIResponse): string | null {
+  const status = record.processed_data?.status;
+  if (status === "completed") return "Circom検証完了";
+  if (status === "partial") return "一部検証完了";
+  if (status === "failed") return "検証失敗";
+  return null;
+}
+
 export function DeviceDashboard() {
   const [records, setRecords] = useState<MainCSIResponse[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -82,31 +90,38 @@ export function DeviceDashboard() {
     [records, selectedId]
   );
   const latestCompleted = getLatestCompleted(records);
-  const completedCount = records.filter((record) => record.status === "completed").length;
+  const verifiedCount = records.filter(
+    (record) => record.processed_data?.status === "completed"
+  ).length;
+  const incompleteProofCount = records.filter(
+    (record) =>
+      record.processed_data?.status === "partial" ||
+      record.processed_data?.status === "failed" ||
+      record.status === "error"
+  ).length;
   const processingCount = records.filter(
     (record) => record.status === "uploaded" || record.status === "processing"
   ).length;
-  const devices = new Set(records.map((record) => record.device_id).filter(Boolean));
 
   return (
     <main className="min-h-screen bg-neutral-100 px-4 py-6 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-blue-700">CSI Edge Monitor</p>
+            <p className="text-sm font-semibold text-teal-700">CSI Verifiable Monitor</p>
             <h1 className="mt-1 text-2xl font-bold tracking-normal text-neutral-950 sm:text-3xl">
-              エッジデバイス計測データ
+              CSI呼吸解析モニター
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-neutral-600">
-              エッジデバイスからアップロードされたCSIデータと、FFT・Wavelet・MUSIC解析結果を表示します。
+              エッジデバイスのPicoScenes CSIを5-1パイプラインで解析し、Circomの検証結果を追跡します。
             </p>
           </div>
           <div className="flex gap-3">
             <Link
               href="/analyze"
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800"
             >
-              呼吸解析
+              保存せず解析
             </Link>
             <Link
               href="/upload"
@@ -119,9 +134,9 @@ export function DeviceDashboard() {
 
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="最新20件" value={records.length} digits={0} />
-          <MetricCard label="解析完了" value={completedCount} digits={0} />
+          <MetricCard label="Circom検証完了" value={verifiedCount} digits={0} />
+          <MetricCard label="要確認" value={incompleteProofCount} digits={0} />
           <MetricCard label="処理中" value={processingCount} digits={0} />
-          <MetricCard label="デバイス数" value={devices.size} digits={0} />
         </section>
 
         {error && (
@@ -176,6 +191,17 @@ export function DeviceDashboard() {
                       <p className="truncate">セッション: {record.session_id ?? "—"}</p>
                       <p>状態: {statusLabel(record.status)}</p>
                     </div>
+                    {proofStatusLabel(record) && (
+                      <p
+                        className={`mt-2 text-xs font-semibold ${
+                          record.processed_data?.status === "completed"
+                            ? "text-emerald-700"
+                            : "text-amber-700"
+                        }`}
+                      >
+                        {proofStatusLabel(record)}
+                      </p>
+                    )}
                   </button>
                 );
               })}
@@ -222,19 +248,25 @@ export function DeviceDashboard() {
                       {formatFileSize(selected.file_size)}
                     </p>
                   </div>
+                  <div className="rounded-lg bg-neutral-50 p-3 sm:col-span-2 lg:col-span-4">
+                    <p className="text-xs text-neutral-500">検証パイプライン</p>
+                    <p className="mt-1 text-sm font-semibold text-neutral-900">
+                      {proofStatusLabel(selected) ?? "解析結果待ち"}
+                    </p>
+                  </div>
                 </div>
               ) : null}
             </section>
 
             {selected?.status === "completed" ? (
-              <section className="rounded-lg border border-neutral-200 bg-neutral-50 p-5 shadow-sm">
+              <section className="border-t border-neutral-200 pt-5">
                 <div className="mb-4 flex flex-col gap-1">
-                  <h2 className="text-lg font-semibold text-neutral-900">CSI解析結果</h2>
+                  <h2 className="text-lg font-semibold text-neutral-900">検証可能な呼吸解析結果</h2>
                   <p className="text-sm text-neutral-500">
-                    呼吸数推定、ベースCSI類似度、ZKP検証、周波数スペクトル
+                    5-1呼吸推定、VMD選択、Circom証明
                   </p>
                 </div>
-                <AnalysisResultPanel mode="main" processedData={selected.processed_data} />
+                <AnalysisResultPanel processedData={selected.processed_data} />
               </section>
             ) : (
               <section className="rounded-lg border border-neutral-200 bg-white p-8 text-center shadow-sm">
@@ -243,6 +275,9 @@ export function DeviceDashboard() {
                     ? `${statusLabel(selected.status)}のため解析結果はまだ表示できません。`
                     : "解析結果を表示するデータがありません。"}
                 </p>
+                {selected?.processed_data?.error && (
+                  <p className="mt-3 text-sm text-red-700">{selected.processed_data.error}</p>
+                )}
                 {latestCompleted && selected?.id !== latestCompleted.id && (
                   <button
                     type="button"

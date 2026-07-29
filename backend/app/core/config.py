@@ -9,10 +9,7 @@ load_dotenv()
 class Settings:
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "CSI Respiratory Monitoring System")
     VERSION: str = os.getenv("VERSION", "2.5.0")
-    DESCRIPTION: str = os.getenv(
-        "DESCRIPTION",
-        "Wi-Fi CSI based respiratory monitoring platform"
-    )
+    DESCRIPTION: str = os.getenv("DESCRIPTION", "Wi-Fi CSI based respiratory monitoring platform")
     API_V2_PREFIX: str = os.getenv("API_V2_PREFIX", "/api/v2")
 
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
@@ -28,8 +25,7 @@ class Settings:
     ZKP_DATA_RETENTION_HOURS: int = int(os.getenv("ZKP_DATA_RETENTION_HOURS", "0"))
 
     ETHEREUM_RPC_URL: str = os.getenv(
-        "ETHEREUM_RPC_URL",
-        "http://ganache:8545" if Path("/.dockerenv").exists() else "http://localhost:8545"
+        "ETHEREUM_RPC_URL", "http://ganache:8545" if Path("/.dockerenv").exists() else "http://localhost:8545"
     )
     ZKPROOF_CONTRACT_ADDRESS: str = os.getenv("ZKPROOF_CONTRACT_ADDRESS", "")
     ZKPROOF_VERIFIER_CONTRACT_ADDRESS: str = os.getenv("ZKPROOF_VERIFIER_CONTRACT_ADDRESS", "")
@@ -60,20 +56,30 @@ class Settings:
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 
-    ALLOWED_ORIGINS: List[str] = os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000"
-    ).split(",") if os.getenv("ALLOWED_ORIGINS") else [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+    ALLOWED_ORIGINS: List[str] = (
+        os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+        if os.getenv("ALLOWED_ORIGINS")
+        else [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    )
 
     RATE_LIMIT_LOGIN: str = os.getenv("RATE_LIMIT_LOGIN", "5/minute")
     RATE_LIMIT_API: str = os.getenv("RATE_LIMIT_API", "100/minute")
     RATE_LIMIT_UPLOAD: str = os.getenv("RATE_LIMIT_UPLOAD", "10/minute")
 
     PICOSCENES_ENABLED: bool = os.getenv("PICOSCENES_ENABLED", "true").lower() == "true"
-    PICOSCENES_MAX_FILE_SIZE_MB: int = int(os.getenv("PICOSCENES_MAX_FILE_SIZE_MB", "200"))
+    # 0 means unlimited. Large uploads are accepted, but expensive optional
+    # processing can be skipped by PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB.
+    PICOSCENES_MAX_FILE_SIZE_MB: int = int(os.getenv("PICOSCENES_MAX_FILE_SIZE_MB", "0"))
+    PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB: int = int(os.getenv("PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB", "200"))
+    # Keep the zkVM implementation available for experiments, but exclude it
+    # from the normal upload path unless explicitly enabled.
+    CSI_ZKVM_ENABLED: bool = os.getenv("CSI_ZKVM_ENABLED", "false").lower() == "true"
+    # When enabled, large captures are still excluded because serializing and
+    # proving the full amplitude matrix can require several GB.
+    CSI_ZKVM_MAX_FILE_SIZE_MB: int = int(os.getenv("CSI_ZKVM_MAX_FILE_SIZE_MB", "200"))
     PICOSCENES_PARSER: str = os.getenv("PICOSCENES_PARSER", "matlab").lower()
     MATLAB_COMMAND: str = os.getenv("MATLAB_COMMAND", "matlab")
     PICOSCENES_MATLAB_TOOLBOX_PATH: str = os.getenv("PICOSCENES_MATLAB_TOOLBOX_PATH", "")

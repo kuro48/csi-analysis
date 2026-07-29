@@ -19,22 +19,6 @@ export interface SignalPoint {
   amplitude: number;
 }
 
-export interface BaseCSIResponse {
-  id: string;
-  name: string;
-  fft_dataframe: DataframeDict;
-  wavelet_dataframe: DataframeDict;
-  music_dataframe: DataframeDict;
-  raw_signal_dataframe?: SignalDict;
-  filtered_signal_dataframe?: SignalDict;
-  source_pcap_size: number | null;
-  status: CSIStatus;
-  error_message: string | null;
-  is_expired: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface MethodComparison {
   similarity_score: number;
   is_valid: boolean;
@@ -79,16 +63,50 @@ export interface BreathingRateComparison {
   music_bpm?: number | null;
 }
 
+export interface VMDModeSummary {
+  mode: number;
+  global_peak_freq_hz: number;
+  global_peak_bpm: number;
+  global_peak_ratio: number;
+  is_valid: boolean;
+}
+
+export interface CertificateDiagnostics {
+  recon_error_ratio?: number;
+  recon_error_ratio_threshold?: number;
+  recon_ok?: boolean;
+  narrow_ratio?: number;
+  narrow_ratio_threshold?: number;
+  narrow_ok?: boolean;
+  max_mode_abs?: number;
+  mode_max_abs_limit?: number;
+  scale_factor?: number;
+}
+
+export interface BreathingAnalysis {
+  pipeline?: string;
+  respiration_waveform?: number[];
+  breathing_rate_bpm?: number;
+  peak_freq_hz?: number;
+  selected_pc?: number;
+  pc_scores?: number[];
+  selected_vmd_mode?: number;
+  vmd_mode_summaries?: VMDModeSummary[];
+  n_samples?: number;
+  n_subcarriers_total?: number;
+  n_subcarriers_selected?: number;
+  bpm_range?: {
+    min: number;
+    max: number;
+  };
+  processing_time_seconds?: number;
+  input_commitment?: string;
+  certificate_diagnostics?: CertificateDiagnostics;
+}
+
 export interface ProcessedData {
   status?: "completed" | "partial" | "failed";
-  analysis?: {
-    pipeline?: string;
-    breathing_rate_bpm?: number;
-    peak_freq_hz?: number;
-    selected_pc?: number;
-    selected_vmd_mode?: number;
-    input_commitment?: string;
-  };
+  analysis?: BreathingAnalysis;
   proofs?: {
     python_circom?: VerifiableProofResult;
     zkvm?: VerifiableProofResult;
@@ -113,12 +131,15 @@ export interface ProcessedData {
 }
 
 export interface VerifiableProofResult {
-  status: "completed" | "failed";
+  status: "completed" | "failed" | "skipped" | "disabled";
   isNormal?: boolean;
   isValid?: boolean;
   method?: string;
   error?: string;
   error_type?: string;
+  reason?: string;
+  file_size?: number;
+  threshold_mb?: number;
   journal?: {
     algorithm_version?: string;
     breathing_rate_milli_bpm?: number;

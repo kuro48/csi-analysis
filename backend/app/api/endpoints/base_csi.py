@@ -67,6 +67,13 @@ async def upload_base_csi_chunk(
     if len(received) < total_chunks:
         return JSONResponse({"upload_id": upload_id, "chunks_received": len(received)})
 
+    assembled_size = sum(chunk_file.stat().st_size for chunk_file in received)
+    try:
+        validate_csi_upload(filename, assembled_size)
+    except HTTPException:
+        shutil.rmtree(session_dir, ignore_errors=True)
+        raise
+
     # 全チャンク揃ったので組み立て
     extension = Path(filename).suffix.lower() or ".pcap"
     assembled_path = session_dir / f"assembled{extension}"

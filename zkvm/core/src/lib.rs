@@ -7,11 +7,11 @@ use core::cmp::Ordering;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-const MAX_SELECTED_SUBCARRIERS: usize = 32;
-const PCA_ITERATIONS: usize = 8;
-const VMD_MODES: usize = 5;
-const VMD_ITERATIONS: usize = 12;
-const ALGORITHM_VERSION: &str = "5-1-fixed-v1";
+pub const MAX_SELECTED_SUBCARRIERS: usize = 32;
+pub const PCA_ITERATIONS: usize = 8;
+pub const VMD_MODES: usize = 5;
+pub const VMD_ITERATIONS: usize = 12;
+pub const ALGORITHM_VERSION: &str = "5-1-fixed-v1";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PipelineInput {
@@ -40,13 +40,155 @@ pub struct PipelineJournal {
     pub vmd_iterations: u32,
 }
 
-pub fn run_pipeline(input: &PipelineInput) -> Result<PipelineJournal, &'static str> {
-    validate(input)?;
-    if commitment(input) != input.input_commitment {
-        return Err("input commitment mismatch");
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProfileStage {
+    ValidateCommitment,
+    SelectSubcarriers,
+    Bandpass,
+    Pca,
+    Vmd,
+    Full,
+}
+
+impl ProfileStage {
+    pub const ALL: [Self; 6] = [
+        Self::ValidateCommitment,
+        Self::SelectSubcarriers,
+        Self::Bandpass,
+        Self::Pca,
+        Self::Vmd,
+        Self::Full,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ValidateCommitment => "validate_commitment",
+            Self::SelectSubcarriers => "select_subcarriers",
+            Self::Bandpass => "bandpass",
+            Self::Pca => "pca",
+            Self::Vmd => "vmd",
+            Self::Full => "full",
+        }
     }
 
-    let selected = select_subcarriers_by_snr(input);
+    pub fn parse(value: &str) -> Result<Self, &'static str> {
+        match value {
+            "validate_commitment" => Ok(Self::ValidateCommitment),
+            "select_subcarriers" => Ok(Self::SelectSubcarriers),
+            "bandpass" => Ok(Self::Bandpass),
+            "pca" => Ok(Self::Pca),
+            "vmd" => Ok(Self::Vmd),
+            "full" => Ok(Self::Full),
+            _ => Err("unknown profile stage"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum ProfileRequest {
+    ValidateCommitment(PipelineInput),
+    SelectSubcarriers(PipelineInput),
+    Bandpass {
+        input: PipelineInput,
+        selected: Vec<usize>,
+    },
+    Pca {
+        matrix: Vec<i64>,
+        rows: usize,
+        cols: usize,
+    },
+    Vmd {
+        signal: Vec<i64>,
+        sample_rate_hz: u32,
+        min_bpm: u32,
+        max_search_bpm: u32,
+    },
+    Full(PipelineInput),
+}
+
+impl ProfileRequest {
+    pub const fn stage(&self) -> ProfileStage {
+        match self {
+            Self::ValidateCommitment(_) => ProfileStage::ValidateCommitment,
+            Self::SelectSubcarriers(_) => ProfileStage::SelectSubcarriers,
+            Self::Bandpass { .. } => ProfileStage::Bandpass,
+            Self::Pca { .. } => ProfileStage::Pca,
+            Self::Vmd { .. } => ProfileStage::Vmd,
+            Self::Full(_) => ProfileStage::Full,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct StageCycleCount {
+    pub stage: ProfileStage,
+    pub cycles: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProfileProcess {
+    GuestInputDeserialize,
+    ValidateFields,
+    CommitmentHash,
+    CommitmentCompare,
+    SelectColumnExtraction,
+    SelectCentering,
+    SelectGoertzel,
+    SelectTotalPower,
+    SelectSortAndTruncate,
+    BandpassColumnExtraction,
+    BandpassLowMovingAverage,
+    BandpassBaselineMovingAverage,
+    BandpassCombine,
+    PcaCentering,
+    PcaCovariance,
+    PcaPowerIteration,
+    PcaProjection,
+    VmdCentering,
+    VmdGoertzelSpectrum,
+    VmdClusteringIterations,
+    VmdPeakModeSelection,
+    OutputChecksum,
+}
+
+pub trait PipelineProfiler {
+    fn enter(&mut self, process: ProfileProcess);
+    fn exit(&mut self, process: ProfileProcess);
+}
+
+pub struct NoopProfiler;
+
+impl PipelineProfiler for NoopProfiler {
+    #[inline(always)]
+    fn enter(&mut self, _process: ProfileProcess) {}
+
+    #[inline(always)]
+    fn exit(&mut self, _process: ProfileProcess) {}
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProcessCycleCount {
+    pub process: ProfileProcess,
+    pub calls: u32,
+    pub inclusive_cycles: u64,
+    pub exclusive_cycles: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProfileJournal {
+    pub stage: ProfileStage,
+    pub stage_cycles: Vec<StageCycleCount>,
+    pub process_cycles: Vec<ProcessCycleCount>,
+    pub output_len: usize,
+    pub output_checksum: u64,
+}
+
+pub fn run_pipeline(input: &PipelineInput) -> Result<PipelineJournal, &'static str> {
+    validate_and_check_commitment(input)?;
+
+    let selected = select_subcarriers(input);
     let filtered = bandpass_selected(input, &selected);
     let respiration_pc = first_principal_component(&filtered, input.samples, selected.len());
     let (peak_bpm, mode_index) =
@@ -66,23 +208,59 @@ pub fn run_pipeline(input: &PipelineInput) -> Result<PipelineJournal, &'static s
     })
 }
 
-fn validate(input: &PipelineInput) -> Result<(), &'static str> {
-    if input.algorithm_version != ALGORITHM_VERSION {
-        return Err("unsupported algorithm version");
-    }
-    if input.samples < 64 || input.subcarriers == 0 {
-        return Err("CSI matrix is too small");
-    }
-    if input.amplitudes.len() != input.samples.saturating_mul(input.subcarriers) {
-        return Err("CSI matrix shape mismatch");
-    }
-    if input.scale == 0 || input.sample_rate_hz == 0 || input.bpm_min > input.bpm_max {
-        return Err("invalid pipeline parameters");
+pub fn validate_input(input: &PipelineInput) -> Result<(), &'static str> {
+    validate_input_profiled(input, &mut NoopProfiler)
+}
+
+pub fn validate_input_profiled<P: PipelineProfiler>(
+    input: &PipelineInput,
+    profiler: &mut P,
+) -> Result<(), &'static str> {
+    profiler.enter(ProfileProcess::ValidateFields);
+    let result = (|| {
+        if input.algorithm_version != ALGORITHM_VERSION {
+            return Err("unsupported algorithm version");
+        }
+        if input.samples < 64 || input.subcarriers == 0 {
+            return Err("CSI matrix is too small");
+        }
+        if input.amplitudes.len() != input.samples.saturating_mul(input.subcarriers) {
+            return Err("CSI matrix shape mismatch");
+        }
+        if input.scale == 0 || input.sample_rate_hz == 0 || input.bpm_min > input.bpm_max {
+            return Err("invalid pipeline parameters");
+        }
+        Ok(())
+    })();
+    profiler.exit(ProfileProcess::ValidateFields);
+    result
+}
+
+pub fn validate_and_check_commitment(input: &PipelineInput) -> Result<(), &'static str> {
+    validate_and_check_commitment_profiled(input, &mut NoopProfiler)
+}
+
+pub fn validate_and_check_commitment_profiled<P: PipelineProfiler>(
+    input: &PipelineInput,
+    profiler: &mut P,
+) -> Result<(), &'static str> {
+    validate_input_profiled(input, profiler)?;
+    let calculated = commitment_profiled(input, profiler);
+    profiler.enter(ProfileProcess::CommitmentCompare);
+    let matches = calculated == input.input_commitment;
+    profiler.exit(ProfileProcess::CommitmentCompare);
+    if !matches {
+        return Err("input commitment mismatch");
     }
     Ok(())
 }
 
 pub fn commitment(input: &PipelineInput) -> String {
+    commitment_profiled(input, &mut NoopProfiler)
+}
+
+pub fn commitment_profiled<P: PipelineProfiler>(input: &PipelineInput, profiler: &mut P) -> String {
+    profiler.enter(ProfileProcess::CommitmentHash);
     let mut digest = Sha256::new();
     digest.update((input.samples as u32).to_le_bytes());
     digest.update((input.subcarriers as u32).to_le_bytes());
@@ -90,7 +268,9 @@ pub fn commitment(input: &PipelineInput) -> String {
     for value in &input.amplitudes {
         digest.update(value.to_le_bytes());
     }
-    hex_lower(&digest.finalize())
+    let output = hex_lower(&digest.finalize());
+    profiler.exit(ProfileProcess::CommitmentHash);
+    output
 }
 
 fn hex_lower(bytes: &[u8]) -> String {
@@ -103,22 +283,38 @@ fn hex_lower(bytes: &[u8]) -> String {
     output
 }
 
-fn select_subcarriers_by_snr(input: &PipelineInput) -> Vec<usize> {
+pub fn select_subcarriers(input: &PipelineInput) -> Vec<usize> {
+    select_subcarriers_profiled(input, &mut NoopProfiler)
+}
+
+pub fn select_subcarriers_profiled<P: PipelineProfiler>(
+    input: &PipelineInput,
+    profiler: &mut P,
+) -> Vec<usize> {
     let mut scored = Vec::with_capacity(input.subcarriers);
     for carrier in 0..input.subcarriers {
+        profiler.enter(ProfileProcess::SelectColumnExtraction);
         let signal = column(input, carrier);
+        profiler.exit(ProfileProcess::SelectColumnExtraction);
+        profiler.enter(ProfileProcess::SelectCentering);
         let centered = center(&signal);
+        profiler.exit(ProfileProcess::SelectCentering);
+        profiler.enter(ProfileProcess::SelectGoertzel);
         let mut breath_power = 0.0_f64;
         for bpm in (6..=60).step_by(3) {
             breath_power += goertzel_power(&centered, input.sample_rate_hz, bpm);
         }
+        profiler.exit(ProfileProcess::SelectGoertzel);
+        profiler.enter(ProfileProcess::SelectTotalPower);
         let total_power = centered
             .iter()
             .map(|value| (*value as f64) * (*value as f64))
             .sum::<f64>();
         let score = breath_power / (total_power + 1.0);
+        profiler.exit(ProfileProcess::SelectTotalPower);
         scored.push((carrier, score));
     }
+    profiler.enter(ProfileProcess::SelectSortAndTruncate);
     scored.sort_by(|left, right| {
         right
             .1
@@ -129,6 +325,7 @@ fn select_subcarriers_by_snr(input: &PipelineInput) -> Vec<usize> {
     scored.truncate(core::cmp::min(MAX_SELECTED_SUBCARRIERS, input.subcarriers));
     let mut selected: Vec<usize> = scored.into_iter().map(|item| item.0).collect();
     selected.sort_unstable();
+    profiler.exit(ProfileProcess::SelectSortAndTruncate);
     selected
 }
 
@@ -143,17 +340,33 @@ fn center(signal: &[i64]) -> Vec<i64> {
     signal.iter().map(|value| *value - mean as i64).collect()
 }
 
-fn bandpass_selected(input: &PipelineInput, selected: &[usize]) -> Vec<i64> {
+pub fn bandpass_selected(input: &PipelineInput, selected: &[usize]) -> Vec<i64> {
+    bandpass_selected_profiled(input, selected, &mut NoopProfiler)
+}
+
+pub fn bandpass_selected_profiled<P: PipelineProfiler>(
+    input: &PipelineInput,
+    selected: &[usize],
+    profiler: &mut P,
+) -> Vec<i64> {
     let mut output = vec![0_i64; input.samples * selected.len()];
     let low_window = core::cmp::max(3, input.sample_rate_hz as usize / 2); // about 2 Hz low-pass
     let high_window = core::cmp::max(low_window + 1, input.sample_rate_hz as usize * 5); // 0.2 Hz high-pass
     for (target_col, source_col) in selected.iter().enumerate() {
+        profiler.enter(ProfileProcess::BandpassColumnExtraction);
         let signal = column(input, *source_col);
+        profiler.exit(ProfileProcess::BandpassColumnExtraction);
+        profiler.enter(ProfileProcess::BandpassLowMovingAverage);
         let low = moving_average(&signal, low_window);
+        profiler.exit(ProfileProcess::BandpassLowMovingAverage);
+        profiler.enter(ProfileProcess::BandpassBaselineMovingAverage);
         let baseline = moving_average(&low, high_window);
+        profiler.exit(ProfileProcess::BandpassBaselineMovingAverage);
+        profiler.enter(ProfileProcess::BandpassCombine);
         for sample in 0..input.samples {
             output[sample * selected.len() + target_col] = low[sample] - baseline[sample];
         }
+        profiler.exit(ProfileProcess::BandpassCombine);
     }
     output
 }
@@ -172,7 +385,17 @@ fn moving_average(signal: &[i64], window: usize) -> Vec<i64> {
     result
 }
 
-fn first_principal_component(matrix: &[i64], rows: usize, cols: usize) -> Vec<i64> {
+pub fn first_principal_component(matrix: &[i64], rows: usize, cols: usize) -> Vec<i64> {
+    first_principal_component_profiled(matrix, rows, cols, &mut NoopProfiler)
+}
+
+pub fn first_principal_component_profiled<P: PipelineProfiler>(
+    matrix: &[i64],
+    rows: usize,
+    cols: usize,
+    profiler: &mut P,
+) -> Vec<i64> {
+    profiler.enter(ProfileProcess::PcaCentering);
     let mut centered = matrix.to_vec();
     for col in 0..cols {
         let mean = (0..rows)
@@ -183,7 +406,9 @@ fn first_principal_component(matrix: &[i64], rows: usize, cols: usize) -> Vec<i6
             centered[row * cols + col] -= mean as i64;
         }
     }
+    profiler.exit(ProfileProcess::PcaCentering);
 
+    profiler.enter(ProfileProcess::PcaCovariance);
     let mut covariance = vec![0_i128; cols * cols];
     for left in 0..cols {
         for right in left..cols {
@@ -196,7 +421,9 @@ fn first_principal_component(matrix: &[i64], rows: usize, cols: usize) -> Vec<i6
             covariance[right * cols + left] = value;
         }
     }
+    profiler.exit(ProfileProcess::PcaCovariance);
 
+    profiler.enter(ProfileProcess::PcaPowerIteration);
     let mut vector = vec![1_000_000_i128; cols];
     for _ in 0..PCA_ITERATIONS {
         let next: Vec<i128> = (0..cols)
@@ -217,8 +444,10 @@ fn first_principal_component(matrix: &[i64], rows: usize, cols: usize) -> Vec<i6
             .map(|value| value * 1_000_000 / max_abs)
             .collect();
     }
+    profiler.exit(ProfileProcess::PcaPowerIteration);
 
-    (0..rows)
+    profiler.enter(ProfileProcess::PcaProjection);
+    let output = (0..rows)
         .map(|row| {
             let projected = (0..cols)
                 .map(|col| centered[row * cols + col] as i128 * vector[col])
@@ -226,21 +455,44 @@ fn first_principal_component(matrix: &[i64], rows: usize, cols: usize) -> Vec<i6
                 / 1_000_000;
             projected.clamp(i64::MIN as i128, i64::MAX as i128) as i64
         })
-        .collect()
+        .collect();
+    profiler.exit(ProfileProcess::PcaProjection);
+    output
 }
 
-fn vmd_spectral_decomposition(
+pub fn vmd_spectral_decomposition(
     signal: &[i64],
     sample_rate_hz: u32,
     min_bpm: u32,
     max_search_bpm: u32,
 ) -> (u32, usize) {
+    vmd_spectral_decomposition_profiled(
+        signal,
+        sample_rate_hz,
+        min_bpm,
+        max_search_bpm,
+        &mut NoopProfiler,
+    )
+}
+
+pub fn vmd_spectral_decomposition_profiled<P: PipelineProfiler>(
+    signal: &[i64],
+    sample_rate_hz: u32,
+    min_bpm: u32,
+    max_search_bpm: u32,
+    profiler: &mut P,
+) -> (u32, usize) {
+    profiler.enter(ProfileProcess::VmdCentering);
     let centered = center(signal);
+    profiler.exit(ProfileProcess::VmdCentering);
+    profiler.enter(ProfileProcess::VmdGoertzelSpectrum);
     let frequencies: Vec<u32> = (min_bpm..=max_search_bpm).collect();
     let powers: Vec<f64> = frequencies
         .iter()
         .map(|bpm| goertzel_power(&centered, sample_rate_hz, *bpm))
         .collect();
+    profiler.exit(ProfileProcess::VmdGoertzelSpectrum);
+    profiler.enter(ProfileProcess::VmdClusteringIterations);
     let span = max_search_bpm.saturating_sub(min_bpm).max(1);
     let mut centers: Vec<f64> = (0..VMD_MODES)
         .map(|mode| min_bpm as f64 + span as f64 * mode as f64 / (VMD_MODES - 1) as f64)
@@ -271,7 +523,9 @@ fn vmd_spectral_decomposition(
             }
         }
     }
+    profiler.exit(ProfileProcess::VmdClusteringIterations);
 
+    profiler.enter(ProfileProcess::VmdPeakModeSelection);
     let (peak_index, _) = powers
         .iter()
         .enumerate()
@@ -289,6 +543,7 @@ fn vmd_spectral_decomposition(
         })
         .map(|item| item.0)
         .unwrap_or(0);
+    profiler.exit(ProfileProcess::VmdPeakModeSelection);
     (peak_bpm, mode_index)
 }
 
@@ -351,5 +606,39 @@ mod tests {
         let mut input = synthetic_input(15);
         input.amplitudes[0] += 1;
         assert_eq!(run_pipeline(&input), Err("input commitment mismatch"));
+    }
+
+    #[test]
+    fn split_stages_match_end_to_end_pipeline() {
+        let input = synthetic_input(15);
+        validate_and_check_commitment(&input).expect("input should validate");
+        let selected = select_subcarriers(&input);
+        let filtered = bandpass_selected(&input, &selected);
+        let principal_component =
+            first_principal_component(&filtered, input.samples, selected.len());
+        let (peak_bpm, mode_index) = vmd_spectral_decomposition(
+            &principal_component,
+            input.sample_rate_hz,
+            input.bpm_min,
+            60,
+        );
+        let result = run_pipeline(&input).expect("pipeline should run");
+
+        assert_eq!(
+            result.selected_subcarriers,
+            selected
+                .iter()
+                .map(|value| *value as u32)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(result.breathing_rate_milli_bpm, peak_bpm * 1_000);
+        assert_eq!(result.selected_vmd_mode, mode_index as u32);
+    }
+
+    #[test]
+    fn profile_stage_names_round_trip() {
+        for stage in ProfileStage::ALL {
+            assert_eq!(ProfileStage::parse(stage.as_str()), Ok(stage));
+        }
     }
 }
