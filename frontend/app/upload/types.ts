@@ -119,6 +119,20 @@ export interface AlgorithmComparison {
   lomb_scargle_is_normal?: boolean;
 }
 
+export interface BpmEvaluationRow {
+  method: "5-1" | "lomb_scargle" | "zkvm";
+  method_label: string;
+  ground_truth_bpm: number;
+  measured_bpm: number | null;
+  signed_error_bpm: number | null;
+  absolute_error_bpm: number | null;
+}
+
+export interface BpmEvaluation {
+  ground_truth_bpm: number;
+  rows: BpmEvaluationRow[];
+}
+
 export interface BreathingAnalysis {
   pipeline?: string;
   respiration_waveform?: number[];
@@ -150,6 +164,7 @@ export interface ProcessedData {
     lomb_scargle_circom?: VerifiableProofResult;
     zkvm?: VerifiableProofResult;
   };
+  bpm_evaluation?: BpmEvaluation;
   disabled_methods?: string[];
   fft_dataframe?: DataframeDict;
   wavelet_dataframe?: DataframeDict;
@@ -191,6 +206,7 @@ export interface MainCSIResponse {
   id: string;
   session_id: string | null;
   device_id: string | null;
+  ground_truth_bpm?: number | null;
   raw_data?: Record<string, unknown> | Array<Record<string, unknown>> | null;
   file_path?: string | null;
   file_size: number | null;

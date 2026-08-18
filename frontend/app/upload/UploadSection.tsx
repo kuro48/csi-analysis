@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getMainCSI, uploadMainCSI } from "./api";
 import { AnalysisResultPanel } from "./AnalysisResultPanel";
+import { GroundTruthBpmEditor } from "./GroundTruthBpmEditor";
 import { StatusBadge } from "./StatusBadge";
 import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS, TERMINAL_STATUSES } from "./constants";
 import type { CSIStatus, MainCSIResponse } from "./types";
@@ -134,8 +135,9 @@ export function UploadSection() {
         PicoScenes CSIを保存し、5-1解析とCircom証明を実行します
       </p>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="min-w-0 flex-1 cursor-pointer">
+          <span className="mb-1 block text-xs font-semibold text-neutral-700">CSIファイル</span>
           <span className="block truncate rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-600 hover:border-teal-500 hover:text-teal-700">
             {file ? file.name : ".csiファイルを選択"}
           </span>
@@ -164,6 +166,9 @@ export function UploadSection() {
       {status && (
         <div className="mt-3 flex items-center gap-2">
           <StatusBadge status={status} />
+          {record?.ground_truth_bpm != null && (
+            <span className="text-xs font-semibold text-teal-700">正解 {record.ground_truth_bpm} BPM</span>
+          )}
           {elapsed !== null && (
             <span className="text-xs text-neutral-500">
               {TERMINAL_STATUSES.includes(status as (typeof TERMINAL_STATUSES)[number])
@@ -171,6 +176,20 @@ export function UploadSection() {
                 : `(${formatElapsed(elapsed)}経過)`}
             </span>
           )}
+        </div>
+      )}
+
+      {record && (
+        <div className="mt-4">
+          <GroundTruthBpmEditor
+            key={`${record.id}:${record.ground_truth_bpm ?? "unset"}`}
+            recordId={record.id}
+            groundTruthBpm={record.ground_truth_bpm}
+            onSaved={(updated) => {
+              setRecord(updated);
+              setStatus(updated.status);
+            }}
+          />
         </div>
       )}
 

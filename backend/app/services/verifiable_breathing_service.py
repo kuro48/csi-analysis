@@ -3,6 +3,7 @@
 import asyncio
 import inspect
 import logging
+import math
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
@@ -17,6 +18,47 @@ logger = logging.getLogger(__name__)
 
 DISABLED_ANALYSIS_METHODS = ["wavelet", "music", "fft_cosine_similarity"]
 _PRIVATE_INPUT_KEYS = {"certificate_input", "zkvm_input", "zkp_input", "_lomb_scargle_input"}
+
+
+def attach_bpm_evaluation(result: Dict[str, Any], ground_truth_bpm: float) -> Dict[str, Any]:
+    """解析後のレスポンスへ、表出力しやすい正解値・計測値の行を追加する。
+
+    正解値は解析パイプラインへ渡さず、この関数を解析完了後にだけ呼び出す。
+    """
+
+    truth = float(ground_truth_bpm)
+    if not math.isfinite(truth) or not 0 < truth <= 120:
+        raise ValueError("正解BPMは0より大きく120以下で指定してください")
+
+    analysis = result.get("analysis") or {}
+    lomb_analysis = analysis.get("lomb_scargle") or {}
+    zkvm_proof = (result.get("proofs") or {}).get("zkvm") or {}
+    zkvm_milli_bpm = (zkvm_proof.get("journal") or {}).get("breathing_rate_milli_bpm")
+
+    measurements = [
+        ("5-1", "5-1", analysis.get("breathing_rate_bpm")),
+        ("lomb_scargle", "Lomb–Scargle", lomb_analysis.get("breathing_rate_bpm")),
+        ("zkvm", "zkVM", float(zkvm_milli_bpm) / 1000 if zkvm_milli_bpm is not None else None),
+    ]
+    rows = []
+    for method, label, measured_value in measurements:
+        measured = float(measured_value) if measured_value is not None else None
+        rows.append(
+            {
+                "method": method,
+                "method_label": label,
+                "ground_truth_bpm": truth,
+                "measured_bpm": measured,
+                "signed_error_bpm": measured - truth if measured is not None else None,
+                "absolute_error_bpm": abs(measured - truth) if measured is not None else None,
+            }
+        )
+
+    result["bpm_evaluation"] = {
+        "ground_truth_bpm": truth,
+        "rows": rows,
+    }
+    return result
 
 
 class VerifiableBreathingService:

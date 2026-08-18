@@ -19,10 +19,17 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal, get_db
-from app.schemas.csi_data import CSIDataFilter, CSIDataListResponse, CSIDataResponse, CSIDataUpload
+from app.schemas.csi_data import (
+    CSIDataFilter,
+    CSIDataListResponse,
+    CSIDataResponse,
+    CSIDataUpload,
+    GroundTruthBpmUpdate,
+)
 from app.services.csi_data import CSIDataService
 from app.services.csi_processing import parse_json_field, process_csi_in_background
 from app.services.file_validation import validate_csi_upload
+from app.services.verifiable_breathing_service import attach_bpm_evaluation
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -104,6 +111,7 @@ async def upload_csi_data_chunk(
                 "updated_at": csi_data.updated_at.isoformat(),
                 "session_id": csi_data.session_id,
                 "device_id": csi_data.device_id,
+                "ground_truth_bpm": getattr(csi_data, "ground_truth_bpm", None),
                 "processed_data": csi_data.processed_data,
             },
         }
@@ -171,6 +179,7 @@ async def upload_csi_data(
             id=csi_data.id,
             session_id=csi_data.session_id,
             device_id=csi_data.device_id,
+            ground_truth_bpm=csi_data.ground_truth_bpm,
             file_path=csi_data.file_path if settings.RESEARCH_MODE else None,
             file_size=csi_data.file_size if settings.RESEARCH_MODE else None,
             status=csi_data.status,
@@ -220,6 +229,7 @@ async def list_csi_data(
                 id=csi_data.id,
                 session_id=csi_data.session_id,
                 device_id=csi_data.device_id,
+                ground_truth_bpm=csi_data.ground_truth_bpm,
                 raw_data=parse_json_field(csi_data.raw_data),
                 processed_data=parse_json_field(csi_data.processed_data),
                 file_path=csi_data.file_path,
@@ -248,6 +258,48 @@ async def list_csi_data(
         )
 
 
+@router.patch("/{csi_data_id}/ground-truth", response_model=CSIDataResponse)
+async def update_ground_truth_bpm(
+    csi_data_id: uuid.UUID,
+    payload: GroundTruthBpmUpdate,
+    db: Session = Depends(get_db),
+):
+    """保存済みCSIへ評価用の正解BPMを後から設定・変更・削除する。"""
+
+    csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id)
+    if not csi_data:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="CSIデータが見つかりません",
+        )
+
+    csi_data.ground_truth_bpm = payload.ground_truth_bpm
+    processed_data = parse_json_field(csi_data.processed_data)
+    if isinstance(processed_data, dict):
+        processed_data = dict(processed_data)
+        if payload.ground_truth_bpm is None:
+            processed_data.pop("bpm_evaluation", None)
+        elif processed_data.get("analysis"):
+            attach_bpm_evaluation(processed_data, payload.ground_truth_bpm)
+        csi_data.processed_data = processed_data
+
+    db.commit()
+    db.refresh(csi_data)
+    return CSIDataResponse(
+        id=csi_data.id,
+        session_id=csi_data.session_id,
+        device_id=csi_data.device_id,
+        ground_truth_bpm=csi_data.ground_truth_bpm,
+        raw_data=parse_json_field(csi_data.raw_data),
+        processed_data=parse_json_field(csi_data.processed_data),
+        file_path=csi_data.file_path,
+        file_size=csi_data.file_size,
+        status=csi_data.status,
+        created_at=csi_data.created_at,
+        updated_at=csi_data.updated_at,
+    )
+
+
 @router.get("/{csi_data_id}", response_model=CSIDataResponse)
 async def get_csi_data(
     csi_data_id: uuid.UUID,
@@ -267,6 +319,7 @@ async def get_csi_data(
         id=csi_data.id,
         session_id=csi_data.session_id,
         device_id=csi_data.device_id,
+        ground_truth_bpm=csi_data.ground_truth_bpm,
         raw_data=parse_json_field(csi_data.raw_data),
         processed_data=parse_json_field(csi_data.processed_data),
         file_path=csi_data.file_path,

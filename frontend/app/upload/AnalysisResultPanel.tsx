@@ -200,6 +200,7 @@ function MainPanel({ processedData }: MainCSIData) {
     const zkvm = processedData.proofs?.zkvm;
     const lomb = analysis.lomb_scargle;
     const comparison = analysis.algorithm_comparison;
+    const bpmEvaluation = processedData.bpm_evaluation;
     const waveformPoints = waveformToSignalPoints(analysis.respiration_waveform);
     const zkvmBpm =
       zkvm?.journal?.breathing_rate_milli_bpm != null
@@ -256,7 +257,10 @@ function MainPanel({ processedData }: MainCSIData) {
 
         <div>
           <h3 className="mb-3 text-sm font-semibold text-neutral-900">推定値の比較</h3>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className={`grid gap-3 sm:grid-cols-2 ${bpmEvaluation ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
+            {bpmEvaluation && (
+              <MetricCard label="正解" value={bpmEvaluation.ground_truth_bpm} unit="BPM" />
+            )}
             <MetricCard
               label="現行 5-1"
               value={comparison?.current_breathing_rate_bpm ?? analysis.breathing_rate_bpm ?? null}

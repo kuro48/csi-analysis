@@ -31,7 +31,7 @@ from app.services.csi_visualizer import (
 from app.services.pcap_analyzer import PCAPAnalyzer
 from app.services.zkp_circuit_service import ZKPMusicService, ZKPWaveletService
 from app.services.zkp_service import ZKPService
-from app.services.verifiable_breathing_service import VerifiableBreathingService
+from app.services.verifiable_breathing_service import VerifiableBreathingService, attach_bpm_evaluation
 
 logger = logging.getLogger(__name__)
 
@@ -504,6 +504,12 @@ async def process_csi_in_background(
         # zkVM 実装は保持し、CSI_ZKVM_ENABLED=true の場合のみ追加実行する。
         # FFT+コサイン類似度、Wavelet、MUSIC は意図的にこの経路から外す。
         verifiable_result = await VerifiableBreathingService().analyze(file_path)
+        if csi_data and callable(getattr(db, "refresh", None)):
+            # 解析中にWeb画面から正解BPMが入力された場合も最新値を取り込む。
+            await asyncio.to_thread(db.refresh, csi_data)
+        ground_truth_bpm = getattr(csi_data, "ground_truth_bpm", None) if csi_data else None
+        if ground_truth_bpm is not None:
+            attach_bpm_evaluation(verifiable_result, ground_truth_bpm)
         if csi_data:
             csi_data.status = "completed"
             csi_data.processed_data = verifiable_result

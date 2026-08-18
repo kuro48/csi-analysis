@@ -11,6 +11,7 @@ import pytest
 from fastapi import BackgroundTasks, HTTPException
 
 from app.api.endpoints import csi_data as csi_endpoint
+from app.models.csi_data import CSIData
 from app.services.file_validation import validate_csi_upload
 
 
@@ -20,6 +21,59 @@ class _Chunk:
 
     async def read(self) -> bytes:
         return self._data
+
+
+@pytest.mark.unit
+def test_ground_truth_bpm_can_be_added_after_analysis_and_removed(client, db):
+    record = CSIData(
+        status="completed",
+        processed_data={
+            "status": "completed",
+            "analysis": {
+                "breathing_rate_bpm": 15.5,
+                "lomb_scargle": {"breathing_rate_bpm": 14.75},
+            },
+            "proofs": {"zkvm": {"status": "disabled"}},
+        },
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+
+    response = client.patch(
+        f"/api/v2/csi-data/{record.id}/ground-truth",
+        json={"ground_truth_bpm": 15.0},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ground_truth_bpm"] == 15.0
+    assert body["processed_data"]["bpm_evaluation"]["rows"][0]["absolute_error_bpm"] == 0.5
+    db.refresh(record)
+    assert record.ground_truth_bpm == 15.0
+
+    cleared = client.patch(
+        f"/api/v2/csi-data/{record.id}/ground-truth",
+        json={"ground_truth_bpm": None},
+    )
+
+    assert cleared.status_code == 200
+    assert cleared.json()["ground_truth_bpm"] is None
+    assert "bpm_evaluation" not in cleared.json()["processed_data"]
+
+
+@pytest.mark.unit
+def test_ground_truth_bpm_update_validates_range(client, db):
+    record = CSIData(status="uploaded")
+    db.add(record)
+    db.commit()
+
+    response = client.patch(
+        f"/api/v2/csi-data/{record.id}/ground-truth",
+        json={"ground_truth_bpm": 121},
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.unit

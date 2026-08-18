@@ -41,7 +41,13 @@ async def test_background_processing_uses_only_5_1_parallel_proof_pipeline(monke
     record = type(
         "Record",
         (),
-        {"id": csi_id, "status": "uploaded", "processed_data": None, "file_path": "sample.csi"},
+        {
+            "id": csi_id,
+            "status": "uploaded",
+            "processed_data": None,
+            "file_path": "sample.csi",
+            "ground_truth_bpm": 15.0,
+        },
     )()
     db = _DB(record)
     expected = {
@@ -75,6 +81,8 @@ async def test_background_processing_uses_only_5_1_parallel_proof_pipeline(monke
 
     assert record.status == "completed"
     assert record.processed_data == expected
+    assert record.processed_data["bpm_evaluation"]["ground_truth_bpm"] == 15.0
+    assert record.processed_data["bpm_evaluation"]["rows"][0]["measured_bpm"] == 15.0
     assert db.commits >= 2
     assert db.closed is True
 

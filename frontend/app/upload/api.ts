@@ -67,6 +67,19 @@ export function getMainCSI(id: string, signal?: AbortSignal): Promise<MainCSIRes
   return request<MainCSIResponse>(`${API_BASE}/api/v2/csi-data/${id}`, { signal });
 }
 
+export function updateGroundTruthBpm(
+  id: string,
+  groundTruthBpm: number | null,
+  signal?: AbortSignal,
+): Promise<MainCSIResponse> {
+  return request<MainCSIResponse>(`${API_BASE}/api/v2/csi-data/${id}/ground-truth`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ground_truth_bpm: groundTruthBpm }),
+    signal,
+  });
+}
+
 export function listMainCSI(
   params: {
     status?: CSIStatus | "all";

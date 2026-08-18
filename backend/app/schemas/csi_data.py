@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CSIDataUpload(BaseModel):
@@ -17,6 +17,7 @@ class CSIDataResponse(BaseModel):
     id: uuid.UUID
     session_id: Optional[str] = None
     device_id: Optional[str] = None
+    ground_truth_bpm: Optional[float] = None
     raw_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     processed_data: Optional[Dict[str, Any]] = None
     file_path: Optional[str] = None
@@ -27,6 +28,10 @@ class CSIDataResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class GroundTruthBpmUpdate(BaseModel):
+    ground_truth_bpm: Optional[float] = Field(default=None, gt=0, le=120)
 
 
 class CSIDataFilter(BaseModel):

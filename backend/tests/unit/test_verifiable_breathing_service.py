@@ -5,6 +5,38 @@ import asyncio
 import pytest
 
 
+@pytest.mark.unit
+def test_bpm_evaluation_is_added_after_analysis_with_table_ready_rows():
+    from app.services.verifiable_breathing_service import attach_bpm_evaluation
+
+    result = {
+        "analysis": {
+            "breathing_rate_bpm": 15.5,
+            "lomb_scargle": {"breathing_rate_bpm": 14.75},
+        },
+        "proofs": {
+            "zkvm": {"journal": {"breathing_rate_milli_bpm": 15250}},
+        },
+    }
+
+    attach_bpm_evaluation(result, 15.0)
+
+    evaluation = result["bpm_evaluation"]
+    assert evaluation["ground_truth_bpm"] == 15.0
+    assert [row["method"] for row in evaluation["rows"]] == ["5-1", "lomb_scargle", "zkvm"]
+    assert [row["measured_bpm"] for row in evaluation["rows"]] == [15.5, 14.75, 15.25]
+    assert [row["absolute_error_bpm"] for row in evaluation["rows"]] == [0.5, 0.25, 0.25]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("ground_truth_bpm", [0, -1, 121, float("nan")])
+def test_bpm_evaluation_rejects_invalid_ground_truth(ground_truth_bpm):
+    from app.services.verifiable_breathing_service import attach_bpm_evaluation
+
+    with pytest.raises(ValueError, match="正解BPM"):
+        attach_bpm_evaluation({}, ground_truth_bpm)
+
+
 PIPELINE_RESULT = {
     "respiration_waveform": [0.1, -0.2, 0.1],
     "breathing_rate_bpm": 15.0,

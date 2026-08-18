@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AnalysisResultPanel } from "./upload/AnalysisResultPanel";
 import { listMainCSI } from "./upload/api";
+import { GroundTruthBpmEditor } from "./upload/GroundTruthBpmEditor";
 import { MetricCard } from "./upload/MetricCard";
 import { StatusBadge } from "./upload/StatusBadge";
 import type { CSIStatus, MainCSIResponse } from "./upload/types";
@@ -89,6 +90,7 @@ export function DeviceDashboard() {
     () => records.find((record) => record.id === selectedId) ?? records[0] ?? null,
     [records, selectedId]
   );
+
   const latestCompleted = getLatestCompleted(records);
   const verifiedCount = records.filter(
     (record) => record.processed_data?.status === "completed"
@@ -253,6 +255,18 @@ export function DeviceDashboard() {
                     <p className="mt-1 text-sm font-semibold text-neutral-900">
                       {proofStatusLabel(selected) ?? "解析結果待ち"}
                     </p>
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-4">
+                    <GroundTruthBpmEditor
+                      key={`${selected.id}:${selected.ground_truth_bpm ?? "unset"}`}
+                      recordId={selected.id}
+                      groundTruthBpm={selected.ground_truth_bpm}
+                      onSaved={(updated) =>
+                        setRecords((current) =>
+                          current.map((record) => (record.id === updated.id ? updated : record)),
+                        )
+                      }
+                    />
                   </div>
                 </div>
               ) : null}

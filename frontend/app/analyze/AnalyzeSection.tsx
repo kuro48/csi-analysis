@@ -100,8 +100,9 @@ export function AnalyzeSection() {
           </p>
         </div>
 
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
           <label className="min-w-0 flex-1 cursor-pointer">
+            <span className="mb-1 block text-xs font-semibold text-neutral-700">CSIファイル</span>
             <span className="block truncate rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-600 hover:border-teal-500 hover:text-teal-700">
               {file ? file.name : ".csiファイルを選択"}
             </span>

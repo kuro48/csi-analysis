@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, BigInteger, Column, Index, String
+from sqlalchemy import JSON, BigInteger, Column, Float, Index, String
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.base import BaseModel
@@ -16,6 +16,7 @@ class CSIData(BaseModel):
     file_path = Column(String(500), nullable=True)
     file_size = Column(BigInteger, nullable=True, index=True)
     device_id = Column(String(255), nullable=True, index=True)
+    ground_truth_bpm = Column(Float, nullable=True)
     status = Column(String(50), default="received", nullable=False, index=True)
 
     blockchain_tx_hash = Column(String(66), nullable=True, index=True, comment="ブロックチェーントランザクションハッシュ")
