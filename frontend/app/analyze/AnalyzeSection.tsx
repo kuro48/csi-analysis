@@ -96,7 +96,7 @@ export function AnalyzeSection() {
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-neutral-900">PicoScenes CSIを解析</h2>
           <p className="text-sm text-neutral-500">
-            5-1解析後にCircom証明を生成します
+            現行5-1方式とLomb–Scargle方式を比較し、それぞれのCircom判定を生成します
           </p>
         </div>
 

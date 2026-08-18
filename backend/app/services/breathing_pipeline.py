@@ -27,7 +27,7 @@ from collections import Counter
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.signal import butter, filtfilt
@@ -208,6 +208,78 @@ def load_csi_matrix(csi_file):
     print("CSI matrix shape:", csi_matrix.shape)
 
     return csi_matrix
+
+
+def _system_timestamp_ns(frame: Dict[str, Any]) -> Optional[int]:
+    """PicoScenesフレームのsystemnsをPython整数として取り出す。"""
+
+    rx_basic = frame.get("RxSBasic")
+    if not isinstance(rx_basic, dict) or "systemns" not in rx_basic:
+        return None
+
+    raw_value = np.asarray(rx_basic["systemns"]).reshape(-1)
+    if raw_value.size == 0:
+        return None
+    try:
+        return int(raw_value[0])
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def load_csi_matrix_with_timestamps(csi_file: str) -> Tuple[np.ndarray, np.ndarray]:
+    """最頻CSI幅の行列と、同じフレームのsystemnsを一度に読み込む。
+
+    Lomb--Scargleへ渡す時刻と既存パイプラインへ渡すCSIがずれないよう、
+    CSIとsystemnsの両方を持つフレームだけを同じ条件で抽出する。
+    """
+
+    if Picoscenes is None:
+        raise RuntimeError("PicoScenes解析に必要な picoscenes が未インストールです")
+    if not Path(csi_file).is_file():
+        raise ValueError(f"CSIファイルが見つかりません: {csi_file}")
+
+    parser = _new_chunked_picoscenes_parser()
+    length_counter: Counter[int] = Counter()
+
+    for offset, count in _iter_picoscenes_frame_batches(csi_file, PICOSCENES_PARSE_BATCH_FRAMES):
+        parser.seek(str(csi_file), offset, count)
+        for frame in parser.raw:
+            csi = frame.get("CSI")
+            if csi is None or csi.get("CSI") is None or _system_timestamp_ns(frame) is None:
+                continue
+            length_counter[np.asarray(csi["CSI"]).size] += 1
+        parser.raw.clear()
+
+    if not length_counter:
+        raise ValueError("CSIデータとsystemnsタイムスタンプの組が見つかりません。")
+
+    target_len = length_counter.most_common(1)[0][0]
+    target_rows = length_counter[target_len]
+    csi_matrix = np.empty((target_rows, target_len), dtype=np.complex128)
+    timestamps_ns = np.empty(target_rows, dtype=np.int64)
+
+    row = 0
+    for offset, count in _iter_picoscenes_frame_batches(csi_file, PICOSCENES_PARSE_BATCH_FRAMES):
+        parser.seek(str(csi_file), offset, count)
+        for frame in parser.raw:
+            csi = frame.get("CSI")
+            timestamp_ns = _system_timestamp_ns(frame)
+            if csi is None or csi.get("CSI") is None or timestamp_ns is None:
+                continue
+            values = np.asarray(csi["CSI"]).reshape(-1)
+            if values.size == target_len:
+                csi_matrix[row] = values
+                timestamps_ns[row] = timestamp_ns
+                row += 1
+        parser.raw.clear()
+
+    if row != target_rows:
+        raise RuntimeError(f"CSI行列と時刻の構築件数が一致しません: expected={target_rows}, actual={row}")
+
+    print("CSI lengths:", length_counter)
+    print("Selected TARGET_LEN:", target_len)
+    print("CSI matrix shape:", csi_matrix.shape)
+    return csi_matrix, timestamps_ns
 
 
 def bandpass_filter(data, fs, lowcut, highcut, order=4):
@@ -602,6 +674,7 @@ def _check_dependencies(require_loader: bool) -> None:
 def run_breathing_pipeline_from_matrix(
     csi_matrix: np.ndarray,
     include_zkvm_input: bool = True,
+    lomb_scargle_timestamps_ns: Optional[np.ndarray] = None,
 ) -> Dict[str, Any]:
     """複素CSI行列 [n_samples × n_subcarriers] に 5-1.ipynb の処理を適用する。
 
@@ -690,7 +763,7 @@ def run_breathing_pipeline_from_matrix(
         elapsed,
     )
 
-    return {
+    result = {
         "respiration_waveform": [float(v) for v in vmd_respiration],
         "breathing_rate_bpm": float(breathing_rate_bpm),
         "peak_freq_hz": float(peak_freq),
@@ -717,16 +790,40 @@ def run_breathing_pipeline_from_matrix(
         "zkvm_input": zkvm_input,
     }
 
+    if lomb_scargle_timestamps_ns is not None:
+        timestamps_ns = np.asarray(lomb_scargle_timestamps_ns, dtype=np.int64).reshape(-1)
+        if timestamps_ns.size != principal_components.shape[0]:
+            raise ValueError("PCA出力の行数とLomb-Scargle用タイムスタンプ数が一致していません")
+        result["_lomb_scargle_input"] = {
+            "principal_components": principal_components,
+            "timestamps_ns": timestamps_ns,
+            "pc_explained_variance_ratio": pca.explained_variance_ratio_,
+            "selected_subcarrier_indices": selected_indices,
+            "selected_snr": snr[selected_indices],
+            "n_subcarriers_total": int(amplitude_all.shape[1]),
+        }
+
+    return result
+
 
 def run_breathing_pipeline(
     csi_file: str,
     include_zkvm_input: bool = True,
+    include_lomb_scargle_input: bool = False,
 ) -> Dict[str, Any]:
     """PicoScenes .csi ファイルに 5-1.ipynb の一連の処理を適用する。"""
     _check_dependencies(require_loader=True)
 
     # 1. CSI読み込み
     with timer("CSI読み込み・行列作成"):
-        csi_matrix = load_csi_matrix(csi_file)
+        if include_lomb_scargle_input:
+            csi_matrix, timestamps_ns = load_csi_matrix_with_timestamps(csi_file)
+        else:
+            csi_matrix = load_csi_matrix(csi_file)
+            timestamps_ns = None
 
-    return run_breathing_pipeline_from_matrix(csi_matrix, include_zkvm_input=include_zkvm_input)
+    return run_breathing_pipeline_from_matrix(
+        csi_matrix,
+        include_zkvm_input=include_zkvm_input,
+        lomb_scargle_timestamps_ns=timestamps_ns,
+    )

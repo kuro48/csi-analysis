@@ -196,7 +196,10 @@ function MainPanel({ processedData }: MainCSIData) {
   if (processedData.analysis) {
     const analysis = processedData.analysis;
     const circom = processedData.proofs?.python_circom;
+    const lombCircom = processedData.proofs?.lomb_scargle_circom;
     const zkvm = processedData.proofs?.zkvm;
+    const lomb = analysis.lomb_scargle;
+    const comparison = analysis.algorithm_comparison;
     const waveformPoints = waveformToSignalPoints(analysis.respiration_waveform);
     const zkvmBpm =
       zkvm?.journal?.breathing_rate_milli_bpm != null
@@ -215,7 +218,7 @@ function MainPanel({ processedData }: MainCSIData) {
         <div className="flex flex-col gap-3 border-b border-neutral-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase text-neutral-500">Verifiable breathing analysis</p>
-            <h2 className="mt-1 text-lg font-semibold text-neutral-950">5-1 呼吸解析結果</h2>
+            <h2 className="mt-1 text-lg font-semibold text-neutral-950">呼吸解析アルゴリズム比較</h2>
           </div>
           <span className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${statusConfig.cls}`}>
             {statusConfig.label}
@@ -251,12 +254,44 @@ function MainPanel({ processedData }: MainCSIData) {
           <MetricCard label="選択VMDモード" value={analysis.selected_vmd_mode} digits={0} />
         </div>
 
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-neutral-900">推定値の比較</h3>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="現行 5-1"
+              value={comparison?.current_breathing_rate_bpm ?? analysis.breathing_rate_bpm ?? null}
+              unit="BPM"
+            />
+            <MetricCard
+              label="Lomb–Scargle"
+              value={comparison?.lomb_scargle_breathing_rate_bpm ?? lomb?.breathing_rate_bpm ?? null}
+              unit="BPM"
+            />
+            <MetricCard label="推定差" value={comparison?.absolute_difference_bpm ?? null} unit="BPM" />
+            <MetricCard label="LS 全帯域ピーク" value={lomb?.global_peak_bpm ?? null} unit="BPM" />
+          </div>
+          {lomb?.status === "failed" && (
+            <p className="mt-2 text-xs text-red-600">Lomb–Scargle解析失敗: {lomb.error ?? "不明なエラー"}</p>
+          )}
+          {lomb?.status === "completed" && (
+            <p className="mt-2 text-xs text-neutral-500">
+              不均一時刻を直接解析 / 平均サンプリング {formatNumber(lomb.actual_sampling_rate_hz, 2)} Hz /
+              時刻間隔CV {formatNumber(lomb.sampling_interval_cv, 3)}
+            </p>
+          )}
+        </div>
+
         <SignalChart title="VMDで抽出した呼吸波形" points={waveformPoints} color="#0f766e" />
 
         <div>
           <h3 className="mb-3 text-sm font-semibold text-neutral-900">証明</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <ProofCard title="Python + Circom" proof={circom} fallbackMethod="breathing_certificate" />
+            <ProofCard
+              title="Lomb–Scargle + Circom"
+              proof={lombCircom}
+              fallbackMethod="lomb_scargle_periodogram_certificate"
+            />
             {zkvm?.status !== "disabled" && (
               <ProofCard title="RISC Zero zkVM" proof={zkvm} fallbackMethod="5-1-fixed-v1" />
             )}

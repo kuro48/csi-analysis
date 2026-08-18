@@ -173,7 +173,7 @@ async def analyze_breathing_certificate(
 async def analyze_breathing_verifiable(
     file: UploadFile = File(..., description="PicoScenes .csi ファイル"),
 ) -> Dict[str, Any]:
-    """5-1解析とCircom証明を実行する。zkVMは設定で明示的に有効化した場合のみ追加実行する。"""
+    """5-1/Lomb--Scargle比較と各Circom証明を実行する。zkVMは設定時のみ追加する。"""
     file_data = await file.read()
     _validate_upload(file.filename, len(file_data))
 

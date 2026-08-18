@@ -83,6 +83,42 @@ export interface CertificateDiagnostics {
   scale_factor?: number;
 }
 
+export interface LombScargleAnalysis {
+  status: "completed" | "failed";
+  algorithm_version?: string;
+  breathing_rate_bpm?: number;
+  peak_freq_hz?: number;
+  peak_power?: number;
+  global_peak_bpm?: number;
+  global_peak_freq_hz?: number;
+  selected_pc?: number;
+  pc_explained_variance_ratio?: number[];
+  pc_target_peak_powers?: number[];
+  selected_pc_waveform?: number[];
+  n_samples?: number;
+  n_subcarriers_total?: number;
+  n_subcarriers_selected?: number;
+  duration_seconds?: number;
+  actual_sampling_rate_hz?: number;
+  sampling_interval_cv?: number;
+  duplicates_removed?: number;
+  processing_time_seconds?: number;
+  normality_rule?: string;
+  circom_scope?: string;
+  error?: string;
+  error_type?: string;
+}
+
+export interface AlgorithmComparison {
+  current_algorithm?: string;
+  lomb_scargle_algorithm?: string;
+  current_breathing_rate_bpm?: number;
+  lomb_scargle_breathing_rate_bpm?: number;
+  absolute_difference_bpm?: number;
+  current_is_normal?: boolean;
+  lomb_scargle_is_normal?: boolean;
+}
+
 export interface BreathingAnalysis {
   pipeline?: string;
   respiration_waveform?: number[];
@@ -102,6 +138,8 @@ export interface BreathingAnalysis {
   processing_time_seconds?: number;
   input_commitment?: string;
   certificate_diagnostics?: CertificateDiagnostics;
+  lomb_scargle?: LombScargleAnalysis;
+  algorithm_comparison?: AlgorithmComparison;
 }
 
 export interface ProcessedData {
@@ -109,6 +147,7 @@ export interface ProcessedData {
   analysis?: BreathingAnalysis;
   proofs?: {
     python_circom?: VerifiableProofResult;
+    lomb_scargle_circom?: VerifiableProofResult;
     zkvm?: VerifiableProofResult;
   };
   disabled_methods?: string[];

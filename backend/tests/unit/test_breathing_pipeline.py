@@ -69,6 +69,37 @@ def test_load_csi_matrix_decodes_large_files_in_bounded_batches(monkeypatch, tmp
     assert seek_calls == [(0, 2), (16, 1), (0, 2), (16, 1)]
 
 
+@pytest.mark.unit
+def test_load_csi_matrix_with_timestamps_keeps_rows_aligned(monkeypatch, tmp_path):
+    from app.services import breathing_pipeline
+
+    csi_file = tmp_path / "timestamped.csi"
+    frame = struct.pack("<I", 4) + b"data"
+    csi_file.write_bytes(frame * 3)
+    frames_by_offset = {
+        0: [
+            {"CSI": {"CSI": [1 + 1j, 2 + 2j]}, "RxSBasic": {"systemns": 100}},
+            {"CSI": {"CSI": [9 + 9j, 8 + 8j]}, "RxSBasic": {}},
+        ],
+        16: [{"CSI": {"CSI": [3 + 3j, 4 + 4j]}, "RxSBasic": {"systemns": 300}}],
+    }
+
+    class _Parser:
+        def __init__(self, file_path, if_report):
+            self.raw = []
+
+        def seek(self, file_path, offset, count):
+            self.raw = list(frames_by_offset[offset])
+
+    monkeypatch.setattr(breathing_pipeline, "Picoscenes", _Parser)
+    monkeypatch.setattr(breathing_pipeline, "PICOSCENES_PARSE_BATCH_FRAMES", 2)
+
+    matrix, timestamps_ns = breathing_pipeline.load_csi_matrix_with_timestamps(str(csi_file))
+
+    assert matrix.tolist() == [[1 + 1j, 2 + 2j], [3 + 3j, 4 + 4j]]
+    assert timestamps_ns.tolist() == [100, 300]
+
+
 def _make_time_axis(seconds: float) -> np.ndarray:
     return np.arange(int(seconds * FS)) / FS
 
@@ -348,7 +379,8 @@ def test_run_breathing_pipeline_from_matrix_end_to_end():
     csi_matrix = np.stack(subcarriers, axis=1)
 
     # Act
-    result = run_breathing_pipeline_from_matrix(csi_matrix)
+    timestamps_ns = np.rint(t * 1e9).astype(np.int64) + 1_700_000_000_000_000_000
+    result = run_breathing_pipeline_from_matrix(csi_matrix, lomb_scargle_timestamps_ns=timestamps_ns)
 
     # Assert: 15bpm 近傍を推定し、ZKP入力が回路仕様を満たす
     assert abs(result["breathing_rate_bpm"] - 15.0) < 1.5
@@ -367,6 +399,10 @@ def test_run_breathing_pipeline_from_matrix_end_to_end():
     assert cert["diagnostics"]["max_mode_abs"] <= ZKP_CERT_MODE_MAX_ABS
     assert result["bpm_range"] == {"min": BPM_MIN, "max": BPM_MAX}
     assert len(result["vmd_mode_summaries"]) == 5
+    lomb_input = result["_lomb_scargle_input"]
+    assert lomb_input["principal_components"].shape == (len(t), 3)
+    assert np.array_equal(lomb_input["timestamps_ns"], timestamps_ns)
+    assert lomb_input["n_subcarriers_total"] == 20
     # 判定キーが Python 側に存在しないこと（判定は ZKP 回路の責務）
     assert "is_breathing" not in result
     assert "is_normal" not in result

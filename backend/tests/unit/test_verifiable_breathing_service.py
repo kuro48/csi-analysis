@@ -26,6 +26,15 @@ PIPELINE_RESULT = {
     },
 }
 
+LOMB_RESULT = {
+    "algorithm_version": "lomb-scargle.ipynb-v1",
+    "breathing_rate_bpm": 15.1,
+    "peak_freq_hz": 0.2517,
+    "global_peak_bpm": 15.1,
+    "selected_pc": 1,
+    "certificate_input": {"powers": [[0, 1, 0]] * 3},
+}
+
 
 class _CircomService:
     def __init__(self, started, release):
@@ -66,6 +75,25 @@ class _ZkVMService:
         }
 
 
+class _LombCircomService:
+    def __init__(self, started=None, release=None):
+        self.started = started
+        self.release = release
+
+    async def generate_proof(self, powers):
+        if self.started is not None:
+            self.started.add("lomb_circom")
+        if self.release is not None:
+            await self.release.wait()
+        return {
+            "proof": {"pi_a": ["2"]},
+            "publicSignals": ["1", "0", "139", "139"],
+            "isNormal": True,
+            "isValid": True,
+            "method": "lomb_scargle_periodogram_certificate",
+        }
+
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_runs_circom_and_zkvm_concurrently_and_hides_private_inputs(monkeypatch):
@@ -77,22 +105,25 @@ async def test_runs_circom_and_zkvm_concurrently_and_hides_private_inputs(monkey
     service = VerifiableBreathingService(
         pipeline_runner=lambda _: PIPELINE_RESULT,
         circom_service_factory=lambda: _CircomService(started, release),
+        lomb_scargle_runner=lambda _: LOMB_RESULT,
+        lomb_circom_service_factory=lambda: _LombCircomService(started, release),
         zkvm_service=_ZkVMService(started, release),
     )
 
     task = asyncio.create_task(service.analyze("sample.csi"))
-    for _ in range(50):
-        if started == {"circom", "zkvm"}:
+    for _ in range(100):
+        if started == {"circom", "lomb_circom", "zkvm"}:
             break
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.01)
 
-    assert started == {"circom", "zkvm"}
+    assert started == {"circom", "lomb_circom", "zkvm"}
     release.set()
     result = await task
 
     assert result["status"] == "completed"
-    assert set(result["proofs"]) == {"python_circom", "zkvm"}
+    assert set(result["proofs"]) == {"python_circom", "lomb_scargle_circom", "zkvm"}
     assert result["proofs"]["python_circom"]["status"] == "completed"
+    assert result["proofs"]["lomb_scargle_circom"]["status"] == "completed"
     assert result["proofs"]["zkvm"]["status"] == "completed"
     assert result["disabled_methods"] == [
         "wavelet",
@@ -101,6 +132,47 @@ async def test_runs_circom_and_zkvm_concurrently_and_hides_private_inputs(monkey
     ]
     assert "certificate_input" not in result["analysis"]
     assert "zkvm_input" not in result["analysis"]
+    assert result["analysis"]["algorithm_comparison"]["absolute_difference_bpm"] == pytest.approx(0.1)
+    assert "certificate_input" not in result["analysis"]["lomb_scargle"]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_passes_existing_pipeline_pca_output_to_lomb_scargle(monkeypatch):
+    from app.services.verifiable_breathing_service import VerifiableBreathingService
+
+    monkeypatch.setattr("app.services.verifiable_breathing_service.settings.CSI_ZKVM_ENABLED", False)
+    shared_input = {"principal_components": object(), "timestamps_ns": object()}
+    observed = {}
+
+    def pipeline_runner(file_path, include_zkvm_input=True, include_lomb_scargle_input=False):
+        observed["pipeline_options"] = (include_zkvm_input, include_lomb_scargle_input)
+        return {
+            **PIPELINE_RESULT,
+            "zkvm_input": None,
+            "_lomb_scargle_input": shared_input,
+        }
+
+    def lomb_runner(pipeline_input):
+        observed["lomb_input"] = pipeline_input
+        return LOMB_RESULT
+
+    class _WorkingCircom:
+        async def generate_proof(self, **kwargs):
+            return {"isNormal": True, "isValid": True, "method": "breathing_certificate"}
+
+    service = VerifiableBreathingService(
+        pipeline_runner=pipeline_runner,
+        circom_service_factory=_WorkingCircom,
+        lomb_scargle_runner=lomb_runner,
+        lomb_circom_service_factory=_LombCircomService,
+    )
+
+    result = await service.analyze("sample.csi")
+
+    assert observed["pipeline_options"] == (False, True)
+    assert observed["lomb_input"] is shared_input
+    assert "_lomb_scargle_input" not in result["analysis"]
 
 
 @pytest.mark.unit
@@ -121,6 +193,8 @@ async def test_preserves_circom_result_when_zkvm_fails(monkeypatch):
     service = VerifiableBreathingService(
         pipeline_runner=lambda _: PIPELINE_RESULT,
         circom_service_factory=_WorkingCircom,
+        lomb_scargle_runner=lambda _: LOMB_RESULT,
+        lomb_circom_service_factory=_LombCircomService,
         zkvm_service=_BrokenZkVM(),
     )
 
@@ -128,6 +202,7 @@ async def test_preserves_circom_result_when_zkvm_fails(monkeypatch):
 
     assert result["status"] == "partial"
     assert result["proofs"]["python_circom"]["status"] == "completed"
+    assert result["proofs"]["lomb_scargle_circom"]["status"] == "completed"
     assert result["proofs"]["zkvm"] == {
         "status": "failed",
         "error": "prover unavailable",
@@ -161,6 +236,8 @@ async def test_large_file_skips_zkvm_input_and_keeps_circom_result(monkeypatch, 
     service = VerifiableBreathingService(
         pipeline_runner=pipeline_runner,
         circom_service_factory=_WorkingCircom,
+        lomb_scargle_runner=lambda _: LOMB_RESULT,
+        lomb_circom_service_factory=_LombCircomService,
         zkvm_service=_ForbiddenZkVM(),
     )
 
@@ -168,6 +245,7 @@ async def test_large_file_skips_zkvm_input_and_keeps_circom_result(monkeypatch, 
 
     assert result["status"] == "partial"
     assert result["proofs"]["python_circom"]["status"] == "completed"
+    assert result["proofs"]["lomb_scargle_circom"]["status"] == "completed"
     assert result["proofs"]["zkvm"] == {
         "status": "skipped",
         "reason": "file_too_large",
@@ -201,6 +279,8 @@ async def test_zkvm_is_disabled_by_default_without_building_its_input(monkeypatc
     service = VerifiableBreathingService(
         pipeline_runner=pipeline_runner,
         circom_service_factory=_WorkingCircom,
+        lomb_scargle_runner=lambda _: LOMB_RESULT,
+        lomb_circom_service_factory=_LombCircomService,
         zkvm_service=_ForbiddenZkVM(),
     )
 
@@ -208,6 +288,7 @@ async def test_zkvm_is_disabled_by_default_without_building_its_input(monkeypatc
 
     assert result["status"] == "completed"
     assert result["proofs"]["python_circom"]["status"] == "completed"
+    assert result["proofs"]["lomb_scargle_circom"]["status"] == "completed"
     assert result["proofs"]["zkvm"] == {
         "status": "disabled",
         "reason": "disabled_by_configuration",

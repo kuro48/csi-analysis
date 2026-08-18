@@ -144,7 +144,7 @@ else
   echo "FullSimilarityVerifier contract is available."
 fi
 
-# 5-1 Python+Circom 経路の証明書回路だけを事前準備する。
+# 5-1 と Lomb-Scargle 比較経路の証明書回路を事前準備する。
 if [ "${ZKP_AUTO_COMPILE:-TRUE}" = "TRUE" ] || [ "${ZKP_AUTO_COMPILE:-true}" = "true" ]; then
   ZKP_DIR="${ZKP_DIR:-/zkp}"
   CERT_WASM="$ZKP_DIR/build/csi_breathing_certificate_js/csi_breathing_certificate.wasm"
@@ -170,6 +170,29 @@ if [ "${ZKP_AUTO_COMPILE:-TRUE}" = "TRUE" ] || [ "${ZKP_AUTO_COMPILE:-true}" = "
     set -e
   else
     echo "Breathing certificate circuit is already compiled."
+  fi
+
+  LOMB_WASM="$ZKP_DIR/build/csi_lomb_scargle_normality_js/csi_lomb_scargle_normality.wasm"
+  LOMB_ZKEY="$ZKP_DIR/keys/csi_lomb_scargle_normality_final.zkey"
+  if [ ! -f "$LOMB_WASM" ] || [ ! -f "$LOMB_ZKEY" ]; then
+    echo "Preparing Lomb-Scargle normality circuit..."
+    set +e
+    if [ ! -d "$ZKP_DIR/node_modules" ]; then
+      npm install --prefix "$ZKP_DIR"
+    fi
+    if [ ! -f "$PTAU_FILE" ]; then
+      PTAU_URL="https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_19.ptau"
+      wget -q -O "$PTAU_FILE" "$PTAU_URL" || curl -sL -o "$PTAU_FILE" "$PTAU_URL"
+    fi
+    (cd "$ZKP_DIR" \
+      && npm run generate:lomb_scargle \
+      && npm run compile:lomb_scargle \
+      && npm run setup:lomb_scargle) \
+      && echo "Lomb-Scargle normality circuit is ready." \
+      || echo "WARNING: Lomb-Scargle normality circuit setup failed."
+    set -e
+  else
+    echo "Lomb-Scargle normality circuit is already compiled."
   fi
 fi
 
