@@ -73,7 +73,7 @@ VMD_TOL = 1e-7
 
 # ZKP 回路入力仕様（csi_breathing_normality.circom と一致させること）
 ZKP_TARGET_FS = 5.0
-ZKP_T = 150
+ZKP_T = 300
 ZKP_SIGNAL_SCALE = 100
 
 # 証明書回路入力仕様（csi_breathing_certificate.circom と一致させること）

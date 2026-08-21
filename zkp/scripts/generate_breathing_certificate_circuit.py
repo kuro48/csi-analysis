@@ -30,7 +30,7 @@ docs/ZKP_PIPELINE_EXTENSION_IDEAS.md テーマ1・案A（証明書検証方式�
     python3 scripts/generate_breathing_certificate_circuit.py
 
 パラメータ（backend/app/services/breathing_pipeline.py と一致させること）:
-    T=150 サンプル, Fs=5.0Hz（100Hz→5Hzへ間引き後の30秒窓）
+    T=300 サンプル, Fs=5.0Hz（100Hz→5Hzへ間引き後の60秒窓）
     K=5（VMD_K）, 周波数ビン: 0.05Hz + 0.01Hz×k (k=0..100)
     正常帯域: 0.10Hz(6bpm)=bin5 〜 0.37Hz(≈22bpm)=bin32
 """
@@ -38,7 +38,7 @@ docs/ZKP_PIPELINE_EXTENSION_IDEAS.md テーマ1・案A（証明書検証方式�
 import math
 from pathlib import Path
 
-T = 150
+T = 300
 K = 5
 FS = 5.0
 FREQ_START = 0.05

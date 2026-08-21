@@ -30,7 +30,7 @@ class BreathingCertificateService(ZKPCircuitService):
     CIRCUIT_NAME = "csi_breathing_certificate"
 
     # 回路パラメータ（csi_breathing_certificate.circom の component main と一致させること）
-    T = 150
+    T = 300
     K = 5
 
     def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True) -> None:

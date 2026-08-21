@@ -22,7 +22,7 @@
 `zkp/circuits/csi_breathing_certificate.circom`（ジェネレータ:
 `zkp/scripts/generate_breathing_certificate_circuit.py`）のパラメータと制約:
 
-- 秘密入力: `vmdInput[T]`, `modes[K][T]`, `sel[K]`（T=150, K=5）
+- 秘密入力: `vmdInput[T]`, `modes[K][T]`, `sel[K]`（T=300, K=5、5Hz・60秒）
 - 公開出力: `isNormal`
 - 制約:
   1. `sel` が one-hot（各 0/1、総和 1）— ハード
@@ -34,7 +34,7 @@
   4. `isNormal = 正常帯域内 AND narrowband`
 
 定数の所在（ジェネレータ冒頭）:
-`T=150, K=5, NUM_FREQ=101, NORMAL_LOW_BIN=5, NORMAL_HIGH_BIN=32, COS_SCALE=1000,
+`T=300, K=5, NUM_FREQ=101, NORMAL_LOW_BIN=5, NORMAL_HIGH_BIN=32, COS_SCALE=1000,
 MODE_MAX_ABS=1000, RECON_ERR_NUM=1, RECON_ERR_DEN=2, NARROW_NUM=1, NARROW_DEN=20`。
 DFT テーブルは `COS_TABLE[f][t] = round(cos(2π·(0.05 + f·0.01)·t / 5.0)·1000)`（SIN も同様、Fs=5.0Hz）。
 
@@ -135,7 +135,7 @@ research/phase1_soundness/
 - `backend/app/services/breathing_pipeline.py`
   - `prepare_breathing_certificate_input` (L452) — 正規入力生成、diagnostics 定義
   - `estimate_breathing_rate_by_vmd_global_peak` (L306) — VMD 実行と選択モード
-  - 定数 `ZKP_CERT_*`（L79–83）, `ZKP_T=150`, `ZKP_TARGET_FS=5.0`
+  - 定数 `ZKP_CERT_*`（L79–83）, `ZKP_T=300`, `ZKP_TARGET_FS=5.0`
 - `zkp/scripts/generate_breathing_certificate_circuit.py` — 回路定数・テーブル生成式
 - `zkp/circuits/csi_breathing_certificate.circom` — 生成済み回路（読むだけ）
 - `backend/app/services/breathing_certificate_service.py` — 証明生成の実フロー

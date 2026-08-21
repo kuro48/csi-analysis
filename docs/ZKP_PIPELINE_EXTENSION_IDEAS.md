@@ -12,7 +12,7 @@
 | 回路 | 状態 | 証明している命題 |
 |------|------|----------------|
 | `csi_full_similarity.circom` | 本番フローで使用中（CSIアップロード時） | 秘密のCSIスペクトラム行列から最小コサイン類似度サブキャリアを選び、そのピーク周波数が正常範囲（0.155〜0.505Hz）内 |
-| `csi_breathing_normality.circom` | 回路は存在、`/breathing/analyze` には未配線 | 秘密のVMD呼吸成分 `vmd[150]` のDFTピークが6〜22bpm内 |
+| `csi_breathing_normality.circom` | 回路は存在、`/breathing/analyze` には未配線 | 秘密のVMD呼吸成分 `vmd[300]`（5Hz・60秒）のDFTピークが6〜22bpm内 |
 
 **課題**: 5-1.ipynbパイプラインのうち、SNRサブキャリア選択→バンドパス→PCA→VMD はPython側で実行しており、回路は「与えられた `vmd` 信号のピーク判定」しか証明しない。証明者が都合のよい `vmd` を捏造できる余地が残る。
 

@@ -486,12 +486,12 @@ class ZKPBreathingService(ZKPCircuitService):
     """5-1.ipynb パイプライン呼吸正常判定回路サービス。
 
     入力: vmd[T] — VMDで抽出した呼吸成分の時系列
-          (ゼロ中心化・±100 正規化済み整数、T=150固定、5Hz)
+          (ゼロ中心化・±100 正規化済み整数、T=300固定、5Hz)
     回路: csi_breathing_normality.circom (BreathingNormalityCheck)
     判定: 回路内 DFT のグローバルピークが 6〜22 bpm 内 → isNormal=1
     """
 
-    T = 150  # 時系列長 (30s × 5Hz)
+    T = 300  # 時系列長 (60s × 5Hz)
 
     def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True) -> None:
         super().__init__("csi_breathing_normality", zkp_dir=zkp_dir, auto_compile=auto_compile)
