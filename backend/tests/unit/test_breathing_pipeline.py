@@ -19,6 +19,7 @@ from app.services.breathing_pipeline import (  # noqa: E402
     ZKP_CERT_SIGNAL_SCALE,
     ZKP_SIGNAL_SCALE,
     ZKP_T,
+    ZKP_TARGET_FS,
     bandpass_filter,
     prepare_breathing_certificate_input,
     prepare_breathing_zkp_input,
@@ -228,8 +229,8 @@ def test_estimate_breathing_rate_by_vmd_recovers_15bpm():
 
 @pytest.mark.unit
 def test_prepare_breathing_zkp_input_shape_and_range():
-    # Arrange: 100Hz の 0.25Hz 正弦波 40 秒
-    t = _make_time_axis(40)
+    # Arrange: 100Hz の 0.25Hz 正弦波 60 秒
+    t = _make_time_axis(60)
     vmd_mode = np.sin(2 * np.pi * BREATHING_HZ * t) + 3.0  # DCオフセット付き
 
     # Act
@@ -240,6 +241,26 @@ def test_prepare_breathing_zkp_input_shape_and_range():
     assert all(isinstance(v, int) for v in zkp_input)
     assert max(abs(v) for v in zkp_input) <= ZKP_SIGNAL_SCALE
     assert abs(sum(zkp_input)) < ZKP_T  # 平均がほぼゼロ
+
+
+@pytest.mark.unit
+def test_zkp_input_covers_full_sixty_second_capture():
+    from app.services.breathing_certificate_service import BreathingCertificateService
+    from app.services.zkp_circuit_service import ZKPBreathingService
+
+    assert ZKP_T == 300
+    assert ZKP_T / ZKP_TARGET_FS == 60.0
+    assert ZKPBreathingService.T == ZKP_T
+    assert BreathingCertificateService.T == ZKP_T
+
+    first_half = np.zeros(30 * FS)
+    second_half_t = _make_time_axis(30)
+    second_half = np.sin(2 * np.pi * BREATHING_HZ * second_half_t)
+
+    zkp_input = prepare_breathing_zkp_input(np.concatenate([first_half, second_half]))
+
+    assert len(zkp_input) == 300
+    assert any(value != 0 for value in zkp_input[150:])
 
 
 @pytest.mark.unit
