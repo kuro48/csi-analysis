@@ -184,6 +184,21 @@ export interface ProcessedData {
   error?: string;
 }
 
+export interface ProofPerformance {
+  circuit_name?: string;
+  proof_system?: string;
+  constraint_count?: number;
+  wire_count?: number;
+  public_output_count?: number;
+  public_input_count?: number;
+  private_input_count?: number;
+  label_count?: number;
+  witness_time_seconds?: number;
+  prove_time_seconds?: number;
+  generation_time_seconds?: number;
+  verify_time_seconds?: number;
+}
+
 export interface VerifiableProofResult {
   status: "completed" | "failed" | "skipped" | "disabled";
   isNormal?: boolean;
@@ -194,6 +209,7 @@ export interface VerifiableProofResult {
   reason?: string;
   file_size?: number;
   threshold_mb?: number;
+  performance?: ProofPerformance;
   journal?: {
     algorithm_version?: string;
     breathing_rate_milli_bpm?: number;

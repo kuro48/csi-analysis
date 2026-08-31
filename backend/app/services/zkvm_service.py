@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -53,6 +54,7 @@ class ZkVMBreathingService:
                 request_path = Path(request_file.name)
             request_path.chmod(0o600)
 
+            started = time.perf_counter()
             process = await asyncio.create_subprocess_exec(
                 str(self.binary_path),
                 "prove",
@@ -66,6 +68,7 @@ class ZkVMBreathingService:
                 process.kill()
                 await process.communicate()
                 raise RuntimeError(f"zkVM proof generation timed out after {self.timeout_seconds}s") from exc
+            generation_seconds = time.perf_counter() - started
 
             if process.returncode != 0:
                 detail = stderr.decode(errors="replace")[-4000:]
@@ -80,7 +83,16 @@ class ZkVMBreathingService:
                 raise RuntimeError("zkVM public input commitment does not match the submitted CSI")
             if result.get("isValid") is not True:
                 raise RuntimeError("zkVM host did not return a locally verified receipt")
-            return result
+
+            # zkVM は Circom のような制約数を持たないため、計測できるのは所要時間のみ。
+            host_performance = result.get("performance")
+            performance = {
+                **(host_performance if isinstance(host_performance, dict) else {}),
+                "proof_system": "risc0_zkvm",
+                "generation_time_seconds": generation_seconds,
+            }
+            logger.info("zkVM proof generated in %.3fs", generation_seconds)
+            return {**result, "performance": performance}
         finally:
             if request_path is not None:
                 request_path.unlink(missing_ok=True)

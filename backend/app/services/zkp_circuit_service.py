@@ -14,10 +14,12 @@ import os
 import secrets
 import subprocess
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from app.services.zkp_circuit_metrics import read_r1cs_metrics
 from app.services.zkp_paths import resolve_zkp_dir
 
 logger = logging.getLogger(__name__)
@@ -168,6 +170,60 @@ class ZKPCircuitService:
         logger.info("%s Trusted Setup completed", self.label)
 
     # ------------------------------------------------------------------ #
+    # 回路メトリクス・計測
+    # ------------------------------------------------------------------ #
+
+    @property
+    def r1cs_path(self) -> Path:
+        return self.build_dir / f"{self.circuit_name}.r1cs"
+
+    def circuit_metrics(self) -> Dict[str, Any]:
+        """回路の静的メトリクス。.r1cs が読めない場合は回路名だけを返す。"""
+        return {"circuit_name": self.circuit_name, **(read_r1cs_metrics(self.r1cs_path) or {})}
+
+    async def _prove_with_metrics(
+        self,
+        input_data: Dict[str, Any],
+    ) -> Tuple[Dict[str, Any], List[str], Dict[str, Any]]:
+        """witness 生成と Groth16 証明を実行し、制約数・所要時間を添えて返す。"""
+        witness_started = time.perf_counter()
+        witness_file = await self._generate_witness(input_data)
+        witness_seconds = time.perf_counter() - witness_started
+
+        prove_started = time.perf_counter()
+        proof, public_signals = await self._generate_groth16_proof(witness_file)
+        prove_seconds = time.perf_counter() - prove_started
+
+        performance = {
+            **self.circuit_metrics(),
+            "witness_time_seconds": witness_seconds,
+            "prove_time_seconds": prove_seconds,
+            "generation_time_seconds": witness_seconds + prove_seconds,
+        }
+        logger.info(
+            "[%s] proof generated in %.3fs (witness %.3fs + prove %.3fs) — constraints=%s",
+            self.label,
+            performance["generation_time_seconds"],
+            witness_seconds,
+            prove_seconds,
+            performance.get("constraint_count", "unknown"),
+        )
+        return proof, public_signals, performance
+
+    async def _verify_with_metrics(
+        self,
+        proof: Dict[str, Any],
+        public_signals: List[str],
+        performance: Dict[str, Any],
+    ) -> Tuple[bool, Dict[str, Any]]:
+        """ローカル検証を実行し、検証時間を加えた新しい performance を返す。"""
+        started = time.perf_counter()
+        is_valid = await self.verify_proof(proof, public_signals)
+        verify_seconds = time.perf_counter() - started
+        logger.info("[%s] proof verified in %.3fs — isValid=%s", self.label, verify_seconds, is_valid)
+        return is_valid, {**performance, "verify_time_seconds": verify_seconds}
+
+    # ------------------------------------------------------------------ #
     # 証明生成・検証
     # ------------------------------------------------------------------ #
 
@@ -177,8 +233,6 @@ class ZKPCircuitService:
         candidate_matrix: List[List[int]],
         scale: int = DEFAULT_SCALE,
     ) -> Dict[str, Any]:
-        import time
-
         wasm = self.build_dir / f"{self.circuit_name}_js" / f"{self.circuit_name}.wasm"
         zkey = self.keys_dir / f"{self.circuit_name}_final.zkey"
 
@@ -197,24 +251,17 @@ class ZKPCircuitService:
             len(reference_matrix[0]),
         )
 
-        start = time.time()
         input_data = self._prepare_input(reference_matrix, candidate_matrix)
-        witness_file = await self._generate_witness(input_data)
-        proof, public_signals = await self._generate_groth16_proof(witness_file)
+        proof, public_signals, performance = await self._prove_with_metrics(input_data)
 
         is_normal = bool(int(public_signals[0])) if public_signals else False
-        logger.info(
-            "[%s] ZKP proof done in %.3fs — isNormal=%s",
-            self.label,
-            time.time() - start,
-            is_normal,
-        )
         return {
             "proof": proof,
             "publicSignals": public_signals,
             "isNormal": is_normal,
             "isValid": is_normal,
             "method": self.label.lower(),
+            "performance": performance,
         }
 
     async def verify_proof(
@@ -375,8 +422,6 @@ class ZKPWaveletService(ZKPCircuitService):
         reference_matrix: Optional[List[List[int]]] = None,
         candidate_matrix: Optional[List[List[int]]] = None,
     ) -> Dict[str, Any]:
-        import time
-
         if avg_csi is None:
             raise ValueError("avg_csi is required for WaveletDFTBreathingCheck")
 
@@ -389,19 +434,17 @@ class ZKPWaveletService(ZKPCircuitService):
             )
 
         logger.info("[%s] Generating ZKP proof: avg_csi[%d]", self.label, len(avg_csi))
-        start = time.time()
         input_data = self._prepare_wavelet_input(avg_csi)
-        witness_file = await self._generate_witness(input_data)
-        proof, public_signals = await self._generate_groth16_proof(witness_file)
+        proof, public_signals, performance = await self._prove_with_metrics(input_data)
 
         is_normal = bool(int(public_signals[0])) if public_signals else False
-        logger.info("[%s] ZKP proof done in %.3fs — isNormal=%s", self.label, time.time() - start, is_normal)
         return {
             "proof": proof,
             "publicSignals": public_signals,
             "isNormal": is_normal,
             "isValid": is_normal,
             "method": "wavelet",
+            "performance": performance,
         }
 
     def _prepare_wavelet_input(self, avg_csi: List[int]) -> Dict[str, Any]:
@@ -435,8 +478,6 @@ class ZKPMusicService(ZKPCircuitService):
         reference_matrix: Optional[List[List[int]]] = None,
         candidate_matrix: Optional[List[List[int]]] = None,
     ) -> Dict[str, Any]:
-        import time
-
         if noise_subspace is None:
             raise ValueError("noise_subspace is required for MUSICNoiseSubspaceCheck")
 
@@ -454,19 +495,17 @@ class ZKPMusicService(ZKPCircuitService):
             len(noise_subspace),
             len(noise_subspace[0]) if noise_subspace else 0,
         )
-        start = time.time()
         input_data = self._prepare_music_input(noise_subspace)
-        witness_file = await self._generate_witness(input_data)
-        proof, public_signals = await self._generate_groth16_proof(witness_file)
+        proof, public_signals, performance = await self._prove_with_metrics(input_data)
 
         is_normal = bool(int(public_signals[0])) if public_signals else False
-        logger.info("[%s] ZKP proof done in %.3fs — isNormal=%s", self.label, time.time() - start, is_normal)
         return {
             "proof": proof,
             "publicSignals": public_signals,
             "isNormal": is_normal,
             "isValid": is_normal,
             "method": "music",
+            "performance": performance,
         }
 
     def _prepare_music_input(self, noise_subspace: List[List[int]]) -> Dict[str, Any]:
@@ -504,8 +543,6 @@ class ZKPBreathingService(ZKPCircuitService):
         reference_matrix: Optional[List[List[int]]] = None,
         candidate_matrix: Optional[List[List[int]]] = None,
     ) -> Dict[str, Any]:
-        import time
-
         if vmd_signal is None:
             raise ValueError("vmd_signal is required for BreathingNormalityCheck")
 
@@ -518,19 +555,17 @@ class ZKPBreathingService(ZKPCircuitService):
             )
 
         logger.info("[%s] Generating ZKP proof: vmd[%d]", self.label, len(vmd_signal))
-        start = time.time()
         input_data = self._prepare_breathing_input(vmd_signal)
-        witness_file = await self._generate_witness(input_data)
-        proof, public_signals = await self._generate_groth16_proof(witness_file)
+        proof, public_signals, performance = await self._prove_with_metrics(input_data)
 
         is_normal = bool(int(public_signals[0])) if public_signals else False
-        logger.info("[%s] ZKP proof done in %.3fs — isNormal=%s", self.label, time.time() - start, is_normal)
         return {
             "proof": proof,
             "publicSignals": public_signals,
             "isNormal": is_normal,
             "isValid": is_normal,
             "method": "breathing_normality",
+            "performance": performance,
         }
 
     def _prepare_breathing_input(self, vmd_signal: List[int]) -> Dict[str, Any]:

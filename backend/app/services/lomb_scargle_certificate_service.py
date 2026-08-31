@@ -1,7 +1,6 @@
 """Lomb--Scargleピリオドグラム正常判定用Circom証明サービス。"""
 
 import logging
-import time
 from typing import Any, Dict, List, Optional
 
 from app.services.lomb_scargle_pipeline import N_FREQUENCIES, PCA_COMPONENTS, PERIODOGRAM_POWER_SCALE
@@ -34,10 +33,8 @@ class LombScargleCertificateService(ZKPCircuitService):
             )
 
         input_data = self._prepare_input(powers)
-        started = time.perf_counter()
-        witness_file = await self._generate_witness(input_data)
-        proof, public_signals = await self._generate_groth16_proof(witness_file)
-        is_valid = await self.verify_proof(proof, public_signals)
+        proof, public_signals, performance = await self._prove_with_metrics(input_data)
+        is_valid, performance = await self._verify_with_metrics(proof, public_signals, performance)
         if not is_valid:
             raise RuntimeError(f"{self.label} proof failed local verification")
 
@@ -48,9 +45,8 @@ class LombScargleCertificateService(ZKPCircuitService):
         estimated_bin = int(public_signals[2])
         global_peak_bin = int(public_signals[3])
         logger.info(
-            "[%s] proof done in %.3fs: isNormal=%s, PC%d, estimatedBin=%d, globalBin=%d",
+            "[%s] proof done: isNormal=%s, PC%d, estimatedBin=%d, globalBin=%d",
             self.label,
-            time.perf_counter() - started,
             is_normal,
             selected_pc,
             estimated_bin,
@@ -66,6 +62,7 @@ class LombScargleCertificateService(ZKPCircuitService):
             "estimatedFrequencyBin": estimated_bin,
             "globalPeakFrequencyBin": global_peak_bin,
             "proofScope": "periodogram_range_pc_selection_argmax_normal_band",
+            "performance": performance,
         }
 
     def _prepare_input(self, powers: List[List[int]]) -> Dict[str, Any]:  # type: ignore[override]

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { MetricCard } from "./MetricCard";
 import { SignalChart } from "./SignalChart";
 import { SpectrumChart } from "./SpectrumChart";
+import { ProofPerformanceTable } from "./ProofPerformanceTable";
+import { formatCount, formatSeconds } from "./proofPerformance";
 import {
   dataframeToSpectrumPoints,
   pickBreathingBpm,
@@ -92,6 +94,23 @@ function ProofCard({
             {normal == null ? "判定なし" : normal ? "正常帯域" : "正常帯域外"}
           </span>
         </div>
+      )}
+
+      {completed && proof.performance && (
+        <dl className="mt-3 grid grid-cols-2 gap-3 border-t border-neutral-100 pt-3">
+          <div>
+            <dt className="text-xs text-neutral-500">制約数</dt>
+            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-neutral-900">
+              {formatCount(proof.performance.constraint_count)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-neutral-500">証明生成時間</dt>
+            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-neutral-900">
+              {formatSeconds(proof.performance.generation_time_seconds)}
+            </dd>
+          </div>
+        </dl>
       )}
 
       {proof?.status === "failed" && (
@@ -207,6 +226,12 @@ function MainPanel({ processedData }: MainCSIData) {
         ? zkvm.journal.breathing_rate_milli_bpm / 1000
         : null;
     const diagnostics = analysis.certificate_diagnostics;
+    const proofPerformanceEntries = [
+      { label: "Python + Circom", proof: circom },
+      { label: "Lomb–Scargle + Circom", proof: lombCircom },
+      { label: "RISC Zero zkVM", proof: zkvm },
+    ];
+    const hasProofPerformance = proofPerformanceEntries.some((entry) => entry.proof?.performance);
     const resultStatus = processedData.status ?? "completed";
     const statusConfig = {
       completed: { label: "解析・証明完了", cls: "bg-emerald-100 text-emerald-800" },
@@ -311,6 +336,13 @@ function MainPanel({ processedData }: MainCSIData) {
             </p>
           )}
         </div>
+
+        {hasProofPerformance && (
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-neutral-900">制約数と証明生成時間</h3>
+            <ProofPerformanceTable entries={proofPerformanceEntries} />
+          </div>
+        )}
 
         <div>
           <h3 className="mb-3 text-sm font-semibold text-neutral-900">解析データ</h3>

@@ -16,7 +16,6 @@ docs/ZKP_PIPELINE_EXTENSION_IDEAS.md テーマ1・案A の実装。
 """
 
 import logging
-import time
 from typing import Any, Dict, List, Optional
 
 from app.services.zkp_circuit_service import ZKPCircuitService
@@ -50,7 +49,7 @@ class BreathingCertificateService(ZKPCircuitService):
             sel:       呼吸モードを指す one-hot [K]
 
         Returns:
-            {proof, publicSignals, isNormal, isValid, method}
+            {proof, publicSignals, isNormal, isValid, method, performance}
         """
         if vmd_input is None or modes is None or sel is None:
             raise ValueError("vmd_input, modes, sel are required for BreathingCertificateCheck")
@@ -71,20 +70,13 @@ class BreathingCertificateService(ZKPCircuitService):
             len(input_data["vmdInput"]),
             len(input_data["modes"]),
         )
-        start = time.time()
-        witness_file = await self._generate_witness(input_data)
-        proof, public_signals = await self._generate_groth16_proof(witness_file)
-        is_valid = await self.verify_proof(proof, public_signals)
+        proof, public_signals, performance = await self._prove_with_metrics(input_data)
+        is_valid, performance = await self._verify_with_metrics(proof, public_signals, performance)
         if not is_valid:
             raise RuntimeError(f"{self.label} proof failed local verification")
 
         is_normal = bool(int(public_signals[0])) if public_signals else False
-        logger.info(
-            "[%s] Certificate ZKP proof done in %.3fs — isNormal=%s",
-            self.label,
-            time.time() - start,
-            is_normal,
-        )
+        logger.info("[%s] Certificate ZKP proof done — isNormal=%s", self.label, is_normal)
         return {
             "proof": proof,
             "publicSignals": public_signals,
@@ -92,6 +84,7 @@ class BreathingCertificateService(ZKPCircuitService):
             # 正常/異常という公開判定と、証明の妥当性は別の状態。
             "isValid": is_valid,
             "method": "breathing_certificate",
+            "performance": performance,
         }
 
     def _prepare_input(  # type: ignore[override]
