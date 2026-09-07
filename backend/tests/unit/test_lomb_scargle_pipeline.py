@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 
 from app.services.lomb_scargle_pipeline import (
+    CIRCOM_FREQUENCIES,
+    CIRCOM_SAMPLES,
     N_FREQUENCIES,
     PCA_COMPONENTS,
     PERIODOGRAM_POWER_SCALE,
@@ -36,14 +38,27 @@ def test_lomb_scargle_recovers_breathing_from_irregular_timestamps():
 
     result = run_lomb_scargle_pipeline_from_pca(principal_components, timestamps_ns)
 
-    assert result["algorithm_version"] == "shared-pca-lomb-scargle-v1"
+    assert result["algorithm_version"] == "shared-pca-lomb-scargle-circom-timestamp-trig-v3"
     assert abs(result["breathing_rate_bpm"] - 15.0) < 0.5
     assert abs(result["global_peak_bpm"] - 15.0) < 0.5
     assert result["sampling_interval_cv"] > 0.05
     assert result["n_subcarriers_selected"] == 0
-    assert len(result["certificate_input"]["powers"]) == PCA_COMPONENTS
-    assert len(result["certificate_input"]["powers"][0]) == N_FREQUENCIES
+    assert len(result["certificate_input"]["samples"]) == PCA_COMPONENTS
+    assert len(result["certificate_input"]["samples"][0]) == CIRCOM_SAMPLES
+    assert len(result["certificate_input"]["timestampsMs"]) == CIRCOM_SAMPLES
+    assert result["certificate_input"]["timestampsMs"][0] == 0
+    assert all(isinstance(value, int) for value in result["certificate_input"]["timestampsMs"])
+    assert all(0 <= value < 2**11 for row in result["certificate_input"]["samples"] for value in row)
+    assert "trigonometric approximation" in result["circom_scope"]
     assert "is_normal" not in result
+    assert [step["key"] for step in result["processing_steps"]] == [
+        "timestamp_preparation",
+        "periodogram",
+        "peak_selection",
+        "circuit_input",
+    ]
+    assert all(step["seconds"] >= 0 for step in result["processing_steps"])
+    assert sum(step["seconds"] for step in result["processing_steps"]) <= result["processing_time_seconds"]
 
 
 @pytest.mark.unit

@@ -46,24 +46,10 @@ def _empty_extracted_vectors() -> Dict[str, Any]:
 def _build_empty_analysis_result(self) -> Dict[str, Any]:
     return {
         "fft": pd.DataFrame(),
-        "wavelet": pd.DataFrame(),
-        "music": pd.DataFrame(),
         "breathing_rate_fft_bpm": None,
-        "breathing_rate_wavelet_bpm": None,
-        "breathing_rate_music_bpm": None,
-        "breathing_rate_comparison": self.compare_breathing_rate_methods(
-            {"fft": None, "wavelet": None, "music": None}
-        ),
         "subcarrier_medians": {},
         "fft_phase": pd.DataFrame(),
-        "wavelet_phase": pd.DataFrame(),
-        "music_phase": pd.DataFrame(),
         "breathing_rate_fft_phase_bpm": None,
-        "breathing_rate_wavelet_phase_bpm": None,
-        "breathing_rate_music_phase_bpm": None,
-        "breathing_rate_phase_comparison": self.compare_breathing_rate_methods(
-            {"fft": None, "wavelet": None, "music": None}
-        ),
         "raw_signal": None,
         "filtered_signal": None,
     }

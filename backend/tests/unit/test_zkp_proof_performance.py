@@ -7,7 +7,10 @@ import pytest
 
 from app.services.breathing_certificate_service import BreathingCertificateService
 from app.services.lomb_scargle_certificate_service import LombScargleCertificateService
-from app.services.lomb_scargle_pipeline import N_FREQUENCIES, PCA_COMPONENTS
+from app.services.lomb_scargle_pipeline import (
+    CIRCOM_SAMPLES,
+    PCA_COMPONENTS,
+)
 from tests.unit.r1cs_fixture import build_r1cs_bytes
 
 CONSTRAINT_COUNT = 11354
@@ -83,7 +86,10 @@ async def test_lomb_scargle_proof_reports_constraints_and_times(tmp_path):
     service = LombScargleCertificateService(zkp_dir=str(tmp_path), auto_compile=False)
     _stub_proof_steps(service, ["1", "2", "40", "40"])
 
-    result = await service.generate_proof(powers=[[0] * N_FREQUENCIES for _ in range(PCA_COMPONENTS)])
+    result = await service.generate_proof(
+        samples=[[0] * CIRCOM_SAMPLES for _ in range(PCA_COMPONENTS)],
+        timestamps_ms=list(range(CIRCOM_SAMPLES)),
+    )
 
     performance = result["performance"]
     assert performance["circuit_name"] == LombScargleCertificateService.CIRCUIT_NAME
@@ -98,46 +104,6 @@ def test_circuit_metrics_fall_back_to_circuit_name_without_r1cs(tmp_path):
     service = BreathingCertificateService(zkp_dir=str(tmp_path), auto_compile=False)
 
     assert service.circuit_metrics() == {"circuit_name": BreathingCertificateService.CIRCUIT_NAME}
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_zkvm_proof_reports_generation_time(tmp_path, monkeypatch):
-    from app.services.zkvm_service import ZkVMBreathingService
-
-    binary = tmp_path / "csi-zkvm-host"
-    binary.write_text("binary")
-    binary.chmod(0o755)
-
-    class _Process:
-        returncode = 0
-
-        async def communicate(self):
-            await asyncio.sleep(0.01)
-            output = {
-                "receipt": "receipt-data",
-                "journal": {"input_commitment": "commitment-1", "is_normal": True},
-                "isNormal": True,
-                "isValid": True,
-                "method": "risc0_5_1_fixed_v1",
-            }
-            return json.dumps(output).encode(), b""
-
-    async def _create_process(*_args, **_kwargs):
-        return _Process()
-
-    monkeypatch.setattr("asyncio.create_subprocess_exec", _create_process)
-    service = ZkVMBreathingService(binary_path=binary, timeout_seconds=2)
-
-    result = await service.generate_proof(
-        {"samples": 1, "subcarriers": 1, "amplitudes": [1], "scale": 100, "input_commitment": "commitment-1"}
-    )
-
-    performance = result["performance"]
-    assert performance["proof_system"] == "risc0_zkvm"
-    assert performance["generation_time_seconds"] > 0
-    # zkVM に Circom 相当の制約数は存在しない
-    assert "constraint_count" not in performance
 
 
 @pytest.mark.unit

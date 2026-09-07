@@ -16,115 +16,6 @@ from app.services.base_csi import BaseCSIService
 
 
 @pytest.mark.unit
-def test_apply_music_transform_estimates_breathing_rate():
-    analyzer = PCAPAnalyzer()
-    target_bpm = 15.0
-    target_hz = target_bpm / 60.0
-    sample_count = 1200
-    time_axis = np.arange(sample_count) * analyzer.DOWNSAMPLE_INTERVAL_S
-    signal = np.sin(2 * np.pi * target_hz * time_axis)
-
-    df = pd.DataFrame({
-        "timestamp": pd.date_range("2026-01-01", periods=sample_count, freq="10ms"),
-        "1": signal,
-        "2": signal * 0.8,
-        "3": signal * 1.1,
-    })
-
-    music_df = analyzer.apply_music_transform(df, analyzer.DOWNSAMPLE_INTERVAL_S)
-
-    assert not music_df.empty
-    assert "frequency" in music_df.columns
-
-    estimated_bpm = analyzer.estimate_breathing_rate(music_df, freq_col="frequency")
-
-    assert estimated_bpm is not None
-    assert estimated_bpm == pytest.approx(target_bpm, abs=1.0)
-
-
-@pytest.mark.unit
-def test_compute_music_pseudospectrum_matches_paper_noise_fft_method():
-    analyzer = PCAPAnalyzer()
-    sampling_interval = 0.1
-    embedding_dim = 8
-    model_order = 1
-    n_fft = 64
-    time_axis = np.arange(80) * sampling_interval
-    signal = (
-        np.sin(2 * np.pi * 0.25 * time_axis)
-        + 0.25 * np.sin(2 * np.pi * 0.42 * time_axis)
-    )
-    frequencies = np.arange(n_fft, dtype=np.float64) * (1.0 / sampling_interval) / n_fft
-
-    cleaned = signal - np.mean(signal)
-    windows = np.lib.stride_tricks.sliding_window_view(cleaned, embedding_dim)
-    covariance = (windows.T @ windows) / (embedding_dim - 1)
-    _, eigvecs = np.linalg.eigh(covariance)
-    noise_subspace = eigvecs[:, : embedding_dim - model_order]
-    noise_fft = np.fft.fft(noise_subspace, n=n_fft, axis=0)
-    denominator = np.sum(np.abs(noise_fft) ** 2, axis=1)
-    expected = 1.0 / np.maximum(denominator, 1e-12)
-
-    actual = analyzer._compute_music_pseudospectrum(
-        signal,
-        sampling_interval,
-        frequencies,
-        embedding_dim=embedding_dim,
-        model_order=model_order,
-    )
-
-    assert actual == pytest.approx(expected.astype(np.float32), rel=1e-6, abs=1e-6)
-
-
-@pytest.mark.unit
-def test_analyze_dataframe_runs_music_at_paper_10hz_rate():
-    analyzer = PCAPAnalyzer()
-    sample_count = 1200
-    time_axis = np.arange(sample_count) * analyzer.DOWNSAMPLE_INTERVAL_S
-    signal = np.sin(2 * np.pi * 0.25 * time_axis) + 3.0
-    df = pd.DataFrame({
-        "timestamp": pd.date_range("2026-01-01", periods=sample_count, freq="10ms"),
-        "1": signal,
-        "2": signal * 0.9,
-    })
-
-    captured_intervals = []
-
-    def fake_music(frame, sampling_interval):
-        captured_intervals.append(sampling_interval)
-        return pd.DataFrame({"frequency": [0.25], "1": [1.0]})
-
-    analyzer.apply_music_transform = fake_music
-
-    analyzer._analyze_dataframe(
-        df=df,
-        no_frames=sample_count,
-        no_subcarriers=2,
-        include_wavelet=False,
-        include_music=True,
-        include_breathing=True,
-    )
-
-    assert analyzer.MUSIC_DOWNSAMPLE_INTERVAL_S == pytest.approx(0.1)
-    assert captured_intervals == [pytest.approx(analyzer.MUSIC_DOWNSAMPLE_INTERVAL_S)]
-
-
-@pytest.mark.unit
-def test_compare_breathing_rate_methods_includes_music():
-    analyzer = PCAPAnalyzer()
-
-    comparison = analyzer.compare_breathing_rate_methods({
-        "fft": 15.0,
-        "wavelet": 14.4,
-        "music": 15.2,
-    })
-
-    assert comparison["fft_bpm"] == pytest.approx(15.0)
-    assert comparison["wavelet_bpm"] == pytest.approx(14.4)
-    assert comparison["music_bpm"] == pytest.approx(15.2)
-
-
-@pytest.mark.unit
 def test_analyze_dataframe_can_skip_breathing_estimation():
     analyzer = PCAPAnalyzer()
     sample_count = 1200
@@ -139,16 +30,11 @@ def test_analyze_dataframe_can_skip_breathing_estimation():
         df=df,
         no_frames=sample_count,
         no_subcarriers=2,
-        include_wavelet=False,
-        include_music=False,
         include_breathing=False,
     )
 
     assert not result["fft"].empty
     assert result["breathing_rate_fft_bpm"] is None
-    assert result["breathing_rate_wavelet_bpm"] is None
-    assert result["breathing_rate_music_bpm"] is None
-    assert result["breathing_rate_comparison"] is None
     assert result["subcarrier_medians"] == {
         "1": pytest.approx(float(np.median(df["1"]))),
         "2": pytest.approx(float(np.median(df["2"]))),
@@ -176,8 +62,6 @@ def test_analyze_dataframe_uses_only_magnitude_columns_and_subtracts_background(
         df=df,
         no_frames=4,
         no_subcarriers=1,
-        include_wavelet=False,
-        include_music=False,
         include_breathing=False,
         background_subcarrier_medians={"1": 4.0},
     )
@@ -288,16 +172,11 @@ def test_analyze_dataframe_includes_phase_results_when_phase_columns_present():
         df=df,
         no_frames=sample_count,
         no_subcarriers=2,
-        include_wavelet=False,
-        include_music=False,
         include_breathing=True,
     )
 
     assert "fft_phase" in result
-    assert "wavelet_phase" in result
-    assert "music_phase" in result
     assert "breathing_rate_fft_phase_bpm" in result
-    assert "breathing_rate_phase_comparison" in result
     assert not result["fft_phase"].empty
     # 位相 FFT からも呼吸数が推定できているはず
     assert result["breathing_rate_fft_phase_bpm"] is not None
@@ -319,18 +198,11 @@ def test_analyze_dataframe_phase_fields_empty_when_phase_columns_absent():
         df=df,
         no_frames=sample_count,
         no_subcarriers=2,
-        include_wavelet=False,
-        include_music=False,
         include_breathing=True,
     )
 
     assert result["fft_phase"].empty
-    assert result["wavelet_phase"].empty
-    assert result["music_phase"].empty
     assert result["breathing_rate_fft_phase_bpm"] is None
-    assert result["breathing_rate_wavelet_phase_bpm"] is None
-    assert result["breathing_rate_music_phase_bpm"] is None
-    assert result["breathing_rate_phase_comparison"] is None
 
 
 @pytest.mark.unit
@@ -350,18 +222,12 @@ def test_process_base_csi_registration_saves_subcarrier_medians(db, monkeypatch)
         def analyze_file(
             self,
             file_path,
-            include_wavelet=True,
-            include_music=True,
             include_breathing=True,
         ):
             assert file_path == "/tmp/base.csi"
-            assert include_wavelet is False
-            assert include_music is False
             assert include_breathing is False
             return {
                 "fft": pd.DataFrame({"freq_interval": ["[0.0, 0.01)"], "1": [1.0]}),
-                "wavelet": pd.DataFrame(),
-                "music": pd.DataFrame(),
                 "subcarrier_medians": {"1": 2.5, "2": 4.0},
             }
 

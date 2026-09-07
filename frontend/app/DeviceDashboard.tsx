@@ -115,7 +115,7 @@ export function DeviceDashboard() {
               CSI呼吸解析モニター
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-neutral-600">
-              エッジデバイスのPicoScenes CSIを5-1パイプラインで解析し、Circomの検証結果を追跡します。
+              エッジデバイスのPicoScenes CSIをVMD・Lomb–Scargle処理で解析し、Circomの検証結果を追跡します。
             </p>
           </div>
           <div className="flex gap-3">
@@ -277,10 +277,10 @@ export function DeviceDashboard() {
                 <div className="mb-4 flex flex-col gap-1">
                   <h2 className="text-lg font-semibold text-neutral-900">検証可能な呼吸解析結果</h2>
                   <p className="text-sm text-neutral-500">
-                    5-1呼吸推定、VMD選択、Circom証明
+                    VMD・Lomb–Scargle呼吸推定、Circom証明
                   </p>
                 </div>
-                <AnalysisResultPanel processedData={selected.processed_data} />
+                <AnalysisResultPanel processedData={selected.processed_data} csiDataId={selected.id} />
               </section>
             ) : (
               <section className="rounded-lg border border-neutral-200 bg-white p-8 text-center shadow-sm">

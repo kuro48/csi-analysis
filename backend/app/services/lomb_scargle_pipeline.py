@@ -4,9 +4,9 @@ CSI読込、振幅化、SNRサブキャリア選択、バンドパス、PCAは
 ``breathing_pipeline`` が一度だけ実行する。本モジュールは、そのPCA出力と
 同じパケットの不均一タイムスタンプを受け取り、ピリオドグラムと呼吸数を求める。
 
-Lomb--Scargle変換そのものはPythonで実行する。Circomへ渡すのは固定小数点化した
-ピリオドグラムであり、回路が証明する範囲はPC選択、argmax、入力範囲、
-正常BPM帯域判定である。
+Pythonでは詳細表示用の高解像度ピリオドグラムを生成する。Circomは固定小数点
+PCA波形と公開タイムスタンプから近似sin/cos基底、Lomb--Scargleスコア、
+PC選択、argmax、正常BPM判定を再計算する。
 """
 
 import logging
@@ -31,6 +31,16 @@ FREQ_MIN_HZ = 0.05
 FREQ_MAX_HZ = 1.5
 N_FREQUENCIES = 1000
 PERIODOGRAM_POWER_SCALE = 1_000_000
+
+# Circom内Lomb--Scargleコア。公開基底を含むGroth16回路を現実的な規模に
+# 収めながら、呼吸帯域を十分な分解能で探索する固定形状。
+CIRCOM_SAMPLES = 384
+CIRCOM_FREQUENCIES = 128
+CIRCOM_SAMPLE_OFFSET = 1024
+CIRCOM_SAMPLE_SCALE = 1000
+CIRCOM_TIMESTAMP_SCALE = 1000  # seconds -> integer milliseconds
+CIRCOM_TIMESTAMP_BITS = 24
+CIRCOM_FREQUENCIES_HZ = np.linspace(FREQ_MIN_HZ, FREQ_MAX_HZ, CIRCOM_FREQUENCIES)
 
 FREQUENCIES_HZ = np.linspace(FREQ_MIN_HZ, FREQ_MAX_HZ, N_FREQUENCIES)
 NORMAL_FREQUENCY_MASK = (FREQUENCIES_HZ * 60 >= BPM_MIN) & (FREQUENCIES_HZ * 60 <= BPM_MAX)
@@ -87,6 +97,54 @@ def quantize_periodograms(periodograms: np.ndarray) -> List[List[int]]:
     return np.rint(clipped * PERIODOGRAM_POWER_SCALE).astype(np.int64).tolist()
 
 
+def prepare_lomb_scargle_circuit_input(
+    principal_components: np.ndarray,
+    time_seconds: np.ndarray,
+) -> Dict[str, Any]:
+    """固定小数点Lomb--Scargleコアへ秘密波形と公開相対時刻を渡す。
+
+    PCA波形は各PCを中心化・スケールし、元の不均一時刻から均等な観測番号で
+    ``CIRCOM_SAMPLES`` 点を選ぶ。時刻は1 ms単位へ量子化し、sin/cos近似、
+    τを消去したGram行列形式のスコア、全argmaxは回路内で計算する。
+    """
+    components = np.asarray(principal_components, dtype=np.float64)
+    timestamps = np.asarray(time_seconds, dtype=np.float64).reshape(-1)
+    if components.ndim != 2 or components.shape[0] != timestamps.size:
+        raise ValueError("Circom Lomb-Scargle入力のPCA行数と時刻数が一致していません")
+    if timestamps.size < 4:
+        raise ValueError("Circom Lomb-Scargle入力には4サンプル以上が必要です")
+
+    # 等間隔の間引きは長時間収録で人工的なNyquist/aliasを作る。全観測区間を
+    # 固定数の層へ分け、固定seedで各層内の位置をずらすことで、再現可能性と
+    # 不均一サンプリング特性を両立する。
+    edges = np.linspace(0, timestamps.size, CIRCOM_SAMPLES + 1)
+    rng = np.random.default_rng(0)
+    selected = np.floor(edges[:-1] + rng.random(CIRCOM_SAMPLES) * np.diff(edges)).astype(np.int64)
+    selected = np.clip(selected, 0, timestamps.size - 1)
+    sampled_time = timestamps[selected]
+    sampled_time = sampled_time - sampled_time[0]
+    timestamps_ms = np.rint(sampled_time * CIRCOM_TIMESTAMP_SCALE).astype(np.int64)
+    if np.any(timestamps_ms < 0) or np.any(timestamps_ms >= 2**CIRCOM_TIMESTAMP_BITS):
+        raise ValueError(f"Circom Lomb-Scargle相対時刻は0..{2**CIRCOM_TIMESTAMP_BITS - 1} msである必要があります")
+
+    sample_rows: List[List[int]] = []
+    for pc_index in range(PCA_COMPONENTS):
+        if pc_index < components.shape[1]:
+            values = components[selected, pc_index]
+            centered = values - float(np.mean(values))
+            max_abs = float(np.max(np.abs(centered)))
+            scaled = centered / max_abs * CIRCOM_SAMPLE_SCALE if max_abs > 0 else np.zeros_like(centered)
+        else:
+            scaled = np.zeros(CIRCOM_SAMPLES, dtype=np.float64)
+        encoded = np.rint(scaled).astype(np.int64) + CIRCOM_SAMPLE_OFFSET
+        sample_rows.append(encoded.tolist())
+
+    return {
+        "samples": sample_rows,
+        "timestampsMs": timestamps_ms.tolist(),
+    }
+
+
 def run_lomb_scargle_pipeline_from_pca(
     principal_components: np.ndarray,
     timestamps_ns: np.ndarray,
@@ -102,6 +160,18 @@ def run_lomb_scargle_pipeline_from_pca(
         raise RuntimeError("Lomb-Scargle解析に必要な scipy が未インストールです")
 
     started = time.perf_counter()
+    processing_steps: List[Dict[str, Any]] = []
+
+    def finish_step(key: str, label: str, step_started: float) -> None:
+        processing_steps.append(
+            {
+                "key": key,
+                "label": label,
+                "seconds": float(time.perf_counter() - step_started),
+            }
+        )
+
+    step_started = time.perf_counter()
     components, timestamps, duplicates_removed = _sort_and_deduplicate(principal_components, timestamps_ns)
     time_seconds = (timestamps - timestamps[0]).astype(np.float64) / 1e9
     duration_seconds = float(time_seconds[-1])
@@ -111,11 +181,16 @@ def run_lomb_scargle_pipeline_from_pca(
     intervals = np.diff(time_seconds)
     actual_fs = float((time_seconds.size - 1) / duration_seconds)
     n_components = min(PCA_COMPONENTS, components.shape[1])
+    finish_step("timestamp_preparation", "時刻整列・重複除去", step_started)
+
+    step_started = time.perf_counter()
     angular_frequencies = 2 * np.pi * FREQUENCIES_HZ
     periodograms = np.zeros((PCA_COMPONENTS, N_FREQUENCIES), dtype=np.float64)
     for pc_index in range(n_components):
         periodograms[pc_index] = _lomb_scargle(time_seconds, components[:, pc_index], angular_frequencies)
+    finish_step("periodogram", "Lomb–Scargleピリオドグラム", step_started)
 
+    step_started = time.perf_counter()
     valid_indices = np.flatnonzero(NORMAL_FREQUENCY_MASK)
     target_peak_indices = np.zeros(PCA_COMPONENTS, dtype=np.int64)
     target_peak_powers = np.zeros(PCA_COMPONENTS, dtype=np.float64)
@@ -129,17 +204,24 @@ def run_lomb_scargle_pipeline_from_pca(
     global_peak_bin = int(np.argmax(periodograms[selected_pc_index]))
     mean_interval = float(np.mean(intervals))
     interval_cv = float(np.std(intervals) / mean_interval) if mean_interval > 0 else 0.0
+    finish_step("peak_selection", "PC選択・ピーク探索", step_started)
 
     selected_indices = np.asarray(
-        selected_subcarrier_indices if selected_subcarrier_indices is not None else [], dtype=np.int64
+        selected_subcarrier_indices if selected_subcarrier_indices is not None else [],
+        dtype=np.int64,
     ).reshape(-1)
     snr_values = np.asarray(selected_snr if selected_snr is not None else [], dtype=np.float64).reshape(-1)
     explained_variance = np.asarray(
-        pc_explained_variance_ratio if pc_explained_variance_ratio is not None else [], dtype=np.float64
+        pc_explained_variance_ratio if pc_explained_variance_ratio is not None else [],
+        dtype=np.float64,
     ).reshape(-1)
 
+    step_started = time.perf_counter()
+    certificate_input = prepare_lomb_scargle_circuit_input(components, time_seconds)
+    finish_step("circuit_input", "Circom入力の量子化", step_started)
+
     result = {
-        "algorithm_version": "shared-pca-lomb-scargle-v1",
+        "algorithm_version": "shared-pca-lomb-scargle-circom-timestamp-trig-v3",
         "breathing_rate_bpm": float(FREQUENCIES_HZ[estimated_bin] * 60),
         "peak_freq_hz": float(FREQUENCIES_HZ[estimated_bin]),
         "peak_power": float(periodograms[selected_pc_index, estimated_bin]),
@@ -165,9 +247,19 @@ def run_lomb_scargle_pipeline_from_pca(
         },
         "bpm_range": {"min": BPM_MIN, "max": BPM_MAX},
         "processing_time_seconds": float(time.perf_counter() - started),
+        "processing_steps": processing_steps,
         "normality_rule": "selected PC global Lomb-Scargle peak is within bpm_range",
-        "circom_scope": "periodogram range, PC selection, argmax, and normal BPM range",
-        "certificate_input": {"powers": quantize_periodograms(periodograms)},
+        "circom_scope": (
+            "timestamp-derived fixed-point trigonometric approximation, tau-free Gram-matrix "
+            "Lomb-Scargle score, PC selection, argmax, and normal BPM range"
+        ),
+        "circom_frequency_grid": {
+            "min_hz": FREQ_MIN_HZ,
+            "max_hz": FREQ_MAX_HZ,
+            "points": CIRCOM_FREQUENCIES,
+            "samples": CIRCOM_SAMPLES,
+        },
+        "certificate_input": certificate_input,
     }
     logger.info(
         "Lomb-Scargle completed from shared PCA: estimated=%.2f bpm, global=%.2f bpm, PC%d, %.3fs",

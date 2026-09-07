@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Optional, Dict, Any
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from fastapi.responses import JSONResponse
 import uuid
 import structlog

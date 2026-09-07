@@ -34,63 +34,48 @@ csi-web-platform/
 │   │   │       ├── health.py       # ヘルスチェック
 │   │   │       ├── csi_data.py     # CSIデータ管理
 │   │   │       ├── base_csi.py     # ベースCSI（基準データ）
+│   │   │       ├── breathing.py    # 呼吸解析・検証可能解析
 │   │   │       └── blockchain.py   # ブロックチェーン連携
 │   │   ├── models/                 # SQLAlchemyモデル
 │   │   ├── schemas/                # Pydanticスキーマ
 │   │   └── services/
-│   │       ├── zkp_service.py      # ZKP証明生成・検証
-│   │       ├── blockchain_service.py # Ethereumコントラクト連携
-│   │       ├── csi_data.py         # CSIデータビジネスロジック
-│   │       ├── pcap_analyzer.py    # PCAP解析
-│   │       ├── base_csi.py         # ベースCSI処理
-│   │       └── cache.py            # キャッシュ管理
+│   │       ├── verifiable_breathing_service.py # 5-1とLomb--Scargleの統合
+│   │       ├── breathing_pipeline.py           # 5-1.ipynb 由来のVMD解析
+│   │       ├── lomb_scargle_pipeline.py        # Lomb--Scargle解析
+│   │       ├── breathing_certificate_service.py    # VMD証明書回路の証明生成
+│   │       ├── lomb_scargle_certificate_service.py # Lomb--Scargle回路の証明生成
+│   │       ├── zkp_circuit_service.py  # Circom/snarkjs 共通処理
+│   │       ├── blockchain_service.py   # Ethereumコントラクト連携
+│   │       ├── csi_processing.py       # アップロード後のバックグラウンド解析
+│   │       ├── pcap_analyzer*.py       # PCAP/PicoScenes 読み込みとFFT
+│   │       └── base_csi.py             # ベースCSI処理
 │   ├── contracts/
 │   │   ├── ZKProofRegistry.sol     # Solidityスマートコントラクト
 │   │   ├── deploy_zkproof_contract.py
-│   │   ├── deploy_full_similarity_verifier.py
 │   │   ├── check_zkproof_blockchain.py
 │   │   └── build/                  # コンパイル済みABI
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── Dockerfile
 ├── frontend/                        # Next.js アプリケーション
-│   └── src/
-│       ├── app/                    # App Router
-│       │   ├── dashboard/
-│       │   ├── csi-data/
-│       │   ├── analysis/
-│       │   ├── auth/               # login / register
-│       │   ├── monitoring/
-│       │   ├── devices/
-│       │   ├── data/
-│       │   └── profile/
-│       ├── components/
-│       │   ├── visualization/      # CSIChart等
-│       │   ├── charts/             # 呼吸分析チャート
-│       │   ├── realtime/           # リアルタイムダッシュボード
-│       │   ├── layout/             # Header・Sidebar
-│       │   ├── auth/
-│       │   ├── devices/
-│       │   └── ui/                 # 基本UIコンポーネント
-│       ├── hooks/
-│       ├── services/               # API呼び出し
-│       ├── types/
-│       └── utils/
+│   └── app/                        # App Router
+│       ├── DeviceDashboard.tsx     # トップのダッシュボード
+│       ├── analyze/                # 取得済みCSIの解析
+│       └── upload/                 # アップロードと解析結果表示
 ├── zkp/                             # ゼロ知識証明システム
 │   ├── circuits/
-│   │   └── csi_full_similarity.circom  # Circom回路
+│   │   ├── csi_breathing_certificate.circom    # VMD証明書回路
+│   │   ├── csi_lomb_scargle_normality.circom   # Lomb--Scargle正常判定回路
+│   │   ├── lomb_scargle_timestamp_basis.circom # 上記のsin/cos基底
+│   │   └── csi_breathing_normality.circom      # 旧・呼吸正常判定回路
 │   ├── scripts/
-│   │   ├── compile.js
-│   │   ├── setup.js
-│   │   ├── prove.js
-│   │   └── verify.js
-│   ├── build/                      # コンパイル済み回路 (cpp/js)
-│   ├── keys/                       # 証明鍵
-│   ├── package.json
-│   └── powersOfTau28_hez_final_12.ptau
-├── database/                        # データベース関連
-│   ├── migrations/                 # Alembicマイグレーション
-│   └── scripts/                    # 初期化・メンテナンススクリプト
+│   │   ├── generate_*_circuit.py   # 回路生成・検証
+│   │   ├── fetch_ptau24.sh         # 2^24 Powers of Tau の取得
+│   │   └── measure_stage_profile.py
+│   ├── build/                      # コンパイル済み回路 (js/cpp)
+│   ├── keys/                       # 証明鍵・Powers of Tau
+│   └── package.json
+├── research/                        # 研究用の測定記録
 ├── ganache/                         # 開発用Ethereumノード設定
 ├── nginx/                           # Nginxリバースプロキシ設定
 ├── scripts/                         # 実行スクリプト
@@ -385,45 +370,45 @@ npm run type-check         # TypeScript型チェック
 
 ## ZKPシステム（Zero-Knowledge Proof）
 
-### コサイン類似度計算アーキテクチャ
+### 回路構成
 
-**本番環境**: ZKP回路のみでコサイン類似度を計算（プライバシー保護）
+CSIアップロード時は 5-1 系（VMD）と Lomb--Scargle の2経路を同じCSIで解析し、
+それぞれのCircom証明を並列生成して比較する。
 
-#### 実装方式
+| 回路 | 用途 |
+|------|------|
+| `csi_breathing_certificate.circom` | VMD出力の性質（再構成性・狭帯域性・正常帯域）を検証する証明書方式 |
+| `csi_lomb_scargle_normality.circom` | 不均一標本のLomb--Scargleスコアと正常帯域判定を回路内で再計算 |
+| `csi_breathing_normality.circom` | 旧・呼吸正常判定回路（現在の解析経路では未使用） |
 
-| 実装方式 | 用途 |
-|---------|------|
-| **ZKP回路（Circom: csi_full_similarity）** | プライバシー保護された類似度計算（本番必須） |
+FFTコサイン類似度・Wavelet・MUSIC の各回路と、RISC Zero zkVM 実装は削除済み。
 
 #### ZKPサービス
 
-**ファイル**: `backend/app/services/zkp_service.py`
-
-主要メソッド:
-- `generate_cosine_similarity_proof()` - コサイン類似度ZKP証明生成
-- `verify_cosine_similarity_proof()` - ZKP証明検証
-- `generate_proof()` - 呼吸解析ZKP証明生成
-- `verify_proof()` - 呼吸解析ZKP証明検証
+- `backend/app/services/zkp_circuit_service.py` — Circom/snarkjs 共通処理
+  （回路コンパイル、Trusted Setup、witness生成、Groth16証明・検証、制約数計測）
+- `backend/app/services/breathing_certificate_service.py` — VMD証明書回路
+- `backend/app/services/lomb_scargle_certificate_service.py` — Lomb--Scargle回路
 
 #### ZKP回路セットアップ
 
 ```bash
 cd zkp
 
-# 1. 回路のコンパイル
-npm run compile
+# 回路の生成・検証 → コンパイル → Trusted Setup
+npm run generate:breathing_certificate
+npm run compile:breathing_certificate
+npm run setup:breathing_certificate
 
-# 2. Trusted Setup（証明キー生成）
-npm run setup
-
-# 3. 証明生成テスト
-npm run prove
-
-# 4. 証明検証テスト
-npm run verify
+# Lomb--Scargle は 2^24 Powers of Tau（約19GB）が必要
+npm run ptau:fetch24
+npm run generate:lomb_scargle
+npm run compile:lomb_scargle
+npm run setup:lomb_scargle
 ```
 
-**回路ファイル**: `zkp/circuits/csi_full_similarity.circom`
+`ZKP_AUTO_COMPILE=true` のバックエンド起動時にも自動準備される。
+詳細は `docs/LOMB_SCARGLE_COMPARISON.md` を参照。
 
 #### 環境変数
 
@@ -432,15 +417,16 @@ ZKP_ENABLED=true
 ZKP_AUTO_GENERATE=true       # CSIアップロード時に自動生成
 ZKP_AUTO_COMPILE=true        # 初回起動時に自動コンパイル
 ZKP_DATA_RETENTION_HOURS=0   # 0: 証明後すぐに生データ削除
+ZKP_NODE_MAX_OLD_SPACE_MB=   # snarkjs/node のヒープ上限（未指定なら回路規模で決定）
+LOMB_PTAU_URL=               # 2^24 Powers of Tau の配布元を差し替える場合
 ```
 
 ### ZKPデプロイチェックリスト
 
-- [ ] ZKP回路（csi_full_similarity）のコンパイル完了
-- [ ] Trusted Setup完了
+- [ ] 各回路のコンパイル完了
+- [ ] Trusted Setup完了（Lomb--Scargle は 2^24 ptau が必要）
 - [ ] 環境変数設定済み
 - [ ] ZKP証明の生成・検証テスト完了
-- [ ] パフォーマンステスト完了（証明生成 < 2秒、検証 < 100ms）
 
 ## ブロックチェーン統合（ZKP証明記録）
 
@@ -469,7 +455,6 @@ CSI解析 → ZKP証明生成 → ブロックチェーン記録（証明のみ�
 
 **デプロイスクリプト**:
 - `deploy_zkproof_contract.py` - ZKProofRegistryコントラクトデプロイ
-- `deploy_full_similarity_verifier.py` - Verifierコントラクトデプロイ
 
 #### ブロックチェーンサービス
 

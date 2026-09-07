@@ -1,5 +1,11 @@
 # zkVM / Python + Circom 時間計測
 
+> **注記（実装削除後）**: RISC Zero zkVM の実装（`zkvm/`）と backend 側の
+> zkVM 連携は削除済みです。このディレクトリは論文で参照する測定記録
+> （`results/`）を保全するために残しています。`benchmark.py` / `sweep.py` は
+> 削除された `zkvm/` バイナリと `prepare_zkvm_input` に依存するため、
+> 現在のツリーでは実行できません。
+
 実CSIファイルを1回処理し、各工程にかかった時間をJSONへ保存する。
 run数、warm-up、入力サイズ、stage、グラフ生成などの追加オプションは持たない。
 
@@ -26,10 +32,14 @@ research/zkvm-comparison/run-execution-in-docker.sh \
 - `zkvm.timings.prove_and_verify_seconds`: zkVM証明生成とreceipt検証
 
 どちらかが失敗しても、成功した側の時間と失敗内容をJSONへ保存する。
+zkVM実行中の工程、phase別進捗率、証明済みセグメント数は標準エラーへ
+JSON Lines形式で出力され、Docker経由では`docker logs`で確認できる。
 
 ## zkVM工程別
 
 zkVMの固定された各工程を1回ずつ計測する。
+ここで使う`profile-stage`は計測専用であり、アプリケーションへ渡せる
+中間結果が必要な場合は`csi-zkvm-host prove-stage`を使用する。
 
 ```bash
 research/zkvm-comparison/run-sweep-in-docker.sh \

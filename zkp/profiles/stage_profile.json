@@ -1,0 +1,32 @@
+{
+  "circuitName": "csi_breathing_certificate",
+  "totalConstraints": 11354,
+  "stages": [
+    {
+      "key": "vmd_verify",
+      "label": "VMD検証",
+      "description": "sel one-hot・モード合成・再構成性チェック",
+      "constraints": 3950
+    },
+    {
+      "key": "dft",
+      "label": "DFTパワースペクトル",
+      "description": "選択モードの周波数パワー算出",
+      "constraints": 505
+    },
+    {
+      "key": "argmax",
+      "label": "argmaxピーク探索",
+      "description": "全周波数ビンの逐次比較によるピーク特定",
+      "constraints": 6801
+    },
+    {
+      "key": "decision",
+      "label": "正常判定",
+      "description": "narrowband判定と正常帯域判定",
+      "constraints": 98
+    }
+  ],
+  "measuredAt": "2026-08-31T03:07:09.889623+00:00",
+  "fixedOverheadMs": 549.3
+}

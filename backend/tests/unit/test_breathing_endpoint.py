@@ -168,7 +168,6 @@ def test_analyze_verifiable_returns_parallel_proof_results(client: TestClient, m
                 "proofs": {
                     "python_circom": {"status": "completed", "isNormal": True},
                     "lomb_scargle_circom": {"status": "completed", "isNormal": True},
-                    "zkvm": {"status": "completed", "isNormal": True},
                 },
                 "disabled_methods": ["wavelet", "music", "fft_cosine_similarity"],
             }
@@ -185,5 +184,5 @@ def test_analyze_verifiable_returns_parallel_proof_results(client: TestClient, m
     assert response.status_code == 200
     body = response.json()
     assert body["analysis"]["pipeline"] == "5-1.ipynb"
-    assert set(body["proofs"]) == {"python_circom", "lomb_scargle_circom", "zkvm"}
+    assert set(body["proofs"]) == {"python_circom", "lomb_scargle_circom"}
     assert "fft_cosine_similarity" in body["disabled_methods"]

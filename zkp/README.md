@@ -1,217 +1,69 @@
 # ZKP (Zero-Knowledge Proof) System
 
-Wi-Fi CSI呼吸監視システムのゼロ知識証明実装
+Wi-Fi CSI 呼吸監視システムの Circom / snarkjs (Groth16) 実装。
 
----
+CSIアップロード時は 5-1 系（VMD）と Lomb--Scargle の2経路を同じCSIで解析し、
+それぞれの回路で「呼吸数が正常帯域にあるか」を秘密入力のまま証明する。
 
-## 🎯 概要
-
-**本番環境**: ZKP回路のみでコサイン類似度計算（プライバシー保護）
-**開発環境**: 開発・テスト用の追加機能も利用可能
-
----
-
-## 📁 プロジェクト構成
+## 構成
 
 ```
 zkp/
 ├── circuits/
-│   ├── csi_subcarrier_selector.circom  # CSIサブキャリア選択回路
-│   └── README_CSI_Selector.md          # 回路仕様ドキュメント
+│   ├── csi_breathing_certificate.circom     # VMD出力の性質を検証する証明書回路
+│   ├── csi_lomb_scargle_normality.circom    # Lomb--Scargle正常判定回路
+│   ├── lomb_scargle_timestamp_basis.circom  # 上記のsin/cos基底
+│   └── csi_breathing_normality.circom       # 旧・呼吸正常判定回路（未使用）
 ├── scripts/
-│   ├── compile_csi_selector.js         # 回路コンパイル
-│   ├── setup_csi_selector.js           # Trusted Setup
-│   └── verify_csi_fft.js               # ZKP証明検証
-├── build/                               # コンパイル出力（WASM）
-├── keys/                                # 証明鍵・検証鍵
-├── proofs/                              # 生成された証明
-└── README_DEPLOYMENT.md                 # 本番デプロイガイド ⭐
+│   ├── generate_breathing_certificate_circuit.py
+│   ├── generate_lomb_scargle_circuit.py
+│   ├── generate_breathing_circuit.py
+│   ├── fetch_ptau24.sh                      # 2^24 Powers of Tau の取得
+│   └── measure_stage_profile.py             # 工程別の制約数・時間の計測
+├── test/                                    # mocha による回路テスト
+├── build/                                   # コンパイル出力（r1cs / wasm / sym）
+└── keys/                                    # zkey・検証鍵・Powers of Tau
 ```
 
----
+`build/` と `keys/` は生成物のため Git 管理外。
 
-## 🚀 セットアップ
-
-### 1. 依存関係インストール
+## セットアップ
 
 ```bash
 npm install
 ```
 
-### 2. ZKP回路のコンパイル
+### VMD証明書回路
 
 ```bash
-# CSIサブキャリア選択回路をコンパイル
-npm run compile:csi_selector
+npm run generate:breathing_certificate
+npm run compile:breathing_certificate
+npm run setup:breathing_certificate   # 2^19 ptau
 ```
 
-### 3. Trusted Setup
+### Lomb--Scargle回路
+
+約541万制約あり、2^24 の phase-2 Powers of Tau（約19GB）が必要。
 
 ```bash
-# 証明キー・検証キーを生成（初回のみ、約5分）
-npm run setup:csi_selector
+npm run ptau:fetch24        # 中断しても再実行でレジュームする
+npm run generate:lomb_scargle
+npm run compile:lomb_scargle
+npm run setup:lomb_scargle
 ```
 
-### 4. 動作確認
+Trusted Setup と証明生成は Node のヒープを広げて実行する
+（`ZKP_NODE_MAX_OLD_SPACE_MB` で変更可能）。詳細は
+`docs/LOMB_SCARGLE_COMPARISON.md` を参照。
+
+## テスト
 
 ```bash
-# 証明検証テスト
-npm run test:csi_selector
+npm test
 ```
 
----
+## バックエンドからの利用
 
-## 🎯 主要機能
-
-### CSIサブキャリア選択ZKP回路
-
-- **コサイン類似度計算**: 最適なサブキャリアペアを選択
-- **Groth16プロトコル**: 効率的なZKP証明
-- **整数演算**: Pythagorean tripleパターンで完全一致保証
-- **プライバシー保護**: 生データを秘匿したまま証明生成
-
-### 技術仕様
-
-- **ベクトル次元**: 4次元
-- **候補数**: 最大2個
-- **固定小数点スケール**: 10000（0.0〜1.0 → 0〜10000）
-- **検証式**: `similarity × normA × normB = dotProduct × SCALE`
-
----
-
-## 🔐 本番環境での使用
-
-### バックエンドAPIからの利用
-
-本番環境では、バックエンドの`ZKPService`を経由してZKP証明を生成・検証します。
-
-```python
-from app.services.zkp_service import ZKPService
-
-zkp_service = ZKPService()
-
-# ZKP証明生成
-result = await zkp_service.generate_cosine_similarity_proof(
-    reference_vector=[3, 4, 0, 0],
-    candidate_vectors=[[3, 4, 0, 0], [4, 3, 0, 0]],
-    scale=10000
-)
-
-# ZKP証明検証
-is_valid = await zkp_service.verify_cosine_similarity_proof(
-    proof=result["proof"],
-    public_signals=result["publicSignals"]
-)
-```
-
-### 環境設定
-
-**本番環境** (`.env.production`):
-```bash
-ZKP_ENABLED=true
-ZKP_DEVELOPMENT_MODE=false
-```
-
-**開発環境** (`.env.development`):
-```bash
-ZKP_ENABLED=true
-ZKP_DEVELOPMENT_MODE=true
-```
-
----
-
-## 📚 ドキュメント
-
-- **デプロイガイド**: `README_DEPLOYMENT.md` - 本番デプロイ手順
-- **回路仕様**: `circuits/README_CSI_Selector.md` - 回路の詳細説明
-- **アーキテクチャ設計**: `../docs/ZKP_DEPLOYMENT_ARCHITECTURE.md` - システム全体のアーキテクチャ
-
----
-
-## ⚠️ 重要な制約
-
-### Pythagorean Tripleパターンが必須
-
-ZKP回路の検証式は**完全一致**が必要です。
-
-**✅ 使用可能なパターン**:
-```javascript
-[3, 4, 0, 0]   // norm = 5
-[5, 12, 0, 0]  // norm = 13
-[8, 15, 0, 0]  // norm = 17
-```
-
-**❌ 使用不可**:
-```javascript
-[1, 2, 3, 4]  // norm = 5.477... (非整数 → 丸め誤差発生)
-```
-
----
-
-## 🔧 開発環境のみ
-
-開発環境では、追加の開発用機能が利用可能です：
-
-- JavaScript直接計算（Witness生成・精度比較）
-- Python高精度リファレンス実装
-- 開発用スクリプト・データ
-
-**注意**: これらの機能は本番環境では無効化され、デプロイパッケージには含まれません。
-
----
-
-## 🚢 本番デプロイ
-
-詳細は `README_DEPLOYMENT.md` を参照してください。
-
-### デプロイチェックリスト
-
-- [ ] ZKP回路のコンパイル完了
-- [ ] Trusted Setup完了
-- [ ] 環境変数が本番設定（`ZKP_DEVELOPMENT_MODE=false`）
-- [ ] ビルド成果物の検証
-- [ ] ZKP証明の生成・検証テスト完了
-
----
-
-## 📊 パフォーマンス
-
-| 指標 | 目標値 |
-|-----|-------|
-| ZKP証明生成時間 | < 2秒 |
-| ZKP検証時間 | < 100ms |
-| メモリ使用量 | < 512MB |
-
----
-
-## 🛠️ トラブルシューティング
-
-### エラー: "WASM file not found"
-
-```bash
-# 解決策: 回路をコンパイル
-npm run compile:csi_selector
-```
-
-### エラー: "zkey file not found"
-
-```bash
-# 解決策: Trusted Setupを実行
-npm run setup:csi_selector
-```
-
-### エラー: "Witness generation failed"
-
-```bash
-# 原因: 入力データの形式が不正
-# 確認事項:
-# - ベクトルが4次元であること
-# - 候補ベクトルが最大2個であること
-# - 全ての値が整数であること
-```
-
----
-
-## 📝 ライセンス
-
-このプロジェクトの一部として提供されます。
+`ZKP_AUTO_COMPILE=true` で起動すると、`backend/entrypoint.sh` が
+回路のコンパイルと Trusted Setup を自動で行う。証明の生成・検証は
+`backend/app/services/zkp_circuit_service.py` とその派生サービスが担当する。

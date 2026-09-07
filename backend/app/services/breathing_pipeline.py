@@ -18,9 +18,7 @@
 移植したもの。挙動を変える修正を加えないこと（描画関数のみ移植対象外）。
 """
 
-import hashlib
 import logging
-import struct
 import tempfile
 import time
 from collections import Counter
@@ -494,52 +492,6 @@ def prepare_breathing_zkp_input(
     return [int(round(float(v))) for v in signal]
 
 
-def prepare_zkvm_input(
-    csi_matrix: np.ndarray,
-    scale: int = 10_000,
-) -> Dict[str, Any]:
-    """zkVM 内の 5-1 固定小数点パイプラインへ渡す CSI 振幅行列を作る。
-
-    PicoScenes バイナリの構造解析はホスト側に残し、複素 CSI から後の
-    振幅抽出→SNR選択→バンドパス→PCA→VMD→呼吸判定を guest で再実行する。
-    入力は全体の最大振幅で固定小数点化し、SHA-256 コミットメントを
-    公開 journal と照合できるようにする。
-    """
-    matrix = np.asarray(csi_matrix)
-    if matrix.ndim != 2 or matrix.shape[0] == 0 or matrix.shape[1] == 0:
-        raise ValueError("csi_matrix は空でない 2 次元行列である必要があります")
-    if scale <= 0:
-        raise ValueError("scale は正の整数である必要があります")
-
-    amplitudes = np.abs(matrix).astype(np.float64)
-    if not np.all(np.isfinite(amplitudes)):
-        raise ValueError("CSI 振幅に非有限値が含まれています")
-    max_amplitude = float(np.max(amplitudes))
-    if max_amplitude <= 0:
-        raise ValueError("CSI 振幅が全てゼロです")
-
-    quantized = np.rint(amplitudes / max_amplitude * scale).astype(np.int64)
-    samples, subcarriers = quantized.shape
-    flattened = [int(value) for value in quantized.ravel(order="C")]
-
-    digest = hashlib.sha256()
-    digest.update(struct.pack("<III", int(samples), int(subcarriers), int(scale)))
-    for value in flattened:
-        digest.update(struct.pack("<i", value))
-
-    return {
-        "samples": int(samples),
-        "subcarriers": int(subcarriers),
-        "amplitudes": flattened,
-        "scale": int(scale),
-        "sample_rate_hz": FS,
-        "bpm_min": BPM_MIN,
-        "bpm_max": BPM_MAX,
-        "input_commitment": digest.hexdigest(),
-        "algorithm_version": "5-1-fixed-v1",
-    }
-
-
 def prepare_breathing_certificate_input(
     respiration_pc: np.ndarray,
     vmd_modes: np.ndarray,
@@ -673,7 +625,6 @@ def _check_dependencies(require_loader: bool) -> None:
 
 def run_breathing_pipeline_from_matrix(
     csi_matrix: np.ndarray,
-    include_zkvm_input: bool = True,
     lomb_scargle_timestamps_ns: Optional[np.ndarray] = None,
 ) -> Dict[str, Any]:
     """複素CSI行列 [n_samples × n_subcarriers] に 5-1.ipynb の処理を適用する。
@@ -748,12 +699,6 @@ def run_breathing_pipeline_from_matrix(
             selected_mode_index=int(best_vmd_info["mode_index"]),
         )
 
-    # zkVM は同じ生 CSI 行列に対して数値パイプライン全体を再実行する。
-    # 大容量ファイルでは Python の int リスト化だけでも数百 MB を消費するため、
-    # 呼び出し側が安全上限を超えたと判断した場合は生成自体を省略する。
-    with timer("zkVM固定小数点入力とcommitmentの準備"):
-        zkvm_input = prepare_zkvm_input(csi_matrix) if include_zkvm_input else None
-
     elapsed = time.perf_counter() - total_start
     logger.info(
         "Breathing pipeline completed: bpm=%.2f, PC%d, VMD Mode %d, %.3fs",
@@ -787,7 +732,6 @@ def run_breathing_pipeline_from_matrix(
         "processing_time_seconds": float(elapsed),
         "zkp_input": zkp_input,
         "certificate_input": certificate_input,
-        "zkvm_input": zkvm_input,
     }
 
     if lomb_scargle_timestamps_ns is not None:
@@ -808,7 +752,6 @@ def run_breathing_pipeline_from_matrix(
 
 def run_breathing_pipeline(
     csi_file: str,
-    include_zkvm_input: bool = True,
     include_lomb_scargle_input: bool = False,
 ) -> Dict[str, Any]:
     """PicoScenes .csi ファイルに 5-1.ipynb の一連の処理を適用する。"""
@@ -824,6 +767,5 @@ def run_breathing_pipeline(
 
     return run_breathing_pipeline_from_matrix(
         csi_matrix,
-        include_zkvm_input=include_zkvm_input,
         lomb_scargle_timestamps_ns=timestamps_ns,
     )

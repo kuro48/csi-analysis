@@ -36,6 +36,18 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+async def read_and_forward_stderr(stream: asyncio.StreamReader) -> bytes:
+    chunks = []
+    while True:
+        chunk = await stream.readline()
+        if not chunk:
+            break
+        chunks.append(chunk)
+        sys.stderr.buffer.write(chunk)
+        sys.stderr.buffer.flush()
+    return b"".join(chunks)
+
+
 async def measure_python_circom(matrix: Any) -> dict[str, Any]:
     from app.services.breathing_certificate_service import BreathingCertificateService
     from app.services.breathing_pipeline import (
@@ -146,7 +158,12 @@ async def measure_zkvm(matrix: Any) -> dict[str, Any]:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await process.communicate()
+            assert process.stdout is not None
+            assert process.stderr is not None
+            stderr_task = asyncio.create_task(read_and_forward_stderr(process.stderr))
+            stdout = await process.stdout.read()
+            await process.wait()
+            stderr = await stderr_task
             prove_and_verify_seconds = time.perf_counter() - started
 
         if process.returncode != 0:

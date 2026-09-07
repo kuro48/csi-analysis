@@ -17,7 +17,7 @@ contract ZKProofRegistry {
         string deviceId;           // デバイスID
         string proofData;          // ZKP証明データ（JSON文字列）
         string publicSignals;      // 公開信号（JSON配列文字列）
-        string proofType;          // 証明タイプ（例: "cosine_similarity", "full_similarity"）
+        string proofType;          // 証明タイプ（例: "breathing_certificate", "lomb_scargle_normality"）
         bytes32 dataHash;          // 元データのハッシュ（オプション）
         uint256 timestamp;         // 記録時刻
         address recorder;          // 記録者アドレス

@@ -1,7 +1,7 @@
 # 研究計画ドキュメント一覧
 
 Wi-Fi CSI 非接触呼吸監視システムの「検証可能性 × バイタルセンシング」研究計画。
-zkVM 路線は凍結し、**Python + Circom を主軸**に 3 フェーズで新規性を追う。
+zkVM 路線は撤去し、**Python + Circom を主軸**に 3 フェーズで新規性を追う。
 
 ## 読む順序
 
@@ -22,9 +22,10 @@ Phase 1（回路硬化）── 前提 ──> Phase 2（真正性チェーン�
 
 - 本番コード（`backend/app/`, `zkp/scripts/`, `zkp/circuits/`, `backend/contracts/`）は
   各 BRIEF が明示的に許可した範囲以外**編集しない**。研究成果物は `research/<phase>/` に置く。
-- 本番フロー（`csi_full_similarity` / `/csi-data/upload` / `/breathing/analyze`）は不変。
+- 本番フロー（`/csi-data/upload` / `/breathing/analyze-verifiable`）は不変。
   新機能は別回路・別エンドポイントとして並存させる。
-- zkVM（`zkvm/`）は削除も追加開発もしない。凍結。
+- zkVM（RISC Zero）は実装を削除済み。再開発しない。
+  測定記録 `research/zkvm-comparison/results/` は論文の根拠データとして残す。
 - 実データ（`.csi`）が無い場合は合成データで進め、その旨を成果物に明記する。
 
 ## 最初の一手

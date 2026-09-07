@@ -11,8 +11,6 @@ class BaseCSI(Base):
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     fft_dataframe = Column(JSON, nullable=False)
-    wavelet_dataframe = Column(JSON, nullable=True)
-    music_dataframe = Column(JSON, nullable=True)
     subcarrier_medians = Column(JSON, nullable=True)
     raw_signal_dataframe = Column(JSON, nullable=True)
     filtered_signal_dataframe = Column(JSON, nullable=True)
@@ -38,8 +36,6 @@ class BaseCSI(Base):
             "id": str(self.id),
             "name": self.name,
             "fft_dataframe": self.fft_dataframe,
-            "wavelet_dataframe": self.wavelet_dataframe,
-            "music_dataframe": self.music_dataframe,
             "subcarrier_medians": self.subcarrier_medians,
             "raw_signal_dataframe": self.raw_signal_dataframe,
             "filtered_signal_dataframe": self.filtered_signal_dataframe,

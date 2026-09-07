@@ -10,7 +10,7 @@ export default function UploadPage() {
             <p className="text-sm font-semibold text-teal-700">Persistent Analysis</p>
             <h1 className="mt-1 text-2xl font-bold text-neutral-900">CSIアップロード・解析</h1>
             <p className="mt-1 text-sm text-neutral-500">
-              解析結果を保存し、5-1呼吸推定と並列証明の進行を追跡します
+              解析結果を保存し、VMD・Lomb–Scargle呼吸推定と並列証明の進行を追跡します
             </p>
           </div>
           <Link

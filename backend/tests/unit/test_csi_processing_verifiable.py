@@ -55,7 +55,7 @@ async def test_background_processing_uses_only_5_1_parallel_proof_pipeline(monke
         "analysis": {"pipeline": "5-1.ipynb", "breathing_rate_bpm": 15.0},
         "proofs": {
             "python_circom": {"status": "completed"},
-            "zkvm": {"status": "completed"},
+            "lomb_scargle_circom": {"status": "completed"},
         },
         "disabled_methods": ["wavelet", "music", "fft_cosine_similarity"],
     }
@@ -65,12 +65,10 @@ async def test_background_processing_uses_only_5_1_parallel_proof_pipeline(monke
             assert file_path == "sample.csi"
             return expected
 
-    class _ForbiddenLegacyAnalyzer:
-        def __init__(self):
-            raise AssertionError("legacy FFT/Wavelet/MUSIC analyzer must not be constructed")
+    # レガシー FFT/Wavelet/MUSIC 解析は経路ごと削除済み。
+    assert not hasattr(csi_processing, "PCAPAnalyzer")
 
     monkeypatch.setattr(csi_processing, "VerifiableBreathingService", _VerifiableService, raising=False)
-    monkeypatch.setattr(csi_processing, "PCAPAnalyzer", _ForbiddenLegacyAnalyzer)
     monkeypatch.setattr(csi_processing.settings, "RESEARCH_MODE", True)
 
     await csi_processing.process_csi_in_background(

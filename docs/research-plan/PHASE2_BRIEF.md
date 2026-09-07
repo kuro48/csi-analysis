@@ -15,7 +15,7 @@
 5. 段別の制約数・証明時間・ガスコスト・エッジ側オーバーヘッドを測定。
 
 新機能は**別エンドポイント・別回路**として追加。本番フロー
-（`csi_full_similarity` / `/csi-data/upload`）と `/breathing/analyze` は不変。
+（`/csi-data/upload`）と `/breathing/analyze-verifiable` は不変。
 
 ## 1. 設計判断（着手前に確定させる）
 

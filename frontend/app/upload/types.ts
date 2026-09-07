@@ -1,66 +1,11 @@
 export type CSIStatus = "uploaded" | "processing" | "completed" | "error";
 
-export type DataframeDict = {
-  frequency?: Record<string, number | null>;
-  magnitude_avg?: Record<string, number | null>;
-} | null;
-
-export type SignalDict = {
-  start_timestamp?: string | null;
-  time?: Record<string, number | null>;
-  amplitude_avg?: Record<string, number | null>;
-} | null;
-
 export interface SignalPoint {
   /** 開始からの経過秒 */
   time: number;
   /** エポックミリ秒（start_timestamp がある場合のみ設定） */
   ts?: number;
   amplitude: number;
-}
-
-export interface MethodComparison {
-  similarity_score: number;
-  is_valid: boolean;
-  python_similarity?: number | null;
-  selected_subcarrier?: {
-    index: number | null;
-    similarity: number | null;
-  };
-  data_dimensions?: {
-    num_freq_points: number;
-    num_subcarriers: number;
-    total_dimensions: number;
-  };
-}
-
-export interface BaseCSIComparison {
-  base_csi_id: string;
-  base_csi_name: string;
-  similarity_score: number;
-  methods: Partial<Record<"fft" | "wavelet" | "music", MethodComparison>>;
-  primary_method?: "fft" | "wavelet" | "music";
-  is_valid?: boolean;
-  selected_subcarrier?: {
-    index: number | null;
-    similarity: number | null;
-  };
-  data_dimensions?: {
-    num_freq_points: number;
-    num_subcarriers: number;
-    total_dimensions: number;
-  };
-  comparison_summary?: {
-    generated_methods: string[];
-    primary_method: string;
-    similarity_delta: number | null;
-  };
-}
-
-export interface BreathingRateComparison {
-  fft_bpm?: number | null;
-  wavelet_bpm?: number | null;
-  music_bpm?: number | null;
 }
 
 export interface VMDModeSummary {
@@ -103,10 +48,17 @@ export interface LombScargleAnalysis {
   sampling_interval_cv?: number;
   duplicates_removed?: number;
   processing_time_seconds?: number;
+  processing_steps?: ProcessingStepTiming[];
   normality_rule?: string;
   circom_scope?: string;
   error?: string;
   error_type?: string;
+}
+
+export interface ProcessingStepTiming {
+  key: string;
+  label: string;
+  seconds: number;
 }
 
 export interface AlgorithmComparison {
@@ -120,7 +72,8 @@ export interface AlgorithmComparison {
 }
 
 export interface BpmEvaluationRow {
-  method: "5-1" | "lomb_scargle" | "zkvm";
+  method: "5-1" | "lomb_scargle";
+
   method_label: string;
   ground_truth_bpm: number;
   measured_bpm: number | null;
@@ -150,7 +103,6 @@ export interface BreathingAnalysis {
     max: number;
   };
   processing_time_seconds?: number;
-  input_commitment?: string;
   certificate_diagnostics?: CertificateDiagnostics;
   lomb_scargle?: LombScargleAnalysis;
   algorithm_comparison?: AlgorithmComparison;
@@ -162,25 +114,10 @@ export interface ProcessedData {
   proofs?: {
     python_circom?: VerifiableProofResult;
     lomb_scargle_circom?: VerifiableProofResult;
-    zkvm?: VerifiableProofResult;
+
   };
   bpm_evaluation?: BpmEvaluation;
   disabled_methods?: string[];
-  fft_dataframe?: DataframeDict;
-  wavelet_dataframe?: DataframeDict;
-  music_dataframe?: DataframeDict;
-  raw_signal?: SignalDict;
-  filtered_signal?: SignalDict;
-  breathing_rate_comparison?: BreathingRateComparison;
-  fft_phase_dataframe?: DataframeDict;
-  wavelet_phase_dataframe?: DataframeDict;
-  music_phase_dataframe?: DataframeDict;
-  breathing_rate_phase_comparison?: BreathingRateComparison;
-  base_csi_comparison?: BaseCSIComparison;
-  wavelet_zkp?: TransformZKPResult | null;
-  music_zkp?: TransformZKPResult | null;
-  blockchain_proof_id?: string;
-  blockchain_proof_data?: Record<string, unknown>;
   error?: string;
 }
 
@@ -200,22 +137,53 @@ export interface ProofPerformance {
 }
 
 export interface VerifiableProofResult {
-  status: "completed" | "failed" | "skipped" | "disabled";
+  status: "completed" | "failed";
   isNormal?: boolean;
   isValid?: boolean;
   method?: string;
+  proofScope?: string;
+  estimatedFrequencyHz?: number;
+  estimatedBpm?: number;
+  globalPeakFrequencyHz?: number;
+  globalPeakBpm?: number;
   error?: string;
   error_type?: string;
   reason?: string;
-  file_size?: number;
-  threshold_mb?: number;
   performance?: ProofPerformance;
-  journal?: {
-    algorithm_version?: string;
-    breathing_rate_milli_bpm?: number;
-    is_normal?: boolean;
-    input_commitment?: string;
-  };
+  benchmark?: CircomProofBenchmark;
+}
+
+export interface CircomProofBenchmark {
+  circuitName: string;
+  provingSystem: "groth16" | string;
+  curve: string;
+  constraintCount: number | null;
+  witnessGenerationMs: number;
+  proofGenerationMs: number;
+  verificationMs: number | null;
+  totalMs: number;
+  averageProofTimePerConstraintNs: number | null;
+  measuredAt: string;
+  stageBreakdown: ProofStageBreakdown | null;
+}
+
+export interface ProofStageTiming {
+  key: string;
+  label: string;
+  description: string | null;
+  constraints: number;
+  constraintShare: number;
+  estimatedMs: number;
+}
+
+/** Groth16は全制約を一括証明するため、段階別の値は実測総時間を制約数比で按分したもの。 */
+export interface ProofStageBreakdown {
+  stages: ProofStageTiming[];
+  fixedOverheadMs: number;
+  attributedWorkMs: number;
+  totalConstraints: number;
+  profileMeasuredAt: string | null;
+  method: string;
 }
 
 export interface MainCSIResponse {
@@ -240,12 +208,3 @@ export interface CSIDataListResponse {
   total_pages: number;
 }
 
-export interface TransformZKPResult {
-  is_normal: boolean;
-  proof_id: string | null;
-}
-
-export interface SpectrumPoint {
-  frequency: number;
-  magnitude: number;
-}

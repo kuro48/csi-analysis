@@ -51,8 +51,6 @@ class BaseCSIService:
                 id=pcap_id,
                 name=register_info.name,
                 fft_dataframe={},
-                wavelet_dataframe=None,
-                music_dataframe=None,
                 subcarrier_medians=None,
                 source_pcap_path=str(pcap_path),
                 source_pcap_size=len(pcap_file_data),
@@ -89,8 +87,6 @@ class BaseCSIService:
             analyzer = PCAPAnalyzer()
             analysis_result = analyzer.analyze_file(
                 base_csi.source_pcap_path,
-                include_wavelet=False,
-                include_music=False,
                 include_breathing=False,
             )
 
@@ -99,8 +95,6 @@ class BaseCSIService:
                 raise ValueError("CSI解析結果が空です")
 
             base_csi.fft_dataframe = BaseCSIService._serialize_dataframe(fft_df) or {}
-            base_csi.wavelet_dataframe = BaseCSIService._serialize_dataframe(analysis_result["wavelet"])
-            base_csi.music_dataframe = BaseCSIService._serialize_dataframe(analysis_result["music"])
             base_csi.subcarrier_medians = analysis_result.get("subcarrier_medians") or {}
             base_csi.raw_signal_dataframe = analysis_result.get("raw_signal")
             base_csi.filtered_signal_dataframe = analysis_result.get("filtered_signal")

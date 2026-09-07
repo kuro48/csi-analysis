@@ -23,7 +23,6 @@ from app.services.breathing_pipeline import (  # noqa: E402
     bandpass_filter,
     prepare_breathing_certificate_input,
     prepare_breathing_zkp_input,
-    prepare_zkvm_input,
     respiration_score_fft,
     select_respiration_pc,
     select_subcarriers_by_snr,
@@ -274,29 +273,6 @@ def test_prepare_breathing_zkp_input_pads_short_signal():
 def test_prepare_breathing_zkp_input_rejects_invalid_fs():
     with pytest.raises(ValueError):
         prepare_breathing_zkp_input(np.ones(100), fs=1.0, target_fs=5.0)
-
-
-@pytest.mark.unit
-def test_prepare_zkvm_input_is_flattened_bounded_and_deterministic():
-    matrix = np.array(
-        [
-            [3 + 4j, 1 + 0j, 0 + 2j],
-            [0 + 5j, 2 + 0j, 0 + 3j],
-            [4 + 3j, 3 + 0j, 0 + 4j],
-        ],
-        dtype=np.complex128,
-    )
-
-    first = prepare_zkvm_input(matrix, scale=100)
-    second = prepare_zkvm_input(matrix, scale=100)
-
-    assert first == second
-    assert first["samples"] == 3
-    assert first["subcarriers"] == 3
-    assert len(first["amplitudes"]) == 9
-    assert all(isinstance(value, int) for value in first["amplitudes"])
-    assert max(first["amplitudes"]) <= 100
-    assert len(first["input_commitment"]) == 64
 
 
 # ---------------------------------------------------------------------------

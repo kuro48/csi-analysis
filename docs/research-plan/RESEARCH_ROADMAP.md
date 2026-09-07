@@ -12,13 +12,13 @@ ZKP による検証可能性を付与するシステムである。現状の資�
 | 資産 | 状態 |
 |------|------|
 | `zkp/circuits/csi_breathing_certificate.circom` | 実装済み。VMD の「計算」ではなく「出力の性質」（再構成性・狭帯域性・正常帯域）を検証する証明書方式 |
-| `zkp/circuits/csi_full_similarity.circom` | 本番フローで使用中（コサイン類似度） |
-| RISC Zero zkVM（`zkvm/`） | 実装済みだが**開発終了**。実データでの証明時間が非実用的 |
+| `zkp/circuits/csi_lomb_scargle_normality.circom` | 本番フローで使用中（不均一標本のLomb--Scargle正常判定） |
+| RISC Zero zkVM（`zkvm/`） | **削除済み**。実データでの証明時間が非実用的だったため実装ごと撤去した |
 | 生CSIの真正性保証（デバイス署名等） | **未実装**（`docs/ZKP_PIPELINE_EXTENSION_IDEAS.md` テーマ2） |
 
-技術スタックは今後 **Python + Circom を主軸**とする。zkVM は今後開発しないが、
-実測した証明時間は「再実行証明が非実用的である」ことの根拠データとして論文で使用する
-（数値・測定条件は破棄しないこと）。
+技術スタックは **Python + Circom を主軸**とする。zkVM の実装は削除したが、
+実測した証明時間は「再実行証明が非実用的である」ことの根拠データとして論文で使用する。
+測定記録は `research/zkvm-comparison/results/` に残してあり、破棄しないこと。
 
 ## 2. 研究戦略の全体像
 
@@ -101,9 +101,9 @@ Phase 3: 「継続的に」保証する
 
 ## 5. スコープ外・凍結事項
 
-- **zkVM（RISC Zero）の追加開発は行わない**。`zkvm/` は削除せず凍結。
-  実測証明時間はモチベーションデータとして保全する。
-- 本番フロー（`csi_full_similarity` / CSIアップロード）は各フェーズで変更しない。
+- **zkVM（RISC Zero）は実装を削除した**。再開発は行わない。
+  実測証明時間はモチベーションデータとして `research/zkvm-comparison/results/` に保全する。
+- 本番フロー（5-1 / Lomb--Scargle の Circom 証明 / CSIアップロード）は各フェーズで変更しない。
   新機能は別エンドポイント・別回路として追加する。
 - TEE ベースのキャプチャ証明は将来課題として論文で言及するに留める。
 

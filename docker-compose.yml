@@ -1,16 +1,4 @@
 services:
-  zkvm-builder:
-    # RISC Zero の公式 guest toolchain は linux/amd64 を対象とする。
-    # Apple Silicon でも builder/backend を同じ ABI で動かす。
-    platform: linux/amd64
-    build:
-      context: ./zkvm
-      dockerfile: Dockerfile
-    container_name: csi_zkvm_builder
-    volumes:
-      - csi_zkvm_bin:/out
-    restart: "no"
-
   postgres:
     image: postgres:15-alpine
     container_name: csi_postgres
@@ -64,10 +52,6 @@ services:
       - ALLOWED_ORIGINS=http://localhost,http://127.0.0.1,http://localhost:3000,https://csi.kur048.com,https://api.csi.kur048.com
       - DEBUG=True
       - ZKP_AUTO_COMPILE=${ZKP_AUTO_COMPILE:-false}
-      - CSI_ZKVM_BINARY=/opt/csi-zkvm/csi-zkvm-host
-      - CSI_ZKVM_TIMEOUT_SECONDS=1800
-      - CSI_ZKVM_ENABLED=${CSI_ZKVM_ENABLED:-false}
-      - CSI_ZKVM_MAX_FILE_SIZE_MB=${CSI_ZKVM_MAX_FILE_SIZE_MB:-200}
       - PICOSCENES_PARSER=python
       - PICOSCENES_MAX_FILE_SIZE_MB=${PICOSCENES_MAX_FILE_SIZE_MB:-0}
       - PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB=${PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB:-200}
@@ -80,13 +64,10 @@ services:
     volumes:
       - ./backend:/app
       - ./zkp:/zkp
-      - csi_zkvm_bin:/opt/csi-zkvm:ro
       - csi_uploads:/app/uploads
     ports:
       - "8000:8000"
     depends_on:
-      zkvm-builder:
-        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -178,8 +159,6 @@ volumes:
   csi_uploads:
     driver: local
   ganache_data:
-    driver: local
-  csi_zkvm_bin:
     driver: local
 
 networks:

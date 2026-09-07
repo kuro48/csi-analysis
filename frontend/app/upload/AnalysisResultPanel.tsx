@@ -1,44 +1,401 @@
 "use client";
 
-import { useState } from "react";
+import { API_BASE } from "./constants";
 import { MetricCard } from "./MetricCard";
 import { SignalChart } from "./SignalChart";
-import { SpectrumChart } from "./SpectrumChart";
 import { ProofPerformanceTable } from "./ProofPerformanceTable";
 import { formatCount, formatSeconds } from "./proofPerformance";
-import {
-  dataframeToSpectrumPoints,
-  pickBreathingBpm,
-  pickSimilarityScores,
-  signalDictToPoints,
-  waveformToSignalPoints,
-  type SignalSource,
-} from "./transformers";
-import type {
-  ProcessedData,
-  TransformZKPResult,
-  VerifiableProofResult,
-} from "./types";
+import { waveformToSignalPoints } from "./transformers";
+import type { ProcessedData, ProofStageBreakdown, VerifiableProofResult } from "./types";
 
 interface MainCSIData {
   processedData: ProcessedData | null;
-}
-
-function formatTransformStatus(result: TransformZKPResult | null | undefined): string {
-  if (!result) return "未生成";
-  return result.is_normal ? "normal" : "abnormal";
-}
-
-function formatProofId(value: string | null | undefined): string {
-  return value && value.length > 0 ? value : "未記録";
+  csiDataId?: string;
 }
 
 function formatNumber(value: number | null | undefined, digits = 2): string {
   return value != null && isFinite(value) ? value.toFixed(digits) : "—";
 }
 
+function formatDuration(seconds: number): string {
+  return seconds < 1 ? `${formatNumber(seconds * 1000, 1)} ms` : `${formatNumber(seconds, 3)} 秒`;
+}
+
 function proofNormality(proof: VerifiableProofResult | undefined): boolean | undefined {
-  return proof?.isNormal ?? proof?.journal?.is_normal;
+  return proof?.isNormal;
+}
+
+function displayPipelineName(value: string | null | undefined): string {
+  if (!value || value.startsWith("5-1")) return "VMD処理";
+  return value;
+}
+
+function csvCell(value: string | number | null | undefined): string {
+  if (value == null) return "";
+  const text = String(value);
+  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function downloadBenchmarkCsv(
+  rows: Array<{ key: string; label: string; proof: VerifiableProofResult }>,
+): void {
+  const headers = [
+    "proof_branch",
+    "proof_label",
+    "method",
+    "circuit_name",
+    "proving_system",
+    "curve",
+    "constraint_count",
+    "witness_generation_ms",
+    "proof_generation_ms",
+    "verification_ms",
+    "total_ms",
+    "average_proof_time_per_constraint_ns",
+    "measured_at",
+  ];
+  const lines = rows.map(({ key, label, proof }) => {
+    const benchmark = proof.benchmark!;
+    return [
+      key,
+      label,
+      proof.method,
+      benchmark.circuitName,
+      benchmark.provingSystem,
+      benchmark.curve,
+      benchmark.constraintCount,
+      benchmark.witnessGenerationMs,
+      benchmark.proofGenerationMs,
+      benchmark.verificationMs,
+      benchmark.totalMs,
+      benchmark.averageProofTimePerConstraintNs,
+      benchmark.measuredAt,
+    ].map(csvCell).join(",");
+  });
+  const blob = new Blob(["\ufeff", headers.join(","), "\n", lines.join("\n"), "\n"], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "circom_benchmarks.csv";
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function CircomBenchmarkSection({
+  proofs,
+  csiDataId,
+}: {
+  proofs: ProcessedData["proofs"];
+  csiDataId?: string;
+}) {
+  const candidates = [
+    { key: "python_circom", label: "VMD処理 + Circom", proof: proofs?.python_circom },
+    {
+      key: "lomb_scargle_circom",
+      label: "Lomb–Scargle + Circom",
+      proof: proofs?.lomb_scargle_circom,
+    },
+  ];
+  const rows = candidates.filter(
+    (row): row is { key: string; label: string; proof: VerifiableProofResult } =>
+      row.proof?.benchmark != null,
+  );
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+      <div className="flex flex-col gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-neutral-900">Circom制約・証明時間</h3>
+          <p className="mt-1 text-xs text-neutral-500">
+            Groth16は全制約を一括証明するため、1制約あたりは証明生成時間の平均値です。
+          </p>
+        </div>
+        {csiDataId ? (
+          <a
+            href={`${API_BASE}/api/v2/csi-data/${csiDataId}/circom-benchmarks.csv`}
+            download
+            className="inline-flex h-9 w-fit items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
+          >
+            CSVをダウンロード
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() => downloadBenchmarkCsv(rows)}
+            className="h-9 w-fit rounded-lg border border-neutral-300 bg-white px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
+          >
+            CSVをダウンロード
+          </button>
+        )}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[980px] text-left text-xs">
+          <thead className="bg-white text-neutral-500">
+            <tr>
+              <th className="px-4 py-2 font-medium">回路</th>
+              <th className="px-4 py-2 text-right font-medium">制約数</th>
+              <th className="px-4 py-2 text-right font-medium">Witness</th>
+              <th className="px-4 py-2 text-right font-medium">証明生成</th>
+              <th className="px-4 py-2 text-right font-medium">検証</th>
+              <th className="px-4 py-2 text-right font-medium">合計</th>
+              <th className="px-4 py-2 text-right font-medium">1制約平均</th>
+              <th className="px-4 py-2 font-medium">計測日時</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-100 text-neutral-700">
+            {rows.map(({ key, label, proof }) => {
+              const benchmark = proof.benchmark!;
+              return (
+                <tr key={key}>
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-neutral-900">{label}</p>
+                    <p className="mt-1 font-mono text-[11px] text-neutral-500">
+                      {benchmark.circuitName} / {benchmark.provingSystem} / {benchmark.curve}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {benchmark.constraintCount?.toLocaleString() ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">{formatNumber(benchmark.witnessGenerationMs, 3)} ms</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatNumber(benchmark.proofGenerationMs, 3)} ms</td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {benchmark.verificationMs == null ? "—" : `${formatNumber(benchmark.verificationMs, 3)} ms`}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono font-semibold">{formatNumber(benchmark.totalMs, 3)} ms</td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {benchmark.averageProofTimePerConstraintNs == null
+                      ? "—"
+                      : `${formatNumber(benchmark.averageProofTimePerConstraintNs, 3)} ns`}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {new Date(benchmark.measuredAt).toLocaleString("ja-JP")}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {rows.map(({ key, label, proof }) =>
+        proof.benchmark?.stageBreakdown ? (
+          <StageBreakdownTable
+            key={`${key}-stages`}
+            label={label}
+            proofGenerationMs={proof.benchmark.proofGenerationMs}
+            breakdown={proof.benchmark.stageBreakdown}
+          />
+        ) : null,
+      )}
+    </div>
+  );
+}
+
+function AlgorithmDifferenceSection() {
+  const sharedStages = ["CSI振幅", "SNR選択", "帯域抽出", "PCA"];
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+      <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+        <h3 className="text-sm font-semibold text-neutral-900">2つの呼吸推定処理の違い</h3>
+        <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+          PCAまでは同じデータを使用し、その後の周波数推定とCircomで証明する計算が異なります。
+        </p>
+      </div>
+
+      <div className="px-4 py-4">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-600">
+          <span className="font-semibold text-neutral-800">共通前処理</span>
+          {sharedStages.map((stage, index) => (
+            <div key={stage} className="flex items-center gap-2">
+              {index > 0 && <span aria-hidden="true" className="text-neutral-300">→</span>}
+              <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5">
+                {stage}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <article className="rounded-lg border border-teal-200 bg-teal-50/60 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-semibold text-teal-950">VMD処理</h4>
+              <span className="rounded-full bg-teal-100 px-2.5 py-1 text-[11px] font-semibold text-teal-800">
+                モード分解
+              </span>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-teal-950/75">
+              選択したPCA波形を5つのVMDモードへ分解し、各モードのFFTピークから呼吸成分とBPMを選びます。
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-teal-900">
+              <span className="rounded bg-white/80 px-2 py-1">PCA波形</span>
+              <span aria-hidden="true">→</span>
+              <span className="rounded bg-white/80 px-2 py-1">VMD 5モード</span>
+              <span aria-hidden="true">→</span>
+              <span className="rounded bg-white/80 px-2 py-1">FFTピーク</span>
+            </div>
+            <dl className="mt-4 border-t border-teal-200 pt-3 text-xs">
+              <div className="grid grid-cols-[5.5rem_1fr] gap-2">
+                <dt className="font-semibold text-teal-900">時刻の扱い</dt>
+                <dd className="text-teal-950/75">100 Hzへ等間隔化（Circom入力は5 Hzへ縮約）</dd>
+              </div>
+              <div className="mt-2 grid grid-cols-[5.5rem_1fr] gap-2">
+                <dt className="font-semibold text-teal-900">Circom検証</dt>
+                <dd className="text-teal-950/75">
+                  秘密のVMD入力・5モード・選択フラグから、再構成、狭帯域性、DFTピーク、正常BPM帯域を検証
+                </dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-semibold text-blue-950">Lomb–Scargle処理</h4>
+              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-800">
+                不均一時刻を直接解析
+              </span>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-blue-950/75">
+              VMDへ分解せず、PCA波形と実測タイムスタンプからLomb–Scargleスコアを求め、PCとBPMを選びます。
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-blue-900">
+              <span className="rounded bg-white/80 px-2 py-1">PCA波形＋時刻</span>
+              <span aria-hidden="true">→</span>
+              <span className="rounded bg-white/80 px-2 py-1">LSスコア</span>
+              <span aria-hidden="true">→</span>
+              <span className="rounded bg-white/80 px-2 py-1">全帯域ピーク</span>
+            </div>
+            <dl className="mt-4 border-t border-blue-200 pt-3 text-xs">
+              <div className="grid grid-cols-[5.5rem_1fr] gap-2">
+                <dt className="font-semibold text-blue-900">時刻の扱い</dt>
+                <dd className="text-blue-950/75">パケットごとの不均一な実測時刻を使用</dd>
+              </div>
+              <div className="mt-2 grid grid-cols-[5.5rem_1fr] gap-2">
+                <dt className="font-semibold text-blue-900">Circom検証</dt>
+                <dd className="text-blue-950/75">
+                  秘密のPCA波形と公開時刻から三角関数を近似し、LSスコア、PC選択、ピーク、正常BPM帯域まで回路内で計算
+                </dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LombScargleTimingSection({ analysis }: { analysis: ProcessedData["analysis"] }) {
+  const lomb = analysis?.lomb_scargle;
+  const steps = lomb?.processing_steps ?? [];
+  if (steps.length === 0) return null;
+
+  const total = lomb?.processing_time_seconds ?? steps.reduce((sum, step) => sum + step.seconds, 0);
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-blue-200 bg-white">
+      <div className="flex flex-col gap-1 border-b border-blue-100 bg-blue-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-blue-950">Lomb–Scargle処理時間</h3>
+          <p className="mt-1 text-xs text-blue-900/65">
+            共通PCA出力を受け取った後の実測値です。CircomのWitness・証明・検証時間は下部に分けて表示します。
+          </p>
+        </div>
+        <p className="mt-1 shrink-0 font-mono text-sm font-semibold text-blue-950 sm:mt-0">
+          合計 {formatDuration(total)}
+        </p>
+      </div>
+      <div className="overflow-x-auto px-4 py-2">
+        <table className="w-full min-w-[480px] text-left text-xs">
+          <thead className="text-neutral-500">
+            <tr>
+              <th className="py-2 pr-4 font-medium">処理</th>
+              <th className="py-2 pr-4 text-right font-medium">所要時間</th>
+              <th className="py-2 text-right font-medium">全体比</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-100 text-neutral-700">
+            {steps.map((step) => (
+              <tr key={step.key}>
+                <td className="py-2.5 pr-4 font-medium text-neutral-900">{step.label}</td>
+                <td className="py-2.5 pr-4 text-right font-mono">{formatDuration(step.seconds)}</td>
+                <td className="py-2.5 text-right font-mono">
+                  {total > 0 ? `${formatNumber((step.seconds / total) * 100, 1)}%` : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function StageBreakdownTable({
+  label,
+  proofGenerationMs,
+  breakdown,
+}: {
+  label: string;
+  proofGenerationMs: number;
+  breakdown: ProofStageBreakdown;
+}) {
+  return (
+    <div className="border-t border-neutral-200 px-4 py-4">
+      <h4 className="text-sm font-semibold text-neutral-900">
+        {label} — 処理段階別の証明生成時間
+      </h4>
+      <p className="mt-1 text-xs text-neutral-500">
+        証明生成 {formatNumber(proofGenerationMs, 1)} ms の内訳。Groth16は全制約を一括で証明するため
+        段階ごとの直接計測はできず、段階別回路で実測したプロファイルの制約数比で按分している。
+      </p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[520px] text-left text-xs">
+          <thead className="text-neutral-500">
+            <tr>
+              <th className="py-2 pr-4 font-medium">段階</th>
+              <th className="py-2 pr-4 text-right font-medium">制約数</th>
+              <th className="py-2 pr-4 text-right font-medium">割合</th>
+              <th className="py-2 text-right font-medium">推定時間</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-100 text-neutral-700">
+            {breakdown.stages.map((stage) => (
+              <tr key={stage.key}>
+                <td className="py-2 pr-4">
+                  <p className="font-medium text-neutral-900">{stage.label}</p>
+                  {stage.description ? (
+                    <p className="mt-0.5 text-[11px] text-neutral-500">{stage.description}</p>
+                  ) : null}
+                </td>
+                <td className="py-2 pr-4 text-right font-mono">
+                  {stage.constraints.toLocaleString()}
+                </td>
+                <td className="py-2 pr-4 text-right font-mono">
+                  {formatNumber(stage.constraintShare * 100, 1)}%
+                </td>
+                <td className="py-2 text-right font-mono">
+                  {formatNumber(stage.estimatedMs, 1)} ms
+                </td>
+              </tr>
+            ))}
+            <tr className="text-neutral-500">
+              <td className="py-2 pr-4">
+                <p className="font-medium">固定オーバーヘッド</p>
+                <p className="mt-0.5 text-[11px]">snarkjsプロセス起動とzkey読み込み（制約数に依存しない）</p>
+              </td>
+              <td className="py-2 pr-4 text-right font-mono">—</td>
+              <td className="py-2 pr-4 text-right font-mono">—</td>
+              <td className="py-2 text-right font-mono">
+                {formatNumber(breakdown.fixedOverheadMs, 1)} ms
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 function ProofCard({
@@ -51,7 +408,6 @@ function ProofCard({
   fallbackMethod: string;
 }) {
   const completed = proof?.status === "completed";
-  const disabled = proof?.status === "disabled";
   const valid = completed && proof.isValid === true;
   const normal = proofNormality(proof);
 
@@ -61,7 +417,9 @@ function ProofCard({
         <div>
           <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
           <p className="mt-1 font-mono text-xs text-neutral-500">
-            {proof?.journal?.algorithm_version ?? proof?.method ?? fallbackMethod}
+            {displayPipelineName(
+              proof?.method ?? fallbackMethod,
+            )}
           </p>
         </div>
         <span
@@ -81,18 +439,31 @@ function ProofCard({
               ? "証明無効"
               : proof?.status === "failed"
                 ? "生成失敗"
-                : disabled
-                  ? "設定で停止中"
-                  : "未実行"}
+                : "未実行"}
         </span>
       </div>
 
       {completed && (
-        <div className="mt-4 flex items-center justify-between border-t border-neutral-100 pt-3">
-          <span className="text-xs text-neutral-500">回路内の呼吸判定</span>
-          <span className={`text-sm font-semibold ${normal ? "text-emerald-700" : "text-amber-700"}`}>
-            {normal == null ? "判定なし" : normal ? "正常帯域" : "正常帯域外"}
-          </span>
+        <div className="mt-4 space-y-2 border-t border-neutral-100 pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-neutral-500">回路内の呼吸判定</span>
+            <span className={`text-sm font-semibold ${normal ? "text-emerald-700" : "text-amber-700"}`}>
+              {normal == null ? "判定なし" : normal ? "正常帯域" : "正常帯域外"}
+            </span>
+          </div>
+          {proof.estimatedBpm != null && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-neutral-500">回路内Lomb–Scargle推定</span>
+              <span className="font-mono text-sm font-semibold text-neutral-800">
+                {formatNumber(proof.estimatedBpm, 2)} BPM
+              </span>
+            </div>
+          )}
+          {proof.proofScope && (
+            <p className="break-words font-mono text-[10px] leading-relaxed text-neutral-400">
+              {proof.proofScope}
+            </p>
+          )}
         </div>
       )}
 
@@ -122,90 +493,7 @@ function ProofCard({
   );
 }
 
-interface SignalSpectrumSectionProps {
-  processedData: ProcessedData;
-  source: SignalSource;
-}
-
-function SignalSpectrumSection({ processedData, source }: SignalSpectrumSectionProps) {
-  const bpm = pickBreathingBpm(processedData, source);
-  const hasAnyBreathingBpm = [bpm.fft, bpm.wavelet, bpm.music].some(
-    (value) => value != null,
-  );
-
-  const labelSuffix = source === "phase" ? " (位相)" : " (振幅)";
-  const fftDf =
-    source === "phase" ? processedData.fft_phase_dataframe : processedData.fft_dataframe;
-  const waveletDf =
-    source === "phase"
-      ? processedData.wavelet_phase_dataframe
-      : processedData.wavelet_dataframe;
-  const musicDf =
-    source === "phase" ? processedData.music_phase_dataframe : processedData.music_dataframe;
-
-  const fftPoints = dataframeToSpectrumPoints(fftDf ?? null);
-  const waveletPoints = dataframeToSpectrumPoints(waveletDf ?? null);
-  const musicPoints = dataframeToSpectrumPoints(musicDf ?? null);
-  const hasAnySpectrum = fftPoints.length + waveletPoints.length + musicPoints.length > 0;
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <MetricCard label={`FFT BPM${labelSuffix}`} value={bpm.fft} unit="BPM" />
-        <MetricCard label={`Wavelet BPM${labelSuffix}`} value={bpm.wavelet} unit="BPM" />
-        <MetricCard label={`MUSIC BPM${labelSuffix}`} value={bpm.music} unit="BPM" />
-      </div>
-      {!hasAnyBreathingBpm && (
-        <p className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500">
-          {source === "phase"
-            ? "位相解析の呼吸数データはありません。位相情報を含む CSI ファイルではない可能性があります。"
-            : "呼吸数データはありません。"}
-        </p>
-      )}
-
-      {hasAnySpectrum ? (
-        <div className="space-y-3">
-          <SpectrumChart title={`FFT スペクトル${labelSuffix}`} points={fftPoints} />
-          <SpectrumChart title={`Wavelet スペクトル${labelSuffix}`} points={waveletPoints} />
-          <SpectrumChart title={`MUSIC スペクトル${labelSuffix}`} points={musicPoints} />
-        </div>
-      ) : (
-        source === "phase" && (
-          <p className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500">
-            位相スペクトルデータはありません。
-          </p>
-        )
-      )}
-    </div>
-  );
-}
-
-interface TabButtonProps {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}
-
-function TabButton({ active, onClick, children }: TabButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={
-        active
-          ? "rounded-t-lg border border-b-0 border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-900"
-          : "rounded-t-lg border border-transparent px-4 py-2 text-sm text-neutral-500 hover:text-neutral-800"
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
-function MainPanel({ processedData }: MainCSIData) {
-  const [activeTab, setActiveTab] = useState<SignalSource>("amplitude");
-
+function MainPanel({ processedData, csiDataId }: MainCSIData) {
   if (!processedData) return null;
 
   if (processedData.error) {
@@ -216,20 +504,14 @@ function MainPanel({ processedData }: MainCSIData) {
     const analysis = processedData.analysis;
     const circom = processedData.proofs?.python_circom;
     const lombCircom = processedData.proofs?.lomb_scargle_circom;
-    const zkvm = processedData.proofs?.zkvm;
     const lomb = analysis.lomb_scargle;
     const comparison = analysis.algorithm_comparison;
     const bpmEvaluation = processedData.bpm_evaluation;
     const waveformPoints = waveformToSignalPoints(analysis.respiration_waveform);
-    const zkvmBpm =
-      zkvm?.journal?.breathing_rate_milli_bpm != null
-        ? zkvm.journal.breathing_rate_milli_bpm / 1000
-        : null;
     const diagnostics = analysis.certificate_diagnostics;
     const proofPerformanceEntries = [
-      { label: "Python + Circom", proof: circom },
+      { label: "VMD処理 + Circom", proof: circom },
       { label: "Lomb–Scargle + Circom", proof: lombCircom },
-      { label: "RISC Zero zkVM", proof: zkvm },
     ];
     const hasProofPerformance = proofPerformanceEntries.some((entry) => entry.proof?.performance);
     const resultStatus = processedData.status ?? "completed";
@@ -251,18 +533,7 @@ function MainPanel({ processedData }: MainCSIData) {
           </span>
         </div>
 
-        <ol className="grid grid-cols-2 gap-x-3 gap-y-4 border-b border-neutral-200 pb-5 text-xs text-neutral-600 sm:grid-cols-4">
-          {["CSI読込・SNR選択", "帯域抽出・PCA", "VMD呼吸成分選択", "Circom証明"].map(
-            (stage, index) => (
-              <li key={stage} className="flex items-center gap-2">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-neutral-900 font-semibold text-white">
-                  {index + 1}
-                </span>
-                <span>{stage}</span>
-              </li>
-            ),
-          )}
-        </ol>
+        <AlgorithmDifferenceSection />
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
@@ -287,7 +558,7 @@ function MainPanel({ processedData }: MainCSIData) {
               <MetricCard label="正解" value={bpmEvaluation.ground_truth_bpm} unit="BPM" />
             )}
             <MetricCard
-              label="現行 5-1"
+              label="VMD処理"
               value={comparison?.current_breathing_rate_bpm ?? analysis.breathing_rate_bpm ?? null}
               unit="BPM"
             />
@@ -310,31 +581,20 @@ function MainPanel({ processedData }: MainCSIData) {
           )}
         </div>
 
+        <LombScargleTimingSection analysis={analysis} />
+
         <SignalChart title="VMDで抽出した呼吸波形" points={waveformPoints} color="#0f766e" />
 
         <div>
           <h3 className="mb-3 text-sm font-semibold text-neutral-900">証明</h3>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <ProofCard title="Python + Circom" proof={circom} fallbackMethod="breathing_certificate" />
+            <ProofCard title="VMD処理 + Circom" proof={circom} fallbackMethod="breathing_certificate" />
             <ProofCard
               title="Lomb–Scargle + Circom"
               proof={lombCircom}
-              fallbackMethod="lomb_scargle_periodogram_certificate"
+              fallbackMethod="lomb_scargle_timestamp_trig_fixed_point"
             />
-            {zkvm?.status !== "disabled" && (
-              <ProofCard title="RISC Zero zkVM" proof={zkvm} fallbackMethod="5-1-fixed-v1" />
-            )}
           </div>
-          {zkvm?.status === "disabled" && (
-            <p className="mt-2 text-xs text-neutral-500">RISC Zero zkVMは現在の処理経路では無効です。</p>
-          )}
-          {zkvmBpm != null && (
-            <p className="mt-2 text-xs text-neutral-500">
-              zkVM再計算: {formatNumber(zkvmBpm, 3)} BPM
-              {analysis.breathing_rate_bpm != null &&
-                ` / 差分 ${formatNumber(Math.abs(analysis.breathing_rate_bpm - zkvmBpm), 3)} BPM`}
-            </p>
-          )}
         </div>
 
         {hasProofPerformance && (
@@ -343,6 +603,8 @@ function MainPanel({ processedData }: MainCSIData) {
             <ProofPerformanceTable entries={proofPerformanceEntries} />
           </div>
         )}
+
+        <CircomBenchmarkSection proofs={processedData.proofs} csiDataId={csiDataId} />
 
         <div>
           <h3 className="mb-3 text-sm font-semibold text-neutral-900">解析データ</h3>
@@ -437,10 +699,7 @@ function MainPanel({ processedData }: MainCSIData) {
         )}
 
         <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs text-neutral-600">
-          <p>解析パイプライン: {analysis.pipeline ?? "5-1.ipynb"}</p>
-          <p className="mt-1 break-all font-mono">
-            入力コミットメント: {analysis.input_commitment ?? "—"}
-          </p>
+          <p>解析パイプライン: {displayPipelineName(analysis.pipeline)}</p>
           <p className="mt-2">
             一時無効: {(processedData.disabled_methods ?? []).join(", ") || "なし"}
           </p>
@@ -449,132 +708,7 @@ function MainPanel({ processedData }: MainCSIData) {
     );
   }
 
-  const similarity = pickSimilarityScores(processedData);
-  const comparison = processedData.base_csi_comparison;
-  const primaryMethod = comparison?.primary_method ?? comparison?.comparison_summary?.primary_method;
-  const dimensions = comparison?.data_dimensions;
-
-  const hasPhaseData =
-    processedData.fft_phase_dataframe != null ||
-    processedData.wavelet_phase_dataframe != null ||
-    processedData.music_phase_dataframe != null ||
-    processedData.breathing_rate_phase_comparison != null;
-
-  const rawPoints = signalDictToPoints(processedData.raw_signal ?? null);
-  const filteredPoints = signalDictToPoints(processedData.filtered_signal ?? null);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex border-b border-neutral-300">
-        <TabButton
-          active={activeTab === "amplitude"}
-          onClick={() => setActiveTab("amplitude")}
-        >
-          振幅解析
-        </TabButton>
-        <TabButton
-          active={activeTab === "phase"}
-          onClick={() => setActiveTab("phase")}
-        >
-          位相解析
-          {!hasPhaseData && (
-            <span className="ml-2 text-xs text-neutral-400">(データなし)</span>
-          )}
-        </TabButton>
-      </div>
-
-      <SignalSpectrumSection processedData={processedData} source={activeTab} />
-
-      {Object.keys(similarity).length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          <MetricCard label="FFT 類似度" value={similarity.fft} digits={3} />
-          <MetricCard label="Wavelet 類似度" value={similarity.wavelet} digits={3} />
-          <MetricCard label="MUSIC 類似度" value={similarity.music} digits={3} />
-        </div>
-      )}
-
-      {comparison && (
-        <div className="rounded-lg border border-neutral-200 bg-white p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                ベースCSI比較
-              </p>
-              <p className="mt-1 text-sm font-semibold text-neutral-900">
-                {comparison.base_csi_name}
-              </p>
-              <p className="mt-1 break-all font-mono text-xs text-neutral-500">
-                {comparison.base_csi_id}
-              </p>
-            </div>
-            <div className="text-right text-xs text-neutral-500">
-              <p>代表手法: {primaryMethod ?? "—"}</p>
-              <p>検証: {comparison.is_valid ? "valid" : "not valid"}</p>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-3 text-xs text-neutral-600 sm:grid-cols-3">
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-neutral-500">選択サブキャリア</p>
-              <p className="mt-1 font-semibold text-neutral-900">
-                {comparison.selected_subcarrier?.index ?? "—"}
-              </p>
-            </div>
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-neutral-500">周波数点</p>
-              <p className="mt-1 font-semibold text-neutral-900">
-                {dimensions?.num_freq_points ?? "—"}
-              </p>
-            </div>
-            <div className="rounded-lg bg-neutral-50 p-3">
-              <p className="text-neutral-500">総次元</p>
-              <p className="mt-1 font-semibold text-neutral-900">
-                {dimensions?.total_dimensions ?? "—"}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="rounded-lg border border-neutral-200 bg-white p-4">
-        <p className="text-sm font-semibold text-neutral-800">
-          ZKP / ブロックチェーン記録 (振幅ベース)
-        </p>
-        <div className="mt-3 grid gap-3 text-xs text-neutral-600 sm:grid-cols-3">
-          <div className="rounded-lg bg-neutral-50 p-3">
-            <p className="text-neutral-500">FFT Proof ID</p>
-            <p className="mt-1 break-all font-mono text-neutral-900">
-              {comparison ? formatProofId(processedData.blockchain_proof_id) : "未生成"}
-            </p>
-          </div>
-          <div className="rounded-lg bg-neutral-50 p-3">
-            <p className="text-neutral-500">Wavelet</p>
-            <p className="mt-1 font-semibold text-neutral-900">
-              {formatTransformStatus(processedData.wavelet_zkp)}
-            </p>
-            <p className="mt-1 break-all font-mono">
-              {formatProofId(processedData.wavelet_zkp?.proof_id)}
-            </p>
-          </div>
-          <div className="rounded-lg bg-neutral-50 p-3">
-            <p className="text-neutral-500">MUSIC</p>
-            <p className="mt-1 font-semibold text-neutral-900">
-              {formatTransformStatus(processedData.music_zkp)}
-            </p>
-            <p className="mt-1 break-all font-mono">
-              {formatProofId(processedData.music_zkp?.proof_id)}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">処理過程</p>
-        <SignalChart title="生CSI振幅（時系列）" points={rawPoints} color="#6366f1" />
-        <SignalChart title="バンドパスフィルタ後（時系列）" points={filteredPoints} color="#f59e0b" />
-      </div>
-    </div>
-  );
+  return <p className="text-sm text-neutral-500">解析結果がまだありません。</p>;
 }
 
 export function AnalysisResultPanel(props: MainCSIData) {

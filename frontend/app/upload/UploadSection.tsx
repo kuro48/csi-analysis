@@ -130,9 +130,9 @@ export function UploadSection() {
 
   return (
     <section className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
-      <h2 className="text-lg font-semibold text-neutral-900">5-1 検証可能呼吸解析</h2>
+      <h2 className="text-lg font-semibold text-neutral-900">VMD・Lomb–Scargle 検証可能呼吸解析</h2>
       <p className="mt-1 mb-4 text-sm text-neutral-500">
-        PicoScenes CSIを保存し、5-1解析とCircom証明を実行します
+        PicoScenes CSIを保存し、VMD処理とLomb–Scargle処理のCircom証明を実行します
       </p>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -205,7 +205,7 @@ export function UploadSection() {
 
       {status === "completed" && record && (
         <div className="mt-6 border-t border-neutral-200 pt-6">
-          <AnalysisResultPanel processedData={record.processed_data} />
+          <AnalysisResultPanel processedData={record.processed_data} csiDataId={record.id} />
         </div>
       )}
     </section>

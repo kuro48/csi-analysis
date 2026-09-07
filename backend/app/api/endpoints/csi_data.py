@@ -2,6 +2,8 @@
 CSIデータ関連エンドポイント
 """
 
+import csv
+import io
 import json
 import logging
 import math
@@ -14,7 +16,7 @@ from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi import status as http_status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -35,6 +37,49 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 _CHUNK_TMP_DIR = Path(tempfile.gettempdir()) / "csi_data_chunks"
+
+_CIRCOM_PROOF_LABELS = {
+    "python_circom": "Python + Circom",
+    "lomb_scargle_circom": "Lomb-Scargle + Circom",
+}
+
+
+def build_circom_benchmark_csv(csi_data_id: uuid.UUID, processed_data: object) -> str:
+    """保存済み証明結果から、画面表示と同じCircom計測値をCSV化する。"""
+    proofs = processed_data.get("proofs", {}) if isinstance(processed_data, dict) else {}
+    rows = []
+    for proof_key, proof_label in _CIRCOM_PROOF_LABELS.items():
+        proof = proofs.get(proof_key) if isinstance(proofs, dict) else None
+        benchmark = proof.get("benchmark") if isinstance(proof, dict) else None
+        if not isinstance(benchmark, dict):
+            continue
+        rows.append(
+            {
+                "csi_data_id": str(csi_data_id),
+                "proof_branch": proof_key,
+                "proof_label": proof_label,
+                "method": proof.get("method", ""),
+                "circuit_name": benchmark.get("circuitName", ""),
+                "proving_system": benchmark.get("provingSystem", ""),
+                "curve": benchmark.get("curve", ""),
+                "constraint_count": benchmark.get("constraintCount", ""),
+                "witness_generation_ms": benchmark.get("witnessGenerationMs", ""),
+                "proof_generation_ms": benchmark.get("proofGenerationMs", ""),
+                "verification_ms": benchmark.get("verificationMs", ""),
+                "total_ms": benchmark.get("totalMs", ""),
+                "average_proof_time_per_constraint_ns": benchmark.get("averageProofTimePerConstraintNs", ""),
+                "measured_at": benchmark.get("measuredAt", ""),
+            }
+        )
+
+    if not rows:
+        raise ValueError("Circom証明の計測結果がありません")
+
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()), lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    return output.getvalue()
 
 
 @router.post("/upload-chunk")
@@ -297,6 +342,32 @@ async def update_ground_truth_bpm(
         status=csi_data.status,
         created_at=csi_data.created_at,
         updated_at=csi_data.updated_at,
+    )
+
+
+@router.get("/{csi_data_id}/circom-benchmarks.csv")
+async def download_circom_benchmarks(
+    csi_data_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    """保存済みCircom制約・証明時間の計測結果をCSVで返す。"""
+    csi_data = CSIDataService.get_csi_data_by_id(db, csi_data_id)
+    if not csi_data:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="CSIデータが見つかりません",
+        )
+
+    try:
+        csv_text = build_circom_benchmark_csv(csi_data_id, parse_json_field(csi_data.processed_data))
+    except ValueError as exc:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    filename = f"circom_benchmarks_{csi_data_id}.csv"
+    return Response(
+        content="\ufeff" + csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

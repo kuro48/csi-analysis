@@ -96,7 +96,7 @@ export function AnalyzeSection() {
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-neutral-900">PicoScenes CSIを解析</h2>
           <p className="text-sm text-neutral-500">
-            現行5-1方式とLomb–Scargle方式を比較し、それぞれのCircom判定を生成します
+            VMD処理とLomb–Scargle処理を比較し、それぞれのCircom判定を生成します
           </p>
         </div>
 
@@ -135,7 +135,7 @@ export function AnalyzeSection() {
 
         {analyzing && (
           <div className="mt-4 border-l-2 border-teal-600 pl-3">
-            <p className="text-sm font-medium text-neutral-800">5-1解析とCircom証明を実行中</p>
+            <p className="text-sm font-medium text-neutral-800">VMD・Lomb–Scargle解析とCircom証明を実行中</p>
             <p className="mt-1 text-xs text-neutral-500">
               ファイルサイズによって解析に時間がかかることがあります。
             </p>

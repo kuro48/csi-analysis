@@ -11,6 +11,7 @@ build/
 
 # Keys and ceremony files
 keys/*.ptau
+keys/*.ptau.aria2
 keys/*.zkey
 keys/*.json
 keys/*.sol

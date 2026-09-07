@@ -7,7 +7,7 @@ export default function AnalyzePage() {
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-teal-700">5-1 Verifiable Pipeline</p>
+            <p className="text-sm font-semibold text-teal-700">VMD / Lomb–Scargle Verifiable Pipeline</p>
             <h1 className="mt-1 text-2xl font-bold text-neutral-900">検証可能なCSI呼吸解析</h1>
             <p className="mt-1 text-sm text-neutral-500">
               DBに保存せず、呼吸推定と2系統のゼロ知識証明をその場で実行します

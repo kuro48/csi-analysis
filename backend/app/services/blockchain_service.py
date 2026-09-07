@@ -130,7 +130,7 @@ class BlockchainService:
 
     def _load_verifier_address_from_artifact(self) -> Optional[str]:
         """ビルド済みアーティファクトから検証コントラクトアドレスを取得"""
-        contract_build_path = Path(__file__).parent.parent.parent / "contracts" / "build" / "FullSimilarityVerifier.json"
+        contract_build_path = Path(__file__).parent.parent.parent / "contracts" / "build" / "ZKPVerifier.json"
         if not contract_build_path.exists():
             return None
 
@@ -145,7 +145,7 @@ class BlockchainService:
     def _load_verifier_contract(self):
         """ZKP検証コントラクトをロード"""
         try:
-            contract_build_path = Path(__file__).parent.parent.parent / "contracts" / "build" / "FullSimilarityVerifier.json"
+            contract_build_path = Path(__file__).parent.parent.parent / "contracts" / "build" / "ZKPVerifier.json"
             if not contract_build_path.exists():
                 logger.error(f"Verifier ABI not found: {contract_build_path}")
                 return
@@ -386,7 +386,7 @@ class BlockchainService:
         device_id: str,
         proof: Dict[str, Any],
         public_signals: List[Any],
-        proof_type: str = "full_similarity",
+        proof_type: str = "breathing_certificate",
         data_hash: Optional[bytes] = None
     ) -> Optional[str]:
         """
@@ -396,7 +396,7 @@ class BlockchainService:
             device_id: デバイスID
             proof: ZKP証明オブジェクト
             public_signals: 公開信号リスト
-            proof_type: 証明タイプ（例: "cosine_similarity", "full_similarity"）
+            proof_type: 証明タイプ（例: "breathing_certificate", "lomb_scargle_normality"）
             data_hash: 元データのハッシュ（オプション）
 
         Returns:

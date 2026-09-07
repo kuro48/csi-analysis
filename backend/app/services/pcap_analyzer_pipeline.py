@@ -373,15 +373,11 @@ def _analyze_dataframe(
     df: pd.DataFrame,
     no_frames: int,
     no_subcarriers: int,
-    include_wavelet: bool = True,
-    include_music: bool = True,
     include_breathing: bool = True,
     background_subcarrier_medians: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
-    """変換済み DataFrame を解析し、FFT・Wavelet・MUSIC の周波数表現と呼吸推定値を返す。"""
+    """変換済み DataFrame を解析し、FFT の周波数表現と呼吸推定値を返す。"""
     empty_result = _build_empty_analysis_result(self)
-    if not include_breathing:
-        empty_result["breathing_rate_comparison"] = None
 
     df = self.drop_invalid_rows(df)
     if df.empty:
@@ -413,10 +409,6 @@ def _analyze_dataframe(
     df = self.apply_bandpass_filter(df, self.DOWNSAMPLE_INTERVAL_S)
     filtered_signal = _compute_signal_series(df)
 
-    # バンドパス後の信号を各手法の前提サンプリングレートへ落とす。
-    df_wavelet = self._resample_to_target_rate(df, target_interval_s=self.WAVELET_DOWNSAMPLE_INTERVAL_S)
-    df_music = self._resample_to_target_rate(df, target_interval_s=self.MUSIC_DOWNSAMPLE_INTERVAL_S)
-
     fft_df = self.apply_fourier_transform(df, self.DOWNSAMPLE_INTERVAL_S)
     if fft_df.empty:
         self.logger.warning("FFT結果が空です")
@@ -436,55 +428,11 @@ def _analyze_dataframe(
         else None
     )
 
-    wavelet_df = self.apply_wavelet_transform(df_wavelet, self.WAVELET_DOWNSAMPLE_INTERVAL_S) if include_wavelet else pd.DataFrame()
-    music_df = self.apply_music_transform(df_music, self.MUSIC_DOWNSAMPLE_INTERVAL_S) if include_music else pd.DataFrame()
-
-    zkp_wavelet_input = self._compute_wavelet_zkp_input(df_wavelet) if include_wavelet else None
-    zkp_music_input = self._compute_music_zkp_input(df_music) if include_music else None
-
-    binned_wavelet_df = pd.DataFrame()
-    binned_music_df = pd.DataFrame()
-    breathing_rate_wavelet = None
-    breathing_rate_music = None
-
-    if not wavelet_df.empty:
-        wavelet_df = wavelet_df[
-            (wavelet_df["frequency"] >= self.BREATHING_MIN_FREQ)
-            & (wavelet_df["frequency"] <= self.BREATHING_MAX_FREQ)
-        ].reset_index(drop=True)
-        binned_wavelet_df = self.average_magnitude_by_frequency_bins(wavelet_df, bins)
-        if include_breathing:
-            breathing_rate_wavelet = self.estimate_breathing_rate(wavelet_df, freq_col="frequency")
-
-    if not music_df.empty:
-        music_df = music_df[
-            (music_df["frequency"] >= self.BREATHING_MIN_FREQ)
-            & (music_df["frequency"] <= self.BREATHING_MAX_FREQ)
-        ].reset_index(drop=True)
-        binned_music_df = self.average_magnitude_by_frequency_bins(music_df, bins)
-        if include_breathing:
-            breathing_rate_music = self.estimate_breathing_rate(music_df, freq_col="frequency")
-
-    breathing_rate_comparison = (
-        self.compare_breathing_rate_methods({
-            "fft": breathing_rate_fft,
-            "wavelet": breathing_rate_wavelet,
-            "music": breathing_rate_music,
-        })
-        if include_breathing
-        else None
-    )
-
     # --- 位相パイプライン (振幅と並列に実行) ---
     phase_df = extract_phase_dataframe(df)
     has_phase = not phase_df.empty
     binned_fft_phase_df = pd.DataFrame()
-    binned_wavelet_phase_df = pd.DataFrame()
-    binned_music_phase_df = pd.DataFrame()
     breathing_rate_fft_phase = None
-    breathing_rate_wavelet_phase = None
-    breathing_rate_music_phase = None
-    breathing_rate_phase_comparison = None
 
     if has_phase:
         # 振幅と同様にバンドパスフィルタを適用
@@ -502,101 +450,25 @@ def _analyze_dataframe(
                     fft_phase_df, freq_col="frequency"
                 )
 
-        phase_df_wavelet = self._resample_to_target_rate(
-            phase_df, target_interval_s=self.WAVELET_DOWNSAMPLE_INTERVAL_S
-        )
-        phase_df_music = self._resample_to_target_rate(
-            phase_df, target_interval_s=self.MUSIC_DOWNSAMPLE_INTERVAL_S
-        )
-        wavelet_phase_df = (
-            self.apply_wavelet_transform(phase_df_wavelet, self.WAVELET_DOWNSAMPLE_INTERVAL_S)
-            if include_wavelet
-            else pd.DataFrame()
-        )
-        if not wavelet_phase_df.empty:
-            wavelet_phase_df = wavelet_phase_df[
-                (wavelet_phase_df["frequency"] >= self.BREATHING_MIN_FREQ)
-                & (wavelet_phase_df["frequency"] <= self.BREATHING_MAX_FREQ)
-            ].reset_index(drop=True)
-            binned_wavelet_phase_df = self.average_magnitude_by_frequency_bins(
-                wavelet_phase_df, bins
-            )
-            if include_breathing:
-                breathing_rate_wavelet_phase = self.estimate_breathing_rate(
-                    wavelet_phase_df, freq_col="frequency"
-                )
-
-        music_phase_df = (
-            self.apply_music_transform(phase_df_music, self.MUSIC_DOWNSAMPLE_INTERVAL_S)
-            if include_music
-            else pd.DataFrame()
-        )
-        if not music_phase_df.empty:
-            music_phase_df = music_phase_df[
-                (music_phase_df["frequency"] >= self.BREATHING_MIN_FREQ)
-                & (music_phase_df["frequency"] <= self.BREATHING_MAX_FREQ)
-            ].reset_index(drop=True)
-            binned_music_phase_df = self.average_magnitude_by_frequency_bins(
-                music_phase_df, bins
-            )
-            if include_breathing:
-                breathing_rate_music_phase = self.estimate_breathing_rate(
-                    music_phase_df, freq_col="frequency"
-                )
-
-        breathing_rate_phase_comparison = (
-            self.compare_breathing_rate_methods({
-                "fft": breathing_rate_fft_phase,
-                "wavelet": breathing_rate_wavelet_phase,
-                "music": breathing_rate_music_phase,
-            })
-            if include_breathing
-            else None
-        )
-
-    br_info = (
-        f"FFT={breathing_rate_fft:.1f}bpm" if breathing_rate_fft else "FFT=N/A",
-        f"Wavelet={breathing_rate_wavelet:.1f}bpm" if breathing_rate_wavelet else "Wavelet=N/A",
-        f"MUSIC={breathing_rate_music:.1f}bpm" if breathing_rate_music else "MUSIC=N/A",
-    )
-    br_phase_info = (
-        f"FFT={breathing_rate_fft_phase:.1f}bpm" if breathing_rate_fft_phase else "FFT=N/A",
-        f"Wavelet={breathing_rate_wavelet_phase:.1f}bpm" if breathing_rate_wavelet_phase else "Wavelet=N/A",
-        f"MUSIC={breathing_rate_music_phase:.1f}bpm" if breathing_rate_music_phase else "MUSIC=N/A",
-    )
     self.logger.info(
         f"解析完了 - フレーム数: {no_frames}, "
         f"サブキャリア: {no_subcarriers} → {remaining_subcarriers}, "
         f"有効行: {len(df)}, "
         f"FFTビン: {len(binned_fft_df)}, "
-        f"Waveletビン: {len(binned_wavelet_df)}, "
-        f"MUSICビン: {len(binned_music_df)}, "
         f"表示範囲: {self.BREATHING_MIN_FREQ:.2f}–{self.BREATHING_MAX_FREQ:.2f}Hz, "
         f"位相解析: {'有効' if has_phase else '位相データなし'}, "
-        f"呼吸推定 振幅[{', '.join(br_info)}] "
-        f"位相[{', '.join(br_phase_info)}]"
+        f"呼吸推定 振幅[{f'FFT={breathing_rate_fft:.1f}bpm' if breathing_rate_fft else 'FFT=N/A'}] "
+        f"位相[{f'FFT={breathing_rate_fft_phase:.1f}bpm' if breathing_rate_fft_phase else 'FFT=N/A'}]"
     )
 
     return {
         "fft": binned_fft_df,
-        "wavelet": binned_wavelet_df,
-        "music": binned_music_df,
         "breathing_rate_fft_bpm": breathing_rate_fft,
-        "breathing_rate_wavelet_bpm": breathing_rate_wavelet,
-        "breathing_rate_music_bpm": breathing_rate_music,
-        "breathing_rate_comparison": breathing_rate_comparison,
         "subcarrier_medians": subcarrier_medians,
         "fft_phase": binned_fft_phase_df,
-        "wavelet_phase": binned_wavelet_phase_df,
-        "music_phase": binned_music_phase_df,
         "breathing_rate_fft_phase_bpm": breathing_rate_fft_phase,
-        "breathing_rate_wavelet_phase_bpm": breathing_rate_wavelet_phase,
-        "breathing_rate_music_phase_bpm": breathing_rate_music_phase,
-        "breathing_rate_phase_comparison": breathing_rate_phase_comparison,
         "raw_signal": raw_signal,
         "filtered_signal": filtered_signal,
-        "zkp_wavelet_input": zkp_wavelet_input,
-        "zkp_music_input": zkp_music_input,
     }
 
 
@@ -736,8 +608,6 @@ def parse_picoscenes_metadata(
 def analyze_file(
     self,
     file_path: str,
-    include_wavelet: bool = True,
-    include_music: bool = True,
     include_breathing: bool = True,
     background_subcarrier_medians: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
@@ -745,13 +615,11 @@ def analyze_file(
     suffix = Path(file_path).suffix.lower()
     if suffix in _PCAP_EXTENSIONS:
         return analyze_pcap_file(
-            self, file_path, include_wavelet, include_music,
-            include_breathing, background_subcarrier_medians,
+            self, file_path, include_breathing, background_subcarrier_medians,
         )
     if suffix in _PICOSCENES_EXTENSIONS:
         return analyze_csi_file_with_picoscenes(
-            self, file_path, include_wavelet, include_music,
-            include_breathing, background_subcarrier_medians,
+            self, file_path, include_breathing, background_subcarrier_medians,
         )
     raise ValueError(
         f"未対応のファイル形式です: {suffix}。"
@@ -762,8 +630,6 @@ def analyze_file(
 def analyze_pcap_file(
     self,
     file_path: str,
-    include_wavelet: bool = True,
-    include_music: bool = True,
     include_breathing: bool = True,
     background_subcarrier_medians: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
@@ -778,8 +644,6 @@ def analyze_pcap_file(
         df=df,
         no_frames=no_frames,
         no_subcarriers=no_subcarriers,
-        include_wavelet=include_wavelet,
-        include_music=include_music,
         include_breathing=include_breathing,
         background_subcarrier_medians=background_subcarrier_medians,
     )
@@ -788,8 +652,6 @@ def analyze_pcap_file(
 def analyze_csi_file_with_picoscenes(
     self,
     file_path: str,
-    include_wavelet: bool = True,
-    include_music: bool = True,
     include_breathing: bool = True,
     background_subcarrier_medians: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
@@ -806,8 +668,6 @@ def analyze_csi_file_with_picoscenes(
         df=df,
         no_frames=no_frames,
         no_subcarriers=no_subcarriers,
-        include_wavelet=include_wavelet,
-        include_music=include_music,
         include_breathing=include_breathing,
         background_subcarrier_medians=background_subcarrier_medians,
     )

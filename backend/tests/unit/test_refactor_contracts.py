@@ -33,7 +33,7 @@ def test_ground_truth_bpm_can_be_added_after_analysis_and_removed(client, db):
                 "breathing_rate_bpm": 15.5,
                 "lomb_scargle": {"breathing_rate_bpm": 14.75},
             },
-            "proofs": {"zkvm": {"status": "disabled"}},
+            "proofs": {"python_circom": {"status": "completed"}},
         },
     )
     db.add(record)

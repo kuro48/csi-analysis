@@ -233,8 +233,8 @@ def show_proof_types_stats(contract):
 
         # 一般的な証明タイプをチェック
         proof_types = [
-            "cosine_similarity",
-            "full_similarity",
+            "breathing_certificate",
+            "lomb_scargle_normality",
             "breathing_analysis",
             "custom"
         ]

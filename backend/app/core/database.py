@@ -33,5 +33,6 @@ def get_db():
 
 
 def init_db():
-    import app.models
+    import app.models  # noqa: F401  テーブル定義を Base に登録するための副作用インポート
+
     Base.metadata.create_all(bind=engine)

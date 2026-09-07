@@ -15,6 +15,7 @@ RUN apt-get update \
         postgresql-client \
         curl \
         wget \
+        aria2 \
         build-essential \
         libssl-dev \
         pkg-config \

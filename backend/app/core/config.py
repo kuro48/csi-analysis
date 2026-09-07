@@ -74,12 +74,6 @@ class Settings:
     # processing can be skipped by PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB.
     PICOSCENES_MAX_FILE_SIZE_MB: int = int(os.getenv("PICOSCENES_MAX_FILE_SIZE_MB", "0"))
     PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB: int = int(os.getenv("PICOSCENES_SKIP_BREATHING_ZKP_ABOVE_MB", "200"))
-    # Keep the zkVM implementation available for experiments, but exclude it
-    # from the normal upload path unless explicitly enabled.
-    CSI_ZKVM_ENABLED: bool = os.getenv("CSI_ZKVM_ENABLED", "false").lower() == "true"
-    # When enabled, large captures are still excluded because serializing and
-    # proving the full amplitude matrix can require several GB.
-    CSI_ZKVM_MAX_FILE_SIZE_MB: int = int(os.getenv("CSI_ZKVM_MAX_FILE_SIZE_MB", "200"))
     PICOSCENES_PARSER: str = os.getenv("PICOSCENES_PARSER", "matlab").lower()
     MATLAB_COMMAND: str = os.getenv("MATLAB_COMMAND", "matlab")
     PICOSCENES_MATLAB_TOOLBOX_PATH: str = os.getenv("PICOSCENES_MATLAB_TOOLBOX_PATH", "")

@@ -2,10 +2,8 @@
 ベースCSIスキーマ定義
 """
 
-from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
-import uuid
 
 
 class BaseCSIRegister(BaseModel):
@@ -25,8 +23,6 @@ class BaseCSIResponse(BaseModel):
     id: str
     name: str
     fft_dataframe: Optional[Dict[str, Any]] = None
-    wavelet_dataframe: Optional[Dict[str, Any]] = None
-    music_dataframe: Optional[Dict[str, Any]] = None
     subcarrier_medians: Optional[Dict[str, float]] = None
     raw_signal_dataframe: Optional[Dict[str, Any]] = None
     filtered_signal_dataframe: Optional[Dict[str, Any]] = None

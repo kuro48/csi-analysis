@@ -16,6 +16,7 @@ docs/ZKP_PIPELINE_EXTENSION_IDEAS.md テーマ1・案A の実装。
 """
 
 import logging
+import time
 from typing import Any, Dict, List, Optional
 
 from app.services.zkp_circuit_service import ZKPCircuitService
@@ -70,13 +71,22 @@ class BreathingCertificateService(ZKPCircuitService):
             len(input_data["vmdInput"]),
             len(input_data["modes"]),
         )
-        proof, public_signals, performance = await self._prove_with_metrics(input_data)
-        is_valid, performance = await self._verify_with_metrics(proof, public_signals, performance)
+        start = time.perf_counter()
+        proof, public_signals, is_valid, benchmark = await self._generate_proof_with_benchmark(
+            input_data,
+            verify=True,
+        )
+        performance = self._performance_from_benchmark(benchmark)
         if not is_valid:
             raise RuntimeError(f"{self.label} proof failed local verification")
 
         is_normal = bool(int(public_signals[0])) if public_signals else False
-        logger.info("[%s] Certificate ZKP proof done — isNormal=%s", self.label, is_normal)
+        logger.info(
+            "[%s] Certificate ZKP proof done in %.3fs — isNormal=%s",
+            self.label,
+            time.perf_counter() - start,
+            is_normal,
+        )
         return {
             "proof": proof,
             "publicSignals": public_signals,
@@ -85,6 +95,7 @@ class BreathingCertificateService(ZKPCircuitService):
             "isValid": is_valid,
             "method": "breathing_certificate",
             "performance": performance,
+            "benchmark": benchmark,
         }
 
     def _prepare_input(  # type: ignore[override]

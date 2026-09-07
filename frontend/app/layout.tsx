@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CSI Verifiable Monitor",
-  description: "5-1呼吸解析とCircom証明の結果を表示します",
+  description: "VMD・Lomb–Scargle呼吸解析とCircom証明の結果を表示します",
 };
 
 export default function RootLayout({
