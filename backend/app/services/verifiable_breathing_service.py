@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict
 
 from app.core.config import settings
-from app.services.breathing_certificate_service import BreathingCertificateService
+from app.services.vmd_approx_service import VmdApproxService
 from app.services.breathing_pipeline import run_breathing_pipeline
 from app.services.lomb_scargle_certificate_service import LombScargleCertificateService
 from app.services.lomb_scargle_pipeline import run_lomb_scargle_pipeline
@@ -16,7 +16,7 @@ from app.services.lomb_scargle_pipeline import run_lomb_scargle_pipeline
 logger = logging.getLogger(__name__)
 
 DISABLED_ANALYSIS_METHODS = ["wavelet", "music", "fft_cosine_similarity"]
-_PRIVATE_INPUT_KEYS = {"certificate_input", "zkp_input", "_lomb_scargle_input"}
+_PRIVATE_INPUT_KEYS = {"certificate_input", "zkp_input", "vmd_approx_input", "_lomb_scargle_input"}
 
 
 def attach_bpm_evaluation(result: Dict[str, Any], ground_truth_bpm: float) -> Dict[str, Any]:
@@ -63,7 +63,7 @@ class VerifiableBreathingService:
     def __init__(
         self,
         pipeline_runner: Callable[..., Dict[str, Any]] = run_breathing_pipeline,
-        circom_service_factory: Callable[[], BreathingCertificateService] = lambda: BreathingCertificateService(
+        circom_service_factory: Callable[[], VmdApproxService] = lambda: VmdApproxService(
             auto_compile=settings.ZKP_AUTO_COMPILE
         ),
         lomb_scargle_runner: Callable[[str], Dict[str, Any]] = run_lomb_scargle_pipeline,
@@ -108,7 +108,7 @@ class VerifiableBreathingService:
             lomb_result = exc
             lomb_certificate_input = None
 
-        circom_task = self._run_circom(certificate_input)
+        circom_task = self._run_circom(pipeline_result["vmd_approx_input"])
         if lomb_certificate_input is None:
             (circom_result,) = await asyncio.gather(circom_task, return_exceptions=True)
             lomb_circom_result: Any = lomb_result
@@ -166,12 +166,10 @@ class VerifiableBreathingService:
             "disabled_methods": list(DISABLED_ANALYSIS_METHODS),
         }
 
-    async def _run_circom(self, certificate_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _run_circom(self, vmd_input: Dict[str, Any]) -> Dict[str, Any]:
         service = await asyncio.to_thread(self.circom_service_factory)
         return await service.generate_proof(
-            vmd_input=certificate_input["vmdInput"],
-            modes=certificate_input["modes"],
-            sel=certificate_input["sel"],
+            waveform=vmd_input["waveform"],
         )
 
     async def _run_lomb_circom(self, certificate_input: Dict[str, Any]) -> Dict[str, Any]:

@@ -14,12 +14,15 @@ zkp/
 │   ├── csi_lomb_scargle_normality.circom    # Lomb--Scargle正常判定回路
 │   ├── lomb_scargle_timestamp_basis.circom  # 上記のsin/cos基底
 │   └── csi_breathing_normality.circom       # 旧・呼吸正常判定回路（未使用）
+│   └── csi_vmd_approx.circom                # 固定反復の近似VMD回路
 ├── scripts/
 │   ├── generate_breathing_certificate_circuit.py
 │   ├── generate_lomb_scargle_circuit.py
 │   ├── generate_breathing_circuit.py
 │   ├── fetch_ptau24.sh                      # 2^24 Powers of Tau の取得
 │   └── measure_stage_profile.py             # 工程別の制約数・時間の計測
+│   ├── generate_vmd_approx_circuit.py       # 近似VMD回路生成
+│   └── setup_vmd_approx.js                  # 専用zkeyのTrusted Setup
 ├── test/                                    # mocha による回路テスト
 ├── build/                                   # コンパイル出力（r1cs / wasm / sym）
 └── keys/                                    # zkey・検証鍵・Powers of Tau
@@ -55,6 +58,16 @@ npm run setup:lomb_scargle
 Trusted Setup と証明生成は Node のヒープを広げて実行する
 （`ZKP_NODE_MAX_OLD_SPACE_MB` で変更可能）。詳細は
 `docs/LOMB_SCARGLE_COMPARISON.md` を参照。
+
+### Circom近似VMD回路
+
+詳細な数式、入力縮約、公開出力、Python VMDとの違いは `docs/VMD_APPROXIMATION.md` を参照してください。
+
+```bash
+npm run generate:vmd_approx
+npm run compile:vmd_approx
+npm run setup:vmd_approx
+```
 
 ## テスト
 
