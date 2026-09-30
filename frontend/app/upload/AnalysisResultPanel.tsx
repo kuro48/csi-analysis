@@ -30,6 +30,10 @@ function displayPipelineName(value: string | null | undefined): string {
   return value;
 }
 
+function absoluteDifference(left: number | null | undefined, right: number | null | undefined): number | null {
+  return left != null && right != null && isFinite(left) && isFinite(right) ? Math.abs(left - right) : null;
+}
+
 function csvCell(value: string | number | null | undefined): string {
   if (value == null) return "";
   const text = String(value);
@@ -193,7 +197,7 @@ function CircomBenchmarkSection({
   );
 }
 
-function AlgorithmDifferenceSection() {
+function AlgorithmDifferenceSection({ isApproxVmd }: { isApproxVmd: boolean }) {
   const sharedStages = ["CSI振幅", "SNR選択", "帯域抽出", "PCA"];
 
   return (
@@ -227,24 +231,34 @@ function AlgorithmDifferenceSection() {
               </span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-teal-950/75">
-              選択したPCA波形を5つのVMDモードへ分解し、各モードのFFTピークから呼吸成分とBPMを選びます。
+              {isApproxVmd
+                ? "PythonはPCA波形を5つのVMDモードへ分解し、各モードのFFTピークから呼吸成分とBPMを選びます。Circom近似VMDは入力波形をDFTし、3つのスペクトルモードを4回の反復で更新してピークを選びます。"
+                : "選択したPCA波形を5つのVMDモードへ分解し、各モードのFFTピークから呼吸成分とBPMを選びます。Circomは供給されたVMD入力と選択結果を検証します。"}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-teal-900">
               <span className="rounded bg-white/80 px-2 py-1">PCA波形</span>
               <span aria-hidden="true">→</span>
-              <span className="rounded bg-white/80 px-2 py-1">VMD 5モード</span>
+              <span className="rounded bg-white/80 px-2 py-1">
+                {isApproxVmd ? "Python VMD 5モード / Circom近似 3モード" : "VMD 5モード"}
+              </span>
               <span aria-hidden="true">→</span>
               <span className="rounded bg-white/80 px-2 py-1">FFTピーク</span>
             </div>
             <dl className="mt-4 border-t border-teal-200 pt-3 text-xs">
               <div className="grid grid-cols-[5.5rem_1fr] gap-2">
                 <dt className="font-semibold text-teal-900">時刻の扱い</dt>
-                <dd className="text-teal-950/75">100 Hzへ等間隔化（Circom入力は5 Hzへ縮約）</dd>
+                <dd className="text-teal-950/75">
+                  {isApproxVmd
+                    ? "Python VMDは既存の100 Hz前提。Circom近似VMDは128サンプル・2 Hz（64秒）で処理"
+                    : "Python VMDは既存の100 Hz前提。Circomには縮約したVMD入力を渡します"}
+                </dd>
               </div>
               <div className="mt-2 grid grid-cols-[5.5rem_1fr] gap-2">
                 <dt className="font-semibold text-teal-900">Circom検証</dt>
                 <dd className="text-teal-950/75">
-                  秘密のVMD入力・5モード・選択フラグから、再構成、狭帯域性、DFTピーク、正常BPM帯域を検証
+                  {isApproxVmd
+                    ? "PCA波形をDFTし、3つのスペクトルモードを4回更新して適応中心を求め、ピークと正常BPM帯域を回路内で検証"
+                    : "秘密のVMD入力・5モード・選択フラグから、再構成、狭帯域性、DFTピーク、正常BPM帯域を検証"}
                 </dd>
               </div>
             </dl>
@@ -453,7 +467,13 @@ function ProofCard({
           </div>
           {proof.estimatedBpm != null && (
             <div className="flex items-center justify-between">
-              <span className="text-xs text-neutral-500">回路内Lomb–Scargle推定</span>
+              <span className="text-xs text-neutral-500">
+                {proof.method === "vmd_approx_fixed_point"
+                  ? "回路内近似VMD推定"
+                  : proof.method === "lomb_scargle_timestamp_trig_fixed_point"
+                    ? "回路内Lomb–Scargle推定"
+                    : "回路内推定"}
+              </span>
               <span className="font-mono text-sm font-semibold text-neutral-800">
                 {formatNumber(proof.estimatedBpm, 2)} BPM
               </span>
@@ -504,8 +524,8 @@ function MainPanel({ processedData, csiDataId }: MainCSIData) {
     const analysis = processedData.analysis;
     const circom = processedData.proofs?.python_circom;
     const lombCircom = processedData.proofs?.lomb_scargle_circom;
+    const isApproxVmd = circom?.method === "vmd_approx_fixed_point";
     const lomb = analysis.lomb_scargle;
-    const comparison = analysis.algorithm_comparison;
     const bpmEvaluation = processedData.bpm_evaluation;
     const waveformPoints = waveformToSignalPoints(analysis.respiration_waveform);
     const diagnostics = analysis.certificate_diagnostics;
@@ -533,7 +553,7 @@ function MainPanel({ processedData, csiDataId }: MainCSIData) {
           </span>
         </div>
 
-        <AlgorithmDifferenceSection />
+        <AlgorithmDifferenceSection isApproxVmd={isApproxVmd} />
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
@@ -557,17 +577,39 @@ function MainPanel({ processedData, csiDataId }: MainCSIData) {
             {bpmEvaluation && (
               <MetricCard label="正解" value={bpmEvaluation.ground_truth_bpm} unit="BPM" />
             )}
+            <MetricCard label="Python VMD" value={analysis.breathing_rate_bpm ?? null} unit="BPM" />
             <MetricCard
-              label="VMD処理"
-              value={comparison?.current_breathing_rate_bpm ?? analysis.breathing_rate_bpm ?? null}
+              label="Circom近似VMD"
+              value={circom?.method === "vmd_approx_fixed_point" ? circom.estimatedBpm ?? null : null}
               unit="BPM"
             />
             <MetricCard
-              label="Lomb–Scargle"
-              value={comparison?.lomb_scargle_breathing_rate_bpm ?? lomb?.breathing_rate_bpm ?? null}
+              label="Python Lomb–Scargle"
+              value={lomb?.breathing_rate_bpm ?? null}
               unit="BPM"
             />
-            <MetricCard label="推定差" value={comparison?.absolute_difference_bpm ?? null} unit="BPM" />
+            <MetricCard
+              label="Circom Lomb–Scargle"
+              value={lombCircom?.estimatedBpm ?? null}
+              unit="BPM"
+            />
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <MetricCard
+              label="VMD Python–Circom差"
+              value={absoluteDifference(analysis.breathing_rate_bpm, circom?.method === "vmd_approx_fixed_point" ? circom.estimatedBpm : null)}
+              unit="BPM"
+            />
+            <MetricCard
+              label="Lomb–Scargle Python–Circom差"
+              value={absoluteDifference(lomb?.breathing_rate_bpm, lombCircom?.estimatedBpm)}
+              unit="BPM"
+            />
+            <MetricCard
+              label="VMD処理とLomb–Scargleの推定差"
+              value={analysis.algorithm_comparison?.absolute_difference_bpm ?? null}
+              unit="BPM"
+            />
             <MetricCard label="LS 全帯域ピーク" value={lomb?.global_peak_bpm ?? null} unit="BPM" />
           </div>
           {lomb?.status === "failed" && (
@@ -588,7 +630,11 @@ function MainPanel({ processedData, csiDataId }: MainCSIData) {
         <div>
           <h3 className="mb-3 text-sm font-semibold text-neutral-900">証明</h3>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <ProofCard title="VMD処理 + Circom" proof={circom} fallbackMethod="breathing_certificate" />
+            <ProofCard
+              title={isApproxVmd ? "近似VMD + Circom" : "VMD証明書検証"}
+              proof={circom}
+              fallbackMethod="breathing_certificate"
+            />
             <ProofCard
               title="Lomb–Scargle + Circom"
               proof={lombCircom}
@@ -668,7 +714,7 @@ function MainPanel({ processedData, csiDataId }: MainCSIData) {
           </div>
         )}
 
-        {diagnostics && (
+        {diagnostics && circom?.method !== "vmd_approx_fixed_point" && (
           <div>
             <h3 className="mb-3 text-sm font-semibold text-neutral-900">Circom証明書診断</h3>
             <div className="grid gap-3 text-xs sm:grid-cols-2">

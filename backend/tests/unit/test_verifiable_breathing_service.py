@@ -35,6 +35,7 @@ def test_bpm_evaluation_rejects_invalid_ground_truth(ground_truth_bpm):
 
 
 PIPELINE_RESULT = {
+    "vmd_approx_input": {"waveform": [0] * 128},
     "respiration_waveform": [0.1, -0.2, 0.1],
     "breathing_rate_bpm": 15.0,
     "peak_freq_hz": 0.25,
@@ -68,12 +69,13 @@ class _CircomService:
         self.started = started
         self.release = release
 
-    async def generate_proof(self, vmd_input, modes, sel):
+    async def generate_proof(self, waveform):
+        assert waveform == [0] * 128
         self.started.add("circom")
         await self.release.wait()
         return {
             "proof": {"pi_a": ["1"]},
-            "publicSignals": ["1"],
+            "publicSignals": ["1", "16", "0"],
             "isNormal": True,
             "isValid": True,
             "method": "breathing_certificate",

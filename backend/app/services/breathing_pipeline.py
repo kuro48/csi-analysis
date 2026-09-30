@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, filtfilt, resample_poly
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,10 @@ VMD_TAU = 0
 VMD_DC = 0
 VMD_INIT = 1
 VMD_TOL = 1e-7
+
+VMD_APPROX_SAMPLES = 128
+VMD_APPROX_FS = 2
+VMD_APPROX_SIGNAL_SCALE = 100
 
 # ZKP 回路入力仕様（csi_breathing_normality.circom と一致させること）
 ZKP_TARGET_FS = 5.0
@@ -456,6 +460,35 @@ def estimate_breathing_rate_by_vmd_global_peak(signal, fs, bpm_min, bpm_max, K, 
 # =========================================================
 # ZKP 回路入力の準備（プラットフォーム統合用の新規コード）
 # =========================================================
+def prepare_vmd_approx_input(respiration_pc: np.ndarray) -> Dict[str, List[int]]:
+    """Prepare the real PCA waveform for the fixed-size approximate VMD circuit."""
+    signal = np.asarray(respiration_pc, dtype=np.float64)
+    if signal.ndim != 1 or signal.size == 0:
+        raise ValueError("respiration_pc は空でない1次元配列である必要があります")
+    if not np.all(np.isfinite(signal)):
+        raise ValueError("respiration_pc contains non-finite values")
+
+    downsampled = resample_poly(signal, 1, int(round(FS / VMD_APPROX_FS)))
+    downsampled = np.pad(
+        downsampled[:VMD_APPROX_SAMPLES],
+        (0, max(0, VMD_APPROX_SAMPLES - len(downsampled))),
+    )[:VMD_APPROX_SAMPLES]
+    centered = downsampled - float(np.mean(downsampled))
+    max_abs = float(np.max(np.abs(centered)))
+    if max_abs == 0:
+        waveform = [0] * VMD_APPROX_SAMPLES
+    else:
+        waveform = [
+            int(
+                np.clip(
+                    round(value / max_abs * VMD_APPROX_SIGNAL_SCALE), -VMD_APPROX_SIGNAL_SCALE, VMD_APPROX_SIGNAL_SCALE
+                )
+            )
+            for value in centered
+        ]
+    return {"waveform": waveform}
+
+
 def prepare_breathing_zkp_input(
     vmd_mode: np.ndarray,
     fs: float = FS,
@@ -687,6 +720,9 @@ def run_breathing_pipeline_from_matrix(
     peak_freq = best_vmd_info["global_peak_freq"]
     breathing_rate_bpm = best_vmd_info["global_peak_bpm"]
 
+    # Input-only approximate VMD waveform: derive directly from pre-VMD PC.
+    vmd_approx_input = prepare_vmd_approx_input(respiration_pc)
+
     # 8. ZKP 回路入力の準備（正常判定は回路内で行う）
     with timer("Circom正常判定入力の準備"):
         zkp_input = prepare_breathing_zkp_input(vmd_respiration)
@@ -731,6 +767,7 @@ def run_breathing_pipeline_from_matrix(
         "bpm_range": {"min": BPM_MIN, "max": BPM_MAX},
         "processing_time_seconds": float(elapsed),
         "zkp_input": zkp_input,
+        "vmd_approx_input": vmd_approx_input,
         "certificate_input": certificate_input,
     }
 
