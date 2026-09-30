@@ -36,7 +36,7 @@ class ZKPCircuitService:
     # 2^24 Powers of Tau を使う大規模回路は 4GB ヒープでは OOM する。
     LARGE_CIRCUITS = ("csi_lomb_scargle_normality",)
     DEFAULT_NODE_HEAP_MB = 4096
-    LARGE_NODE_HEAP_MB = 12288
+    LARGE_NODE_HEAP_MB = 14336
     # Perpetual Powers of Tau contribution 0080 の phase-2 準備済み 2^24 ファイル。
     PTAU24_URL = (
         "https://pse-trusted-setup-ppot.s3.eu-central-1.amazonaws.com/pot28_0080/ppot_0080_24.ptau"
@@ -525,12 +525,18 @@ class ZKPCircuitService:
             signals_path = sf.name
 
         try:
+            snarkjs = shutil.which("snarkjs")
+            command = (
+                [snarkjs, "groth16", "verify", vkey_path, signals_path, proof_path]
+                if snarkjs
+                else ["npx", "snarkjs", "groth16", "verify", vkey_path, signals_path, proof_path]
+            )
             result = subprocess.run(
-                ["npx", "snarkjs", "groth16", "verify", vkey_path, signals_path, proof_path],
+                command,
                 cwd=str(self.zkp_dir),
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=60,
             )
             return result.returncode == 0 and "OK" in result.stdout
         except Exception as exc:

@@ -43,7 +43,7 @@ npm run setup:breathing_certificate   # 2^19 ptau
 
 ### Lomb--Scargle回路
 
-約541万制約あり、2^24 の phase-2 Powers of Tau（約19GB）が必要。
+約750万制約（非線形約626万）あり、2^24 の phase-2 Powers of Tau（約19GB）が必要。
 
 ```bash
 npm run ptau:fetch24        # 中断しても再実行でレジュームする

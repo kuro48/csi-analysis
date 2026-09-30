@@ -81,7 +81,7 @@ class LombScargleCertificateService(ZKPCircuitService):
             "estimatedBpm": estimated_frequency_hz * 60,
             "globalPeakFrequencyHz": global_peak_frequency_hz,
             "globalPeakBpm": global_peak_frequency_hz * 60,
-            "proofScope": "timestamp_trig_approximation_tau_free_lomb_scargle_pc_selection_argmax_normal_band",
+            "proofScope": "timestamp_reanchored_trig_approximation_tau_free_lomb_scargle_pc_selection_argmax_normal_band",
             "performance": performance,
             "benchmark": benchmark,
         }

@@ -34,6 +34,9 @@ wheels/
 .installed.cfg
 *.egg
 
+# Generated Groth16 proving keys (large deployment artifacts)
+edge/**/artifacts/*.zkey
+
 # PyInstaller
 *.manifest
 *.spec

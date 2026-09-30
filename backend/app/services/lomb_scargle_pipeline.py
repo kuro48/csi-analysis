@@ -221,7 +221,7 @@ def run_lomb_scargle_pipeline_from_pca(
     finish_step("circuit_input", "Circom入力の量子化", step_started)
 
     result = {
-        "algorithm_version": "shared-pca-lomb-scargle-circom-timestamp-trig-v3",
+        "algorithm_version": "shared-pca-lomb-scargle-circom-reanchored-trig-v4",
         "breathing_rate_bpm": float(FREQUENCIES_HZ[estimated_bin] * 60),
         "peak_freq_hz": float(FREQUENCIES_HZ[estimated_bin]),
         "peak_power": float(periodograms[selected_pc_index, estimated_bin]),
@@ -250,7 +250,7 @@ def run_lomb_scargle_pipeline_from_pca(
         "processing_steps": processing_steps,
         "normality_rule": "selected PC global Lomb-Scargle peak is within bpm_range",
         "circom_scope": (
-            "timestamp-derived fixed-point trigonometric approximation, tau-free Gram-matrix "
+            "timestamp-derived re-anchored fixed-point trigonometric approximation, tau-free Gram-matrix "
             "Lomb-Scargle score, PC selection, argmax, and normal BPM range"
         ),
         "circom_frequency_grid": {

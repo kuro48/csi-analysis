@@ -19,7 +19,8 @@ include "lomb_scargle_timestamp_basis.circom";
  *   4. 正常帯域ピークによるPC選択
  *   5. 選択PCの全帯域argmaxと正常帯域判定
  *
- * sin/cosは象限縮約したTaylor近似と周波数方向の複素回転で回路内生成する。
+ * sin/cosは象限縮約したTaylor近似で16周波数binごとに再計算し、
+ * アンカー間だけ周波数方向の複素回転で回路内生成する。
  */
 template LombScargleFixedPointCheck(
     PCS,
@@ -47,7 +48,7 @@ template LombScargleFixedPointCheck(
         timestampBits[i].in <== timestampsMs[i];
     }
 
-    component timestampBasis = LombTimestampBasis(SAMPLE_COUNT, FREQS);
+    component timestampBasis = LombTimestampBasis(SAMPLE_COUNT, FREQS, 16);
     for (var i = 0; i < SAMPLE_COUNT; i++) {
         timestampBasis.timestampsMs[i] <== timestampsMs[i];
     }

@@ -94,7 +94,7 @@ def test_node_heap_is_larger_for_the_lomb_scargle_circuit(tmp_path, monkeypatch)
     large = _service(tmp_path, circuit_name="csi_lomb_scargle_normality")
 
     assert small._node_env()["NODE_OPTIONS"] == "--max-old-space-size=4096"
-    assert large._node_env()["NODE_OPTIONS"] == "--max-old-space-size=12288"
+    assert large._node_env()["NODE_OPTIONS"] == "--max-old-space-size=14336"
 
 
 def test_node_heap_can_be_overridden(tmp_path, monkeypatch):

@@ -19,7 +19,7 @@ def main() -> None:
     required = (
         'include "lomb_scargle_timestamp_basis.circom";',
         "public [timestampsMs]",
-        "LombTimestampBasis(SAMPLE_COUNT, FREQS)",
+        "LombTimestampBasis(SAMPLE_COUNT, FREQS, 16)",
         "determinantBasis[f]",
     )
     missing = [marker for marker in required if marker not in circuit]
@@ -28,7 +28,7 @@ def main() -> None:
     if missing:
         raise SystemExit(f"Lomb--Scargle circuit is incomplete: {', '.join(missing)}")
     print(f"Validated: {CIRCUIT}")
-    print("samples: 384, frequency bins: 128, normal bins: 5..54, timestamps: 24-bit ms")
+    print("samples: 384, frequency bins: 128, normal bins: 5..54, timestamps: 24-bit ms, trig anchors: every 16 bins")
 
 
 if __name__ == "__main__":

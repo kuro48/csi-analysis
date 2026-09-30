@@ -31,7 +31,7 @@ CSI読込からPCAまでは両方式で共有され、Lomb–Scargle側では再
 
 - 秘密波形の11-bit入力範囲と公開時刻の24-bit入力範囲
 - 象限縮約と入れ子Taylor多項式によるsin/cos近似
-- 0.05 Hz基底と周波数刻み基底からの複素回転による128周波数基底の生成
+- 各周波数binの式から16 binごとにsin/cos基底を再計算し、アンカー間だけ複素回転する128周波数基底の生成
 - 各PC・周波数のsin/cos内積
 - τを消去した `(SS×C²−2×CS×C×S+CC×S²)/((CC×SS−CS²)×YY)` スコア
 - 正常帯域内ピークによるPC選択
@@ -42,6 +42,9 @@ CSI読込からPCAまでは両方式で共有され、Lomb–Scargle側では再
 `isValid` はGroth16証明のローカル検証結果で、`isNormal` とは独立している。
 
 τは近似せず、非直交sin/cos基底のGram行列を使う代数的に等価な式で消去する。
+固定小数点の複素回転は16 bin未満に限定し、各アンカーでは公開タイムスタンプと
+`frequency(bin) = (127 + 29×bin) / 2540 Hz` からsin/cosを直接再計算する。
+これにより、全128 binを連続回転した場合の丸め誤差累積を防ぐ。
 三角関数、ピリオドグラム投影、正規化、PC選択、ピーク探索、正常判定は回路内で拘束される。
 
 正確なR1CS制約数と必要なPowers of Tauサイズは `npm run compile:lomb_scargle` の出力を参照する。
@@ -58,7 +61,7 @@ npm run compile:lomb_scargle
 npm run setup:lomb_scargle   # 未取得なら ptau:fetch24 を先に実行する
 ```
 
-約541万制約を収容するには2^24のphase-2 Powers of Tauが必要で、
+約750万制約（非線形約626万）を収容するには2^24のphase-2 Powers of Tauが必要で、
 `keys/powersOfTau28_hez_final_24.ptau`（19,327,446,162バイト）に置く。
 既定ではEthereum Foundation Privacy & Scaling ExplorationsのPerpetual Powers of Tau
 contribution 0080の、phase-2準備済み `ppot_0080_24.ptau` を取得する。
@@ -66,7 +69,7 @@ contribution 0080の、phase-2準備済み `ppot_0080_24.ptau` を取得する�
 `ptau:generate_dev` / `ptau:generate_dev20` は小さい回路向けのローカル生成用で、
 2^24のローカル生成は非現実的なためこの回路では使わない。
 
-Trusted Setupと証明生成はNodeのヒープを既定4GBではなく12GBで実行する。
+Trusted Setupと証明生成はNodeのヒープを既定4GBではなく14GBで実行する。
 `ZKP_NODE_MAX_OLD_SPACE_MB` で変更できる。
 
 `ZKP_AUTO_COMPILE=true` のバックエンド起動時にも自動準備される。

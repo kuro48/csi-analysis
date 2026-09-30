@@ -199,31 +199,47 @@ template LombRotateTrig() {
     sinNext <== rs.encoded;
 }
 
-// f0=0.05 Hz. Frequency step is 29/2540 Hz.
-template LombTimestampBasis(SAMPLES, FREQS) {
+// frequency(bin) = 0.05 + bin * 29/2540 Hz
+//                = (127 + 29*bin) / 2540 Hz.
+//
+// A long fixed-point rotation chain accumulates enough rounding error to move
+// encoded sin/cos outside 11 bits. Re-anchor directly from the timestamp every
+// ANCHOR_INTERVAL bins and rotate only within each short block. This preserves
+// the compact circuit while preventing error propagation across all 128 bins.
+template LombTimestampBasis(SAMPLES, FREQS, ANCHOR_INTERVAL) {
     signal input timestampsMs[SAMPLES];
     signal output cosBasis[FREQS][SAMPLES];
     signal output sinBasis[FREQS][SAMPLES];
-    component base[SAMPLES];
+
     component step[SAMPLES];
     for (var i=0; i<SAMPLES; i++) {
-        base[i] = LombApproxSinCos(20000, 1, 15);
         step[i] = LombApproxSinCos(2540000, 29, 22);
-        base[i].timeMs <== timestampsMs[i];
         step[i].timeMs <== timestampsMs[i];
-        cosBasis[0][i] <== base[i].cosEncoded;
-        sinBasis[0][i] <== base[i].sinEncoded;
     }
-    component rotations[FREQS-1][SAMPLES];
-    for (var f=1; f<FREQS; f++) {
+
+    var ANCHORS = (FREQS + ANCHOR_INTERVAL - 1) \ ANCHOR_INTERVAL;
+    component anchors[ANCHORS][SAMPLES];
+    component rotations[FREQS-ANCHORS][SAMPLES];
+    var rotationIndex = 0;
+    for (var f=0; f<FREQS; f++) {
         for (var i=0; i<SAMPLES; i++) {
-            rotations[f-1][i] = LombRotateTrig();
-            rotations[f-1][i].cosCurrent <== cosBasis[f-1][i];
-            rotations[f-1][i].sinCurrent <== sinBasis[f-1][i];
-            rotations[f-1][i].cosStep <== step[i].cosEncoded;
-            rotations[f-1][i].sinStep <== step[i].sinEncoded;
-            cosBasis[f][i] <== rotations[f-1][i].cosNext;
-            sinBasis[f][i] <== rotations[f-1][i].sinNext;
+            if (f % ANCHOR_INTERVAL == 0) {
+                anchors[f \ ANCHOR_INTERVAL][i] = LombApproxSinCos(2540000, 127 + 29*f, 22);
+                anchors[f \ ANCHOR_INTERVAL][i].timeMs <== timestampsMs[i];
+                cosBasis[f][i] <== anchors[f \ ANCHOR_INTERVAL][i].cosEncoded;
+                sinBasis[f][i] <== anchors[f \ ANCHOR_INTERVAL][i].sinEncoded;
+            } else {
+                rotations[rotationIndex][i] = LombRotateTrig();
+                rotations[rotationIndex][i].cosCurrent <== cosBasis[f-1][i];
+                rotations[rotationIndex][i].sinCurrent <== sinBasis[f-1][i];
+                rotations[rotationIndex][i].cosStep <== step[i].cosEncoded;
+                rotations[rotationIndex][i].sinStep <== step[i].sinEncoded;
+                cosBasis[f][i] <== rotations[rotationIndex][i].cosNext;
+                sinBasis[f][i] <== rotations[rotationIndex][i].sinNext;
+            }
+        }
+        if (f % ANCHOR_INTERVAL != 0) {
+            rotationIndex++;
         }
     }
 }
