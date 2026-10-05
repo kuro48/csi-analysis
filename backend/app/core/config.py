@@ -23,6 +23,7 @@ class Settings:
     ZKP_AUTO_GENERATE: bool = os.getenv("ZKP_AUTO_GENERATE", "true").lower() == "true"
     ZKP_AUTO_COMPILE: bool = os.getenv("ZKP_AUTO_COMPILE", "true").lower() == "true"
     ZKP_DATA_RETENTION_HOURS: int = int(os.getenv("ZKP_DATA_RETENTION_HOURS", "0"))
+    HYBRID_EXPERIMENT_RESULTS_DIR: str = os.getenv("HYBRID_EXPERIMENT_RESULTS_DIR", "")
 
     ETHEREUM_RPC_URL: str = os.getenv(
         "ETHEREUM_RPC_URL", "http://ganache:8545" if Path("/.dockerenv").exists() else "http://localhost:8545"

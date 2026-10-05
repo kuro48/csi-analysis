@@ -16,7 +16,13 @@ from app.services.lomb_scargle_pipeline import run_lomb_scargle_pipeline
 logger = logging.getLogger(__name__)
 
 DISABLED_ANALYSIS_METHODS = ["wavelet", "music", "fft_cosine_similarity"]
-_PRIVATE_INPUT_KEYS = {"certificate_input", "zkp_input", "vmd_approx_input", "_lomb_scargle_input"}
+_PRIVATE_INPUT_KEYS = {
+    "certificate_input",
+    "zkp_input",
+    "vmd_approx_input",
+    "preprocess_projection_input",
+    "_lomb_scargle_input",
+}
 
 
 def attach_bpm_evaluation(result: Dict[str, Any], ground_truth_bpm: float) -> Dict[str, Any]:

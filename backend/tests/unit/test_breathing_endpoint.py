@@ -186,3 +186,48 @@ def test_analyze_verifiable_returns_parallel_proof_results(client: TestClient, m
     assert body["analysis"]["pipeline"] == "5-1.ipynb"
     assert set(body["proofs"]) == {"python_circom", "lomb_scargle_circom"}
     assert "fft_cosine_similarity" in body["disabled_methods"]
+
+
+@pytest.mark.unit
+def test_analyze_committed_returns_public_commitment(client: TestClient, monkeypatch):
+    pipeline_result = {**_PIPELINE_RESULT, "processing_time_seconds": 1.2}
+
+    class _CommittedService:
+        async def generate_proof(self, **kwargs):
+            return {
+                "proof": {"pi_a": ["1"]},
+                "publicSignals": ["1", "99"],
+                "isNormal": True,
+                "isValid": True,
+                "method": "breathing_certificate_committed",
+                "commitment": {"value": "99"},
+            }
+
+    monkeypatch.setattr("app.api.endpoints.breathing.run_breathing_pipeline", lambda path: pipeline_result)
+    monkeypatch.setattr("app.api.endpoints.breathing._get_committed_certificate_service", lambda: _CommittedService())
+    response = client.post(
+        "/api/v2/breathing/analyze-committed",
+        files={"file": ("sample.csi", io.BytesIO(b"csi"), "application/octet-stream")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["commitment"]["value"] == "99"
+
+
+@pytest.mark.unit
+def test_benchmark_forwards_dataset_and_truth(client: TestClient, monkeypatch):
+    class _Experiment:
+        async def run(self, path, **kwargs):
+            assert kwargs["ground_truth_bpm"] == 15.0
+            assert kwargs["dataset_id"] == "subject-01"
+            return {"experiment_id": "run-1", "methods": []}
+
+    monkeypatch.setattr("app.api.endpoints.breathing._get_experiment_service", lambda: _Experiment())
+    response = client.post(
+        "/api/v2/breathing/benchmark",
+        files={"file": ("sample.csi", io.BytesIO(b"csi"), "application/octet-stream")},
+        data={"ground_truth_bpm": "15", "dataset_id": "subject-01"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["experiment_id"] == "run-1"

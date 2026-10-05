@@ -396,6 +396,7 @@ def test_run_breathing_pipeline_from_matrix_end_to_end():
     assert cert["diagnostics"]["max_mode_abs"] <= ZKP_CERT_MODE_MAX_ABS
     assert result["bpm_range"] == {"min": BPM_MIN, "max": BPM_MAX}
     assert len(result["vmd_mode_summaries"]) == 5
+    assert "preprocess_projection_input" not in result
     lomb_input = result["_lomb_scargle_input"]
     assert lomb_input["principal_components"].shape == (len(t), 3)
     assert np.array_equal(lomb_input["timestamps_ns"], timestamps_ns)

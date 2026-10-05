@@ -36,6 +36,7 @@ def test_bpm_evaluation_rejects_invalid_ground_truth(ground_truth_bpm):
 
 PIPELINE_RESULT = {
     "vmd_approx_input": {"waveform": [0] * 128},
+    "preprocess_projection_input": {"centeredX": [[1]], "weights": [1]},
     "respiration_waveform": [0.1, -0.2, 0.1],
     "breathing_rate_bpm": 15.0,
     "peak_freq_hz": 0.25,
@@ -137,6 +138,7 @@ async def test_runs_both_circom_proofs_concurrently_and_hides_private_inputs():
         "fft_cosine_similarity",
     ]
     assert "certificate_input" not in result["analysis"]
+    assert "preprocess_projection_input" not in result["analysis"]
     assert result["analysis"]["algorithm_comparison"]["absolute_difference_bpm"] == pytest.approx(0.1)
     assert "certificate_input" not in result["analysis"]["lomb_scargle"]
 

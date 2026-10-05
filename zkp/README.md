@@ -11,6 +11,8 @@ CSIアップロード時は 5-1 系（VMD）と Lomb--Scargle の2経路を同�
 zkp/
 ├── circuits/
 │   ├── csi_breathing_certificate.circom     # VMD出力の性質を検証する証明書回路
+│   ├── csi_breathing_certificate_committed.circom # VMD入力を公開C1へ拘束
+│   ├── csi_preprocess_projection.circom     # 縮約固定小数点PCA射影の検証
 │   ├── csi_lomb_scargle_normality.circom    # Lomb--Scargle正常判定回路
 │   ├── lomb_scargle_timestamp_basis.circom  # 上記のsin/cos基底
 │   └── csi_breathing_normality.circom       # 旧・呼吸正常判定回路（未使用）
@@ -43,6 +45,21 @@ npm run generate:breathing_certificate
 npm run compile:breathing_certificate
 npm run setup:breathing_certificate   # 2^19 ptau
 ```
+
+### コミットメント付き証明書・前処理射影
+
+既存の証明書回路と並存し、Python推定結果のC1拘束と段階的な前処理検証に使う。
+
+```bash
+npm run generate:breathing_certificate_committed
+npm run compile:breathing_certificate_committed
+npm run setup:breathing_certificate_committed
+npm run compile:preprocess_projection
+npm run setup:preprocess_projection
+```
+
+コミットメントの正規化仕様と実験方法は
+`research/phase2_authenticity/COMMITMENT_DESIGN.md` を参照。
 
 ### Lomb--Scargle回路
 

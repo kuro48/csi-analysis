@@ -641,6 +641,20 @@ def prepare_breathing_certificate_input(
     }
 
 
+def prepare_preprocess_projection_input(
+    pca_input: np.ndarray,
+    pca_mean: np.ndarray,
+    pca_component: np.ndarray,
+    respiration_pc: np.ndarray,
+) -> Dict[str, Any]:
+    """Build the reduced fixed-point PCA witness without changing estimation."""
+
+    from app.services.preprocess_projection_service import prepare_projection_witness
+
+    centered = np.asarray(pca_input, dtype=np.float64) - np.asarray(pca_mean, dtype=np.float64)
+    return prepare_projection_witness(centered, pca_component, respiration_pc)
+
+
 # =========================================================
 # パイプライン実行（5-1.ipynb の main() と同じ手順、描画・判定を除く）
 # =========================================================
@@ -659,6 +673,7 @@ def _check_dependencies(require_loader: bool) -> None:
 def run_breathing_pipeline_from_matrix(
     csi_matrix: np.ndarray,
     lomb_scargle_timestamps_ns: Optional[np.ndarray] = None,
+    include_preprocess_projection_input: bool = False,
 ) -> Dict[str, Any]:
     """複素CSI行列 [n_samples × n_subcarriers] に 5-1.ipynb の処理を適用する。
 
@@ -771,6 +786,14 @@ def run_breathing_pipeline_from_matrix(
         "certificate_input": certificate_input,
     }
 
+    if include_preprocess_projection_input:
+        result["preprocess_projection_input"] = prepare_preprocess_projection_input(
+            pca_input,
+            pca.mean_,
+            pca.components_[best_pc_idx],
+            respiration_pc,
+        )
+
     if lomb_scargle_timestamps_ns is not None:
         timestamps_ns = np.asarray(lomb_scargle_timestamps_ns, dtype=np.int64).reshape(-1)
         if timestamps_ns.size != principal_components.shape[0]:
@@ -790,6 +813,7 @@ def run_breathing_pipeline_from_matrix(
 def run_breathing_pipeline(
     csi_file: str,
     include_lomb_scargle_input: bool = False,
+    include_preprocess_projection_input: bool = False,
 ) -> Dict[str, Any]:
     """PicoScenes .csi ファイルに 5-1.ipynb の一連の処理を適用する。"""
     _check_dependencies(require_loader=True)
@@ -805,4 +829,5 @@ def run_breathing_pipeline(
     return run_breathing_pipeline_from_matrix(
         csi_matrix,
         lomb_scargle_timestamps_ns=timestamps_ns,
+        include_preprocess_projection_input=include_preprocess_projection_input,
     )

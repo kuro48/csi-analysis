@@ -102,3 +102,11 @@ def test_node_heap_can_be_overridden(tmp_path, monkeypatch):
     service = _service(tmp_path, circuit_name="csi_lomb_scargle_normality")
 
     assert service._node_env()["NODE_OPTIONS"] == "--max-old-space-size=8192"
+
+
+def test_verification_timeout_is_disabled_only_for_large_circuit(tmp_path):
+    small = _service(tmp_path)
+    large = _service(tmp_path, circuit_name="csi_lomb_scargle_normality")
+
+    assert small._verification_timeout_seconds() == 60
+    assert large._verification_timeout_seconds() is None

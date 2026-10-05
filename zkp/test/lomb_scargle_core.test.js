@@ -8,9 +8,13 @@ describe("LombScargleTimestampCheck", function () {
   let circuit;
 
   before(async () => {
+    const cachedOutput = process.env.LOMB_SCARGLE_TEST_OUTPUT;
     circuit = await wasmTester(
       path.join(__dirname, "..", "circuits", "csi_lomb_scargle_normality.circom"),
-      { include: [path.join(__dirname, "..", "node_modules")] },
+      {
+        include: [path.join(__dirname, "..", "node_modules")],
+        ...(cachedOutput ? { output: cachedOutput, recompile: false } : {}),
+      },
     );
   });
 
@@ -31,12 +35,13 @@ describe("LombScargleTimestampCheck", function () {
     };
     const witness = await circuit.calculateWitness(input, true);
 
-    await circuit.assertOut(witness, {
-      isNormal: 1,
-      selectedPc: 0,
-      estimatedFrequencyBin: 18,
-      globalPeakFrequencyBin: 18,
-    });
+    // Loading the multi-GB .sym through assertOut exceeds Node's maximum
+    // string length. Public outputs occupy witness indices 1..4 in declaration
+    // order, so inspect them directly as the following test already does.
+    assert.strictEqual(Number(witness[1]), 1);
+    assert.strictEqual(Number(witness[2]), 0);
+    assert.strictEqual(Number(witness[3]), 18);
+    assert.strictEqual(Number(witness[4]), 18);
     await circuit.checkConstraints(witness);
   });
 

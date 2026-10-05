@@ -87,9 +87,16 @@ else
   echo "ZKProofRegistry contract is available."
 fi
 
+# Poseidon参照実装は証明生成前のC0/C1計算にも必要なため、回路の自動
+# コンパイル設定に関係なくZKP側のNode依存を用意する。
+ZKP_DIR="${ZKP_DIR:-/zkp}"
+if [ ! -d "$ZKP_DIR/node_modules" ]; then
+  echo "Installing ZKP Node dependencies..."
+  npm install --prefix "$ZKP_DIR"
+fi
+
 # 5-1 と Lomb-Scargle 比較経路の証明書回路を事前準備する。
 if [ "${ZKP_AUTO_COMPILE:-TRUE}" = "TRUE" ] || [ "${ZKP_AUTO_COMPILE:-true}" = "true" ]; then
-  ZKP_DIR="${ZKP_DIR:-/zkp}"
   CERT_WASM="$ZKP_DIR/build/csi_breathing_certificate_js/csi_breathing_certificate.wasm"
   CERT_ZKEY="$ZKP_DIR/keys/csi_breathing_certificate_final.zkey"
   PTAU_FILE="$ZKP_DIR/keys/powersOfTau28_hez_final_19.ptau"

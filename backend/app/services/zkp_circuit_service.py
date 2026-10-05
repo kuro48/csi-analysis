@@ -37,6 +37,7 @@ class ZKPCircuitService:
     LARGE_CIRCUITS = ("csi_lomb_scargle_normality",)
     DEFAULT_NODE_HEAP_MB = 4096
     LARGE_NODE_HEAP_MB = 14336
+    DEFAULT_VERIFICATION_TIMEOUT_SECONDS = 60
     # Perpetual Powers of Tau contribution 0080 の phase-2 準備済み 2^24 ファイル。
     PTAU24_URL = (
         "https://pse-trusted-setup-ppot.s3.eu-central-1.amazonaws.com/pot28_0080/ppot_0080_24.ptau"
@@ -195,6 +196,13 @@ class ZKPCircuitService:
         override = os.getenv("ZKP_NODE_MAX_OLD_SPACE_MB", "")
         heap_mb = int(override) if override.isdigit() else default_mb
         return {**os.environ, "NODE_OPTIONS": f"--max-old-space-size={heap_mb}"}
+
+    def _verification_timeout_seconds(self) -> Optional[int]:
+        """通常回路の停止保護を残し、大規模回路の実測では時間制限を設けない。"""
+
+        if self.circuit_name in self.LARGE_CIRCUITS:
+            return None
+        return self.DEFAULT_VERIFICATION_TIMEOUT_SECONDS
 
     def _ptau_is_complete(self, ptau_file: Path, expected: int) -> bool:
         """ptauが揃っているか。中断した旧ダウンロードの残骸は末尾を切り詰める。
@@ -536,7 +544,7 @@ class ZKPCircuitService:
                 cwd=str(self.zkp_dir),
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=self._verification_timeout_seconds(),
             )
             return result.returncode == 0 and "OK" in result.stdout
         except Exception as exc:

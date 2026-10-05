@@ -11,12 +11,14 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi import status as http_status
 from fastapi.concurrency import run_in_threadpool
 
 from app.services.breathing_certificate_service import BreathingCertificateService
 from app.services.breathing_pipeline import run_breathing_pipeline
+from app.services.committed_breathing_certificate_service import CommittedBreathingCertificateService
+from app.services.hybrid_experiment_service import HybridExperimentService
 from app.services.verifiable_breathing_service import VerifiableBreathingService
 
 router = APIRouter()
@@ -26,7 +28,9 @@ SUPPORTED_EXTENSION = ".csi"
 
 # 証明書検証サービス（回路セットアップ確認を1回だけ行う遅延シングルトン）
 _certificate_service: Optional[BreathingCertificateService] = None
+_committed_certificate_service: Optional[CommittedBreathingCertificateService] = None
 _verifiable_service: Optional[VerifiableBreathingService] = None
+_experiment_service: Optional[HybridExperimentService] = None
 
 
 def _get_certificate_service() -> BreathingCertificateService:
@@ -36,11 +40,25 @@ def _get_certificate_service() -> BreathingCertificateService:
     return _certificate_service
 
 
+def _get_committed_certificate_service() -> CommittedBreathingCertificateService:
+    global _committed_certificate_service
+    if _committed_certificate_service is None:
+        _committed_certificate_service = CommittedBreathingCertificateService()
+    return _committed_certificate_service
+
+
 def _get_verifiable_service() -> VerifiableBreathingService:
     global _verifiable_service
     if _verifiable_service is None:
         _verifiable_service = VerifiableBreathingService()
     return _verifiable_service
+
+
+def _get_experiment_service() -> HybridExperimentService:
+    global _experiment_service
+    if _experiment_service is None:
+        _experiment_service = HybridExperimentService()
+    return _experiment_service
 
 
 def _validate_upload(filename: Optional[str], file_size: int) -> None:
@@ -196,6 +214,82 @@ async def analyze_breathing_verifiable(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"検証可能な呼吸解析に失敗しました: {exc}",
         ) from exc
+    finally:
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
+
+
+@router.post("/analyze-committed", response_model=Dict[str, Any])
+async def analyze_breathing_committed(
+    file: UploadFile = File(..., description="PicoScenes .csi file"),
+) -> Dict[str, Any]:
+    """Run the unchanged Python estimator and bind its VMD input to public C1."""
+
+    file_data = await file.read()
+    _validate_upload(file.filename, len(file_data))
+    tmp_path: Optional[Path] = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=SUPPORTED_EXTENSION, delete=False) as tmp:
+            tmp.write(file_data)
+            tmp_path = Path(tmp.name)
+        result = await run_in_threadpool(run_breathing_pipeline, str(tmp_path))
+        cert_input = result["certificate_input"]
+        service = await run_in_threadpool(_get_committed_certificate_service)
+        proof_result = await service.generate_proof(
+            vmd_input=cert_input["vmdInput"],
+            modes=cert_input["modes"],
+            sel=cert_input["sel"],
+        )
+        return {
+            "breathing_rate_bpm": result["breathing_rate_bpm"],
+            "peak_freq_hz": result["peak_freq_hz"],
+            "selected_vmd_mode": result["selected_vmd_mode"],
+            "processing_time_seconds": result["processing_time_seconds"],
+            "diagnostics": cert_input["diagnostics"],
+            **proof_result,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except (FileNotFoundError, RuntimeError) as exc:
+        logger.error("Committed breathing analysis unavailable: %s", exc)
+        raise HTTPException(status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Committed breathing analysis failed")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"コミットメント付き呼吸解析に失敗しました: {exc}",
+        ) from exc
+    finally:
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
+
+
+@router.post("/benchmark", response_model=Dict[str, Any])
+async def benchmark_breathing_methods(
+    file: UploadFile = File(..., description="PicoScenes .csi file"),
+    ground_truth_bpm: Optional[float] = Form(default=None),
+    dataset_id: Optional[str] = Form(default=None),
+) -> Dict[str, Any]:
+    """Run and persist all comparable methods against one immutable capture."""
+
+    file_data = await file.read()
+    _validate_upload(file.filename, len(file_data))
+    tmp_path: Optional[Path] = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=SUPPORTED_EXTENSION, delete=False) as tmp:
+            tmp.write(file_data)
+            tmp_path = Path(tmp.name)
+        return await _get_experiment_service().run(
+            str(tmp_path),
+            ground_truth_bpm=ground_truth_bpm,
+            dataset_id=dataset_id,
+            source_filename=file.filename or "capture.csi",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Breathing benchmark failed")
+        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
     finally:
         if tmp_path is not None:
             tmp_path.unlink(missing_ok=True)
