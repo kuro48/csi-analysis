@@ -122,6 +122,7 @@ class HybridExperimentService:
         )
         preprocess_row["diagnostics"] = projection_input["diagnostics"]
         methods.append(preprocess_row)
+        projection_commitment = ((preprocess_row.get("proof") or {}).get("projection_commitment") or {}).get("value")
         methods.append(
             await self._proof_method(
                 method="circom_vmd_approx",
@@ -131,6 +132,7 @@ class HybridExperimentService:
                 proof_call=lambda: self._generate_with_factory(
                     self.approx_factory,
                     waveform=pipeline_result["vmd_approx_input"]["waveform"],
+                    parent_commitment=projection_commitment,
                 ),
                 bpm_key="estimatedBpm",
             )
@@ -202,6 +204,9 @@ class HybridExperimentService:
                 "commitment": proof_result.get("commitment"),
                 "input_commitment": proof_result.get("inputCommitment"),
                 "projection_commitment": proof_result.get("projectionCommitment"),
+                "intermediate_hash": proof_result.get("intermediateHash"),
+                "parent_commitment": proof_result.get("parentCommitment"),
+                "chain_linked": proof_result.get("chainLinked"),
             }
             return row
         except Exception as exc:

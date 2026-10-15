@@ -9,6 +9,7 @@ not hash every temporary FFT or PCA array.
 
 ```text
 state_0 = Poseidon(domain_tag, nonce, format_version)
+state_1 = Poseidon(state_0, parent_commitment)  # linked computation stages
 state_i = Poseidon(state_(i-1), item_i)
 commitment = state_last
 ```
@@ -21,6 +22,14 @@ subcarrier-major. Complex CSI stores interleaved `I, Q` values.
 |---|---:|---|---|
 | C0 raw CSI | `0x43534900` | rows, columns, scale=1000, offset=2^31 | `rint(component*scale)+2^31`, I then Q |
 | C1 VMD input | `0x43534901` | length, offset=2^10 | signed integer + 2^10 |
+| VMD computation | `0x43534910` | length=128, offset=100 | waveform+100, isNormal, frequency bin, mode |
+| Lomb--Scargle computation | `0x43534911` | PCs, samples, frequencies, offset | samples, timestamps, four public results |
+
+The VMD and Lomb--Scargle computation commitments expose the preprocess
+`projectionCommitment` as `parentCommitment`. The API rejects a proof bundle
+when either child public input differs from that parent. This proves commitment
+continuity, not the currently out-of-circuit resizing from the reduced
+projection to each branch-specific input.
 
 The nonce is a non-zero random 128-bit integer. The commitment is binding to
 the nonce but the nonce stays private in the proof. Domain separation prevents

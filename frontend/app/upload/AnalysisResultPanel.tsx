@@ -95,6 +95,7 @@ function CircomBenchmarkSection({
   csiDataId?: string;
 }) {
   const candidates = [
+    { key: "preprocess_projection", label: "前処理PCA射影 + Circom", proof: proofs?.preprocess_projection },
     { key: "python_circom", label: "VMD処理 + Circom", proof: proofs?.python_circom },
     {
       key: "lomb_scargle_circom",
@@ -484,6 +485,17 @@ function ProofCard({
               {proof.proofScope}
             </p>
           )}
+          {proof.intermediateHash && (
+            <div className="border-t border-neutral-100 pt-2">
+              <p className="text-xs text-neutral-500">証明付き中間ハッシュ</p>
+              <p
+                className="mt-1 break-all font-mono text-[10px] leading-relaxed text-neutral-700"
+                title={`${proof.intermediateHash.algorithm}: ${proof.intermediateHash.value}`}
+              >
+                {proof.intermediateHash.value}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -522,6 +534,7 @@ function MainPanel({ processedData, csiDataId }: MainCSIData) {
 
   if (processedData.analysis) {
     const analysis = processedData.analysis;
+    const preprocessCircom = processedData.proofs?.preprocess_projection;
     const circom = processedData.proofs?.python_circom;
     const lombCircom = processedData.proofs?.lomb_scargle_circom;
     const isApproxVmd = circom?.method === "vmd_approx_fixed_point";
@@ -530,6 +543,7 @@ function MainPanel({ processedData, csiDataId }: MainCSIData) {
     const waveformPoints = waveformToSignalPoints(analysis.respiration_waveform);
     const diagnostics = analysis.certificate_diagnostics;
     const proofPerformanceEntries = [
+      { label: "前処理PCA射影 + Circom", proof: preprocessCircom },
       { label: "VMD処理 + Circom", proof: circom },
       { label: "Lomb–Scargle + Circom", proof: lombCircom },
     ];
@@ -554,6 +568,23 @@ function MainPanel({ processedData, csiDataId }: MainCSIData) {
         </div>
 
         <AlgorithmDifferenceSection isApproxVmd={isApproxVmd} />
+
+        {processedData.proofChain && (
+          <div
+            className={`rounded-lg border px-4 py-3 text-sm ${
+              processedData.proofChain.status === "verified"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            <p className="font-semibold">
+              証明チェーン: {processedData.proofChain.status === "verified" ? "連携確認済み" : "連携失敗"}
+            </p>
+            <p className="mt-1 break-all font-mono text-[10px]">
+              前処理出力: {processedData.proofChain.branchCommitment ?? "—"}
+            </p>
+          </div>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
@@ -630,6 +661,11 @@ function MainPanel({ processedData, csiDataId }: MainCSIData) {
         <div>
           <h3 className="mb-3 text-sm font-semibold text-neutral-900">証明</h3>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <ProofCard
+              title="前処理PCA射影 + Circom"
+              proof={preprocessCircom}
+              fallbackMethod="preprocess_projection"
+            />
             <ProofCard
               title={isApproxVmd ? "近似VMD + Circom" : "VMD証明書検証"}
               proof={circom}

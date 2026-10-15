@@ -26,11 +26,14 @@ class _Committed:
 
 class _Approx:
     async def generate_proof(self, **kwargs):
+        assert kwargs["parent_commitment"] == "555"
         return {
             "proof": {"pi_a": ["2"]},
             "estimatedBpm": 14.0,
             "isValid": True,
             "isNormal": True,
+            "parentCommitment": "555",
+            "chainLinked": True,
             "benchmark": {"totalMs": 40, "constraintCount": 200},
         }
 
@@ -40,6 +43,7 @@ class _Preprocess:
         return {
             "proof": {"pi_a": ["3"]},
             "isValid": True,
+            "projectionCommitment": {"value": "555"},
             "benchmark": {"totalMs": 50, "constraintCount": 300},
         }
 

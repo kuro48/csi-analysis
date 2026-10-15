@@ -2,6 +2,7 @@ pragma circom 2.0.0;
 
 include "circomlib/circuits/bitify.circom";
 include "circomlib/circuits/comparators.circom";
+include "circomlib/circuits/poseidon.circom";
 include "lomb_scargle_timestamp_basis.circom";
 
 /**
@@ -35,11 +36,14 @@ template LombScargleFixedPointCheck(
 ) {
     signal input samples[PCS][SAMPLE_COUNT];
     signal input timestampsMs[SAMPLE_COUNT];
+    signal input commitmentNonce;
+    signal input parentCommitment;
 
     signal output isNormal;
     signal output selectedPc;
     signal output estimatedFrequencyBin;
     signal output globalPeakFrequencyBin;
+    signal output intermediateHash;
 
     timestampsMs[0] === 0;
     component timestampBits[SAMPLE_COUNT];
@@ -273,12 +277,77 @@ template LombScargleFixedPointCheck(
     leHigh.in[0] <== globalPeakFrequencyBin;
     leHigh.in[1] <== NORMAL_HIGH_BIN;
     isNormal <== geLow.out * leHigh.out;
+
+    // Poseidon computation commitment: private samples, public timestamps, and
+    // the four derived results are bound to one proof-verifiable stage hash.
+    component hashSeed = Poseidon(3);
+    hashSeed.inputs[0] <== 1129531665; // 0x43534911
+    hashSeed.inputs[1] <== commitmentNonce;
+    hashSeed.inputs[2] <== 1;
+    component hashParent = Poseidon(2);
+    hashParent.inputs[0] <== hashSeed.out;
+    hashParent.inputs[1] <== parentCommitment;
+
+    signal hashMetadataState[5];
+    hashMetadataState[0] <== hashParent.out;
+    var hashMetadata[4] = [PCS, SAMPLE_COUNT, FREQS, SAMPLE_OFFSET];
+    component hashMetadataStep[4];
+    for (var metadataIndex = 0; metadataIndex < 4; metadataIndex++) {
+        hashMetadataStep[metadataIndex] = Poseidon(2);
+        hashMetadataStep[metadataIndex].inputs[0] <== hashMetadataState[metadataIndex];
+        hashMetadataStep[metadataIndex].inputs[1] <== hashMetadata[metadataIndex];
+        hashMetadataState[metadataIndex + 1] <== hashMetadataStep[metadataIndex].out;
+    }
+
+    signal sampleHashState[PCS * SAMPLE_COUNT + 1];
+    component sampleHashStep[PCS * SAMPLE_COUNT];
+    sampleHashState[0] <== hashMetadataState[4];
+    for (var hashPc = 0; hashPc < PCS; hashPc++) {
+        for (var hashSample = 0; hashSample < SAMPLE_COUNT; hashSample++) {
+            var samplePosition = hashPc * SAMPLE_COUNT + hashSample;
+            sampleHashStep[samplePosition] = Poseidon(2);
+            sampleHashStep[samplePosition].inputs[0] <== sampleHashState[samplePosition];
+            sampleHashStep[samplePosition].inputs[1] <== samples[hashPc][hashSample];
+            sampleHashState[samplePosition + 1] <== sampleHashStep[samplePosition].out;
+        }
+    }
+
+    signal timestampHashState[SAMPLE_COUNT + 1];
+    component timestampHashStep[SAMPLE_COUNT];
+    timestampHashState[0] <== sampleHashState[PCS * SAMPLE_COUNT];
+    for (var hashTimestamp = 0; hashTimestamp < SAMPLE_COUNT; hashTimestamp++) {
+        timestampHashStep[hashTimestamp] = Poseidon(2);
+        timestampHashStep[hashTimestamp].inputs[0] <== timestampHashState[hashTimestamp];
+        timestampHashStep[hashTimestamp].inputs[1] <== timestampsMs[hashTimestamp];
+        timestampHashState[hashTimestamp + 1] <== timestampHashStep[hashTimestamp].out;
+    }
+
+    signal resultHashState[5];
+    component resultHashStep[4];
+    resultHashState[0] <== timestampHashState[SAMPLE_COUNT];
+    resultHashStep[0] = Poseidon(2);
+    resultHashStep[0].inputs[0] <== resultHashState[0];
+    resultHashStep[0].inputs[1] <== isNormal;
+    resultHashState[1] <== resultHashStep[0].out;
+    resultHashStep[1] = Poseidon(2);
+    resultHashStep[1].inputs[0] <== resultHashState[1];
+    resultHashStep[1].inputs[1] <== selectedPc;
+    resultHashState[2] <== resultHashStep[1].out;
+    resultHashStep[2] = Poseidon(2);
+    resultHashStep[2].inputs[0] <== resultHashState[2];
+    resultHashStep[2].inputs[1] <== estimatedFrequencyBin;
+    resultHashState[3] <== resultHashStep[2].out;
+    resultHashStep[3] = Poseidon(2);
+    resultHashStep[3].inputs[0] <== resultHashState[3];
+    resultHashStep[3].inputs[1] <== globalPeakFrequencyBin;
+    resultHashState[4] <== resultHashStep[3].out;
+    intermediateHash <== resultHashState[4];
 }
 
 // frequency(bin) = 0.05 + bin * (1.5 - 0.05) / (128 - 1)
 // normal bins: 5 (6.425 BPM)
 //           .. 54 (39.992 BPM)
-component main {public [timestampsMs]} = LombScargleFixedPointCheck(
+component main {public [timestampsMs, parentCommitment]} = LombScargleFixedPointCheck(
     3,
     384,
     128,

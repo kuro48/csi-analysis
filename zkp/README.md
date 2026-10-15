@@ -32,6 +32,23 @@ zkp/
 
 `build/` と `keys/` は生成物のため Git 管理外。
 
+## 証明付き中間ハッシュ
+
+実運用で並列実行する VMD 近似回路と Lomb--Scargle 回路は、秘密入力、
+公開入力、計算結果を Poseidon (BN254) のチェーンへ取り込み、
+`intermediateHash` を公開出力として返す。ハッシュは Groth16 の制約内で
+計算されるため、証明検証に成功したハッシュだけを工程の監査識別子として使える。
+辞書攻撃を避けるため nonce は128-bitの秘密入力とし、レスポンスには含めない。
+
+`/analyze-verifiable` は最初に `csi_preprocess_projection.circom` を検証し、その
+`projectionCommitment` を VMD / Lomb--Scargle 両回路の公開 `parentCommitment` として渡す。
+後段の `intermediateHash` も親コミットメントを取り込むため、別の前処理証明への
+差し替えは検出される。APIの `proofChain.edges[].verified` は公開信号の一致も検査する。
+
+ただし、前処理回路は32点の縮約射影、後段は128点または3×384点を使うため、現段階の
+連携が保証するのは証明間のコミットメント連続性である。縮約射影から後段入力への変換
+そのものを保証するには、共通の完全PCA出力を扱う遷移回路が必要となる。
+
 ## セットアップ
 
 ```bash

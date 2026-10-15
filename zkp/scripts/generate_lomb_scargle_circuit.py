@@ -18,7 +18,7 @@ def main() -> None:
     basis = BASIS.read_text()
     required = (
         'include "lomb_scargle_timestamp_basis.circom";',
-        "public [timestampsMs]",
+        "public [timestampsMs, parentCommitment]",
         "LombTimestampBasis(SAMPLE_COUNT, FREQS, 16)",
         "determinantBasis[f]",
     )

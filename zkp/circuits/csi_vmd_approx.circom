@@ -5,6 +5,8 @@ include "circomlib/circuits/bitify.circom";
 
 include "circomlib/circuits/comparators.circom";
 
+include "circomlib/circuits/poseidon.circom";
+
 template Div(){ signal input n;
  signal input d;
  signal output q;
@@ -45,6 +47,8 @@ r <-- n % d;
 n===q*d+r;
 }
 template V(){ signal input waveform[128];
+ signal input commitmentNonce;
+ signal input parentCommitment;
  signal output isNormal;
  component wb[128];
  component wr[128];
@@ -58,6 +62,7 @@ wt++){ wb[wt]=Num2Bits(8);
  wr[wt].out === 1;
  } signal output estimatedFrequencyBin;
  signal output selectedMode0based;
+ signal output intermediateHash;
  var C[63][128]=[
 [1000, 999, 995, 989, 981, 970, 957, 942, 924, 904, 882, 858, 831, 803, 773, 741, 707, 672, 634, 596, 556, 514, 471, 428, 383, 337, 290, 243, 195, 147, 98, 49, 0, -49, -98, -147, -195, -243, -290, -337, -383, -428, -471, -514, -556, -596, -634, -672, -707, -741, -773, -803, -831, -858, -882, -904, -924, -942, -957, -970, -981, -989, -995, -999, -1000, -999, -995, -989, -981, -970, -957, -942, -924, -904, -882, -858, -831, -803, -773, -741, -707, -672, -634, -596, -556, -514, -471, -428, -383, -337, -290, -243, -195, -147, -98, -49, 0, 49, 98, 147, 195, 243, 290, 337, 383, 428, 471, 514, 556, 596, 634, 672, 707, 741, 773, 803, 831, 858, 882, 904, 924, 942, 957, 970, 981, 989, 995, 999],
 [1000, 995, 981, 957, 924, 882, 831, 773, 707, 634, 556, 471, 383, 290, 195, 98, 0, -98, -195, -290, -383, -471, -556, -634, -707, -773, -831, -882, -924, -957, -981, -995, -1000, -995, -981, -957, -924, -882, -831, -773, -707, -634, -556, -471, -383, -290, -195, -98, 0, 98, 195, 290, 383, 471, 556, 634, 707, 773, 831, 882, 924, 957, 981, 995, 1000, 995, 981, 957, 924, 882, 831, 773, 707, 634, 556, 471, 383, 290, 195, 98, 0, -98, -195, -290, -383, -471, -556, -634, -707, -773, -831, -882, -924, -957, -981, -995, -1000, -995, -981, -957, -924, -882, -831, -773, -707, -634, -556, -471, -383, -290, -195, -98, 0, 98, 195, 290, 383, 471, 556, 634, 707, 773, 831, 882, 924, 957, 981, 995],
@@ -16461,4 +16466,39 @@ ib<==ge.out*le.out;
 estimatedFrequencyBin<==(1-zz.out)*bb[188];
 selectedMode0based<==(1-zz.out)*bm[188];
 isNormal<==ib*(1-zz.out);
-}component main=V();
+component hashSeed=Poseidon(3);
+hashSeed.inputs[0]<==1129531664;
+hashSeed.inputs[1]<==commitmentNonce;
+hashSeed.inputs[2]<==1;
+component hashParent=Poseidon(2);
+hashParent.inputs[0]<==hashSeed.out;
+hashParent.inputs[1]<==parentCommitment;
+component hashLength=Poseidon(2);
+hashLength.inputs[0]<==hashParent.out;
+hashLength.inputs[1]<==128;
+component hashOffset=Poseidon(2);
+hashOffset.inputs[0]<==hashLength.out;
+hashOffset.inputs[1]<==100;
+signal hashState[132];
+component hashStep[131];
+hashState[0]<==hashOffset.out;
+for(var ht=0;
+ht<128;
+ht++){hashStep[ht]=Poseidon(2);
+hashStep[ht].inputs[0]<==hashState[ht];
+hashStep[ht].inputs[1]<==waveform[ht]+100;
+hashState[ht+1]<==hashStep[ht].out;
+}hashStep[128]=Poseidon(2);
+hashStep[128].inputs[0]<==hashState[128];
+hashStep[128].inputs[1]<==isNormal;
+hashState[129]<==hashStep[128].out;
+hashStep[129]=Poseidon(2);
+hashStep[129].inputs[0]<==hashState[129];
+hashStep[129].inputs[1]<==estimatedFrequencyBin;
+hashState[130]<==hashStep[129].out;
+hashStep[130]=Poseidon(2);
+hashStep[130].inputs[0]<==hashState[130];
+hashStep[130].inputs[1]<==selectedMode0based;
+hashState[131]<==hashStep[130].out;
+intermediateHash<==hashState[131];
+}component main {public [parentCommitment]}=V();

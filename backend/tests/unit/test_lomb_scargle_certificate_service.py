@@ -23,6 +23,46 @@ def test_prepare_input_accepts_fixed_point_samples_and_timestamps():
 
 
 @pytest.mark.unit
+@pytest.mark.asyncio
+async def test_generate_proof_returns_proof_bound_intermediate_hash(tmp_path):
+    service = _service_without_setup()
+    service.label = "Lomb_scargle_normality"
+    service.circuit_name = service.CIRCUIT_NAME
+    service.build_dir = tmp_path / "build"
+    service.keys_dir = tmp_path / "keys"
+    wasm_dir = service.build_dir / f"{service.circuit_name}_js"
+    wasm_dir.mkdir(parents=True)
+    service.keys_dir.mkdir(parents=True)
+    (wasm_dir / f"{service.circuit_name}.wasm").write_bytes(b"wasm")
+    (service.keys_dir / f"{service.circuit_name}_final.zkey").write_bytes(b"zkey")
+    service._circuit_build_is_stale = lambda *_: False
+    observed = {}
+
+    async def generate(input_data, verify=False):
+        observed.update(input_data)
+        assert verify is True
+        public_signals = ["1", "0", "40", "40", "67890"]
+        public_signals.extend(str(value) for value in range(CIRCOM_SAMPLES))
+        public_signals.append("777")
+        return {}, public_signals, True, {}
+
+    service._generate_proof_with_benchmark = generate
+    service._performance_from_benchmark = lambda _: {}
+    samples = [[1024] * CIRCOM_SAMPLES for _ in range(PCA_COMPONENTS)]
+    result = await service.generate_proof(
+        samples=samples,
+        timestamps_ms=list(range(CIRCOM_SAMPLES)),
+        parent_commitment="777",
+    )
+
+    assert 0 < observed["commitmentNonce"] < 2**128
+    assert result["intermediateHash"]["value"] == "67890"
+    assert result["intermediateHash"]["domainTag"] == 0x43534911
+    assert result["parentCommitment"] == "777"
+    assert observed["parentCommitment"] == "777"
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("value", [-1, 2**11])
 def test_prepare_input_rejects_out_of_range_value(value):
     samples = [[1024] * CIRCOM_SAMPLES for _ in range(PCA_COMPONENTS)]

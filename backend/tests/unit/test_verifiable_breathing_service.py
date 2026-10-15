@@ -36,7 +36,7 @@ def test_bpm_evaluation_rejects_invalid_ground_truth(ground_truth_bpm):
 
 PIPELINE_RESULT = {
     "vmd_approx_input": {"waveform": [0] * 128},
-    "preprocess_projection_input": {"centeredX": [[1]], "weights": [1]},
+    "preprocess_projection_input": {"centeredX": [[1]], "weights": [1], "projected": [1]},
     "respiration_waveform": [0.1, -0.2, 0.1],
     "breathing_rate_bpm": 15.0,
     "peak_freq_hz": 0.25,
@@ -70,16 +70,20 @@ class _CircomService:
         self.started = started
         self.release = release
 
-    async def generate_proof(self, waveform):
+    async def generate_proof(self, waveform, parent_commitment):
         assert waveform == [0] * 128
+        assert parent_commitment == "555"
         self.started.add("circom")
         await self.release.wait()
         return {
             "proof": {"pi_a": ["1"]},
-            "publicSignals": ["1", "16", "0"],
+            "publicSignals": ["1", "16", "0", "12345", "555"],
             "isNormal": True,
             "isValid": True,
             "method": "breathing_certificate",
+            "intermediateHash": {"value": "12345", "algorithm": "poseidon-bn254"},
+            "parentCommitment": "555",
+            "chainLinked": True,
         }
 
 
@@ -88,19 +92,38 @@ class _LombCircomService:
         self.started = started
         self.release = release
 
-    async def generate_proof(self, samples, timestamps_ms):
+    async def generate_proof(self, samples, timestamps_ms, parent_commitment):
         assert len(samples) == 3
         assert len(timestamps_ms) == 384
+        assert parent_commitment == "555"
         if self.started is not None:
             self.started.add("lomb_circom")
         if self.release is not None:
             await self.release.wait()
         return {
             "proof": {"pi_a": ["2"]},
-            "publicSignals": ["1", "0", "139", "139"],
+            "publicSignals": ["1", "0", "139", "139", "67890"],
             "isNormal": True,
             "isValid": True,
             "method": "lomb_scargle_timestamp_trig_fixed_point",
+            "intermediateHash": {"value": "67890", "algorithm": "poseidon-bn254"},
+            "parentCommitment": "555",
+            "chainLinked": True,
+        }
+
+
+class _PreprocessCircomService:
+    async def generate_proof(self, centered_x, weights, projected=None):
+        assert centered_x == [[1]]
+        assert weights == [1]
+        return {
+            "proof": {"pi_a": ["3"]},
+            "publicSignals": ["555", "444"],
+            "isValid": True,
+            "method": "preprocess_projection",
+            "inputCommitment": {"value": "444"},
+            "projectionCommitment": {"value": "555"},
+            "intermediateHash": {"value": "555", "algorithm": "poseidon-bn254"},
         }
 
 
@@ -116,6 +139,7 @@ async def test_runs_both_circom_proofs_concurrently_and_hides_private_inputs():
         circom_service_factory=lambda: _CircomService(started, release),
         lomb_scargle_runner=lambda _: LOMB_RESULT,
         lomb_circom_service_factory=lambda: _LombCircomService(started, release),
+        preprocess_circom_service_factory=_PreprocessCircomService,
     )
 
     task = asyncio.create_task(service.analyze("sample.csi"))
@@ -129,9 +153,18 @@ async def test_runs_both_circom_proofs_concurrently_and_hides_private_inputs():
     result = await task
 
     assert result["status"] == "completed"
-    assert set(result["proofs"]) == {"python_circom", "lomb_scargle_circom"}
+    assert set(result["proofs"]) == {"preprocess_projection", "python_circom", "lomb_scargle_circom"}
+    assert result["proofs"]["preprocess_projection"]["status"] == "completed"
     assert result["proofs"]["python_circom"]["status"] == "completed"
     assert result["proofs"]["lomb_scargle_circom"]["status"] == "completed"
+    assert result["intermediateHashes"] == {
+        "preprocess_projection": {"value": "555", "algorithm": "poseidon-bn254"},
+        "python_circom": {"value": "12345", "algorithm": "poseidon-bn254"},
+        "lomb_scargle_circom": {"value": "67890", "algorithm": "poseidon-bn254"},
+    }
+    assert result["proofChain"]["status"] == "verified"
+    assert result["proofChain"]["rootInputCommitment"] == "444"
+    assert all(edge["verified"] for edge in result["proofChain"]["edges"])
     assert result["disabled_methods"] == [
         "wavelet",
         "music",
@@ -171,6 +204,7 @@ async def test_passes_existing_pipeline_pca_output_to_lomb_scargle():
         circom_service_factory=_WorkingCircom,
         lomb_scargle_runner=lomb_runner,
         lomb_circom_service_factory=_LombCircomService,
+        preprocess_circom_service_factory=_PreprocessCircomService,
     )
 
     result = await service.analyze("sample.csi")
@@ -197,6 +231,7 @@ async def test_preserves_circom_result_when_lomb_scargle_fails():
         circom_service_factory=_WorkingCircom,
         lomb_scargle_runner=broken_lomb_runner,
         lomb_circom_service_factory=_LombCircomService,
+        preprocess_circom_service_factory=_PreprocessCircomService,
     )
 
     result = await service.analyze("sample.csi")
@@ -209,3 +244,32 @@ async def test_preserves_circom_result_when_lomb_scargle_fails():
         "error_type": "RuntimeError",
     }
     assert result["analysis"]["lomb_scargle"]["status"] == "failed"
+
+
+@pytest.mark.unit
+def test_proof_chain_rejects_a_child_bound_to_another_preprocess_commitment():
+    from app.services.verifiable_breathing_service import VerifiableBreathingService
+
+    chain = VerifiableBreathingService._build_proof_chain(
+        {
+            "preprocess_projection": {
+                "status": "completed",
+                "isValid": True,
+                "inputCommitment": {"value": "444"},
+                "projectionCommitment": {"value": "555"},
+            },
+            "python_circom": {
+                "status": "completed",
+                "isValid": True,
+                "parentCommitment": "555",
+            },
+            "lomb_scargle_circom": {
+                "status": "completed",
+                "isValid": True,
+                "parentCommitment": "999",
+            },
+        }
+    )
+
+    assert chain["status"] == "failed"
+    assert [edge["verified"] for edge in chain["edges"]] == [True, False]

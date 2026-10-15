@@ -32,16 +32,19 @@ describe("LombScargleTimestampCheck", function () {
     const input = {
       samples: [encodeSignal(0.25), encodeSignal(0.8), encodeSignal(1.1)],
       timestampsMs: times.map((time) => Math.round((time - times[0]) * 1000)),
+      commitmentNonce: "12345678901234567890",
+      parentCommitment: "987654321",
     };
     const witness = await circuit.calculateWitness(input, true);
 
     // Loading the multi-GB .sym through assertOut exceeds Node's maximum
-    // string length. Public outputs occupy witness indices 1..4 in declaration
+    // string length. Public outputs occupy witness indices 1..5 in declaration
     // order, so inspect them directly as the following test already does.
     assert.strictEqual(Number(witness[1]), 1);
     assert.strictEqual(Number(witness[2]), 0);
     assert.strictEqual(Number(witness[3]), 18);
     assert.strictEqual(Number(witness[4]), 18);
+    assert.notStrictEqual(witness[5].toString(), "0", "Poseidon intermediate hash must be non-zero");
     await circuit.checkConstraints(witness);
   });
 
@@ -62,6 +65,8 @@ describe("LombScargleTimestampCheck", function () {
       const input = {
         samples: [encodeSignal(frequency), encodeSignal(0.8), encodeSignal(1.1)],
         timestampsMs,
+        commitmentNonce: "12345678901234567890",
+        parentCommitment: "987654321",
       };
       const witness = await circuit.calculateWitness(input, true);
       const expectedBin = Math.round((frequency - frequencyMin) / frequencyStep);

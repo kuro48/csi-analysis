@@ -112,13 +112,41 @@ export interface ProcessedData {
   status?: "completed" | "partial" | "failed";
   analysis?: BreathingAnalysis;
   proofs?: {
+    preprocess_projection?: VerifiableProofResult;
     python_circom?: VerifiableProofResult;
     lomb_scargle_circom?: VerifiableProofResult;
-
   };
+  proofChain?: ProofChain;
+  intermediateHashes?: Partial<
+    Record<"preprocess_projection" | "python_circom" | "lomb_scargle_circom", IntermediateHash>
+  >;
   bpm_evaluation?: BpmEvaluation;
   disabled_methods?: string[];
   error?: string;
+}
+
+export interface ProofChainEdge {
+  from: string;
+  to: string;
+  commitment: string | null;
+  verified: boolean;
+}
+
+export interface ProofChain {
+  status: "verified" | "failed";
+  rootInputCommitment: string | null;
+  branchCommitment: string | null;
+  edges: ProofChainEdge[];
+  transitionScope: string;
+}
+
+export interface IntermediateHash {
+  value: string;
+  algorithm: "poseidon-bn254" | string;
+  domainTag?: number;
+  formatVersion?: number;
+  noncePrivate?: boolean;
+  binds?: string[];
 }
 
 export interface ProofPerformance {
@@ -146,6 +174,9 @@ export interface VerifiableProofResult {
   estimatedBpm?: number;
   globalPeakFrequencyHz?: number;
   globalPeakBpm?: number;
+  intermediateHash?: IntermediateHash;
+  parentCommitment?: string;
+  chainLinked?: boolean;
   error?: string;
   error_type?: string;
   reason?: string;

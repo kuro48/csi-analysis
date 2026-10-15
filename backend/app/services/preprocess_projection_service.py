@@ -89,6 +89,16 @@ class PreprocessProjectionService(ZKPCircuitService):
             "method": "preprocess_projection",
             "inputCommitment": input_commitment.as_dict(),
             "projectionCommitment": output_commitment.as_dict(),
+            "intermediateHash": {
+                "value": output_commitment.value,
+                "algorithm": "poseidon-bn254",
+                "domainTag": output_commitment.domain_tag,
+                "formatVersion": output_commitment.version,
+                "noncePrivate": True,
+                "binds": ["projected"],
+                "metadata": list(output_commitment.metadata),
+                "valueCount": output_commitment.value_count,
+            },
             "benchmark": benchmark,
             "performance": self._performance_from_benchmark(benchmark),
         }

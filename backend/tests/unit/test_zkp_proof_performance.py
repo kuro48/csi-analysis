@@ -7,10 +7,7 @@ import pytest
 
 from app.services.breathing_certificate_service import BreathingCertificateService
 from app.services.lomb_scargle_certificate_service import LombScargleCertificateService
-from app.services.lomb_scargle_pipeline import (
-    CIRCOM_SAMPLES,
-    PCA_COMPONENTS,
-)
+from app.services.lomb_scargle_pipeline import CIRCOM_SAMPLES, PCA_COMPONENTS
 from tests.unit.r1cs_fixture import build_r1cs_bytes
 
 CONSTRAINT_COUNT = 11354
@@ -84,7 +81,10 @@ async def test_breathing_certificate_proof_reports_constraints_and_times(tmp_pat
 async def test_lomb_scargle_proof_reports_constraints_and_times(tmp_path):
     _prepare_circuit_files(tmp_path, LombScargleCertificateService.CIRCUIT_NAME)
     service = LombScargleCertificateService(zkp_dir=str(tmp_path), auto_compile=False)
-    _stub_proof_steps(service, ["1", "2", "40", "40"])
+    lomb_public_signals = ["1", "2", "40", "40", "12345"]
+    lomb_public_signals.extend(str(value) for value in range(CIRCOM_SAMPLES))
+    lomb_public_signals.append("0")
+    _stub_proof_steps(service, lomb_public_signals)
 
     result = await service.generate_proof(
         samples=[[0] * CIRCOM_SAMPLES for _ in range(PCA_COMPONENTS)],

@@ -38,7 +38,11 @@ CSI読込からPCAまでは両方式で共有され、Lomb–Scargle側では再
 - 選択PCの正常帯域内ピークと全帯域グローバルピークの `argmax`
 - グローバルピークbinの正常範囲判定
 
-公開出力は `isNormal`、0始まりの選択PC、推定周波数bin、グローバルピークbin。
+公開出力は `isNormal`、0始まりの選択PC、推定周波数bin、グローバルピークbin、
+および秘密PCA波形・公開タイムスタンプ・4結果を束ねる Poseidon `intermediateHash`。
+前処理証明の `projectionCommitment` を公開 `parentCommitment` として同じハッシュへ
+取り込み、証明間の連続性を検査する。ハッシュ用nonceは128-bitの秘密入力で、
+レスポンスには公開しない。
 `isValid` はGroth16証明のローカル検証結果で、`isNormal` とは独立している。
 
 τは近似せず、非直交sin/cos基底のGram行列を使う代数的に等価な式で消去する。

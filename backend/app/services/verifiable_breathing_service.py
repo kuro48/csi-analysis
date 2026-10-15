@@ -8,10 +8,11 @@ from pathlib import Path
 from typing import Any, Callable, Dict
 
 from app.core.config import settings
-from app.services.vmd_approx_service import VmdApproxService
 from app.services.breathing_pipeline import run_breathing_pipeline
 from app.services.lomb_scargle_certificate_service import LombScargleCertificateService
 from app.services.lomb_scargle_pipeline import run_lomb_scargle_pipeline
+from app.services.preprocess_projection_service import PreprocessProjectionService
+from app.services.vmd_approx_service import VmdApproxService
 
 logger = logging.getLogger(__name__)
 
@@ -76,11 +77,15 @@ class VerifiableBreathingService:
         lomb_circom_service_factory: Callable[
             [], LombScargleCertificateService
         ] = lambda: LombScargleCertificateService(auto_compile=settings.ZKP_AUTO_COMPILE),
+        preprocess_circom_service_factory: Callable[
+            [], PreprocessProjectionService
+        ] = lambda: PreprocessProjectionService(auto_compile=settings.ZKP_AUTO_COMPILE),
     ) -> None:
         self.pipeline_runner = pipeline_runner
         self.circom_service_factory = circom_service_factory
         self.lomb_scargle_runner = lomb_scargle_runner
         self.lomb_circom_service_factory = lomb_circom_service_factory
+        self.preprocess_circom_service_factory = preprocess_circom_service_factory
 
     async def analyze(self, file_path: str) -> Dict[str, Any]:
         path = Path(file_path)
@@ -90,11 +95,19 @@ class VerifiableBreathingService:
         runner_parameters = list(inspect.signature(self.pipeline_runner).parameters.values())
         accepts_kwargs = any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in runner_parameters)
         supports_lomb_option = any(parameter.name == "include_lomb_scargle_input" for parameter in runner_parameters)
+        supports_preprocess_option = any(
+            parameter.name == "include_preprocess_projection_input" for parameter in runner_parameters
+        )
+        pipeline_options: Dict[str, bool] = {}
         if supports_lomb_option or accepts_kwargs:
+            pipeline_options["include_lomb_scargle_input"] = True
+        if supports_preprocess_option or accepts_kwargs:
+            pipeline_options["include_preprocess_projection_input"] = True
+        if pipeline_options:
             pipeline_result = await asyncio.to_thread(
                 self.pipeline_runner,
                 file_path,
-                include_lomb_scargle_input=True,
+                **pipeline_options,
             )
         else:
             # Keep lightweight injected runners used by callers/tests compatible.
@@ -114,25 +127,46 @@ class VerifiableBreathingService:
             lomb_result = exc
             lomb_certificate_input = None
 
-        circom_task = self._run_circom(pipeline_result["vmd_approx_input"])
-        if lomb_certificate_input is None:
-            (circom_result,) = await asyncio.gather(circom_task, return_exceptions=True)
-            lomb_circom_result: Any = lomb_result
+        projection_input = pipeline_result.get("preprocess_projection_input")
+        if projection_input is None:
+            preprocess_circom_result: Any = ValueError("preprocess projection input is unavailable")
         else:
-            circom_result, lomb_circom_result = await asyncio.gather(
-                circom_task,
-                self._run_lomb_circom(lomb_certificate_input),
+            (preprocess_circom_result,) = await asyncio.gather(
+                self._run_preprocess_circom(projection_input),
                 return_exceptions=True,
             )
+
+        if isinstance(preprocess_circom_result, BaseException):
+            parent_commitment = None
+        else:
+            parent_commitment = str(preprocess_circom_result["projectionCommitment"]["value"])
+
+        if parent_commitment is None:
+            chain_error = RuntimeError("preprocess projection proof did not provide a parent commitment")
+            circom_result: Any = chain_error
+            lomb_circom_result: Any = lomb_result if isinstance(lomb_result, BaseException) else chain_error
+        else:
+            circom_task = self._run_circom(pipeline_result["vmd_approx_input"], parent_commitment)
+            if lomb_certificate_input is None:
+                (circom_result,) = await asyncio.gather(circom_task, return_exceptions=True)
+                lomb_circom_result = lomb_result
+            else:
+                circom_result, lomb_circom_result = await asyncio.gather(
+                    circom_task,
+                    self._run_lomb_circom(lomb_certificate_input, parent_commitment),
+                    return_exceptions=True,
+                )
+
         proofs = {
+            "preprocess_projection": self._normalize_result(preprocess_circom_result),
             "python_circom": self._normalize_result(circom_result),
             "lomb_scargle_circom": self._normalize_result(lomb_circom_result),
         }
-        circom_completed = proofs["python_circom"]["status"] == "completed"
-        lomb_circom_completed = proofs["lomb_scargle_circom"]["status"] == "completed"
-        if circom_completed and lomb_circom_completed:
+        proof_chain = self._build_proof_chain(proofs)
+        completed = [proof["status"] == "completed" for proof in proofs.values()]
+        if all(completed) and proof_chain["status"] == "verified":
             status = "completed"
-        elif circom_completed or lomb_circom_completed:
+        elif any(completed):
             status = "partial"
         else:
             status = "failed"
@@ -169,21 +203,72 @@ class VerifiableBreathingService:
             "status": status,
             "analysis": analysis,
             "proofs": proofs,
+            "proofChain": proof_chain,
+            "intermediateHashes": {
+                proof_name: proof_result["intermediateHash"]
+                for proof_name, proof_result in proofs.items()
+                if proof_result.get("status") == "completed" and "intermediateHash" in proof_result
+            },
             "disabled_methods": list(DISABLED_ANALYSIS_METHODS),
         }
 
-    async def _run_circom(self, vmd_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _run_circom(self, vmd_input: Dict[str, Any], parent_commitment: str) -> Dict[str, Any]:
         service = await asyncio.to_thread(self.circom_service_factory)
         return await service.generate_proof(
             waveform=vmd_input["waveform"],
+            parent_commitment=parent_commitment,
         )
 
-    async def _run_lomb_circom(self, certificate_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _run_lomb_circom(self, certificate_input: Dict[str, Any], parent_commitment: str) -> Dict[str, Any]:
         service = await asyncio.to_thread(self.lomb_circom_service_factory)
         return await service.generate_proof(
             samples=certificate_input["samples"],
             timestamps_ms=certificate_input["timestampsMs"],
+            parent_commitment=parent_commitment,
         )
+
+    async def _run_preprocess_circom(self, projection_input: Dict[str, Any]) -> Dict[str, Any]:
+        service = await asyncio.to_thread(self.preprocess_circom_service_factory)
+        return await service.generate_proof(
+            centered_x=projection_input["centeredX"],
+            weights=projection_input["weights"],
+            projected=projection_input["projected"],
+        )
+
+    @staticmethod
+    def _build_proof_chain(proofs: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        preprocess = proofs["preprocess_projection"]
+        projection = preprocess.get("projectionCommitment") or {}
+        parent = str(projection.get("value")) if projection.get("value") is not None else None
+        edges = []
+        for target in ("python_circom", "lomb_scargle_circom"):
+            child = proofs[target]
+            child_parent = child.get("parentCommitment")
+            edges.append(
+                {
+                    "from": "preprocess_projection",
+                    "to": target,
+                    "commitment": parent,
+                    "verified": (
+                        parent is not None
+                        and child.get("status") == "completed"
+                        and child.get("isValid") is True
+                        and str(child_parent) == parent
+                    ),
+                }
+            )
+        verified = (
+            preprocess.get("status") == "completed"
+            and preprocess.get("isValid") is True
+            and all(edge["verified"] for edge in edges)
+        )
+        return {
+            "status": "verified" if verified else "failed",
+            "rootInputCommitment": (preprocess.get("inputCommitment") or {}).get("value"),
+            "branchCommitment": parent,
+            "edges": edges,
+            "transitionScope": "commitment continuity; reduced-projection to branch-input transformation is not proved",
+        }
 
     @staticmethod
     def _normalize_result(result: Any) -> Dict[str, Any]:

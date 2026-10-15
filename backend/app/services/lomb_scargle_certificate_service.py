@@ -9,6 +9,7 @@ from app.services.lomb_scargle_pipeline import (
     CIRCOM_TIMESTAMP_BITS,
     PCA_COMPONENTS,
 )
+from app.services.poseidon_commitment import BN254_FIELD_MODULUS, COMMITMENT_FORMAT_VERSION, new_commitment_nonce
 from app.services.zkp_circuit_service import ZKPCircuitService
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ class LombScargleCertificateService(ZKPCircuitService):
     """固定小数点PCA波形からLomb--Scargle投影と判定を証明する。"""
 
     CIRCUIT_NAME = "csi_lomb_scargle_normality"
+    INTERMEDIATE_HASH_DOMAIN_TAG = 0x43534911
 
     def __init__(self, zkp_dir: Optional[str] = None, auto_compile: bool = True) -> None:
         super().__init__(self.CIRCUIT_NAME, zkp_dir=zkp_dir, auto_compile=auto_compile)
@@ -26,6 +28,7 @@ class LombScargleCertificateService(ZKPCircuitService):
         self,
         samples: Optional[List[List[int]]] = None,
         timestamps_ms: Optional[List[int]] = None,
+        parent_commitment: Optional[str] = None,
     ) -> Dict[str, Any]:
         if samples is None or timestamps_ms is None:
             raise ValueError("samples and timestamps_ms are required for LombScargleFixedPointCheck")
@@ -44,6 +47,11 @@ class LombScargleCertificateService(ZKPCircuitService):
             )
 
         input_data = self._prepare_input(samples, timestamps_ms)
+        parent = int(parent_commitment) if parent_commitment is not None else 0
+        if not 0 <= parent < BN254_FIELD_MODULUS:
+            raise ValueError("parent_commitment must be a canonical BN254 field element")
+        input_data["commitmentNonce"] = new_commitment_nonce()
+        input_data["parentCommitment"] = str(parent)
         proof, public_signals, is_valid, benchmark = await self._generate_proof_with_benchmark(
             input_data,
             verify=True,
@@ -52,12 +60,19 @@ class LombScargleCertificateService(ZKPCircuitService):
         if not is_valid:
             raise RuntimeError(f"{self.label} proof failed local verification")
 
-        if len(public_signals) < 4:
+        if len(public_signals) < 5:
             raise RuntimeError(f"{self.label} returned incomplete public signals")
         is_normal = bool(int(public_signals[0]))
         selected_pc = int(public_signals[1]) + 1
         estimated_bin = int(public_signals[2])
         global_peak_bin = int(public_signals[3])
+        try:
+            intermediate_hash = str(int(public_signals[4]))
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(f"{self.label} returned an invalid intermediate hash") from exc
+        parent_signal_index = 5 + CIRCOM_SAMPLES
+        if len(public_signals) <= parent_signal_index or int(public_signals[parent_signal_index]) != parent:
+            raise RuntimeError(f"{self.label} returned an unexpected parent commitment")
         estimated_frequency_hz = float(CIRCOM_FREQUENCIES_HZ[estimated_bin])
         global_peak_frequency_hz = float(CIRCOM_FREQUENCIES_HZ[global_peak_bin])
         logger.info(
@@ -81,6 +96,24 @@ class LombScargleCertificateService(ZKPCircuitService):
             "estimatedBpm": estimated_frequency_hz * 60,
             "globalPeakFrequencyHz": global_peak_frequency_hz,
             "globalPeakBpm": global_peak_frequency_hz * 60,
+            "intermediateHash": {
+                "value": intermediate_hash,
+                "algorithm": "poseidon-bn254",
+                "domainTag": self.INTERMEDIATE_HASH_DOMAIN_TAG,
+                "formatVersion": COMMITMENT_FORMAT_VERSION,
+                "noncePrivate": True,
+                "binds": [
+                    "samples",
+                    "timestampsMs",
+                    "parentCommitment",
+                    "isNormal",
+                    "selectedPc",
+                    "estimatedFrequencyBin",
+                    "globalPeakFrequencyBin",
+                ],
+            },
+            "parentCommitment": str(parent),
+            "chainLinked": parent != 0,
             "proofScope": "timestamp_reanchored_trig_approximation_tau_free_lomb_scargle_pc_selection_argmax_normal_band",
             "performance": performance,
             "benchmark": benchmark,

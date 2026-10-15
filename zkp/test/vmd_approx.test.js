@@ -5,6 +5,9 @@ const { execFileSync } = require('child_process');
 
 const N = 128, FS = 2;
 function tone(hz, amp = 80) { return Array.from({length:N}, (_,t)=>Math.round(amp*Math.sin(2*Math.PI*hz*t/FS))); }
+function circuitInput(waveform, commitmentNonce = "12345678901234567890", parentCommitment = "987654321") {
+  return {waveform, commitmentNonce, parentCommitment};
+}
 function reference(waveform) {
   const script = "import json,sys; sys.path.insert(0,'" + path.resolve(__dirname, '../scripts') + "'); from vmd_approx_reference import vmd_approx; print(json.dumps(vmd_approx(json.load(sys.stdin))))";
   return JSON.parse(execFileSync(process.env.PYTHON || 'python3', ['-c', script], {input:JSON.stringify(waveform), encoding:'utf8'}));
@@ -27,7 +30,7 @@ describe('input-only approximate VMD', function () {
   before(async () => { circuit = await wasm(path.join(__dirname, '../circuits/csi_vmd_approx.circom'), { include: [path.join(__dirname, '../node_modules')] }); await circuit.loadSymbols(); });
   for (const [hz, expected] of [[.25,16],[.5,32],[.8,51]]) {
     it(`accepts ${hz}Hz and reports expected bin`, async () => {
-      const w = await circuit.calculateWitness({waveform:tone(hz)}, true);
+      const w = await circuit.calculateWitness(circuitInput(tone(hz)), true);
       await circuit.checkConstraints(w);
       const ref = reference(tone(hz));
       assert.equal(ref.peak_bin, expected);
@@ -36,7 +39,7 @@ describe('input-only approximate VMD', function () {
     });
   }
   it('returns false for zero waveform', async () => {
-    const w = await circuit.calculateWitness({waveform:Array(N).fill(0)}, true);
+    const w = await circuit.calculateWitness(circuitInput(Array(N).fill(0)), true);
     await circuit.checkConstraints(w);
     await circuit.assertOut(w, {isNormal: 0, estimatedFrequencyBin: 0, selectedMode0based: 0});
   });
@@ -44,23 +47,33 @@ describe('input-only approximate VMD', function () {
     const mixed = tone(.25, 60).map((x,i)=>x + tone(.75,25)[i]);
     const random = Array.from({length:N}, (_,i)=>((i*1103515245+12345>>>0)%201)-100);
     for (const waveform of [mixed, random]) {
-      const w = await circuit.calculateWitness({waveform}, true);
+      const w = await circuit.calculateWitness(circuitInput(waveform), true);
       const ref = reference(waveform);
       await circuit.assertOut(w, {isNormal: ref.is_normal ? 1 : 0, estimatedFrequencyBin: ref.peak_bin, selectedMode0based: ref.selected_mode});
       checkInternals(circuit, w, ref);
     }
   });
   it('rejects out of range samples', async () => {
-    await assert.rejects(() => circuit.calculateWitness({waveform:Array(N).fill(101)}, true));
-    await assert.rejects(() => circuit.calculateWitness({waveform:Array(N).fill(-101)}, true));
+    await assert.rejects(() => circuit.calculateWitness(circuitInput(Array(N).fill(101)), true));
+    await assert.rejects(() => circuit.calculateWitness(circuitInput(Array(N).fill(-101)), true));
+  });
+  it('binds the intermediate hash to the nonce and parent commitment', async () => {
+    const waveform = tone(.25);
+    const first = await circuit.calculateWitness(circuitInput(waveform, "1"), true);
+    const second = await circuit.calculateWitness(circuitInput(waveform, "2"), true);
+    const differentParent = await circuit.calculateWitness(circuitInput(waveform, "1", "987654322"), true);
+    const hashIndex = circuit.symbols['main.intermediateHash'].varIdx;
+    assert.notEqual(first[hashIndex], 0n);
+    assert.notEqual(first[hashIndex], second[hashIndex]);
+    assert.notEqual(first[hashIndex], differentParent[hashIndex]);
   });
   it('rejects tampered output witness', async () => {
-    const w = await circuit.calculateWitness({waveform:tone(.25)}, true);
+    const w = await circuit.calculateWitness(circuitInput(tone(.25)), true);
     const bad = w.slice(); bad[1] = bad[1] + 1n;
     await assert.rejects(() => circuit.checkConstraints(bad));
   });
   it('rejects tampered division witness', async () => {
-    const w = await circuit.calculateWitness({waveform:tone(.25)}, true);
+    const w = await circuit.calculateWitness(circuitInput(tone(.25)), true);
     const idx = circuit.symbols['main.q0_0_0.qm'].varIdx;
     const bad = w.slice(); bad[idx] = bad[idx] + 1n;
     await assert.rejects(() => circuit.checkConstraints(bad));
