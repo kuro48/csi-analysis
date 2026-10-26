@@ -1,0 +1,13 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"><title>進捗報告要約</title><style>
+*{box-sizing:border-box}body{width:1200px;height:900px;margin:0;padding:36px 52px;background:white;color:#1b2e3c;font-family:-apple-system,"Hiragino Sans",sans-serif}
+h1{font-size:36px;margin:0 0 16px;border-bottom:4px solid #296c8d;padding-bottom:16px}h2{font-size:26px;margin:22px 0 8px}
+p{font-size:22px;line-height:1.65;margin:8px 0}table{border-collapse:collapse;width:100%;font-size:21px;margin-top:18px}th,td{padding:9px 18px;border-bottom:1px solid #ccd7df;text-align:right}th:first-child,td:first-child{text-align:left}th{background:#edf4f7}.note{font-size:18px;color:#586b79;margin-top:20px}.footer{font-size:16px;color:#647885;margin-top:16px}</style>
+<h1>CSI呼吸推定回路の比較実験 <span style="font-size:22px">2026/10/26</span></h1>
+<h2>VMD：反復増より初期中心の影響が大きい</h2>
+<p>同一PCA波形LSとの差（実8件）：K3/R4 <b>10.657</b> → K3/R32 <b>11.145 BPM</b><br>
+K4/R4、またはK3/R4＋中心[8,16,24]で <b>1.108 BPM</b></p>
+<p style="font-size:19px">初期中心変更のK3候補は既定と同じ340,734制約。別の実測記録での検証が必要。</p>
+<h2>Lomb–Scargle：サブキャリア数と証明コスト</h2><table><thead><tr><th>LS 本数</th><th>制約数</th><th>証明時間の中央値(s)</th><th>全tones LSとの差(BPM)</th></tr></thead><tbody><tr><td>1</td><td>311,002</td><td>5.079</td><td>3.596</td></tr><tr><td>2</td><td>346,823</td><td>5.776</td><td>2.398</td></tr><tr><td>4</td><td>418,469</td><td>6.852</td><td>3.340</td></tr><tr><td>8</td><td>561,761</td><td>12.281</td><td>1.969</td></tr><tr><td>16</td><td>848,345</td><td>17.513</td><td>2.997</td></tr><tr><td>32</td><td>1,421,513</td><td>—</td><td>1.627</td></tr></tbody></table>
+<p class="note">実CSI 8収録を使用。正解呼吸数なし：LSとの差は一致度であり、正解誤差ではない。<br>
+証明時間はApple M4 Pro / RAM 24 GiB、完了構成3回の中央値。setup等は除外。</p>
+<div class="footer">32本：8 GiB heapでOOM、12 GiBでsetup 30分上限。推定値・witness照合は完了。</div></html>

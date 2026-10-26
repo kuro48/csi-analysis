@@ -1,0 +1,68 @@
+[
+  {
+    "subcarriers": 1,
+    "verified_runs": 10,
+    "unique_raw_windows": 8,
+    "representative_window": "csi_20260526_034004_w0",
+    "representative_repeats": 3,
+    "representative_prove_seconds_median": 4.868783833000009,
+    "representative_verify_seconds_median": 0.24011804200000597,
+    "raw8_prove_seconds_mean": 5.036821254999998,
+    "status": "complete"
+  },
+  {
+    "subcarriers": 2,
+    "verified_runs": 10,
+    "unique_raw_windows": 8,
+    "representative_window": "csi_20260526_034004_w0",
+    "representative_repeats": 3,
+    "representative_prove_seconds_median": 5.0360767500000065,
+    "representative_verify_seconds_median": 0.23887370799997143,
+    "raw8_prove_seconds_mean": 5.35101723462499,
+    "status": "complete"
+  },
+  {
+    "subcarriers": 4,
+    "verified_runs": 10,
+    "unique_raw_windows": 8,
+    "representative_window": "csi_20260526_034004_w0",
+    "representative_repeats": 3,
+    "representative_prove_seconds_median": 5.631534291999969,
+    "representative_verify_seconds_median": 0.23757433299999775,
+    "raw8_prove_seconds_mean": 5.676201526249997,
+    "status": "complete"
+  },
+  {
+    "subcarriers": 8,
+    "verified_runs": 10,
+    "unique_raw_windows": 8,
+    "representative_window": "csi_20260526_034004_w0",
+    "representative_repeats": 3,
+    "representative_prove_seconds_median": 9.927478167000004,
+    "representative_verify_seconds_median": 0.23965079199996353,
+    "raw8_prove_seconds_mean": 10.27065393225,
+    "status": "complete"
+  },
+  {
+    "subcarriers": 16,
+    "verified_runs": 10,
+    "unique_raw_windows": 8,
+    "representative_window": "csi_20260526_034004_w0",
+    "representative_repeats": 3,
+    "representative_prove_seconds_median": 13.097014374999958,
+    "representative_verify_seconds_median": 0.29150204100005794,
+    "raw8_prove_seconds_mean": 13.16154096874999,
+    "status": "complete"
+  },
+  {
+    "subcarriers": 32,
+    "verified_runs": 0,
+    "unique_raw_windows": 0,
+    "representative_window": "csi_20260526_034004_w0",
+    "representative_repeats": 0,
+    "representative_prove_seconds_median": null,
+    "representative_verify_seconds_median": null,
+    "raw8_prove_seconds_mean": null,
+    "status": "prepared_no_compute"
+  }
+]

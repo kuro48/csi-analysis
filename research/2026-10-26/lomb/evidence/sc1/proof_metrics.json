@@ -1,0 +1,43 @@
+{
+  "subcarriers": 1,
+  "compile_seconds": 9.429717667,
+  "nonlinear_constraints": 311000,
+  "linear_constraints": 2,
+  "constraints": 311002,
+  "compiler": "circom2 2.2.3",
+  "optimization": "O2",
+  "source_sha256": "738e905a79e2a08ffd4430325adcac9336006f20bec15790e29248b09fd20116",
+  "proof_repeats": 3,
+  "ptau_path": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/zkp/keys/powersOfTau28_hez_final_19.ptau",
+  "setup_seconds": 90.10883320800001,
+  "contribution_seconds": 21.932125458,
+  "key_status": "local benchmark: existing phase2 ptau plus fresh random circuit contribution",
+  "proof_input": "csi_20260519_114943_w0_sc1.json",
+  "witness_seconds": 0.20643208300000002,
+  "constraint_check_seconds": 2.4089051670000003,
+  "proof_status": "verified",
+  "prove_seconds_median": 5.078544333000011,
+  "prove_seconds_min": 5.016045833000007,
+  "prove_seconds_max": 5.149094625000004,
+  "verify_seconds_median": 0.2072543750000051,
+  "measurements": [
+    {
+      "repetition": 0,
+      "prove_seconds": 5.078544333000011,
+      "verify_seconds": 0.20993112500001132,
+      "verified": true
+    },
+    {
+      "repetition": 1,
+      "prove_seconds": 5.149094625000004,
+      "verify_seconds": 0.2072543750000051,
+      "verified": true
+    },
+    {
+      "repetition": 2,
+      "prove_seconds": 5.016045833000007,
+      "verify_seconds": 0.20432687499999247,
+      "verified": true
+    }
+  ]
+}

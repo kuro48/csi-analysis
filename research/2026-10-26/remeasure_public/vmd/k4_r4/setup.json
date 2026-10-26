@@ -1,0 +1,19 @@
+{
+  "setup": {
+    "wall_seconds": 26.981184167,
+    "max_rss_bytes": 3358654464,
+    "returncode": 0
+  },
+  "contribution": {
+    "wall_seconds": 24.814296875000004,
+    "max_rss_bytes": 407388160,
+    "returncode": 0
+  },
+  "ptau": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/zkp/keys/powersOfTau28_hez_final_19.ptau",
+  "ptau_sha256": "831cbbf07b6311548a85db71ed1078f61a2aa56af5aa7c02654bfa58c927b017",
+  "zkey_sha256": "bd67f67cca644f76ee98247848a6aae2f9a4c34e783c710c96a382e014b041cf",
+  "vkey_sha256": "54fb0ffb0736438f1163050da3c99f3616c3d0aa7cb1ae6911902b3d8b4126c5",
+  "source_sha256": "7d7a05fafe6ff4dc6a15abee953e9665eb038b1f3ead04899959c93fe1c96dfb",
+  "r1cs_sha256": "a7c3f2ebb64f8c837a18dd04855592ba87894d1b06b9ecb7bb87e3b540608821",
+  "keys_scope": "Local experiment only"
+}

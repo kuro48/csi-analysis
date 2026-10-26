@@ -1,0 +1,24 @@
+{
+  "python": "3.9.6 (default, Aug 25 2026, 21:26:21) \n[Clang 21.0.0 (clang-2100.3.34.2)]",
+  "numpy": "2.0.2",
+  "scipy": "1.13.1",
+  "vmdpy": "0.2",
+  "git_head": "36a08083ccdc5e0db6dac63adb2c8f6866452b45",
+  "source_hashes": {
+    "zkp/scripts/vmd_approx_reference.py": "9cd5768208be3565102efd098f8da441d11b6d267d94df534030f9eb2522bc6f",
+    "zkp/scripts/generate_vmd_approx_circuit.py": "21a21d94016422f0276268426ed7b3b20d8774e7bb3d64f6b64b2dc43abeb0bb",
+    "zkp/circuits/csi_vmd_approx.circom": "a6eda67f0074abd3685f4754090ded4aed015f2fae47d9c00a1e1c0e77a71137"
+  },
+  "experiment_source_hashes": {
+    "research/2026-10-26/vmd/diagnostics.py": "4474518377a36227225d16f50c43a4fea059e082c104c6aa8e65d818cb3b0ab9",
+    "research/2026-10-26/vmd/generate_variant.py": "540f135463c14729f9d726fdaa60a68490bb389f21a36fd48b347c559a896f4d",
+    "research/2026-10-26/vmd/model.py": "3451dfc3639c8080d2a42d1c5abc0d3a01bb075d6d972f30e806c24e2f1b9f80",
+    "research/2026-10-26/vmd/run_sweep.py": "8bcc2f7311f48f97d2b033a05c00e40be3dcf170d47d66b3412a2edce4722b19",
+    "research/2026-10-26/vmd/test_model.py": "a4d0e3a81cfe0caa5174bebad07dec84dbe128e3fde52d14ec6e95a6c4f88ab5",
+    "research/2026-10-26/vmd/validate_all_windows.py": "a6eb46b8afaaa855778e9b747a282d65e3c46c35dc2e31034012b65eddb28827",
+    "research/2026-10-26/vmd/validate_candidate.py": "bae5bf64b10ad96438c278cd4447e9fdbc20e445dc162aea6a8f1453ef4e1a11",
+    "research/2026-10-26/vmd/validate_circuits.py": "5663ec6f8e0382bc7f29863e301e8b41b8f4cf73e39ebfb21ebfd848b829f7f4",
+    "research/2026-10-26/vmd/validate_wideband.py": "06a1f0c79910665a8dbd60725fc95fcff1c2265040853c1a758b5455c38b079f"
+  },
+  "main_report_scope": "Eight real Raw windows only; existing synthetic outputs retained as supplemental history, excluded from main report"
+}

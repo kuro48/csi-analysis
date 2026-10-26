@@ -1,0 +1,10 @@
+{
+  "source_window": "csi_20260526_034004_w0.npz",
+  "source_npz_sha256": "6edb9b524af42f3e4ddaa4e66ee9c8a2deaffd64552360ad796e4329721d2d5d",
+  "observed_seconds": 48,
+  "padded_samples": 32,
+  "sample_rate_hz": 2,
+  "input_sha256": "359db7ef9bdbb449250160bb69aa609e4420e51950c6d4674f46aeb67d3d78fb",
+  "reference_scope": "Host recomputation for testing only. Display/export must use circuit public outputs, not this file.",
+  "privacy": "Diagnostic circuit intentionally exposes waveform and intermediate values. Nonce remains a private input."
+}

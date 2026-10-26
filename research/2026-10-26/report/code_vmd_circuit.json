@@ -1,0 +1,8 @@
+{
+  "source": "research/2026-10-26/vmd/circuits/vmd_k3_r4_centers8_16_24.circom",
+  "start": 210,
+  "end": 215,
+  "source_sha256": "f1a5dc31127aaa810fa3be6a809f5e70b638034029c3e6a20da4aa8d5c45888f",
+  "html": "research/2026-10-26/report/code_vmd_circuit.html",
+  "png": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/report/code_vmd_circuit.png"
+}

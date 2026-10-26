@@ -1,0 +1,17 @@
+{
+  "proof_generated": true,
+  "proof_verified": true,
+  "proof_public_matches_display": true,
+  "tampered_public_rejected": true,
+  "public_signal_count": 1786,
+  "setup_seconds": 20.212045083,
+  "contribution_seconds": 22.621066374999998,
+  "prove_seconds": 4.282007125,
+  "verify_seconds": 0.19695174999999665,
+  "keys_scope": "Fresh local diagnostic key using existing ptau19; not normal circuit keys or a production trusted-setup ceremony",
+  "intermediate_tamper_groups_rejected": [
+    "debugDftReal",
+    "debugModeReal",
+    "debugCenters"
+  ]
+}

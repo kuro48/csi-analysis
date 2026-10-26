@@ -1,0 +1,127 @@
+{
+  "config": {
+    "id": "k3_r8",
+    "modes": 3,
+    "iterations": 8,
+    "initial_centers": [
+      8,
+      24,
+      48
+    ]
+  },
+  "status": "verified",
+  "unique_raw_count": 8,
+  "proof_count": 10,
+  "representative_prove_seconds": [
+    8.490717458000006,
+    8.078234207999998,
+    8.351341666999986
+  ],
+  "representative_prove_median_seconds": 8.351341666999986,
+  "unique_raw_results": [
+    {
+      "window": "csi_20260519_114943_w0",
+      "is_normal": true,
+      "bpm": 18.75,
+      "frequency_bin": 20,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "13904744284040874160558220071944952341751038172939653416487549234152007112195",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260520_013702_w0",
+      "is_normal": false,
+      "bpm": 22.5,
+      "frequency_bin": 24,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "3956194561328525093911097226219619192730680313264572685709299868724149081425",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260526_034004_w0",
+      "is_normal": false,
+      "bpm": 43.125,
+      "frequency_bin": 46,
+      "selected_mode_zero_based": 2,
+      "intermediate_hash": "9279470482814464169796544006199743684464569247933650452886005531573280205698",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260526_072608_w0",
+      "is_normal": true,
+      "bpm": 15.0,
+      "frequency_bin": 16,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "16075692105955925487501414267796134898235064605254647153690992831629145372839",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260530_170637_w0",
+      "is_normal": false,
+      "bpm": 41.25,
+      "frequency_bin": 44,
+      "selected_mode_zero_based": 2,
+      "intermediate_hash": "19468617154277512653630094965813158681641696147734895657386925115388247425112",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260708_162812_w0",
+      "is_normal": true,
+      "bpm": 17.8125,
+      "frequency_bin": 19,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "8144787178226037424302098246704112542109464812970234039964088721642104407781",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260821_165306_w0",
+      "is_normal": true,
+      "bpm": 19.6875,
+      "frequency_bin": 21,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "14521621245958287225792597101106415183901976483769553800420096067322926032031",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260907_185130_w0",
+      "is_normal": true,
+      "bpm": 7.5,
+      "frequency_bin": 8,
+      "selected_mode_zero_based": 0,
+      "intermediate_hash": "8291037124846470628977022889384487001823753907448398177961758396983386161030",
+      "parent_commitment": "0"
+    }
+  ],
+  "compile": {
+    "wall_seconds": 6.376382084,
+    "max_rss_bytes": 652853248,
+    "returncode": 0,
+    "constraints": 587805,
+    "public_signals": 3310,
+    "required_power_conservative": 20,
+    "source_sha256": "0145f26e7bc46424b778f1ce6c1726a9bbb9e32732340bcb72c7f39807960cf9",
+    "r1cs_sha256": "8e36a2a1bcfc6f11ad8fbc78d0b2b2ee82591015080100c90f8f7ed5b10cef4f",
+    "wasm_sha256": "9a5d39f9fed0bc71023801a9f573e6fd54a1d938cf5e3aeecac0c64add4a05e4",
+    "sym_sha256": "79ee95acbd32a1daf21554a1b9f52862019e707f746367d350f766a4a7aff34e"
+  },
+  "setup": {
+    "setup": {
+      "wall_seconds": 33.122906834,
+      "max_rss_bytes": 3986472960,
+      "returncode": 0
+    },
+    "contribution": {
+      "wall_seconds": 40.692245625,
+      "max_rss_bytes": 505249792,
+      "returncode": 0
+    },
+    "ptau": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/.cache/ppot_0080_21.ptau",
+    "ptau_sha256": "b4131202088141088d83fc05d654a142b51117df0960568613069e0719e7645a",
+    "zkey_sha256": "7edcb97cc6c2944b4a5aa7b93b5f1bb2cc58c51fde39052035e3e775aec692a5",
+    "vkey_sha256": "14147ab1e298b218072df72342261f2238fdbe793d45d44738eb3b320477f7a8",
+    "source_sha256": "0145f26e7bc46424b778f1ce6c1726a9bbb9e32732340bcb72c7f39807960cf9",
+    "r1cs_sha256": "8e36a2a1bcfc6f11ad8fbc78d0b2b2ee82591015080100c90f8f7ed5b10cef4f",
+    "keys_scope": "Local experiment only"
+  },
+  "large_artifacts_pruned": true
+}

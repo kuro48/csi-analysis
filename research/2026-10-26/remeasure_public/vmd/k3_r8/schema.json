@@ -1,0 +1,140 @@
+{
+  "config": {
+    "id": "k3_r8",
+    "modes": 3,
+    "iterations": 8,
+    "initial_centers": [
+      8,
+      24,
+      48
+    ]
+  },
+  "circuit": "vmd_k3_r8_public.circom",
+  "field_modulus": "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+  "public_signal_count": 3310,
+  "circuit_sha256": "0145f26e7bc46424b778f1ce6c1726a9bbb9e32732340bcb72c7f39807960cf9",
+  "groups": [
+    {
+      "name": "isNormal",
+      "shape": [],
+      "public_start_index_zero_based": 0,
+      "public_end_index_exclusive": 1,
+      "count": 1,
+      "decode_signed": false,
+      "actual_internal_source": "isNormal"
+    },
+    {
+      "name": "estimatedFrequencyBin",
+      "shape": [],
+      "public_start_index_zero_based": 1,
+      "public_end_index_exclusive": 2,
+      "count": 1,
+      "decode_signed": false,
+      "actual_internal_source": "estimatedFrequencyBin"
+    },
+    {
+      "name": "selectedMode0based",
+      "shape": [],
+      "public_start_index_zero_based": 2,
+      "public_end_index_exclusive": 3,
+      "count": 1,
+      "decode_signed": false,
+      "actual_internal_source": "selectedMode0based"
+    },
+    {
+      "name": "intermediateHash",
+      "shape": [],
+      "public_start_index_zero_based": 3,
+      "public_end_index_exclusive": 4,
+      "count": 1,
+      "decode_signed": false,
+      "actual_internal_source": "intermediateHash"
+    },
+    {
+      "name": "debugWaveform",
+      "shape": [
+        128
+      ],
+      "public_start_index_zero_based": 4,
+      "public_end_index_exclusive": 132,
+      "count": 128,
+      "decode_signed": true,
+      "actual_internal_source": "waveform"
+    },
+    {
+      "name": "debugDftReal",
+      "shape": [
+        63
+      ],
+      "public_start_index_zero_based": 132,
+      "public_end_index_exclusive": 195,
+      "count": 63,
+      "decode_signed": true,
+      "actual_internal_source": "fc"
+    },
+    {
+      "name": "debugDftImag",
+      "shape": [
+        63
+      ],
+      "public_start_index_zero_based": 195,
+      "public_end_index_exclusive": 258,
+      "count": 63,
+      "decode_signed": true,
+      "actual_internal_source": "fs"
+    },
+    {
+      "name": "debugModeReal",
+      "shape": [
+        8,
+        3,
+        63
+      ],
+      "public_start_index_zero_based": 258,
+      "public_end_index_exclusive": 1770,
+      "count": 1512,
+      "decode_signed": true,
+      "actual_internal_source": "ur"
+    },
+    {
+      "name": "debugModeImag",
+      "shape": [
+        8,
+        3,
+        63
+      ],
+      "public_start_index_zero_based": 1770,
+      "public_end_index_exclusive": 3282,
+      "count": 1512,
+      "decode_signed": true,
+      "actual_internal_source": "ui"
+    },
+    {
+      "name": "debugCenters",
+      "shape": [
+        9,
+        3
+      ],
+      "public_start_index_zero_based": 3282,
+      "public_end_index_exclusive": 3309,
+      "count": 27,
+      "decode_signed": false,
+      "actual_internal_source": "center"
+    },
+    {
+      "name": "parentCommitment",
+      "shape": [],
+      "public_start_index_zero_based": 3309,
+      "public_end_index_exclusive": 3310,
+      "count": 1,
+      "decode_signed": false,
+      "actual_internal_source": "parentCommitment"
+    }
+  ],
+  "samples": 128,
+  "sample_rate_hz": 2,
+  "trig_scale": 1000,
+  "array_order": "row-major, rightmost index fastest",
+  "public_source_policy": "Only this config/run Groth16 public.json may be rendered",
+  "inverse_dft": "Host visualization only: bins1..63=(real-i*positive_sine)/1000, DC=Nyquist=0, irfft128"
+}

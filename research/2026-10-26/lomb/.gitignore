@@ -1,0 +1,6 @@
+build/
+inputs/
+*.wtns
+*.zkey
+!evidence/**/*.log
+!failures/*.log

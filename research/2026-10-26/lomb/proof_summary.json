@@ -1,0 +1,247 @@
+[
+  {
+    "subcarriers": 1,
+    "compile_seconds": 9.429717667,
+    "nonlinear_constraints": 311000,
+    "linear_constraints": 2,
+    "constraints": 311002,
+    "compiler": "circom2 2.2.3",
+    "optimization": "O2",
+    "source_sha256": "738e905a79e2a08ffd4430325adcac9336006f20bec15790e29248b09fd20116",
+    "proof_repeats": 3,
+    "ptau_path": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/zkp/keys/powersOfTau28_hez_final_19.ptau",
+    "setup_seconds": 90.10883320800001,
+    "contribution_seconds": 21.932125458,
+    "key_status": "local benchmark: existing phase2 ptau plus fresh random circuit contribution",
+    "proof_input": "csi_20260519_114943_w0_sc1.json",
+    "witness_seconds": 0.20643208300000002,
+    "constraint_check_seconds": 2.4089051670000003,
+    "proof_status": "verified",
+    "prove_seconds_median": 5.078544333000011,
+    "prove_seconds_min": 5.016045833000007,
+    "prove_seconds_max": 5.149094625000004,
+    "verify_seconds_median": 0.2072543750000051,
+    "measurements": [
+      {
+        "repetition": 0,
+        "prove_seconds": 5.078544333000011,
+        "verify_seconds": 0.20993112500001132,
+        "verified": true
+      },
+      {
+        "repetition": 1,
+        "prove_seconds": 5.149094625000004,
+        "verify_seconds": 0.2072543750000051,
+        "verified": true
+      },
+      {
+        "repetition": 2,
+        "prove_seconds": 5.016045833000007,
+        "verify_seconds": 0.20432687499999247,
+        "verified": true
+      }
+    ]
+  },
+  {
+    "subcarriers": 2,
+    "compile_seconds": 14.016160832999999,
+    "nonlinear_constraints": 346822,
+    "linear_constraints": 1,
+    "constraints": 346823,
+    "compiler": "circom2 2.2.3",
+    "optimization": "O2",
+    "source_sha256": "07aff40006816abaa962f2f004d09c7f129c0beb2b373eda1c474b233e0cea02",
+    "proof_repeats": 3,
+    "ptau_path": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/zkp/keys/powersOfTau28_hez_final_19.ptau",
+    "setup_seconds": 92.236396625,
+    "contribution_seconds": 23.071395916,
+    "key_status": "local benchmark: existing phase2 ptau plus fresh random circuit contribution",
+    "proof_input": "csi_20260519_114943_w0_sc2.json",
+    "witness_seconds": 0.22970537499999996,
+    "constraint_check_seconds": 3.282745625000018,
+    "proof_status": "verified",
+    "prove_seconds_median": 5.775659208000036,
+    "prove_seconds_min": 5.628188542000032,
+    "prove_seconds_max": 5.845378957999969,
+    "verify_seconds_median": 0.2004640830000426,
+    "measurements": [
+      {
+        "repetition": 0,
+        "prove_seconds": 5.845378957999969,
+        "verify_seconds": 0.18716366699999298,
+        "verified": true
+      },
+      {
+        "repetition": 1,
+        "prove_seconds": 5.628188542000032,
+        "verify_seconds": 0.2004640830000426,
+        "verified": true
+      },
+      {
+        "repetition": 2,
+        "prove_seconds": 5.775659208000036,
+        "verify_seconds": 0.2113503329999844,
+        "verified": true
+      }
+    ]
+  },
+  {
+    "subcarriers": 4,
+    "compile_seconds": 24.091052083999998,
+    "nonlinear_constraints": 418468,
+    "linear_constraints": 1,
+    "constraints": 418469,
+    "compiler": "circom2 2.2.3",
+    "optimization": "O2",
+    "source_sha256": "883578591f48a1fb10702dbcbf4665abd07ad0da5423bf0d066433eb557cdedd",
+    "proof_repeats": 3,
+    "ptau_path": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/zkp/keys/powersOfTau28_hez_final_19.ptau",
+    "setup_seconds": 138.010384709,
+    "contribution_seconds": 25.063044125000033,
+    "key_status": "local benchmark: existing phase2 ptau plus fresh random circuit contribution",
+    "proof_input": "csi_20260519_114943_w0_sc4.json",
+    "witness_seconds": 0.28029341599999996,
+    "constraint_check_seconds": 4.869404792000012,
+    "proof_status": "verified",
+    "prove_seconds_median": 6.85162983400005,
+    "prove_seconds_min": 6.845844875000012,
+    "prove_seconds_max": 7.039868124999998,
+    "verify_seconds_median": 0.1865750420000154,
+    "measurements": [
+      {
+        "repetition": 0,
+        "prove_seconds": 7.039868124999998,
+        "verify_seconds": 0.23960145900002772,
+        "verified": true
+      },
+      {
+        "repetition": 1,
+        "prove_seconds": 6.845844875000012,
+        "verify_seconds": 0.1821967079999922,
+        "verified": true
+      },
+      {
+        "repetition": 2,
+        "prove_seconds": 6.85162983400005,
+        "verify_seconds": 0.1865750420000154,
+        "verified": true
+      }
+    ]
+  },
+  {
+    "subcarriers": 8,
+    "compile_seconds": 45.233032834,
+    "nonlinear_constraints": 561760,
+    "linear_constraints": 1,
+    "constraints": 561761,
+    "compiler": "circom2 2.2.3",
+    "optimization": "O2",
+    "source_sha256": "ffe09299a4408bc7e54dd60ef413d03f424422636b009bcc3a44c61e232fc4b7",
+    "proof_repeats": 3,
+    "ptau_path": "research/2026-10-26/.cache/ppot_0080_21.ptau",
+    "setup_seconds": 222.60130941600002,
+    "contribution_seconds": 42.370761500000015,
+    "key_status": "local benchmark: existing phase2 ptau plus fresh random circuit contribution",
+    "proof_input": "csi_20260519_114943_w0_sc8.json",
+    "witness_seconds": 0.378510042,
+    "constraint_check_seconds": 7.841354499999966,
+    "proof_status": "verified",
+    "prove_seconds_median": 12.28147899999999,
+    "prove_seconds_min": 11.95240508400002,
+    "prove_seconds_max": 12.733619457999964,
+    "verify_seconds_median": 0.2374477079999906,
+    "measurements": [
+      {
+        "repetition": 0,
+        "prove_seconds": 12.733619457999964,
+        "verify_seconds": 0.23879637499999262,
+        "verified": true
+      },
+      {
+        "repetition": 1,
+        "prove_seconds": 12.28147899999999,
+        "verify_seconds": 0.2374477079999906,
+        "verified": true
+      },
+      {
+        "repetition": 2,
+        "prove_seconds": 11.95240508400002,
+        "verify_seconds": 0.23467729200001486,
+        "verified": true
+      }
+    ]
+  },
+  {
+    "subcarriers": 16,
+    "compile_seconds": 99.552057334,
+    "nonlinear_constraints": 848344,
+    "linear_constraints": 1,
+    "constraints": 848345,
+    "compiler": "circom2 2.2.3",
+    "optimization": "O2",
+    "source_sha256": "150b113aa2a4c06a95e8a7b9057f3720ae70a77bbc879dcfc0da9f8a9ccaf05b",
+    "proof_repeats": 3,
+    "ptau_path": "research/2026-10-26/.cache/ppot_0080_21.ptau",
+    "setup_seconds": 457.03239729099994,
+    "contribution_seconds": 52.21976858300002,
+    "key_status": "local benchmark: existing phase2 ptau plus fresh random circuit contribution",
+    "proof_input": "csi_20260519_114943_w0_sc16.json",
+    "witness_seconds": 0.560880625,
+    "constraint_check_seconds": 13.899059332999968,
+    "proof_status": "verified",
+    "prove_seconds_median": 17.512748958999964,
+    "prove_seconds_min": 17.509402457999954,
+    "prove_seconds_max": 17.654916625000055,
+    "verify_seconds_median": 0.25210695900000246,
+    "measurements": [
+      {
+        "repetition": 0,
+        "prove_seconds": 17.654916625000055,
+        "verify_seconds": 0.25210695900000246,
+        "verified": true
+      },
+      {
+        "repetition": 1,
+        "prove_seconds": 17.512748958999964,
+        "verify_seconds": 0.25117999999997664,
+        "verified": true
+      },
+      {
+        "repetition": 2,
+        "prove_seconds": 17.509402457999954,
+        "verify_seconds": 0.2584708749999436,
+        "verified": true
+      }
+    ]
+  },
+  {
+    "subcarriers": 32,
+    "compile_seconds": 227.27874129199998,
+    "nonlinear_constraints": 1421512,
+    "linear_constraints": 1,
+    "constraints": 1421513,
+    "compiler": "circom2 2.2.3",
+    "optimization": "O2",
+    "source_sha256": "e4f90cd5a5aa838d2aeeb8bcdfd69390dbe60aa9457f3f70ee2104da45b2c94f",
+    "proof_repeats": 0,
+    "planned_proof_repeats": 3,
+    "ptau_path": "research/2026-10-26/.cache/ppot_0080_21.ptau",
+    "node_max_old_space_mb": 12288,
+    "setup_seconds": null,
+    "setup_timeout_seconds": 1800,
+    "contribution_seconds": null,
+    "key_status": "no valid proving key: setup timed out; invalid partial initial.zkey removed",
+    "proof_input": null,
+    "witness_seconds": null,
+    "constraint_check_seconds": null,
+    "proof_status": "setup_timeout",
+    "status": "setup_timeout",
+    "prove_seconds_median": null,
+    "prove_seconds_min": null,
+    "prove_seconds_max": null,
+    "verify_seconds_median": null,
+    "measurements": [],
+    "sampled_peak_setup_rss_kib": 7514320,
+    "failure_evidence": "failures/attempts.json"
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "prepare": {
+    "stage_wall_seconds": 0.15,
+    "maximum_resident_set_size_bytes": 27394048,
+    "measurement": "macOS /usr/bin/time -l, stage includes subprocesses"
+  },
+  "compile": {
+    "stage_wall_seconds": 4.62,
+    "maximum_resident_set_size_bytes": 488882176,
+    "measurement": "macOS /usr/bin/time -l, stage includes subprocesses"
+  },
+  "witness": {
+    "stage_wall_seconds": 3.77,
+    "maximum_resident_set_size_bytes": 1183711232,
+    "measurement": "macOS /usr/bin/time -l, stage includes subprocesses"
+  },
+  "prove": {
+    "stage_wall_seconds": 47.9,
+    "maximum_resident_set_size_bytes": 5399740416,
+    "measurement": "macOS /usr/bin/time -l; setup/contribute/prove/verify stage includes subprocesses"
+  }
+}

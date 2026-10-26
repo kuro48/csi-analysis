@@ -1,0 +1,30 @@
+[
+  {
+    "subcarriers": 32,
+    "stage": "groth16_setup",
+    "node_max_old_space_mb": 8192,
+    "returncode": -6,
+    "status": "failed_heap_out_of_memory",
+    "last_gc_time_ms": 92072,
+    "heap_used_mb_at_last_gc": 8152.9,
+    "elapsed_note": "last GC time from V8 log, not an exact stage wall-clock measurement",
+    "log": "sc32_setup_heap8192.log",
+    "retry_max_old_space_mb": 12288
+  },
+  {
+    "subcarriers": 32,
+    "stage": "groth16_setup",
+    "node_max_old_space_mb": 12288,
+    "status": "setup_timeout",
+    "runner_exit_code": 1,
+    "configured_timeout_seconds": 1800,
+    "successful_setup_seconds": null,
+    "prove_executed": false,
+    "verify_executed": false,
+    "sampled_peak_rss_kib": 7514320,
+    "rss_note": "5-second sampled maximum, lower bound on true peak; not V8 heap size",
+    "invalid_partial_key_bytes_removed": 1469103492,
+    "log": "sc32_setup_heap12288_timeout.log",
+    "runner_log": "sc32_setup_heap12288_runner_timeout.log"
+  }
+]

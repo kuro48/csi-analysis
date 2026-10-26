@@ -1,0 +1,29 @@
+{
+  "raw_windows": 8,
+  "raw_witness_runs": 48,
+  "raw_witness_reference_matches": 48,
+  "same_sc_float_peak_bin_matches": 48,
+  "subcarrier_counts": [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32
+  ],
+  "verified_proofs": 15,
+  "proof_completed_subcarrier_counts": [
+    1,
+    2,
+    4,
+    8,
+    16
+  ],
+  "proof_incomplete_subcarrier_counts": [
+    32
+  ],
+  "sc32_limit": "8GB V8 heap OOM; 12GB V8 heap setup timed out at configured1800s; prove/verify not executed",
+  "sampled_peak_sc32_setup_rss_kib": 7514320,
+  "physiological_ground_truth_available": false,
+  "main_report_data": "real CSI only; synthetic controls retained as unused supplements"
+}

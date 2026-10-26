@@ -1,0 +1,67 @@
+{
+  "status": "verified",
+  "config": {
+    "id": "k3_r4",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      24,
+      48
+    ]
+  },
+  "run_id": "csi_20260530_170637_w0_repeat0",
+  "window": "csi_20260530_170637_w0",
+  "repeat": 0,
+  "verified": true,
+  "config_id": "k3_r4",
+  "source_sha256": "020ddf39ce2d25ced9be65180f3b0f997a643af677793593d33b9476af1e7d15",
+  "input_npz_sha256": "9fc73731d69cb4cc80d4ba3c9d0244e8fdf565eb25b25dd0333e3d42a19958f2",
+  "input_json_sha256": "2d52e3ecdce2a1b064ca34ff16db3546542324cc776badb887d1fa41101e5a49",
+  "r1cs_sha256": "38d16e263f699ca4308d09b6e6f03a3e76e8d561aefde2147e41a4c237aa810d",
+  "wasm_sha256": "c0cc2938166ea53766493fcc00ad63934acd72c726ea4512ab75d37a406c6708",
+  "vkey_sha256": "044235ab0de8bae0366611cb38f38889b6f85a38d5708d1207b0377333708e81",
+  "proof_sha256": "f846c32ea393569079caf55c9eab16b3cc2c555c7436612b3bdeb996b88804fa",
+  "public_sha256": "597a5fd61dea6283bfef9ef60a878ff7178ccd0e17fbe6d34163cb1aca998af4",
+  "result": {
+    "is_normal": false,
+    "bpm": 42.1875,
+    "frequency_bin": 45,
+    "selected_mode_zero_based": 2,
+    "intermediate_hash": "5045405118422593172162598558956287901658292140849956903577426897157772561890",
+    "parent_commitment": "0"
+  },
+  "proof_verified": true,
+  "tamper_rejected": true,
+  "trace_from": "public.json",
+  "vkey_path": "../../verification_key.json",
+  "public_schema_verified": true,
+  "independent_integer_reference_all_stages_match": true,
+  "witness": {
+    "wall_seconds": 1.923648,
+    "max_rss_bytes": 1178877952,
+    "returncode": 0
+  },
+  "prove": {
+    "wall_seconds": 4.263540875000004,
+    "max_rss_bytes": 5223481344,
+    "returncode": 0
+  },
+  "verify": {
+    "wall_seconds": 0.23938029199999278,
+    "max_rss_bytes": 187056128,
+    "returncode": 0
+  },
+  "witness_calculation": {
+    "calculation_seconds": 0.21596337499999999,
+    "public_schema_checked": true,
+    "public_count": 1786
+  },
+  "artifact_sha256": {
+    "input.json": "2d52e3ecdce2a1b064ca34ff16db3546542324cc776badb887d1fa41101e5a49",
+    "proof.json": "f846c32ea393569079caf55c9eab16b3cc2c555c7436612b3bdeb996b88804fa",
+    "public.json": "597a5fd61dea6283bfef9ef60a878ff7178ccd0e17fbe6d34163cb1aca998af4",
+    "trace.json": "4c469376a1dc1eab62ef8d73ecf2d8e48880abd3134798d1d0ae54eab20d6795",
+    "witness_public.json": "afa78bd3562a7979b586e28652922ad4416538aacc1ba44c521a00e3f60b6411"
+  }
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "kind": "real",
+    "method": "ls_global_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 0.0,
+    "within_1bpm": 1.0,
+    "reference": "LS band (not ground truth)"
+  },
+  {
+    "kind": "real",
+    "method": "ls_band_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 0.0,
+    "within_1bpm": 1.0,
+    "reference": "LS band (not ground truth)"
+  },
+  {
+    "kind": "real",
+    "method": "dft_global_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 0.2634374999999969,
+    "within_1bpm": 1.0,
+    "reference": "LS band (not ground truth)"
+  },
+  {
+    "kind": "real",
+    "method": "standard_vmd_global_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 0.9665624999999969,
+    "within_1bpm": 0.75,
+    "reference": "LS band (not ground truth)"
+  },
+  {
+    "kind": "real",
+    "method": "standard_vmd_band_priority_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 2.4899999999999967,
+    "within_1bpm": 0.75,
+    "reference": "LS band (not ground truth)"
+  }
+]

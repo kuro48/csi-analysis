@@ -1,0 +1,31 @@
+{
+  "config_id": "sc16",
+  "status": "running",
+  "predicted_constraints": 849369,
+  "prediction_note": "Not measured; based on previous8SC public alias delta512. Actual compilation/header will override.",
+  "predicted_public_signals": 10485,
+  "heap_limit_mib": 8192,
+  "setup_timeout_seconds": 1800,
+  "ptau_path": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/.cache/ppot_0080_21.ptau",
+  "compile_seconds": 80.41894683399994,
+  "r1cs_header": {
+    "wires": 835002,
+    "outputs": 10421,
+    "public_inputs": 64,
+    "private_inputs": 2049,
+    "labels": 1663735,
+    "constraints": 849369
+  },
+  "domain_upper_bound": 1048576,
+  "layout_checked": true,
+  "artifacts": {
+    "r1cs": {
+      "path": "_build/sc16/circuit.r1cs",
+      "sha256": "80aba0124591e7540120410a0b9ffa059dacdc5a2e9e98b14d8f35025fd93dc4"
+    },
+    "wasm": {
+      "path": "_build/sc16/circuit_js/circuit.wasm",
+      "sha256": "a2729e428079ec42b0b1b8b81e4d8cc7811d1a7252397688c3501c51dffa3701"
+    }
+  }
+}

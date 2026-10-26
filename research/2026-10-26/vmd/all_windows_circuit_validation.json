@@ -1,0 +1,770 @@
+[
+  {
+    "name": "vmd_k1_r1",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k1_r1_csi_20260519_114943_w0_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.098277333,
+      0.06952391699999999,
+      0.066367042
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "18066437933266696867475408816388965075152619701078484716357431141713989773823",
+      "0"
+    ],
+    "case": "csi_20260519_114943_w0",
+    "modes": 1,
+    "iterations": 1,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k1_r1",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k1_r1_csi_20260520_013702_w0_input.json",
+    "peak_bin": 7,
+    "bpm": 6.5625,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.097234209,
+      0.068053375,
+      0.065892417
+    ],
+    "public_signals": [
+      "1",
+      "7",
+      "0",
+      "21067870321221980647909098721412296173196127944111792199289162356364229164590",
+      "0"
+    ],
+    "case": "csi_20260520_013702_w0",
+    "modes": 1,
+    "iterations": 1,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k1_r1",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k1_r1_csi_20260526_034004_w0_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.09576295800000001,
+      0.067531459,
+      0.066314708
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "501035375274546910724309124611028330390044374318999592051011301137664896661",
+      "0"
+    ],
+    "case": "csi_20260526_034004_w0",
+    "modes": 1,
+    "iterations": 1,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k1_r1",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k1_r1_csi_20260526_072608_w0_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.09622587499999999,
+      0.06873679099999999,
+      0.07166762500000001
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "14021630811786285286124503421667860206554143939051641997088730185800782931854",
+      "0"
+    ],
+    "case": "csi_20260526_072608_w0",
+    "modes": 1,
+    "iterations": 1,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k1_r1",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k1_r1_csi_20260530_170637_w0_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.09638825,
+      0.067749333,
+      0.06697233300000002
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "2642413886800966079236930749344329825296417245095226608545260651734439082599",
+      "0"
+    ],
+    "case": "csi_20260530_170637_w0",
+    "modes": 1,
+    "iterations": 1,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k1_r1",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k1_r1_csi_20260708_162812_w0_input.json",
+    "peak_bin": 9,
+    "bpm": 8.4375,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.096065417,
+      0.06925437499999999,
+      0.066671083
+    ],
+    "public_signals": [
+      "1",
+      "9",
+      "0",
+      "18146813499358177968621283929061787138334701042861778808636344595233248938002",
+      "0"
+    ],
+    "case": "csi_20260708_162812_w0",
+    "modes": 1,
+    "iterations": 1,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k1_r1",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k1_r1_csi_20260821_165306_w0_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.09703145900000001,
+      0.068407167,
+      0.066932458
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "21359032982464393376470640051706568043948548683643570089646556118737838896313",
+      "0"
+    ],
+    "case": "csi_20260821_165306_w0",
+    "modes": 1,
+    "iterations": 1,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k1_r1",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k1_r1_csi_20260907_185130_w0_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.095899417,
+      0.06728350000000001,
+      0.06882650000000001
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "6248013354037630329388666520402746113580531208603306126777050940841423256387",
+      "0"
+    ],
+    "case": "csi_20260907_185130_w0",
+    "modes": 1,
+    "iterations": 1,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k3_r4",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_csi_20260519_114943_w0_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.267977875,
+      0.24346220799999999,
+      0.24172733299999993
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "18066437933266696867475408816388965075152619701078484716357431141713989773823",
+      "0"
+    ],
+    "case": "csi_20260519_114943_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k3_r4",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_csi_20260520_013702_w0_input.json",
+    "peak_bin": 24,
+    "bpm": 22.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.26656479199999994,
+      0.250095375,
+      0.24411533300000007
+    ],
+    "public_signals": [
+      "0",
+      "24",
+      "1",
+      "16397095751413016572027559567236405346320435025371527101159527450504020008165",
+      "0"
+    ],
+    "case": "csi_20260520_013702_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k3_r4",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_csi_20260526_034004_w0_input.json",
+    "peak_bin": 46,
+    "bpm": 43.125,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.267064959,
+      0.242525708,
+      0.23919050000000006
+    ],
+    "public_signals": [
+      "0",
+      "46",
+      "2",
+      "15074530935223917690679028483584093564186040555407972875190476193832486177961",
+      "0"
+    ],
+    "case": "csi_20260526_034004_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k3_r4",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_csi_20260526_072608_w0_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.26725175,
+      0.24364045899999998,
+      0.24185325
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "14021630811786285286124503421667860206554143939051641997088730185800782931854",
+      "0"
+    ],
+    "case": "csi_20260526_072608_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k3_r4",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_csi_20260530_170637_w0_input.json",
+    "peak_bin": 45,
+    "bpm": 42.1875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.266922375,
+      0.243104792,
+      0.24122908399999995
+    ],
+    "public_signals": [
+      "0",
+      "45",
+      "2",
+      "5895138234191689584282639011889956832275070422597508701656066984148030478932",
+      "0"
+    ],
+    "case": "csi_20260530_170637_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k3_r4",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_csi_20260708_162812_w0_input.json",
+    "peak_bin": 9,
+    "bpm": 8.4375,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.267450541,
+      0.24627425,
+      0.24420304199999998
+    ],
+    "public_signals": [
+      "1",
+      "9",
+      "0",
+      "18146813499358177968621283929061787138334701042861778808636344595233248938002",
+      "0"
+    ],
+    "case": "csi_20260708_162812_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k3_r4",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_csi_20260821_165306_w0_input.json",
+    "peak_bin": 21,
+    "bpm": 19.6875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.26803275000000004,
+      0.24081033400000007,
+      0.24822729200000004
+    ],
+    "public_signals": [
+      "1",
+      "21",
+      "1",
+      "49602901226837338711648712150161264018148543801772024028899929566543210927",
+      "0"
+    ],
+    "case": "csi_20260821_165306_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k3_r4",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_csi_20260907_185130_w0_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.26667749999999996,
+      0.241949834,
+      0.24655779099999994
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "6248013354037630329388666520402746113580531208603306126777050940841423256387",
+      "0"
+    ],
+    "case": "csi_20260907_185130_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k5_r8",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k5_r8_csi_20260519_114943_w0_input.json",
+    "peak_bin": 12,
+    "bpm": 11.25,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.6937976250000001,
+      0.6330516249999999,
+      0.6341378749999999
+    ],
+    "public_signals": [
+      "1",
+      "12",
+      "3",
+      "132226061682779669544255782774841281003395816202388442737272385229978953644",
+      "0"
+    ],
+    "case": "csi_20260519_114943_w0",
+    "modes": 5,
+    "iterations": 8,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k5_r8",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k5_r8_csi_20260520_013702_w0_input.json",
+    "peak_bin": 24,
+    "bpm": 22.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.687324625,
+      0.629185416,
+      0.634127166
+    ],
+    "public_signals": [
+      "0",
+      "24",
+      "1",
+      "16397095751413016572027559567236405346320435025371527101159527450504020008165",
+      "0"
+    ],
+    "case": "csi_20260520_013702_w0",
+    "modes": 5,
+    "iterations": 8,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k5_r8",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k5_r8_csi_20260526_034004_w0_input.json",
+    "peak_bin": 12,
+    "bpm": 11.25,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.6890609159999999,
+      0.626018417,
+      0.631802958
+    ],
+    "public_signals": [
+      "1",
+      "12",
+      "3",
+      "6214916936164538433468221062190526397532327218441848689323230047102061593304",
+      "0"
+    ],
+    "case": "csi_20260526_034004_w0",
+    "modes": 5,
+    "iterations": 8,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k5_r8",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k5_r8_csi_20260526_072608_w0_input.json",
+    "peak_bin": 14,
+    "bpm": 13.125,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.690775,
+      0.628696791,
+      0.634239125
+    ],
+    "public_signals": [
+      "1",
+      "14",
+      "3",
+      "8525923562821380888475361806559434863738703275498944860414584380388525649398",
+      "0"
+    ],
+    "case": "csi_20260526_072608_w0",
+    "modes": 5,
+    "iterations": 8,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k5_r8",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k5_r8_csi_20260530_170637_w0_input.json",
+    "peak_bin": 13,
+    "bpm": 12.1875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.688465416,
+      0.6295103329999999,
+      0.6297709169999999
+    ],
+    "public_signals": [
+      "1",
+      "13",
+      "3",
+      "6628037439570785222996583871408234035431590436183956864249686309444380893088",
+      "0"
+    ],
+    "case": "csi_20260530_170637_w0",
+    "modes": 5,
+    "iterations": 8,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k5_r8",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k5_r8_csi_20260708_162812_w0_input.json",
+    "peak_bin": 19,
+    "bpm": 17.8125,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.688569792,
+      0.6267791249999999,
+      0.628651417
+    ],
+    "public_signals": [
+      "1",
+      "19",
+      "1",
+      "11631063625058845890175276791163648449677167361857123658280902229330791184284",
+      "0"
+    ],
+    "case": "csi_20260708_162812_w0",
+    "modes": 5,
+    "iterations": 8,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k5_r8",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k5_r8_csi_20260821_165306_w0_input.json",
+    "peak_bin": 13,
+    "bpm": 12.1875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.688502042,
+      0.6279521659999999,
+      0.6322473339999999
+    ],
+    "public_signals": [
+      "1",
+      "13",
+      "3",
+      "4778188094564162288984038264132367520617248226816740298728939456614919411492",
+      "0"
+    ],
+    "case": "csi_20260821_165306_w0",
+    "modes": 5,
+    "iterations": 8,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k5_r8",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k5_r8_csi_20260907_185130_w0_input.json",
+    "peak_bin": 11,
+    "bpm": 10.3125,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.687114416,
+      0.6215691250000001,
+      0.6343695829999999
+    ],
+    "public_signals": [
+      "1",
+      "11",
+      "3",
+      "9548450488463427851869293246658381817428690163980187931853239370069458449730",
+      "0"
+    ],
+    "case": "csi_20260907_185130_w0",
+    "modes": 5,
+    "iterations": 8,
+    "initial_centers": null
+  },
+  {
+    "name": "vmd_k3_r4_centers8_16_24",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_centers8_16_24_csi_20260519_114943_w0_input.json",
+    "peak_bin": 13,
+    "bpm": 12.1875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.263966083,
+      0.24200145899999995,
+      0.24074808399999995
+    ],
+    "public_signals": [
+      "1",
+      "13",
+      "1",
+      "7177464089192038186122018547861482619100796045588704675038074342115914525140",
+      "0"
+    ],
+    "case": "csi_20260519_114943_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  {
+    "name": "vmd_k3_r4_centers8_16_24",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_centers8_16_24_csi_20260520_013702_w0_input.json",
+    "peak_bin": 24,
+    "bpm": 22.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.266497375,
+      0.24209475000000003,
+      0.24120891600000005
+    ],
+    "public_signals": [
+      "0",
+      "24",
+      "2",
+      "19359914209753776747401089705755258473540687100283422795313957161577983238676",
+      "0"
+    ],
+    "case": "csi_20260520_013702_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  {
+    "name": "vmd_k3_r4_centers8_16_24",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_centers8_16_24_csi_20260526_034004_w0_input.json",
+    "peak_bin": 13,
+    "bpm": 12.1875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.264165875,
+      0.23872637499999996,
+      0.24569812500000002
+    ],
+    "public_signals": [
+      "1",
+      "13",
+      "1",
+      "3788791129755097246419520960173816532956403393286417968331895964507896388728",
+      "0"
+    ],
+    "case": "csi_20260526_034004_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  {
+    "name": "vmd_k3_r4_centers8_16_24",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_centers8_16_24_csi_20260526_072608_w0_input.json",
+    "peak_bin": 14,
+    "bpm": 13.125,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.266180291,
+      0.23917879199999997,
+      0.24831445799999993
+    ],
+    "public_signals": [
+      "1",
+      "14",
+      "1",
+      "10275715486940925146537002386845945838569087934556968492771318400856382525335",
+      "0"
+    ],
+    "case": "csi_20260526_072608_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  {
+    "name": "vmd_k3_r4_centers8_16_24",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_centers8_16_24_csi_20260530_170637_w0_input.json",
+    "peak_bin": 13,
+    "bpm": 12.1875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.264953791,
+      0.24082495800000003,
+      0.24178758300000003
+    ],
+    "public_signals": [
+      "1",
+      "13",
+      "1",
+      "12154616700302442497509615300753592652648563923198829013029426255446225704742",
+      "0"
+    ],
+    "case": "csi_20260530_170637_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  {
+    "name": "vmd_k3_r4_centers8_16_24",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_centers8_16_24_csi_20260708_162812_w0_input.json",
+    "peak_bin": 9,
+    "bpm": 8.4375,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.26287849999999996,
+      0.24118608299999994,
+      0.24025691700000004
+    ],
+    "public_signals": [
+      "1",
+      "9",
+      "0",
+      "18146813499358177968621283929061787138334701042861778808636344595233248938002",
+      "0"
+    ],
+    "case": "csi_20260708_162812_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  {
+    "name": "vmd_k3_r4_centers8_16_24",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_centers8_16_24_csi_20260821_165306_w0_input.json",
+    "peak_bin": 13,
+    "bpm": 12.1875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.26389045800000005,
+      0.24080558300000002,
+      0.23897020799999996
+    ],
+    "public_signals": [
+      "1",
+      "13",
+      "1",
+      "4979409494001081482028264638463172070705452371867923092248457269006346541363",
+      "0"
+    ],
+    "case": "csi_20260821_165306_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  {
+    "name": "vmd_k3_r4_centers8_16_24",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_centers8_16_24_csi_20260907_185130_w0_input.json",
+    "peak_bin": 13,
+    "bpm": 12.1875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.26565891599999997,
+      0.24309050000000001,
+      0.2441028749999999
+    ],
+    "public_signals": [
+      "1",
+      "13",
+      "1",
+      "10942321039587552972588659057715262799871219023936474103489896591338975545978",
+      "0"
+    ],
+    "case": "csi_20260907_185130_w0",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  }
+]

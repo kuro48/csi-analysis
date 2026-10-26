@@ -1,0 +1,2043 @@
+{
+  "provenance": {
+    "run_id": "ls-public-232c5f685b70-sc4-csi_20260907_185130_w0-r0",
+    "config_id": "sc4",
+    "window_id": "csi_20260907_185130_w0",
+    "repeat_id": 0,
+    "verified": true,
+    "source": {
+      "path": "configs/sc4/circuit.circom",
+      "sha256": "d278fb8fa3e4fe71b562ae2b39a0213b7b6be31bf1ec9f60b73e35f22b6d5a5a"
+    },
+    "source_schema": {
+      "path": "configs/sc4/source_schema.json",
+      "sha256": "22ef0ee46450cb8b2c671d9162effe6b8ff87f15928fca3162b5090356b4cd07"
+    },
+    "input": {
+      "path": "runs/ls-public-232c5f685b70-sc4-csi_20260907_185130_w0-r0/input.json",
+      "sha256": "a85c3dfe976f34aaf2b3d4d2b8ce685e26e6557752b8ac92a4177ad034e411b5"
+    },
+    "verification_key": {
+      "path": "configs/sc4/verification_key.json",
+      "sha256": "8030c3650292b7445905006948ea3657f09a20af2c6dca55459ef3f61b9f47ce"
+    },
+    "proof": {
+      "path": "runs/ls-public-232c5f685b70-sc4-csi_20260907_185130_w0-r0/proof.json",
+      "sha256": "ae6221b646a15b4f8bb14bc35f70f2f4be6d6b4d32cfeac1170d2a55ceae4693"
+    },
+    "public": {
+      "path": "runs/ls-public-232c5f685b70-sc4-csi_20260907_185130_w0-r0/public.json",
+      "sha256": "e0e546f8b3672633ea9d2ef4d6fd9cb8cf76295c56c9feaabea42c80f8edc9f4"
+    }
+  },
+  "decoded_from": {
+    "path": "runs/ls-public-232c5f685b70-sc4-csi_20260907_185130_w0-r0/public.json",
+    "sha256": "e0e546f8b3672633ea9d2ef4d6fd9cb8cf76295c56c9feaabea42c80f8edc9f4"
+  },
+  "data": {
+    "selected_local_sc": 3,
+    "selected_physical_tone": 61,
+    "physical_tone_mapping": [
+      0,
+      244,
+      122,
+      61
+    ],
+    "waveform": [
+      {
+        "sample": 0,
+        "time_ms": "0",
+        "signed_i": "-932",
+        "signed_q": "-397",
+        "magnitude_squared": "1026233",
+        "centered_x64": "-25679082",
+        "centered_display": -401235.65625,
+        "cos_basis_at_peak": "1000",
+        "sin_basis_at_peak": "0"
+      },
+      {
+        "sample": 1,
+        "time_ms": "751",
+        "signed_i": "58",
+        "signed_q": "-978",
+        "magnitude_squared": "959848",
+        "centered_x64": "-29927722",
+        "centered_display": -467620.65625,
+        "cos_basis_at_peak": "306",
+        "sin_basis_at_peak": "953"
+      },
+      {
+        "sample": 2,
+        "time_ms": "1616",
+        "signed_i": "650",
+        "signed_q": "1346",
+        "magnitude_squared": "2234216",
+        "centered_x64": "51631830",
+        "centered_display": 806747.34375,
+        "cos_basis_at_peak": "-909",
+        "sin_basis_at_peak": "416"
+      },
+      {
+        "sample": 3,
+        "time_ms": "2469",
+        "signed_i": "817",
+        "signed_q": "1271",
+        "magnitude_squared": "2282930",
+        "centered_x64": "54749526",
+        "centered_display": 855461.34375,
+        "cos_basis_at_peak": "-540",
+        "sin_basis_at_peak": "-840"
+      },
+      {
+        "sample": 4,
+        "time_ms": "3466",
+        "signed_i": "-500",
+        "signed_q": "-328",
+        "magnitude_squared": "357584",
+        "centered_x64": "-68472618",
+        "centered_display": -1069884.65625,
+        "cos_basis_at_peak": "891",
+        "sin_basis_at_peak": "-454"
+      },
+      {
+        "sample": 5,
+        "time_ms": "4296",
+        "signed_i": "-943",
+        "signed_q": "-506",
+        "magnitude_squared": "1145285",
+        "centered_x64": "-18059754",
+        "centered_display": -282183.65625,
+        "cos_basis_at_peak": "605",
+        "sin_basis_at_peak": "796"
+      },
+      {
+        "sample": 6,
+        "time_ms": "4808",
+        "signed_i": "-397",
+        "signed_q": "-1185",
+        "magnitude_squared": "1561834",
+        "centered_x64": "8599382",
+        "centered_display": 134365.34375,
+        "cos_basis_at_peak": "-208",
+        "sin_basis_at_peak": "978"
+      },
+      {
+        "sample": 7,
+        "time_ms": "5352",
+        "signed_i": "1167",
+        "signed_q": "-322",
+        "magnitude_squared": "1465573",
+        "centered_x64": "2438678",
+        "centered_display": 38104.34375,
+        "cos_basis_at_peak": "-901",
+        "sin_basis_at_peak": "433"
+      },
+      {
+        "sample": 8,
+        "time_ms": "5823",
+        "signed_i": "765",
+        "signed_q": "-535",
+        "magnitude_squared": "871450",
+        "centered_x64": "-35585194",
+        "centered_display": -556018.65625,
+        "cos_basis_at_peak": "-943",
+        "sin_basis_at_peak": "-336"
+      },
+      {
+        "sample": 9,
+        "time_ms": "6378",
+        "signed_i": "753",
+        "signed_q": "909",
+        "magnitude_squared": "1393290",
+        "centered_x64": "-2187434",
+        "centered_display": -34178.65625,
+        "cos_basis_at_peak": "-294",
+        "sin_basis_at_peak": "-956"
+      },
+      {
+        "sample": 10,
+        "time_ms": "11956",
+        "signed_i": "-903",
+        "signed_q": "368",
+        "magnitude_squared": "950833",
+        "centered_x64": "-30504682",
+        "centered_display": -476635.65625,
+        "cos_basis_at_peak": "359",
+        "sin_basis_at_peak": "932"
+      },
+      {
+        "sample": 11,
+        "time_ms": "22076",
+        "signed_i": "805",
+        "signed_q": "-788",
+        "magnitude_squared": "1268969",
+        "centered_x64": "-10143978",
+        "centered_display": -158499.65625,
+        "cos_basis_at_peak": "782",
+        "sin_basis_at_peak": "-624"
+      },
+      {
+        "sample": 12,
+        "time_ms": "22552",
+        "signed_i": "1070",
+        "signed_q": "-69",
+        "magnitude_squared": "1149661",
+        "centered_x64": "-17779690",
+        "centered_display": -277807.65625,
+        "cos_basis_at_peak": "993",
+        "sin_basis_at_peak": "124"
+      },
+      {
+        "sample": 13,
+        "time_ms": "23038",
+        "signed_i": "615",
+        "signed_q": "989",
+        "magnitude_squared": "1356346",
+        "centered_x64": "-4551850",
+        "centered_display": -71122.65625,
+        "cos_basis_at_peak": "590",
+        "sin_basis_at_peak": "808"
+      },
+      {
+        "sample": 14,
+        "time_ms": "23525",
+        "signed_i": "-983",
+        "signed_q": "-569",
+        "magnitude_squared": "1290050",
+        "centered_x64": "-8794794",
+        "centered_display": -137418.65625,
+        "cos_basis_at_peak": "-186",
+        "sin_basis_at_peak": "982"
+      },
+      {
+        "sample": 15,
+        "time_ms": "24021",
+        "signed_i": "-230",
+        "signed_q": "1179",
+        "magnitude_squared": "1442941",
+        "centered_x64": "990230",
+        "centered_display": 15472.34375,
+        "cos_basis_at_peak": "-849",
+        "sin_basis_at_peak": "525"
+      },
+      {
+        "sample": 16,
+        "time_ms": "24511",
+        "signed_i": "1006",
+        "signed_q": "-725",
+        "magnitude_squared": "1537661",
+        "centered_x64": "7052310",
+        "centered_display": 110192.34375,
+        "cos_basis_at_peak": "-966",
+        "sin_basis_at_peak": "-267"
+      },
+      {
+        "sample": 17,
+        "time_ms": "25037",
+        "signed_i": "-575",
+        "signed_q": "-1006",
+        "magnitude_squared": "1342661",
+        "centered_x64": "-5427690",
+        "centered_display": -84807.65625,
+        "cos_basis_at_peak": "-410",
+        "sin_basis_at_peak": "-913"
+      },
+      {
+        "sample": 18,
+        "time_ms": "25733",
+        "signed_i": "1006",
+        "signed_q": "506",
+        "magnitude_squared": "1268072",
+        "centered_x64": "-10201386",
+        "centered_display": -159396.65625,
+        "cos_basis_at_peak": "679",
+        "sin_basis_at_peak": "-734"
+      },
+      {
+        "sample": 19,
+        "time_ms": "26250",
+        "signed_i": "1012",
+        "signed_q": "638",
+        "magnitude_squared": "1431188",
+        "centered_x64": "238038",
+        "centered_display": 3719.34375,
+        "cos_basis_at_peak": "999",
+        "sin_basis_at_peak": "43"
+      },
+      {
+        "sample": 20,
+        "time_ms": "26751",
+        "signed_i": "1070",
+        "signed_q": "-529",
+        "magnitude_squared": "1424741",
+        "centered_x64": "-174570",
+        "centered_display": -2727.65625,
+        "cos_basis_at_peak": "636",
+        "sin_basis_at_peak": "772"
+      },
+      {
+        "sample": 21,
+        "time_ms": "27262",
+        "signed_i": "-1190",
+        "signed_q": "-397",
+        "magnitude_squared": "1573709",
+        "centered_x64": "9359382",
+        "centered_display": 146240.34375,
+        "cos_basis_at_peak": "-171",
+        "sin_basis_at_peak": "986"
+      },
+      {
+        "sample": 22,
+        "time_ms": "27751",
+        "signed_i": "-1271",
+        "signed_q": "-391",
+        "magnitude_squared": "1768322",
+        "centered_x64": "21814614",
+        "centered_display": 340853.34375,
+        "cos_basis_at_peak": "-837",
+        "sin_basis_at_peak": "548"
+      },
+      {
+        "sample": 23,
+        "time_ms": "28237",
+        "signed_i": "-840",
+        "signed_q": "1018",
+        "magnitude_squared": "1741924",
+        "centered_x64": "20125142",
+        "centered_display": 314455.34375,
+        "cos_basis_at_peak": "-972",
+        "sin_basis_at_peak": "-230"
+      },
+      {
+        "sample": 24,
+        "time_ms": "28729",
+        "signed_i": "-811",
+        "signed_q": "-1041",
+        "magnitude_squared": "1741402",
+        "centered_x64": "20091734",
+        "centered_display": 313933.34375,
+        "cos_basis_at_peak": "-489",
+        "sin_basis_at_peak": "-872"
+      },
+      {
+        "sample": 25,
+        "time_ms": "29275",
+        "signed_i": "-1317",
+        "signed_q": "-253",
+        "magnitude_squared": "1798498",
+        "centered_x64": "23745878",
+        "centered_display": 371029.34375,
+        "cos_basis_at_peak": "394",
+        "sin_basis_at_peak": "-919"
+      },
+      {
+        "sample": 26,
+        "time_ms": "29769",
+        "signed_i": "1328",
+        "signed_q": "17",
+        "magnitude_squared": "1763873",
+        "centered_x64": "21529878",
+        "centered_display": 336404.34375,
+        "cos_basis_at_peak": "943",
+        "sin_basis_at_peak": "-332"
+      },
+      {
+        "sample": 27,
+        "time_ms": "30256",
+        "signed_i": "253",
+        "signed_q": "1144",
+        "magnitude_squared": "1372745",
+        "centered_x64": "-3502314",
+        "centered_display": -54723.65625,
+        "cos_basis_at_peak": "889",
+        "sin_basis_at_peak": "459"
+      },
+      {
+        "sample": 28,
+        "time_ms": "30757",
+        "signed_i": "98",
+        "signed_q": "1202",
+        "magnitude_squared": "1454408",
+        "centered_x64": "1724118",
+        "centered_display": 26939.34375,
+        "cos_basis_at_peak": "250",
+        "sin_basis_at_peak": "969"
+      },
+      {
+        "sample": 29,
+        "time_ms": "31307",
+        "signed_i": "-1248",
+        "signed_q": "-385",
+        "magnitude_squared": "1705729",
+        "centered_x64": "17808662",
+        "centered_display": 278260.34375,
+        "cos_basis_at_peak": "-623",
+        "sin_basis_at_peak": "785"
+      },
+      {
+        "sample": 30,
+        "time_ms": "31770",
+        "signed_i": "-776",
+        "signed_q": "1018",
+        "magnitude_squared": "1638500",
+        "centered_x64": "13506006",
+        "centered_display": 211031.34375,
+        "cos_basis_at_peak": "-995",
+        "sin_basis_at_peak": "123"
+      },
+      {
+        "sample": 31,
+        "time_ms": "32278",
+        "signed_i": "-725",
+        "signed_q": "903",
+        "magnitude_squared": "1341034",
+        "centered_x64": "-5531818",
+        "centered_display": -86434.65625,
+        "cos_basis_at_peak": "-745",
+        "sin_basis_at_peak": "-666"
+      },
+      {
+        "sample": 32,
+        "time_ms": "32746",
+        "signed_i": "489",
+        "signed_q": "-1144",
+        "magnitude_squared": "1547857",
+        "centered_x64": "7704854",
+        "centered_display": 120388.34375,
+        "cos_basis_at_peak": "-57",
+        "sin_basis_at_peak": "-998"
+      },
+      {
+        "sample": 33,
+        "time_ms": "33229",
+        "signed_i": "627",
+        "signed_q": "-368",
+        "magnitude_squared": "528553",
+        "centered_x64": "-57530602",
+        "centered_display": -898915.65625,
+        "cos_basis_at_peak": "683",
+        "sin_basis_at_peak": "-728"
+      },
+      {
+        "sample": 34,
+        "time_ms": "33692",
+        "signed_i": "380",
+        "signed_q": "1104",
+        "magnitude_squared": "1363216",
+        "centered_x64": "-4112170",
+        "centered_display": -64252.65625,
+        "cos_basis_at_peak": "1000",
+        "sin_basis_at_peak": "-41"
+      },
+      {
+        "sample": 35,
+        "time_ms": "34283",
+        "signed_i": "-1162",
+        "signed_q": "-483",
+        "magnitude_squared": "1583533",
+        "centered_x64": "9988118",
+        "centered_display": 156064.34375,
+        "cos_basis_at_peak": "583",
+        "sin_basis_at_peak": "812"
+      },
+      {
+        "sample": 36,
+        "time_ms": "34787",
+        "signed_i": "-161",
+        "signed_q": "-1202",
+        "magnitude_squared": "1470725",
+        "centered_x64": "2768406",
+        "centered_display": 43256.34375,
+        "cos_basis_at_peak": "-224",
+        "sin_basis_at_peak": "976"
+      },
+      {
+        "sample": 37,
+        "time_ms": "35313",
+        "signed_i": "-1041",
+        "signed_q": "-725",
+        "magnitude_squared": "1609306",
+        "centered_x64": "11637590",
+        "centered_display": 181837.34375,
+        "cos_basis_at_peak": "-895",
+        "sin_basis_at_peak": "449"
+      },
+      {
+        "sample": 38,
+        "time_ms": "35792",
+        "signed_i": "-575",
+        "signed_q": "-1075",
+        "magnitude_squared": "1486250",
+        "centered_x64": "3762006",
+        "centered_display": 58781.34375,
+        "cos_basis_at_peak": "-943",
+        "sin_basis_at_peak": "-334"
+      },
+      {
+        "sample": 39,
+        "time_ms": "36286",
+        "signed_i": "460",
+        "signed_q": "1127",
+        "magnitude_squared": "1481729",
+        "centered_x64": "3472662",
+        "centered_display": 54260.34375,
+        "cos_basis_at_peak": "-393",
+        "sin_basis_at_peak": "-921"
+      },
+      {
+        "sample": 40,
+        "time_ms": "36791",
+        "signed_i": "1018",
+        "signed_q": "-644",
+        "magnitude_squared": "1451060",
+        "centered_x64": "1509846",
+        "centered_display": 23591.34375,
+        "cos_basis_at_peak": "432",
+        "sin_basis_at_peak": "-903"
+      },
+      {
+        "sample": 41,
+        "time_ms": "37201",
+        "signed_i": "-305",
+        "signed_q": "1070",
+        "magnitude_squared": "1237925",
+        "centered_x64": "-12130794",
+        "centered_display": -189543.65625,
+        "cos_basis_at_peak": "904",
+        "sin_basis_at_peak": "-427"
+      },
+      {
+        "sample": 42,
+        "time_ms": "37732",
+        "signed_i": "-1127",
+        "signed_q": "201",
+        "magnitude_squared": "1310530",
+        "centered_x64": "-7484074",
+        "centered_display": -116938.65625,
+        "cos_basis_at_peak": "899",
+        "sin_basis_at_peak": "437"
+      },
+      {
+        "sample": 43,
+        "time_ms": "38192",
+        "signed_i": "-52",
+        "signed_q": "1173",
+        "magnitude_squared": "1378633",
+        "centered_x64": "-3125482",
+        "centered_display": -48835.65625,
+        "cos_basis_at_peak": "341",
+        "sin_basis_at_peak": "939"
+      },
+      {
+        "sample": 44,
+        "time_ms": "38687",
+        "signed_i": "1127",
+        "signed_q": "259",
+        "magnitude_squared": "1337210",
+        "centered_x64": "-5776554",
+        "centered_display": -90258.65625,
+        "cos_basis_at_peak": "-464",
+        "sin_basis_at_peak": "887"
+      },
+      {
+        "sample": 45,
+        "time_ms": "39241",
+        "signed_i": "-132",
+        "signed_q": "-1248",
+        "magnitude_squared": "1574928",
+        "centered_x64": "9437398",
+        "centered_display": 147459.34375,
+        "cos_basis_at_peak": "-987",
+        "sin_basis_at_peak": "160"
+      },
+      {
+        "sample": 46,
+        "time_ms": "39758",
+        "signed_i": "1167",
+        "signed_q": "408",
+        "magnitude_squared": "1528353",
+        "centered_x64": "6456598",
+        "centered_display": 100884.34375,
+        "cos_basis_at_peak": "-760",
+        "sin_basis_at_peak": "-648"
+      },
+      {
+        "sample": 47,
+        "time_ms": "40237",
+        "signed_i": "-1052",
+        "signed_q": "-719",
+        "magnitude_squared": "1623665",
+        "centered_x64": "12556566",
+        "centered_display": 196196.34375,
+        "cos_basis_at_peak": "-60",
+        "sin_basis_at_peak": "-999"
+      },
+      {
+        "sample": 48,
+        "time_ms": "40647",
+        "signed_i": "753",
+        "signed_q": "-886",
+        "magnitude_squared": "1352005",
+        "centered_x64": "-4829674",
+        "centered_display": -75463.65625,
+        "cos_basis_at_peak": "588",
+        "sin_basis_at_peak": "-811"
+      },
+      {
+        "sample": 49,
+        "time_ms": "41137",
+        "signed_i": "-121",
+        "signed_q": "-1167",
+        "magnitude_squared": "1376530",
+        "centered_x64": "-3260074",
+        "centered_display": -50938.65625,
+        "cos_basis_at_peak": "992",
+        "sin_basis_at_peak": "-120"
+      },
+      {
+        "sample": 50,
+        "time_ms": "41657",
+        "signed_i": "-397",
+        "signed_q": "1104",
+        "magnitude_squared": "1376425",
+        "centered_x64": "-3266794",
+        "centered_display": -51043.65625,
+        "cos_basis_at_peak": "732",
+        "sin_basis_at_peak": "681"
+      },
+      {
+        "sample": 51,
+        "time_ms": "42184",
+        "signed_i": "-483",
+        "signed_q": "1064",
+        "magnitude_squared": "1365385",
+        "centered_x64": "-3973354",
+        "centered_display": -62083.65625,
+        "cos_basis_at_peak": "-65",
+        "sin_basis_at_peak": "997"
+      },
+      {
+        "sample": 52,
+        "time_ms": "42695",
+        "signed_i": "719",
+        "signed_q": "-932",
+        "magnitude_squared": "1385585",
+        "centered_x64": "-2680554",
+        "centered_display": -41883.65625,
+        "cos_basis_at_peak": "-796",
+        "sin_basis_at_peak": "606"
+      },
+      {
+        "sample": 53,
+        "time_ms": "43166",
+        "signed_i": "63",
+        "signed_q": "-1196",
+        "magnitude_squared": "1434385",
+        "centered_x64": "442646",
+        "centered_display": 6916.34375,
+        "cos_basis_at_peak": "-990",
+        "sin_basis_at_peak": "-139"
+      },
+      {
+        "sample": 54,
+        "time_ms": "43575",
+        "signed_i": "-891",
+        "signed_q": "-966",
+        "magnitude_squared": "1727037",
+        "centered_x64": "19172374",
+        "centered_display": 299568.34375,
+        "cos_basis_at_peak": "-679",
+        "sin_basis_at_peak": "-735"
+      },
+      {
+        "sample": 55,
+        "time_ms": "44079",
+        "signed_i": "-322",
+        "signed_q": "1231",
+        "magnitude_squared": "1619045",
+        "centered_x64": "12260886",
+        "centered_display": 191576.34375,
+        "cos_basis_at_peak": "102",
+        "sin_basis_at_peak": "-995"
+      },
+      {
+        "sample": 56,
+        "time_ms": "44584",
+        "signed_i": "-1087",
+        "signed_q": "-765",
+        "magnitude_squared": "1766794",
+        "centered_x64": "21716822",
+        "centered_display": 339325.34375,
+        "cos_basis_at_peak": "811",
+        "sin_basis_at_peak": "-582"
+      },
+      {
+        "sample": 57,
+        "time_ms": "45085",
+        "signed_i": "-1081",
+        "signed_q": "627",
+        "magnitude_squared": "1561690",
+        "centered_x64": "8590166",
+        "centered_display": 134221.34375,
+        "cos_basis_at_peak": "977",
+        "sin_basis_at_peak": "217"
+      },
+      {
+        "sample": 58,
+        "time_ms": "45502",
+        "signed_i": "-1127",
+        "signed_q": "-443",
+        "magnitude_squared": "1466378",
+        "centered_x64": "2490198",
+        "centered_display": 38909.34375,
+        "cos_basis_at_peak": "610",
+        "sin_basis_at_peak": "793"
+      },
+      {
+        "sample": 59,
+        "time_ms": "46001",
+        "signed_i": "1110",
+        "signed_q": "-35",
+        "magnitude_squared": "1233325",
+        "centered_x64": "-12425194",
+        "centered_display": -194143.65625,
+        "cos_basis_at_peak": "-182",
+        "sin_basis_at_peak": "984"
+      },
+      {
+        "sample": 60,
+        "time_ms": "46485",
+        "signed_i": "420",
+        "signed_q": "995",
+        "magnitude_squared": "1166425",
+        "centered_x64": "-16706794",
+        "centered_display": -261043.65625,
+        "cos_basis_at_peak": "-838",
+        "sin_basis_at_peak": "544"
+      },
+      {
+        "sample": 61,
+        "time_ms": "46988",
+        "signed_i": "-1070",
+        "signed_q": "-569",
+        "magnitude_squared": "1468661",
+        "centered_x64": "2636310",
+        "centered_display": 41192.34375,
+        "cos_basis_at_peak": "-966",
+        "sin_basis_at_peak": "-263"
+      },
+      {
+        "sample": 62,
+        "time_ms": "47501",
+        "signed_i": "-1254",
+        "signed_q": "35",
+        "magnitude_squared": "1573741",
+        "centered_x64": "9361430",
+        "centered_display": 146272.34375,
+        "cos_basis_at_peak": "-430",
+        "sin_basis_at_peak": "-903"
+      },
+      {
+        "sample": 63,
+        "time_ms": "47996",
+        "signed_i": "-972",
+        "signed_q": "604",
+        "magnitude_squared": "1309600",
+        "centered_x64": "-7543594",
+        "centered_display": -117868.65625,
+        "cos_basis_at_peak": "377",
+        "sin_basis_at_peak": "-927"
+      }
+    ],
+    "spectra": [
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 0,
+        "bpm": 3.0,
+        "numerator": "21080350092552427511948388050",
+        "denominator": "351229193582112182421269162368",
+        "score_display": 0.06001878681426905,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 1,
+        "bpm": 3.6850393700787403,
+        "numerator": "30112686840576743166497702904",
+        "denominator": "355557692097840538131053966912",
+        "score_display": 0.08469142282623009,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 2,
+        "bpm": 4.37007874015748,
+        "numerator": "34452679596388003380902434078",
+        "denominator": "356593129223747832995829527488",
+        "score_display": 0.09661621824118304,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 3,
+        "bpm": 5.05511811023622,
+        "numerator": "22663636736352641520005237236",
+        "denominator": "353062895558264798914894404096",
+        "score_display": 0.06419149964913981,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 4,
+        "bpm": 5.740157480314961,
+        "numerator": "20691799641173316357029293832",
+        "denominator": "356147055644568473248558946368",
+        "score_display": 0.05809903328759664,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 5,
+        "bpm": 6.425196850393701,
+        "numerator": "24439689738923373603005640152",
+        "denominator": "356102346494884491701160490496",
+        "score_display": 0.06863108311271535,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 6,
+        "bpm": 7.110236220472441,
+        "numerator": "36422492076486904385051435560",
+        "denominator": "357085041590618350286311417088",
+        "score_display": 0.10199948985329838,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 7,
+        "bpm": 7.795275590551181,
+        "numerator": "8720767057047930904904802686",
+        "denominator": "357320326324790738476888084096",
+        "score_display": 0.024406020073767316,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 8,
+        "bpm": 8.48031496062992,
+        "numerator": "21291376297118142052644899872",
+        "denominator": "356531600544777451472993620032",
+        "score_display": 0.059718062198652486,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 9,
+        "bpm": 9.165354330708663,
+        "numerator": "27403271018446053973925379798",
+        "denominator": "358174926007233983289630025600",
+        "score_display": 0.0765080663907015,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 10,
+        "bpm": 9.850393700787402,
+        "numerator": "9102012746548007769796451662",
+        "denominator": "358247643645278046561170830976",
+        "score_display": 0.025407041492115,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 11,
+        "bpm": 10.535433070866143,
+        "numerator": "12117151598663642924011690206",
+        "denominator": "358009444182973207814082386048",
+        "score_display": 0.03384589930669748,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 12,
+        "bpm": 11.220472440944881,
+        "numerator": "19662323707304751345631112608",
+        "denominator": "358279416640260471704409801792",
+        "score_display": 0.05487985855198376,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 13,
+        "bpm": 11.905511811023622,
+        "numerator": "6004495480492567937694910256",
+        "denominator": "358030125072256690120192300800",
+        "score_display": 0.016770922500671574,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 14,
+        "bpm": 12.590551181102361,
+        "numerator": "12737479689889524182410505512",
+        "denominator": "358227317758414882913472024576",
+        "score_display": 0.035556974743281754,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 15,
+        "bpm": 13.275590551181102,
+        "numerator": "10573760318301413585925968192",
+        "denominator": "358373847526233644189665283840",
+        "score_display": 0.029504832429289904,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 16,
+        "bpm": 13.96062992125984,
+        "numerator": "4851011704389403707746137968",
+        "denominator": "357244424724719317084072576576",
+        "score_display": 0.01357897105917729,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 17,
+        "bpm": 14.645669291338583,
+        "numerator": "4559697975989562478442017352",
+        "denominator": "356753845596827131364278085376",
+        "score_display": 0.012781075893832258,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 18,
+        "bpm": 15.330708661417322,
+        "numerator": "6408481379988029751844804132",
+        "denominator": "356896941033973208208631839488",
+        "score_display": 0.017956111815982202,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 19,
+        "bpm": 16.015748031496063,
+        "numerator": "9022336401437420926056101568",
+        "denominator": "357374849548838365661818005760",
+        "score_display": 0.025246142566628604,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 20,
+        "bpm": 16.700787401574804,
+        "numerator": "2227537361652011518396497376",
+        "denominator": "357084468156926261484542487616",
+        "score_display": 0.006238124478360358,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 21,
+        "bpm": 17.385826771653544,
+        "numerator": "3172240456183753814510052370",
+        "denominator": "357499660479129683250791975808",
+        "score_display": 0.008873408304590389,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 22,
+        "bpm": 18.070866141732285,
+        "numerator": "9128667454636494411697110622",
+        "denominator": "357606925659589358367622753408",
+        "score_display": 0.025527099168448964,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 23,
+        "bpm": 18.755905511811022,
+        "numerator": "5600463415757528925460193816",
+        "denominator": "357844843941147815250902516480",
+        "score_display": 0.015650535450158945,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 24,
+        "bpm": 19.440944881889763,
+        "numerator": "2919103242935679673780342602",
+        "denominator": "357843927670463048531290599808",
+        "score_display": 0.00815747597545897,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 25,
+        "bpm": 20.125984251968504,
+        "numerator": "5043764016246686981807763750",
+        "denominator": "357700581036110944136488216192",
+        "score_display": 0.01410051949492781,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 26,
+        "bpm": 20.811023622047244,
+        "numerator": "3268296891566737394187982652",
+        "denominator": "357747285145928702496334647296",
+        "score_display": 0.00913576993388941,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 27,
+        "bpm": 21.49606299212598,
+        "numerator": "5700928831887041676704387514",
+        "denominator": "358276280266354456123003378048",
+        "score_display": 0.015912102324074546,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 28,
+        "bpm": 22.181102362204726,
+        "numerator": "5691188479306112024292077582",
+        "denominator": "358543219713344222544751280576",
+        "score_display": 0.015873089118394777,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 29,
+        "bpm": 22.866141732283467,
+        "numerator": "3494187722748381448384754168",
+        "denominator": "358617660526671539572164596032",
+        "score_display": 0.009743490372495216,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 30,
+        "bpm": 23.551181102362204,
+        "numerator": "4603261697419447132469048934",
+        "denominator": "358764630703353731099209222336",
+        "score_display": 0.01283086821684403,
+        "selected": false
+      },
+      {
+        "local_sc": 0,
+        "physical_tone": 0,
+        "bin": 31,
+        "bpm": 24.236220472440944,
+        "numerator": "14102961294654954343709956432",
+        "denominator": "358117125555635051063670818368",
+        "score_display": 0.03938086253980054,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 0,
+        "bpm": 3.0,
+        "numerator": "7396108502075751782031402210",
+        "denominator": "436078025465650550089888388480",
+        "score_display": 0.01696051639882124,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 1,
+        "bpm": 3.6850393700787403,
+        "numerator": "48442647634727546940211674680",
+        "denominator": "441452188890731945614063712320",
+        "score_display": 0.10973475464342539,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 2,
+        "bpm": 4.37007874015748,
+        "numerator": "61130828283374518999348252430",
+        "denominator": "442737763625435540228143071680",
+        "score_display": 0.13807457439996546,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 3,
+        "bpm": 5.05511811023622,
+        "numerator": "22718625569046716026743051156",
+        "denominator": "438354707335109533760728066560",
+        "score_display": 0.051827036846849646,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 4,
+        "bpm": 5.740157480314961,
+        "numerator": "23897110322146999701205231176",
+        "denominator": "442183929009249359913253628480",
+        "score_display": 0.054043371444300346,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 5,
+        "bpm": 6.425196850393701,
+        "numerator": "25358415787568704801988071064",
+        "denominator": "442128419165333492899651970560",
+        "score_display": 0.05735531734295947,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 6,
+        "bpm": 7.110236220472441,
+        "numerator": "15880042524411078230809073000",
+        "denominator": "443348510617902953408967527680",
+        "score_display": 0.03581841856709696,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 7,
+        "bpm": 7.795275590551181,
+        "numerator": "13074564886644498248224346094",
+        "denominator": "443640634690089790499062866560",
+        "score_display": 0.029471071548209025,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 8,
+        "bpm": 8.48031496062992,
+        "numerator": "6403790084494817479154655904",
+        "denominator": "442661371043824464355013075520",
+        "score_display": 0.014466566326748281,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 9,
+        "bpm": 9.165354330708663,
+        "numerator": "6052453338202555767115133958",
+        "denominator": "444701685846693881151450416000",
+        "score_display": 0.013610142553606316,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 10,
+        "bpm": 9.850393700787402,
+        "numerator": "9191080588634416192952562238",
+        "denominator": "444791970380537357127977503360",
+        "score_display": 0.020663773630560548,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 11,
+        "bpm": 10.535433070866143,
+        "numerator": "675128603853245305693764430",
+        "denominator": "444496227449462951315748273280",
+        "score_display": 0.0015188623933371946,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 12,
+        "bpm": 11.220472440944881,
+        "numerator": "8618425425486989872117146016",
+        "denominator": "444831418994628220753666029120",
+        "score_display": 0.019374587894366035,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 13,
+        "bpm": 11.905511811023622,
+        "numerator": "1684550105519447108680573616",
+        "denominator": "444521904362226486472449888000",
+        "score_display": 0.0037895772716450026,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 14,
+        "bpm": 12.590551181102361,
+        "numerator": "6277193082459959775077845096",
+        "denominator": "444766734230550142543584399360",
+        "score_display": 0.014113450038747956,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 15,
+        "bpm": 13.275590551181102,
+        "numerator": "197075756803044623852022592",
+        "denominator": "444948662193800176712945862400",
+        "score_display": 0.00044291796683098477,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 16,
+        "bpm": 13.96062992125984,
+        "numerator": "58136921666095498287927408",
+        "denominator": "443546397022795511724312119360",
+        "score_display": 0.00013107292057003818,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 17,
+        "bpm": 14.645669291338583,
+        "numerator": "5459743442032080576653897352",
+        "denominator": "442937305348939900528507887360",
+        "score_display": 0.012326221738606934,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 18,
+        "bpm": 15.330708661417322,
+        "numerator": "3580521535966080941814533188",
+        "denominator": "443114969326832492531524391680",
+        "score_display": 0.008080344343603435,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 19,
+        "bpm": 16.015748031496063,
+        "numerator": "907861515036039051722831040",
+        "denominator": "443708329461251094813057593600",
+        "score_display": 0.0020460772420891017,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 20,
+        "bpm": 16.700787401574804,
+        "numerator": "10075431186000665582533268448",
+        "denominator": "443347798655922711291758173760",
+        "score_display": 0.022725795000101252,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 21,
+        "bpm": 17.385826771653544,
+        "numerator": "11276570404940368885989526818",
+        "denominator": "443863291819256920515544106880",
+        "score_display": 0.025405503479959405,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 22,
+        "bpm": 18.070866141732285,
+        "numerator": "558155653009790719615691982",
+        "denominator": "443996469780971928907319242880",
+        "score_display": 0.0012571173218677498,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 23,
+        "bpm": 18.755905511811022,
+        "numerator": "8604758754791277949596792024",
+        "denominator": "444291863604549231136510892800",
+        "score_display": 0.0193673561450815,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 24,
+        "bpm": 19.440944881889763,
+        "numerator": "9497539404776593742251370010",
+        "denominator": "444290725984105639740896746880",
+        "score_display": 0.021376857200292688,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 25,
+        "bpm": 20.125984251968504,
+        "numerator": "10728277294711901629828660950",
+        "denominator": "444112750125584647259509013120",
+        "score_display": 0.024156652317858917,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 26,
+        "bpm": 20.811023622047244,
+        "numerator": "6122952835358679298797677596",
+        "denominator": "444170736865760610315182018560",
+        "score_display": 0.013785133344363447,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 27,
+        "bpm": 21.49606299212598,
+        "numerator": "5163286604825314834016978442",
+        "denominator": "444827524945485812220589393280",
+        "score_display": 0.011607390090031146,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 28,
+        "bpm": 22.181102362204726,
+        "numerator": "9915055851095652435174198142",
+        "denominator": "445158950775369101630403559360",
+        "score_display": 0.022273068605777338,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 29,
+        "bpm": 22.866141732283467,
+        "numerator": "13738341725359249710684791736",
+        "denominator": "445251374763702077027416435520",
+        "score_display": 0.03085524830249043,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 30,
+        "bpm": 23.551181102362204,
+        "numerator": "5826914835892284347157824022",
+        "denominator": "445433849528388528059110112960",
+        "score_display": 0.013081436990165072,
+        "selected": false
+      },
+      {
+        "local_sc": 1,
+        "physical_tone": 244,
+        "bin": 31,
+        "bpm": 24.236220472440944,
+        "numerator": "2459518565050063155266607312",
+        "denominator": "444629922145769081473071548480",
+        "score_display": 0.005531608293882943,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 0,
+        "bpm": 3.0,
+        "numerator": "3723852321587333579997805786440",
+        "denominator": "53490200335828112817700636272128",
+        "score_display": 0.06961746821301529,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 1,
+        "bpm": 3.6850393700787403,
+        "numerator": "5133289045663489387583645196512",
+        "denominator": "54149405940004394279439543146752",
+        "score_display": 0.09479862163863792,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 2,
+        "bpm": 4.37007874015748,
+        "numerator": "798743933306331961868615386744",
+        "denominator": "54307097100967034801903580155648",
+        "score_display": 0.014707910677334084,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 3,
+        "bpm": 5.05511811023622,
+        "numerator": "3033958204959678101099902033872",
+        "denominator": "53769462674645277572487425058816",
+        "score_display": 0.056425302653997436,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 4,
+        "bpm": 5.740157480314961,
+        "numerator": "6756176269566426565179045199904",
+        "denominator": "54239162642354768021839257936128",
+        "score_display": 0.12456269493162497,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 5,
+        "bpm": 6.425196850393701,
+        "numerator": "625886043967689414764138440544",
+        "denominator": "54232353694188898656151648393216",
+        "score_display": 0.011540823905541727,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 6,
+        "bpm": 7.110236220472441,
+        "numerator": "5967785462903437978340741440672",
+        "denominator": "54382012545162375799915496117248",
+        "score_display": 0.10973822379132069,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 7,
+        "bpm": 7.795275590551181,
+        "numerator": "6387489455022596104949744142328",
+        "denominator": "54417845066481253071762666338816",
+        "score_display": 0.11737858136828316,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 8,
+        "bpm": 8.48031496062992,
+        "numerator": "17303597822601116365062664576",
+        "denominator": "54297726634546067626726395478272",
+        "score_display": 0.0003186799686672697,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 9,
+        "bpm": 9.165354330708663,
+        "numerator": "4268810811954165220626499539800",
+        "denominator": "54547995717555014963508246617600",
+        "score_display": 0.07825788566197212,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 10,
+        "bpm": 9.850393700787402,
+        "numerator": "2329376587088004676723829210424",
+        "denominator": "54559070198543497575381804407296",
+        "score_display": 0.042694579995796726,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 11,
+        "bpm": 10.535433070866143,
+        "numerator": "499227029822898526817567241080",
+        "denominator": "54522793780775867944628432593408",
+        "score_display": 0.00915629950714155,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 12,
+        "bpm": 11.220472440944881,
+        "numerator": "1629008451461935670880362327680",
+        "denominator": "54563909044225845031391374463232",
+        "score_display": 0.029855054009080815,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 13,
+        "bpm": 11.905511811023622,
+        "numerator": "710633899126940508895903812800",
+        "denominator": "54525943362106549473733639756800",
+        "score_display": 0.0130329501024425,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 14,
+        "bpm": 12.590551181102361,
+        "numerator": "68332405905593710029371062432",
+        "denominator": "54555974682054035201690847952896",
+        "score_display": 0.0012525192025956303,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 15,
+        "bpm": 13.275590551181102,
+        "numerator": "252300489663127062536184435968",
+        "denominator": "54578290328871006107475589872640",
+        "score_display": 0.004622726145191549,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 16,
+        "bpm": 13.96062992125984,
+        "numerator": "353242556631243404348323891392",
+        "denominator": "54406285686259400671101228144896",
+        "score_display": 0.006492679148660514,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 17,
+        "bpm": 14.645669291338583,
+        "numerator": "675300923952772566090667346208",
+        "denominator": "54331573286746419819984144669696",
+        "score_display": 0.012429253988076665,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 18,
+        "bpm": 15.330708661417322,
+        "numerator": "1082906029515530876492192973968",
+        "denominator": "54353365904615176537712865307648",
+        "score_display": 0.01992344009414108,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 19,
+        "bpm": 16.015748031496063,
+        "numerator": "2626658059705833568663796540672",
+        "denominator": "54426148642125175149003000488960",
+        "score_display": 0.04826095774252217,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 20,
+        "bpm": 16.700787401574804,
+        "numerator": "1744792982825830439531037187968",
+        "denominator": "54381925214485912618427184148736",
+        "score_display": 0.03208406057608758,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 21,
+        "bpm": 17.385826771653544,
+        "numerator": "546922741608843189204207844936",
+        "denominator": "54445156634021563077184807546368",
+        "score_display": 0.010045388339779032,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 22,
+        "bpm": 18.070866141732285,
+        "numerator": "4677040761758013869697303147896",
+        "denominator": "54461492508421210334184273555968",
+        "score_display": 0.08587793955582135,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 23,
+        "bpm": 18.755905511811022,
+        "numerator": "2878624461095091406735758476896",
+        "denominator": "54497726103966970679049758510080",
+        "score_display": 0.052821001294686164,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 24,
+        "bpm": 19.440944881889763,
+        "numerator": "3375564896511149373340160578344",
+        "denominator": "54497586561174442073146601850368",
+        "score_display": 0.06193971347193553,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 25,
+        "bpm": 20.125984251968504,
+        "numerator": "4739558837868866329905457225880",
+        "denominator": "54475755687405778012757822085632",
+        "score_display": 0.0870030856490643,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 26,
+        "bpm": 20.811023622047244,
+        "numerator": "2160795355583750443207743002352",
+        "denominator": "54482868456606936020366947926016",
+        "score_display": 0.03966008796516878,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 27,
+        "bpm": 21.49606299212598,
+        "numerator": "4379014077015219660185734882024",
+        "denominator": "54563431392391583093401459025408",
+        "score_display": 0.08025547450496005,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 28,
+        "bpm": 22.181102362204726,
+        "numerator": "3787027725702271651005212445752",
+        "denominator": "54604084745694572809173198128896",
+        "score_display": 0.06935429360897531,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 29,
+        "bpm": 22.866141732283467,
+        "numerator": "997424696238782271099464971232",
+        "denominator": "54615421656437754732725442774272",
+        "score_display": 0.018262693319721197,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 30,
+        "bpm": 23.551181102362204,
+        "numerator": "1787834374524566149656920596632",
+        "denominator": "54637804375009480133521722073856",
+        "score_display": 0.0327215633017328,
+        "selected": false
+      },
+      {
+        "local_sc": 2,
+        "physical_tone": 122,
+        "bin": 31,
+        "bpm": 24.236220472440944,
+        "numerator": "1902694364013306970139265801024",
+        "denominator": "54539193038871059229129376848128",
+        "score_display": 0.034886734804770995,
+        "selected": false
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 0,
+        "bpm": 3.0,
+        "numerator": "237344901599831014232928049160",
+        "denominator": "24237626852462725024080468080128",
+        "score_display": 0.009792415034878507,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 1,
+        "bpm": 3.6850393700787403,
+        "numerator": "1108552149258969432658863835360",
+        "denominator": "24536327910839114364490983018752",
+        "score_display": 0.04518003481561142,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 2,
+        "bpm": 4.37007874015748,
+        "numerator": "1656984779404565320474618044600",
+        "denominator": "24607781363870661067559186683648",
+        "score_display": 0.06733580548782685,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 3,
+        "bpm": 5.05511811023622,
+        "numerator": "663664263467695410924304439632",
+        "denominator": "24364166972329555329463116834816",
+        "score_display": 0.02723935787426759,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 4,
+        "bpm": 5.740157480314961,
+        "numerator": "508298787728623163859877309984",
+        "denominator": "24576998714938136679156593744128",
+        "score_display": 0.02068189015364493,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 5,
+        "bpm": 6.425196850393701,
+        "numerator": "932807845213999607293427550304",
+        "denominator": "24573913425597921550744338569216",
+        "score_display": 0.03795927124258203,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 6,
+        "bpm": 7.110236220472441,
+        "numerator": "1285601843801507761367287489440",
+        "denominator": "24641727256211560611675160245248",
+        "score_display": 0.05217174228228826,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 7,
+        "bpm": 7.795275590551181,
+        "numerator": "94074006863854284054523956024",
+        "denominator": "24657963786930405920776438114816",
+        "score_display": 0.003815157150718051,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 8,
+        "bpm": 8.48031496062992,
+        "numerator": "1775606389424254010055350854528",
+        "denominator": "24603535392325985263780938070272",
+        "score_display": 0.07216874977967914,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 9,
+        "bpm": 9.165354330708663,
+        "numerator": "983765515548423588906798528408",
+        "denominator": "24716938008292930576846320217600",
+        "score_display": 0.039801269688759765,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 10,
+        "bpm": 9.850393700787402,
+        "numerator": "405011115339544263774443539576",
+        "denominator": "24721956107610157195406873463296",
+        "score_display": 0.016382648427034047,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 11,
+        "bpm": 10.535433070866143,
+        "numerator": "508429967649944729997162279096",
+        "denominator": "24705518437310258820656182481408",
+        "score_display": 0.020579611350398302,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 12,
+        "bpm": 11.220472440944881,
+        "numerator": "1570729796765928730322032551552",
+        "denominator": "24724148698688692222254239615232",
+        "score_display": 0.06353018726380805,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 13,
+        "bpm": 11.905511811023622,
+        "numerator": "113784585306630024497014180544",
+        "denominator": "24706945584274661007218004556800",
+        "score_display": 0.00460536835354715,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 14,
+        "bpm": 12.590551181102361,
+        "numerator": "1944057304840442284655820424096",
+        "denominator": "24720553458655466702098598608896",
+        "score_display": 0.07864133414698143,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 15,
+        "bpm": 13.275590551181102,
+        "numerator": "306896628483171076721206275328",
+        "denominator": "24730665185983562055221980912640",
+        "score_display": 0.012409558181116328,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 16,
+        "bpm": 13.96062992125984,
+        "numerator": "2411009295268263758860971328192",
+        "denominator": "24652725968737466098548690800896",
+        "score_display": 0.09779889243589958,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 17,
+        "bpm": 14.645669291338583,
+        "numerator": "1626893297073630395395597172768",
+        "denominator": "24618872080562087051190820125696",
+        "score_display": 0.06608317764314432,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 18,
+        "bpm": 15.330708661417322,
+        "numerator": "1180648400024238504568548304400",
+        "denominator": "24628746811573095133850743835648",
+        "score_display": 0.047937818722853145,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 19,
+        "bpm": 16.015748031496063,
+        "numerator": "3363258655992471090690379315968",
+        "denominator": "24661726325988682293099067048960",
+        "score_display": 0.13637563776094003,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 20,
+        "bpm": 16.700787401574804,
+        "numerator": "806474038995344965674190921600",
+        "denominator": "24641687684694991249167841044736",
+        "score_display": 0.032728035892454224,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 21,
+        "bpm": 17.385826771653544,
+        "numerator": "68787711962858007010501679368",
+        "denominator": "24670339279612090206366927994368",
+        "score_display": 0.0027882758799229455,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 22,
+        "bpm": 18.070866141732285,
+        "numerator": "2008430849432637508259493696184",
+        "denominator": "24677741435998147774735379603968",
+        "score_display": 0.08138633167226886,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 23,
+        "bpm": 18.755905511811022,
+        "numerator": "1172490723046715413927710239584",
+        "denominator": "24694159702574968935258393390080",
+        "score_display": 0.0474804867696897,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 24,
+        "bpm": 19.440944881889763,
+        "numerator": "1007112701217655078189568073960",
+        "denominator": "24694096472560610705957266298368",
+        "score_display": 0.0407835412134528,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 25,
+        "bpm": 20.125984251968504,
+        "numerator": "2001267084022906020648537293016",
+        "denominator": "24684204406930905406191253637632",
+        "score_display": 0.08107480601890431,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 26,
+        "bpm": 20.811023622047244,
+        "numerator": "1026220139217956640600807122800",
+        "denominator": "24687427364495150771034338902016",
+        "score_display": 0.04156853300534025,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 27,
+        "bpm": 21.49606299212598,
+        "numerator": "1285100676384211232813085473960",
+        "denominator": "24723932263774417265449560913408",
+        "score_display": 0.051978005063019236,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 28,
+        "bpm": 22.181102362204726,
+        "numerator": "2793771905882833266794413509752",
+        "denominator": "24742353223155255656885684784896",
+        "score_display": 0.11291455912399907,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 29,
+        "bpm": 22.866141732283467,
+        "numerator": "1085091609643788078905174025952",
+        "denominator": "24747490235365487927889041366272",
+        "score_display": 0.04384653147950874,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 30,
+        "bpm": 23.551181102362204,
+        "numerator": "731528602899357797863669315032",
+        "denominator": "24757632354431768461525091289856",
+        "score_display": 0.02954759939992443,
+        "selected": true
+      },
+      {
+        "local_sc": 3,
+        "physical_tone": 61,
+        "bin": 31,
+        "bpm": 24.236220472440944,
+        "numerator": "1654499419924359717074955504192",
+        "denominator": "24712949314290957670228344656128",
+        "score_display": 0.0669486834162525,
+        "selected": true
+      }
+    ],
+    "normal_outputs": {
+      "csiCommitment": "7637702128678710041626847539653886794180397649754334005382253859520540661928",
+      "isNormal": "1",
+      "selectedSubcarrier": "3",
+      "estimatedFrequencyBin": "19",
+      "globalPeakFrequencyBin": "19"
+    },
+    "display_note": "Only divide public centered by64 and public numerator/denominator for display. No Python waveform/spectrum replacement."
+  }
+}

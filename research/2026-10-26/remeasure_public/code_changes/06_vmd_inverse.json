@@ -1,0 +1,11 @@
+{
+  "title": "VMD：公開係数を時間波形へ変換",
+  "note": "公開値の復号後に、表示側で逆DFTする。回路内で時間波形を計算したという意味ではない。",
+  "source": "research/2026-10-26/remeasure_public/vmd/trace.py",
+  "start": 36,
+  "end": 45,
+  "source_sha256": "7fe68ae4201d562578ae3adf8ebadf26158fb1ca602abee0677caa9071a6ed3a",
+  "html": "06_vmd_inverse.html",
+  "png": "06_vmd_inverse.png",
+  "png_rendered": true
+}

@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "raw_recordings": 8,
+  "ls_actual_witness_cases": 48,
+  "vmd_actual_witness_cases": 32,
+  "ls_proof_configurations_completed": 5,
+  "ls_verified_proofs": 15,
+  "ls_32_sc_setup_status": "timeout_1800_seconds",
+  "main_report_real_data_only": true,
+  "code_excerpt_hashes_match": true,
+  "local_links_exist": true,
+  "diagnostic_proofs_verified": 2,
+  "diagnostic_public_values_match_display": true,
+  "diagnostic_tampered_values_rejected": true,
+  "viewer_bookmarked_views_rendered": 2
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "group": "debugDftReal",
+    "public_index_zero_based": 132,
+    "original_value": "52158",
+    "tampered_value": "52159",
+    "rejected": true,
+    "verify_seconds": 0.187050208
+  },
+  {
+    "group": "debugModeReal",
+    "public_index_zero_based": 258,
+    "original_value": "1043",
+    "tampered_value": "1044",
+    "rejected": true,
+    "verify_seconds": 0.1862095
+  },
+  {
+    "group": "debugCenters",
+    "public_index_zero_based": 1770,
+    "original_value": "8",
+    "tampered_value": "9",
+    "rejected": true,
+    "verify_seconds": 0.18446025
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "config_id": "sc32",
+  "status": "prepared_no_compute",
+  "predicted_constraints": 1423561,
+  "prediction_note": "Not measured; based on previous8SC public alias delta512. Actual compilation/header will override.",
+  "predicted_public_signals": 16677
+}

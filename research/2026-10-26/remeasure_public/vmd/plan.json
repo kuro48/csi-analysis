@@ -1,0 +1,708 @@
+{
+  "real_windows": 8,
+  "proofs_per_config": 10,
+  "representative": "csi_20260526_034004_w0",
+  "repeat_design": "Each of eight Raw files once, representative receives two additional proofs; all timings are per-run",
+  "data_scope": "real only; no physiological ground truth; no synthetic cases",
+  "configurations": [
+    {
+      "id": "k1_r1",
+      "modes": 1,
+      "iterations": 1,
+      "initial_centers": [
+        8
+      ],
+      "estimated_constraints": 100396,
+      "public_signal_count": 387,
+      "minimum_ptau_power_estimate": 17,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 140554400,
+      "estimated_retained_run_outputs_bytes": 2515500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k1_r2",
+      "modes": 1,
+      "iterations": 2,
+      "initial_centers": [
+        8
+      ],
+      "estimated_constraints": 120985,
+      "public_signal_count": 514,
+      "minimum_ptau_power_estimate": 17,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 169379000,
+      "estimated_retained_run_outputs_bytes": 3341000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k1_r4",
+      "modes": 1,
+      "iterations": 4,
+      "initial_centers": [
+        8
+      ],
+      "estimated_constraints": 162163,
+      "public_signal_count": 768,
+      "minimum_ptau_power_estimate": 18,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 227028200,
+      "estimated_retained_run_outputs_bytes": 4992000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k1_r8",
+      "modes": 1,
+      "iterations": 8,
+      "initial_centers": [
+        8
+      ],
+      "estimated_constraints": 244519,
+      "public_signal_count": 1276,
+      "minimum_ptau_power_estimate": 18,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 342326600,
+      "estimated_retained_run_outputs_bytes": 8294000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k1_r16",
+      "modes": 1,
+      "iterations": 16,
+      "initial_centers": [
+        8
+      ],
+      "estimated_constraints": 409231,
+      "public_signal_count": 2292,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 572923400,
+      "estimated_retained_run_outputs_bytes": 14898000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k1_r32",
+      "modes": 1,
+      "iterations": 32,
+      "initial_centers": [
+        8
+      ],
+      "estimated_constraints": 738655,
+      "public_signal_count": 4324,
+      "minimum_ptau_power_estimate": 20,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 1034117000,
+      "estimated_retained_run_outputs_bytes": 28106000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k2_r1",
+      "modes": 2,
+      "iterations": 1,
+      "initial_centers": [
+        8,
+        24
+      ],
+      "estimated_constraints": 127916,
+      "public_signal_count": 515,
+      "minimum_ptau_power_estimate": 17,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 179082400,
+      "estimated_retained_run_outputs_bytes": 3347500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k2_r2",
+      "modes": 2,
+      "iterations": 2,
+      "initial_centers": [
+        8,
+        24
+      ],
+      "estimated_constraints": 169094,
+      "public_signal_count": 769,
+      "minimum_ptau_power_estimate": 18,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 236731600,
+      "estimated_retained_run_outputs_bytes": 4998500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k2_r4",
+      "modes": 2,
+      "iterations": 4,
+      "initial_centers": [
+        8,
+        24
+      ],
+      "estimated_constraints": 251450,
+      "public_signal_count": 1277,
+      "minimum_ptau_power_estimate": 18,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 352030000,
+      "estimated_retained_run_outputs_bytes": 8300500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k2_r8",
+      "modes": 2,
+      "iterations": 8,
+      "initial_centers": [
+        8,
+        24
+      ],
+      "estimated_constraints": 416162,
+      "public_signal_count": 2293,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 582626800,
+      "estimated_retained_run_outputs_bytes": 14904500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k2_r16",
+      "modes": 2,
+      "iterations": 16,
+      "initial_centers": [
+        8,
+        24
+      ],
+      "estimated_constraints": 745586,
+      "public_signal_count": 4325,
+      "minimum_ptau_power_estimate": 20,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 1043820400,
+      "estimated_retained_run_outputs_bytes": 28112500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k2_r32",
+      "modes": 2,
+      "iterations": 32,
+      "initial_centers": [
+        8,
+        24
+      ],
+      "estimated_constraints": 1404434,
+      "public_signal_count": 8389,
+      "minimum_ptau_power_estimate": 21,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 1966207600,
+      "estimated_retained_run_outputs_bytes": 54528500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k3_r1",
+      "modes": 3,
+      "iterations": 1,
+      "initial_centers": [
+        8,
+        24,
+        48
+      ],
+      "estimated_constraints": 155436,
+      "public_signal_count": 643,
+      "minimum_ptau_power_estimate": 18,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 217610400,
+      "estimated_retained_run_outputs_bytes": 4179500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k3_r2",
+      "modes": 3,
+      "iterations": 2,
+      "initial_centers": [
+        8,
+        24,
+        48
+      ],
+      "estimated_constraints": 217203,
+      "public_signal_count": 1024,
+      "minimum_ptau_power_estimate": 18,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 304084200,
+      "estimated_retained_run_outputs_bytes": 6656000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k3_r4",
+      "modes": 3,
+      "iterations": 4,
+      "initial_centers": [
+        8,
+        24,
+        48
+      ],
+      "estimated_constraints": 340737,
+      "public_signal_count": 1786,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 477031800,
+      "estimated_retained_run_outputs_bytes": 11609000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k3_r8",
+      "modes": 3,
+      "iterations": 8,
+      "initial_centers": [
+        8,
+        24,
+        48
+      ],
+      "estimated_constraints": 587805,
+      "public_signal_count": 3310,
+      "minimum_ptau_power_estimate": 20,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 822927000,
+      "estimated_retained_run_outputs_bytes": 21515000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k3_r16",
+      "modes": 3,
+      "iterations": 16,
+      "initial_centers": [
+        8,
+        24,
+        48
+      ],
+      "estimated_constraints": 1081941,
+      "public_signal_count": 6358,
+      "minimum_ptau_power_estimate": 21,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 1514717400,
+      "estimated_retained_run_outputs_bytes": 41327000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k3_r32",
+      "modes": 3,
+      "iterations": 32,
+      "initial_centers": [
+        8,
+        24,
+        48
+      ],
+      "estimated_constraints": 2070213,
+      "public_signal_count": 12454,
+      "minimum_ptau_power_estimate": 21,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 2898298200,
+      "estimated_retained_run_outputs_bytes": 80951000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k4_r1",
+      "modes": 4,
+      "iterations": 1,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16
+      ],
+      "estimated_constraints": 182956,
+      "public_signal_count": 771,
+      "minimum_ptau_power_estimate": 18,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 256138400,
+      "estimated_retained_run_outputs_bytes": 5011500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k4_r2",
+      "modes": 4,
+      "iterations": 2,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16
+      ],
+      "estimated_constraints": 265312,
+      "public_signal_count": 1279,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 371436800,
+      "estimated_retained_run_outputs_bytes": 8313500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k4_r4",
+      "modes": 4,
+      "iterations": 4,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16
+      ],
+      "estimated_constraints": 430024,
+      "public_signal_count": 2295,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 602033600,
+      "estimated_retained_run_outputs_bytes": 14917500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k4_r8",
+      "modes": 4,
+      "iterations": 8,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16
+      ],
+      "estimated_constraints": 759448,
+      "public_signal_count": 4327,
+      "minimum_ptau_power_estimate": 20,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 1063227200,
+      "estimated_retained_run_outputs_bytes": 28125500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k4_r16",
+      "modes": 4,
+      "iterations": 16,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16
+      ],
+      "estimated_constraints": 1418296,
+      "public_signal_count": 8391,
+      "minimum_ptau_power_estimate": 21,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 1985614400,
+      "estimated_retained_run_outputs_bytes": 54541500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k4_r32",
+      "modes": 4,
+      "iterations": 32,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16
+      ],
+      "estimated_constraints": 2735992,
+      "public_signal_count": 16519,
+      "minimum_ptau_power_estimate": 22,
+      "supported_by_ptau21_estimate": false,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 3830388800,
+      "estimated_retained_run_outputs_bytes": 107373500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k5_r1",
+      "modes": 5,
+      "iterations": 1,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32
+      ],
+      "estimated_constraints": 210476,
+      "public_signal_count": 899,
+      "minimum_ptau_power_estimate": 18,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 294666400,
+      "estimated_retained_run_outputs_bytes": 5843500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k5_r2",
+      "modes": 5,
+      "iterations": 2,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32
+      ],
+      "estimated_constraints": 313421,
+      "public_signal_count": 1534,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 438789400,
+      "estimated_retained_run_outputs_bytes": 9971000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k5_r4",
+      "modes": 5,
+      "iterations": 4,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32
+      ],
+      "estimated_constraints": 519311,
+      "public_signal_count": 2804,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 727035400,
+      "estimated_retained_run_outputs_bytes": 18226000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k5_r8",
+      "modes": 5,
+      "iterations": 8,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32
+      ],
+      "estimated_constraints": 931091,
+      "public_signal_count": 5344,
+      "minimum_ptau_power_estimate": 20,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 1303527400,
+      "estimated_retained_run_outputs_bytes": 34736000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k5_r16",
+      "modes": 5,
+      "iterations": 16,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32
+      ],
+      "estimated_constraints": 1754651,
+      "public_signal_count": 10424,
+      "minimum_ptau_power_estimate": 21,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 2456511400,
+      "estimated_retained_run_outputs_bytes": 67756000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k5_r32",
+      "modes": 5,
+      "iterations": 32,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32
+      ],
+      "estimated_constraints": 3401771,
+      "public_signal_count": 20584,
+      "minimum_ptau_power_estimate": 22,
+      "supported_by_ptau21_estimate": false,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 4762479400,
+      "estimated_retained_run_outputs_bytes": 133796000,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k8_r1",
+      "modes": 8,
+      "iterations": 1,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32,
+        56,
+        40,
+        4
+      ],
+      "estimated_constraints": 293036,
+      "public_signal_count": 1283,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 410250400,
+      "estimated_retained_run_outputs_bytes": 8339500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k8_r2",
+      "modes": 8,
+      "iterations": 2,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32,
+        56,
+        40,
+        4
+      ],
+      "estimated_constraints": 457748,
+      "public_signal_count": 2299,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 640847200,
+      "estimated_retained_run_outputs_bytes": 14943500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k8_r4",
+      "modes": 8,
+      "iterations": 4,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32,
+        56,
+        40,
+        4
+      ],
+      "estimated_constraints": 787172,
+      "public_signal_count": 4331,
+      "minimum_ptau_power_estimate": 20,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 1102040800,
+      "estimated_retained_run_outputs_bytes": 28151500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k8_r8",
+      "modes": 8,
+      "iterations": 8,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32,
+        56,
+        40,
+        4
+      ],
+      "estimated_constraints": 1446020,
+      "public_signal_count": 8395,
+      "minimum_ptau_power_estimate": 21,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 2024428000,
+      "estimated_retained_run_outputs_bytes": 54567500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k8_r16",
+      "modes": 8,
+      "iterations": 16,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32,
+        56,
+        40,
+        4
+      ],
+      "estimated_constraints": 2763716,
+      "public_signal_count": 16523,
+      "minimum_ptau_power_estimate": 22,
+      "supported_by_ptau21_estimate": false,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 3869202400,
+      "estimated_retained_run_outputs_bytes": 107399500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k8_r32",
+      "modes": 8,
+      "iterations": 32,
+      "initial_centers": [
+        8,
+        24,
+        48,
+        16,
+        32,
+        56,
+        40,
+        4
+      ],
+      "estimated_constraints": 5399108,
+      "public_signal_count": 32779,
+      "minimum_ptau_power_estimate": 23,
+      "supported_by_ptau21_estimate": false,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 7558751200,
+      "estimated_retained_run_outputs_bytes": 213063500,
+      "status": "source_prepared_not_executed"
+    },
+    {
+      "id": "k3_r4_centers8_16_24",
+      "modes": 3,
+      "iterations": 4,
+      "initial_centers": [
+        8,
+        16,
+        24
+      ],
+      "estimated_constraints": 340737,
+      "public_signal_count": 1786,
+      "minimum_ptau_power_estimate": 19,
+      "supported_by_ptau21_estimate": true,
+      "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+      "estimated_peak_config_artifact_bytes": 477031800,
+      "estimated_retained_run_outputs_bytes": 11609000,
+      "status": "source_prepared_not_executed"
+    }
+  ],
+  "estimated_keep_all_artifact_bytes": 47255896800,
+  "disk_policy": "Process one configuration at a time. Optional prune only its generated build/zkeys after all 10 verified run artifacts/hashes are retained.",
+  "unavailable_configs_policy": "Resource-limit or unavailable ptau is explicit; unexecuted conditions never become successful measurements"
+}

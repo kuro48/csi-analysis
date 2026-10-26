@@ -1,0 +1,36 @@
+{
+  "status": "example_not_executed",
+  "verified": false,
+  "config": {
+    "id": "k3_r4",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      24,
+      48
+    ]
+  },
+  "run_id": "csi_20260526_034004_w0_repeat0",
+  "window": "csi_20260526_034004_w0",
+  "repeat": 0,
+  "trace_from": "public.json",
+  "vkey_path": "../../verification_key.json",
+  "hash_fields": [
+    "source_sha256",
+    "input_npz_sha256",
+    "input_json_sha256",
+    "r1cs_sha256",
+    "wasm_sha256",
+    "vkey_sha256",
+    "proof_sha256",
+    "public_sha256"
+  ],
+  "timing_fields": [
+    "witness.wall_seconds",
+    "witness_calculation.calculation_seconds",
+    "prove.wall_seconds",
+    "verify.wall_seconds"
+  ],
+  "note": "Schema illustration only, never a measurement or completed proof"
+}

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>回路の公開中間値 — 波形ビューア</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#edf1f5;color:#192c3d;font:17px/1.75 -apple-system,"Hiragino Sans",sans-serif}
+main{max-width:1220px;margin:24px auto;background:white;padding:34px 42px}h1{font-size:31px;margin:0 0 14px}h2{font-size:24px;margin-top:32px}
+p{margin:10px 0}a{color:#156b94}.note{border-left:4px solid #b46a2c;padding:10px 18px;background:#fff8ed;font-size:15px}
+.controls{display:flex;flex-wrap:wrap;gap:18px;margin:24px 0 12px}label{font-size:14px;display:block}select{display:block;padding:10px 12px;font:16px -apple-system,sans-serif;border:1px solid #a5bac8;background:white;max-width:100%}
+canvas{width:100%;height:auto;border-bottom:1px solid #dce4ea}.caption{font-size:15px;color:#476171;min-height:52px}#values{font:15px/1.8 Menlo,monospace;background:#f1f5f8;padding:12px;min-height:50px}
+.result{font-size:18px;color:#194f70}img{width:100%;height:auto;margin-top:16px}details{margin:24px 0}summary{cursor:pointer;font-size:20px}footer{font-size:14px;color:#617789}
+</style>
+<main>
+<h1>回路の公開中間値を波形で確認</h1>
+<p class="note">これは旧・別診断実行のビューアです。各比較proof自身の公開値を見るには、<a href="../remeasure_public/index.html">再測定版ビューア</a>を開いてください。</p>
+<p>実測 <b>csi_20260526_034004</b> の冒頭48秒。VMDは3モード・4反復、LSは8サブキャリア。</p>
+<p class="result" id="result"></p>
+<p style="font-size:15px">正解呼吸数は未取得。VMDは全域ピーク、LSは正常帯域内ピークで、前処理も異なります。この数値だけで方式の優劣は判断できません。</p>
+<p class="note">診断回路は入力・中間値を公開します。通常のプライバシー保護用回路とは別の回路・鍵です。ここに表示する値は実際の公開出力から取得し、__PROOF_STATUS__VMDへのPCA前処理とLSのI/Q選択は回路外です。</p>
+<div class="controls">
+<label>回路<select id="method"><option>VMD</option><option>Lomb–Scargle</option></select></label>
+<label>処理段階<select id="stage"></select></label>
+<label>反復 / サブキャリア<select id="choice"></select></label>
+</div>
+<canvas id="chart" width="2200" height="900"></canvas>
+<p id="caption" class="caption"></p>
+<div id="values">グラフにカーソルを置くと、近い観測点の数値を表示します。</div>
+<p style="font-size:14px">描画には浮動小数点を使用。逆DFT・power・分子÷分母は表示側での変換であり、追加の回路内処理ではありません。正確な整数値は下の公開JSONに保存しています。</p>
+<h2>正確な値と証明</h2>
+<p><a href="../diagnostics/vmd/proof_public.json">VMD公開JSON</a> · <a href="../diagnostics/vmd/public_schema.json">VMD配列の位置・形状</a> · <a href="../diagnostics/vmd/trace.json">VMD読取用JSON</a><br>
+<a href="../diagnostics/lomb/public.json">LS公開JSON</a> · <a href="../diagnostics/lomb/public_schema.json">LS配列の位置・形状</a> · <a href="../diagnostics/lomb/decoded_public.json">LS読取用JSON</a></p>
+<details><summary>PowerPointに貼れる固定図</summary>
+<img src="trace_figures/vmd_input_dft.png" alt="VMD入力とDFTの公開値">
+<img src="trace_figures/vmd_iterations.png" alt="反復ごとのモードの逆DFT表示">
+<img src="trace_figures/lomb_stages.png" alt="LS選択サブキャリアの中間値"></details>
+<footer><a href="report.html">本数・反復数の比較レポートへ戻る</a> / 入力振幅は回路用の量子化値で、身体の動きの物理単位ではありません。</footer>
+</main>
+<script>
+(()=>{
+const trace=__TRACE_DATA__;
+const method=document.querySelector('#method'),stage=document.querySelector('#stage'),choice=document.querySelector('#choice');
+const canvas=document.querySelector('#chart'),ctx=canvas.getContext('2d');
+const W=1100,H=450,left=100,right=28,top=42,bottom=62,colors=['#176c9a','#ce6a27','#449167'];
+let current,range;
+const number=v=>Math.abs(v)>=1e5|| (Math.abs(v)>0&&Math.abs(v)<.001)?v.toExponential(3):Number(v.toPrecision(6)).toString();
+const tick=v=>Math.abs(v)>=1e5||(Math.abs(v)>0&&Math.abs(v)<.001)?v.toExponential(2):String(Math.round(v*1000)/1000);
+function options(el,values){el.replaceChildren(...values.map(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;return o}));}
+function refreshStages(){options(stage,[...new Set(trace.datasets.filter(d=>d.method===method.value).map(d=>d.stage))]);refreshChoices();}
+function refreshChoices(){const choices=trace.datasets.filter(d=>d.method===method.value&&d.stage===stage.value).map(d=>d.choice);options(choice,choices);const selected=choices.find(v=>v.includes('回路が選択'));if(selected)choice.value=selected;draw();}
+function draw(){
+ current=trace.datasets.find(d=>d.method===method.value&&d.stage===stage.value&&d.choice===choice.value);
+ const values=current.series.flatMap(s=>s.y);let ymin=Math.min(...values),ymax=Math.max(...values);
+ const margin=(ymax-ymin||1)*.08;ymin-=margin;ymax+=margin;
+ const xmin=Math.min(...current.x),xmax=Math.max(...current.x);range={xmin,xmax,ymin,ymax};
+ const X=x=>left+(x-xmin)/(xmax-xmin||1)*(W-left-right),Y=y=>H-bottom-(y-ymin)/(ymax-ymin)*(H-top-bottom);
+ ctx.setTransform(2,0,0,2,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle='white';ctx.fillRect(0,0,W,H);
+ if(current.padding&&xmax>48){ctx.fillStyle='#edf0f2';ctx.fillRect(X(48),top,X(xmax)-X(48),H-top-bottom);ctx.fillStyle='#6c7981';ctx.font='13px sans-serif';ctx.fillText('観測外のpadding',X(48)+5,top+18);}
+ ctx.font='14px sans-serif';ctx.textAlign='right';
+ for(let i=0;i<=5;i++){
+  const y=ymin+(ymax-ymin)*i/5,py=Y(y);ctx.strokeStyle='#e0e7ec';ctx.beginPath();ctx.moveTo(left,py);ctx.lineTo(W-right,py);ctx.stroke();ctx.fillStyle='#4d6373';ctx.fillText(tick(y),left-12,py+5);
+  const x=xmin+(xmax-xmin)*i/5,px=X(x);ctx.textAlign='center';ctx.fillText(tick(x),px,H-bottom+25);ctx.textAlign='right';
+ }
+ ctx.strokeStyle='#7a8b96';ctx.beginPath();ctx.moveTo(left,top);ctx.lineTo(left,H-bottom);ctx.lineTo(W-right,H-bottom);ctx.stroke();
+ current.series.forEach((s,k)=>{ctx.strokeStyle=colors[k%colors.length];ctx.lineWidth=2;ctx.beginPath();s.y.forEach((y,i)=>{if(i)ctx.lineTo(X(current.x[i]),Y(y));else ctx.moveTo(X(current.x[i]),Y(y));});ctx.stroke();});
+ ctx.fillStyle='#243f51';ctx.font='16px sans-serif';ctx.textAlign='center';ctx.fillText(current.xlabel,(left+W-right)/2,H-12);
+ ctx.save();ctx.translate(18,(top+H-bottom)/2);ctx.rotate(-Math.PI/2);ctx.fillText(current.ylabel,0,0);ctx.restore();
+ let lx=left;ctx.textAlign='left';current.series.forEach((s,k)=>{ctx.fillStyle=colors[k%colors.length];ctx.fillRect(lx,13,18,3);ctx.fillText(s.name,lx+25,20);lx+=Math.max(180,ctx.measureText(s.name).width+60);});
+ document.querySelector('#caption').textContent=current.note;
+ document.body.dataset.currentStage=current.stage;document.body.dataset.currentChoice=current.choice;
+ document.querySelector('#values').textContent='グラフにカーソルを置くと、近い観測点の数値を表示します。';
+}
+canvas.addEventListener('pointermove',event=>{
+ const rect=canvas.getBoundingClientRect(),px=(event.clientX-rect.left)*W/rect.width;
+ const x=range.xmin+(px-left)/(W-left-right)*(range.xmax-range.xmin);
+ let nearest=0;current.x.forEach((v,i)=>{if(Math.abs(v-x)<Math.abs(current.x[nearest]-x))nearest=i;});
+ document.querySelector('#values').textContent=`${current.xlabel}: ${number(current.x[nearest])}  |  `+current.series.map(s=>`${s.name}: ${number(s.y[nearest])}`).join('  |  ');
+});
+method.addEventListener('change',refreshStages);stage.addEventListener('change',refreshChoices);choice.addEventListener('change',draw);
+document.querySelector('#result').textContent=`公開結果：VMD ${trace.vmd_result.bpm.toFixed(3)} BPM（モード${trace.vmd_result.selected_mode_zero_based+1}） / LS ${trace.ls_bpm.toFixed(3)} BPM（選択SC ${trace.ls_selected_sc}）`;
+const params=new URLSearchParams(location.search);
+if([...method.options].some(o=>o.value===params.get('method')))method.value=params.get('method');
+refreshStages();
+if([...stage.options].some(o=>o.value===params.get('stage'))){stage.value=params.get('stage');refreshChoices();}
+if([...choice.options].some(o=>o.value===params.get('choice'))){choice.value=params.get('choice');draw();}
+document.body.dataset.rendered='true';
+})();
+</script></html>

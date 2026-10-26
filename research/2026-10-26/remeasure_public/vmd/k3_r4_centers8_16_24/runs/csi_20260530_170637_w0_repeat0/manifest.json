@@ -1,0 +1,67 @@
+{
+  "status": "verified",
+  "config": {
+    "id": "k3_r4_centers8_16_24",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  "run_id": "csi_20260530_170637_w0_repeat0",
+  "window": "csi_20260530_170637_w0",
+  "repeat": 0,
+  "verified": true,
+  "config_id": "k3_r4_centers8_16_24",
+  "source_sha256": "67bfae4f1d8c08897a15330350490571c7d7658d6ce1d9e18ff9a2f3b54fc810",
+  "input_npz_sha256": "9fc73731d69cb4cc80d4ba3c9d0244e8fdf565eb25b25dd0333e3d42a19958f2",
+  "input_json_sha256": "c2f61c847167d1fac8cdbc5a1ce20da729f70fd167f3caf6b6abda5b9a1636b0",
+  "r1cs_sha256": "49df6143596a1bf6e1ba9e370655b2097922733c80e3850c5f08a23de85f7df7",
+  "wasm_sha256": "741a7a6e225d2e3b930d456b5775e2cf3d396074283c4ed004ba5f12cc7c9745",
+  "vkey_sha256": "7a4751b558554f06889d7b77b0f35356fddf1a071ad7d7021c33cac876462732",
+  "proof_sha256": "1872da4839851bfe2919a5bee3ee22ca0e47ee62510a977a55c2561372eee085",
+  "public_sha256": "36008553e0580327e1ccd297611e3ae29aa5d9629f222cea4ad1eb0f662c6f6d",
+  "result": {
+    "is_normal": true,
+    "bpm": 12.1875,
+    "frequency_bin": 13,
+    "selected_mode_zero_based": 1,
+    "intermediate_hash": "14644561731219693580815007005377402713982848930971627593973685357954151599674",
+    "parent_commitment": "0"
+  },
+  "proof_verified": true,
+  "tamper_rejected": true,
+  "trace_from": "public.json",
+  "vkey_path": "../../verification_key.json",
+  "public_schema_verified": true,
+  "independent_integer_reference_all_stages_match": true,
+  "witness": {
+    "wall_seconds": 1.9299429170000053,
+    "max_rss_bytes": 1179500544,
+    "returncode": 0
+  },
+  "prove": {
+    "wall_seconds": 4.629937833,
+    "max_rss_bytes": 4762976256,
+    "returncode": 0
+  },
+  "verify": {
+    "wall_seconds": 0.2358503330000019,
+    "max_rss_bytes": 188481536,
+    "returncode": 0
+  },
+  "witness_calculation": {
+    "calculation_seconds": 0.218537958,
+    "public_schema_checked": true,
+    "public_count": 1786
+  },
+  "artifact_sha256": {
+    "input.json": "c2f61c847167d1fac8cdbc5a1ce20da729f70fd167f3caf6b6abda5b9a1636b0",
+    "proof.json": "1872da4839851bfe2919a5bee3ee22ca0e47ee62510a977a55c2561372eee085",
+    "public.json": "36008553e0580327e1ccd297611e3ae29aa5d9629f222cea4ad1eb0f662c6f6d",
+    "trace.json": "edc5b0642b39175e81c9ad0873c3a9ebe681d808f4cc5cb5eedff4dcca7a8e7c",
+    "witness_public.json": "edc42fe3540f926ac61648c7ceeef084e2f43ca2d3953c03d4a10e1f3cd59488"
+  }
+}

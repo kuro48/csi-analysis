@@ -1,0 +1,8 @@
+{
+  "source": "research/2026-10-26/diagnostics/lomb/diagnostic.circom",
+  "start": 362,
+  "end": 370,
+  "source_sha256": "13b58bd9ce7981b4cd197621f17861801761cdbede96098427d85ead6ca10040",
+  "html": "research/2026-10-26/report/code_debug_lomb.html",
+  "png": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/report/code_debug_lomb.png"
+}

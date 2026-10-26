@@ -1,0 +1,48 @@
+{
+  "modes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    8
+  ],
+  "iterations": [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32
+  ],
+  "initial_centers": [
+    8,
+    24,
+    48,
+    16,
+    32,
+    56,
+    40,
+    4
+  ],
+  "case_count": 8,
+  "real_count": 8,
+  "synthetic_count": 0,
+  "sample_rate_hz": 2,
+  "samples": 128,
+  "input_windows": {
+    "real_and_synthetic_csi": {
+      "observed_seconds": 48,
+      "padded_samples": 32
+    },
+    "direct_synthetic_controls": {
+      "observed_seconds": 64,
+      "padded_samples": 0
+    }
+  },
+  "reference": "Production integer VMD update/selection, parameterized K/R",
+  "timing": "3 executions per cell; Python reference only; preprocessing/compile/witness/proof excluded",
+  "ls": "SciPy Lomb-Scargle on same quantized 128-sample waveform; .05..99Hz step .00025Hz, band .1..22/60Hz",
+  "standard_vmd": "vmdpy 0.2: K5 alpha2000 tau0 DC0 init1 tol1e-7 on same 2Hz waveform (not production 100Hz pipeline)",
+  "ground_truth": "Synthetic injected target only. Raw data has no paired physiological ground truth identified."
+}

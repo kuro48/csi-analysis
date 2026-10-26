@@ -1,0 +1,18 @@
+{
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "python": "3.9.6",
+  "numpy": "2.0.2",
+  "machine": "arm64",
+  "timing_notes": "Wall-clock, shared developer machine. Other agents perform data processing and VMD. Compile/prove within LS sequential; not isolated CPU measurements.",
+  "timestamp": "2026-10-26T02:18:19+0900",
+  "cpu": "Apple M4 Pro",
+  "memory_bytes": 25769803776,
+  "node": "v26.12.1",
+  "node_options_by_sc": {
+    "1,2,4": "Node default",
+    "8,16": "--max-old-space-size=8192",
+    "32_first": "--max-old-space-size=8192 (OOM)",
+    "32_retry": "--max-old-space-size=12288 (setup timeout1800s)"
+  },
+  "blas_note": "Explicit einsum floating baseline; matches tested matmul projections and avoids spurious Accelerate exception flags."
+}

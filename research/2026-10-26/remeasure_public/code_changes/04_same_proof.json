@@ -1,0 +1,11 @@
+{
+  "title": "各実行で生成したproofとpublicを検証・読取",
+  "note": "このrunのproveが書いたpublic.jsonをverifyし、その同じJSONを復号する。",
+  "source": "research/2026-10-26/remeasure_public/lomb/run.py",
+  "start": 329,
+  "end": 346,
+  "source_sha256": "462f01c6b560c9e4d0d053fc50f0a718e66d3d26ca0016af5b57a406cb417887",
+  "html": "04_same_proof.html",
+  "png": "04_same_proof.png",
+  "png_rendered": true
+}

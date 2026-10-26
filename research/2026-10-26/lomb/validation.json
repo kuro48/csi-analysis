@@ -1,0 +1,16 @@
+[
+  {
+    "case": "non_increasing_timestamp",
+    "rejected": true,
+    "error_excerpt": "Error: Error: Assert Failed.\nError in template LombScargleCSIEndToEnd_127 line: 68\n\n    at /Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/lomb/build/sc1/circuit_js/witness_calculator.js:168:27\n    at Array.forEach (<anonymous>)\n    at WitnessCalculator._"
+  },
+  {
+    "case": "constant_magnitude_subcarrier",
+    "rejected": true,
+    "error_excerpt": "Error: Error: Assert Failed.\nError in template LombScargleCSIEndToEnd_127 line: 137\n\n    at /Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/lomb/build/sc1/circuit_js/witness_calculator.js:168:27\n    at Array.forEach (<anonymous>)\n    at WitnessCalculator."
+  },
+  {
+    "case": "tampered_public_frequency_bin",
+    "rejected": true
+  }
+]

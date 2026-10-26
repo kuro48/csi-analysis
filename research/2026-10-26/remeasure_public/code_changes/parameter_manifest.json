@@ -1,0 +1,50 @@
+[
+  {
+    "source": "research/2026-10-26/remeasure_public/vmd/generate.py",
+    "start": 19,
+    "end": 20,
+    "sha256": "e7750b3bc2d2b35e9d57a31cd40238825fe6caa870604e7edffd215c76dbe7a8"
+  },
+  {
+    "source": "research/2026-10-26/remeasure_public/vmd/generate.py",
+    "start": 48,
+    "end": 52,
+    "sha256": "e7750b3bc2d2b35e9d57a31cd40238825fe6caa870604e7edffd215c76dbe7a8"
+  },
+  {
+    "source": "research/2026-10-26/remeasure_public/vmd/k3_r4/vmd_k3_r4_public.circom",
+    "start": 218,
+    "end": 220,
+    "sha256": "020ddf39ce2d25ced9be65180f3b0f997a643af677793593d33b9476af1e7d15"
+  },
+  {
+    "source": "research/2026-10-26/remeasure_public/vmd/k4_r4/vmd_k4_r4_public.circom",
+    "start": 218,
+    "end": 220,
+    "sha256": "7d7a05fafe6ff4dc6a15abee953e9665eb038b1f3ead04899959c93fe1c96dfb"
+  },
+  {
+    "source": "research/2026-10-26/remeasure_public/lomb/schema.py",
+    "start": 84,
+    "end": 89,
+    "sha256": "eedf7362753bbb701f2b33218e3ff80a84d44717fbc553d86d5f5730edc81197"
+  },
+  {
+    "source": "research/2026-10-26/remeasure_public/lomb/configs/sc4/circuit.circom",
+    "start": 403,
+    "end": 406,
+    "sha256": "d278fb8fa3e4fe71b562ae2b39a0213b7b6be31bf1ec9f60b73e35f22b6d5a5a"
+  },
+  {
+    "source": "research/2026-10-26/remeasure_public/lomb/configs/sc4/circuit.circom",
+    "start": 45,
+    "end": 46,
+    "sha256": "d278fb8fa3e4fe71b562ae2b39a0213b7b6be31bf1ec9f60b73e35f22b6d5a5a"
+  },
+  {
+    "source": "research/2026-10-26/lomb/run.py",
+    "start": 144,
+    "end": 151,
+    "sha256": "12a7cf8a1837d51f61349cd979cd6884925925184a296dfaa7ae86e8c72f8805"
+  }
+]

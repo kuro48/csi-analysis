@@ -1,0 +1,28 @@
+<!doctype html><html lang="ja"><meta charset="utf-8">
+<title>LS：本数比較で共通の量子化スケールを使用</title><style>
+*{box-sizing:border-box} body{margin:0;background:#101923;color:#e6edf3;padding:32px}
+h1{font:600 26px -apple-system,sans-serif;margin:0 0 12px}
+.path{font:16px monospace;color:#91a9c0;margin-bottom:24px}
+.code{font:19px/1.55 Menlo,monospace}
+.line{display:flex;white-space:pre}.number{color:#71869b;display:inline-block;min-width:80px;user-select:none}
+.footer{font:14px -apple-system,sans-serif;color:#91a9c0;margin-top:22px}
+</style><h1>LS：本数比較で共通の量子化スケールを使用</h1><div class="path">research/2026-10-26/lomb/reference.py:136–154</div>
+<div class="code"><div class="line"><span class="number">136</span><span>    rows = np.rint(np.linspace(0, len(times) - 1, 64)).astype(int)</span></div>
+<div class="line"><span class="number">137</span><span>    if len(np.unique(rows)) &lt; 64:</span></div>
+<div class="line"><span class="number">138</span><span>        raise ValueError(&quot;fewer than 64 unique millisecond samples&quot;)</span></div>
+<div class="line"><span class="number">139</span><span>    times = times[rows]</span></div>
+<div class="line"><span class="number">140</span><span>    times -= times[0]</span></div>
+<div class="line"><span class="number">141</span><span>    if times[-1] &gt;= 2**24:</span></div>
+<div class="line"><span class="number">142</span><span>        raise ValueError(&quot;timestamp out of circuit range&quot;)</span></div>
+<div class="line"><span class="number">143</span><span>    indices = nested_indices(csi.shape[1], max_sc)</span></div>
+<div class="line"><span class="number">144</span><span>    sample = csi[rows][:, indices]</span></div>
+<div class="line"><span class="number">145</span><span>    max_abs = max(np.max(np.abs(sample.real)), np.max(np.abs(sample.imag)))</span></div>
+<div class="line"><span class="number">146</span><span>    if max_abs &lt;= 0:</span></div>
+<div class="line"><span class="number">147</span><span>        raise ValueError(&quot;CSI is identically zero&quot;)</span></div>
+<div class="line"><span class="number">148</span><span>    scale = 1800 / max_abs</span></div>
+<div class="line"><span class="number">149</span><span>    si = np.rint(sample.real * scale).astype(np.int64)</span></div>
+<div class="line"><span class="number">150</span><span>    sq = np.rint(sample.imag * scale).astype(np.int64)</span></div>
+<div class="line"><span class="number">151</span><span>    # One shared scale for all SC sweep points, avoiding quantization confounding.</span></div>
+<div class="line"><span class="number">152</span><span>    payload = {</span></div>
+<div class="line"><span class="number">153</span><span>        &quot;csiI&quot;: (si + 2048).tolist(),</span></div>
+<div class="line"><span class="number">154</span><span>        &quot;csiQ&quot;: (sq + 2048).tolist(),</span></div></div><div class="footer">2026-10-26 実験コード • 元ファイルからの抜粋</div></html>

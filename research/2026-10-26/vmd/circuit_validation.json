@@ -1,0 +1,107 @@
+[
+  {
+    "name": "vmd_k1_r1",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k1_r1_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.099476375,
+      0.06706325,
+      0.06707758300000001
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "18066437933266696867475408816388965075152619701078484716357431141713989773823",
+      "0"
+    ],
+    "compile_seconds": 2.50484725,
+    "modes": 1,
+    "iterations": 1,
+    "nonlinear_constraints": 60973,
+    "linear_constraints": 39422,
+    "constraints_total": 100395
+  },
+  {
+    "name": "vmd_k3_r4",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_input.json",
+    "peak_bin": 8,
+    "bpm": 7.5,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.268259083,
+      0.2518055,
+      0.24157749999999997
+    ],
+    "public_signals": [
+      "1",
+      "8",
+      "0",
+      "18066437933266696867475408816388965075152619701078484716357431141713989773823",
+      "0"
+    ],
+    "compile_seconds": 4.295734667,
+    "modes": 3,
+    "iterations": 4,
+    "nonlinear_constraints": 288641,
+    "linear_constraints": 52093,
+    "constraints_total": 340734
+  },
+  {
+    "name": "vmd_k5_r8",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k5_r8_input.json",
+    "peak_bin": 12,
+    "bpm": 11.25,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.692260458,
+      0.623744291,
+      0.6373121249999999
+    ],
+    "public_signals": [
+      "1",
+      "12",
+      "3",
+      "132226061682779669544255782774841281003395816202388442737272385229978953644",
+      "0"
+    ],
+    "compile_seconds": 9.527049790999998,
+    "modes": 5,
+    "iterations": 8,
+    "nonlinear_constraints": 847911,
+    "linear_constraints": 83175,
+    "constraints_total": 931086
+  },
+  {
+    "name": "vmd_k3_r4_centers8_16_24",
+    "input": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/vmd/build/vmd_k3_r4_centers8_16_24_input.json",
+    "peak_bin": 13,
+    "bpm": 12.1875,
+    "all_final_spectra_and_centers_match": true,
+    "witness_seconds": [
+      0.264992166,
+      0.24207900000000007,
+      0.24127829099999998
+    ],
+    "public_signals": [
+      "1",
+      "13",
+      "1",
+      "7177464089192038186122018547861482619100796045588704675038074342115914525140",
+      "0"
+    ],
+    "compile_seconds": 4.336193542,
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ],
+    "nonlinear_constraints": 288641,
+    "linear_constraints": 52093,
+    "constraints_total": 340734
+  }
+]

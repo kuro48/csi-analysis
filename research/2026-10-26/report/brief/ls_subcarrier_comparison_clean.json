@@ -1,0 +1,25 @@
+{
+  "source": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/lomb/accuracy_summary.csv",
+  "sha256": "522a59597f366afb01bb7d98ecae6d10ca2b79bfbdb4ff60ec2a9cdbbfe5b914",
+  "counts": [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32
+  ],
+  "mean_absolute_difference_bpm": [
+    3.5964566929133848,
+    2.3976377952755894,
+    3.3395669291338574,
+    1.9694881889763771,
+    2.9970472440944875,
+    1.6269685039370079
+  ],
+  "n_real_windows": 8,
+  "estimate_origin": "original circuit witness",
+  "aggregation": "outside circuit",
+  "ground_truth_available": false,
+  "sc32_proof_verified": false
+}

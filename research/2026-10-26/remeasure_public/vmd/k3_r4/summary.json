@@ -1,0 +1,127 @@
+{
+  "config": {
+    "id": "k3_r4",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      24,
+      48
+    ]
+  },
+  "status": "verified",
+  "unique_raw_count": 8,
+  "proof_count": 10,
+  "representative_prove_seconds": [
+    4.210335708000002,
+    4.265306624999994,
+    4.418413958000002
+  ],
+  "representative_prove_median_seconds": 4.265306624999994,
+  "unique_raw_results": [
+    {
+      "window": "csi_20260519_114943_w0",
+      "is_normal": true,
+      "bpm": 7.5,
+      "frequency_bin": 8,
+      "selected_mode_zero_based": 0,
+      "intermediate_hash": "20162374788471731705011117353933117629577069976158541854066462391338400034353",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260520_013702_w0",
+      "is_normal": false,
+      "bpm": 22.5,
+      "frequency_bin": 24,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "12912545269380705037922570495623573351168519585119702516193510451539632513268",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260526_034004_w0",
+      "is_normal": false,
+      "bpm": 43.125,
+      "frequency_bin": 46,
+      "selected_mode_zero_based": 2,
+      "intermediate_hash": "2223204160814428542485394575757221578833656358643731039998625051367832041330",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260526_072608_w0",
+      "is_normal": true,
+      "bpm": 7.5,
+      "frequency_bin": 8,
+      "selected_mode_zero_based": 0,
+      "intermediate_hash": "11286614952234231253530044683495067571155856128761031555843687727931427943684",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260530_170637_w0",
+      "is_normal": false,
+      "bpm": 42.1875,
+      "frequency_bin": 45,
+      "selected_mode_zero_based": 2,
+      "intermediate_hash": "5045405118422593172162598558956287901658292140849956903577426897157772561890",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260708_162812_w0",
+      "is_normal": true,
+      "bpm": 8.4375,
+      "frequency_bin": 9,
+      "selected_mode_zero_based": 0,
+      "intermediate_hash": "6634598740873291556222873786211025842850897533107375463261790631273971920838",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260821_165306_w0",
+      "is_normal": true,
+      "bpm": 19.6875,
+      "frequency_bin": 21,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "6979276832766029399178188912289804796752836778098842313221076931924270047964",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260907_185130_w0",
+      "is_normal": true,
+      "bpm": 7.5,
+      "frequency_bin": 8,
+      "selected_mode_zero_based": 0,
+      "intermediate_hash": "14402830968534700086910809806582811871663321861246077491690312221944210241405",
+      "parent_commitment": "0"
+    }
+  ],
+  "compile": {
+    "wall_seconds": 4.584730958,
+    "max_rss_bytes": 483426304,
+    "returncode": 0,
+    "constraints": 340737,
+    "public_signals": 1786,
+    "required_power_conservative": 19,
+    "source_sha256": "020ddf39ce2d25ced9be65180f3b0f997a643af677793593d33b9476af1e7d15",
+    "r1cs_sha256": "38d16e263f699ca4308d09b6e6f03a3e76e8d561aefde2147e41a4c237aa810d",
+    "wasm_sha256": "c0cc2938166ea53766493fcc00ad63934acd72c726ea4512ab75d37a406c6708",
+    "sym_sha256": "5fdb47c93f333e32d0499684f18c39c37aefc101395aaf79ea62ec45758b00eb"
+  },
+  "setup": {
+    "setup": {
+      "wall_seconds": 20.665556042,
+      "max_rss_bytes": 2494922752,
+      "returncode": 0
+    },
+    "contribution": {
+      "wall_seconds": 21.534630083,
+      "max_rss_bytes": 415170560,
+      "returncode": 0
+    },
+    "ptau": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/zkp/keys/powersOfTau28_hez_final_19.ptau",
+    "ptau_sha256": "831cbbf07b6311548a85db71ed1078f61a2aa56af5aa7c02654bfa58c927b017",
+    "zkey_sha256": "cc23932cf9c9f13ce9dedb19c08ab3e7bef4ab190bbcb73d64a218ab6e814fb9",
+    "vkey_sha256": "044235ab0de8bae0366611cb38f38889b6f85a38d5708d1207b0377333708e81",
+    "source_sha256": "020ddf39ce2d25ced9be65180f3b0f997a643af677793593d33b9476af1e7d15",
+    "r1cs_sha256": "38d16e263f699ca4308d09b6e6f03a3e76e8d561aefde2147e41a4c237aa810d",
+    "keys_scope": "Local experiment only"
+  },
+  "large_artifacts_pruned": true
+}

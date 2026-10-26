@@ -1,0 +1,202 @@
+[
+  {
+    "kind": "clean",
+    "method": "ls_global_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 1.0302869668521452e-14,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "clean",
+    "method": "ls_band_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 1.0302869668521452e-14,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "clean",
+    "method": "dft_global_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.225,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "clean",
+    "method": "standard_vmd_global_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.225,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "clean",
+    "method": "standard_vmd_band_priority_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.2875,
+    "within_1bpm": 0.9333333333333333,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "noise",
+    "method": "ls_global_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.01600000000000345,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "noise",
+    "method": "ls_band_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.01600000000000345,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "noise",
+    "method": "dft_global_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.225,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "noise",
+    "method": "standard_vmd_global_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.225,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "noise",
+    "method": "standard_vmd_band_priority_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.2375,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "real",
+    "method": "ls_global_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 0.0,
+    "within_1bpm": 1.0,
+    "reference": "LS band (not ground truth)"
+  },
+  {
+    "kind": "real",
+    "method": "ls_band_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 0.0,
+    "within_1bpm": 1.0,
+    "reference": "LS band (not ground truth)"
+  },
+  {
+    "kind": "real",
+    "method": "dft_global_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 0.2634374999999969,
+    "within_1bpm": 1.0,
+    "reference": "LS band (not ground truth)"
+  },
+  {
+    "kind": "real",
+    "method": "standard_vmd_global_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 0.9665624999999969,
+    "within_1bpm": 0.75,
+    "reference": "LS band (not ground truth)"
+  },
+  {
+    "kind": "real",
+    "method": "standard_vmd_band_priority_bpm",
+    "n": 8,
+    "mean_absolute_difference_bpm": 2.4899999999999967,
+    "within_1bpm": 0.75,
+    "reference": "LS band (not ground truth)"
+  },
+  {
+    "kind": "strong_interferer",
+    "method": "ls_global_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 26.98100000000003,
+    "within_1bpm": 0.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "strong_interferer",
+    "method": "ls_band_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.01599999999999966,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "strong_interferer",
+    "method": "dft_global_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 27.1875,
+    "within_1bpm": 0.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "strong_interferer",
+    "method": "standard_vmd_global_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 27.1875,
+    "within_1bpm": 0.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "strong_interferer",
+    "method": "standard_vmd_band_priority_bpm",
+    "n": 15,
+    "mean_absolute_difference_bpm": 0.2375,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "synthetic_csi",
+    "method": "ls_global_bpm",
+    "n": 6,
+    "mean_absolute_difference_bpm": 0.024999999999994433,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "synthetic_csi",
+    "method": "ls_band_bpm",
+    "n": 6,
+    "mean_absolute_difference_bpm": 0.024999999999994433,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "synthetic_csi",
+    "method": "dft_global_bpm",
+    "n": 6,
+    "mean_absolute_difference_bpm": 0.25,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "synthetic_csi",
+    "method": "standard_vmd_global_bpm",
+    "n": 6,
+    "mean_absolute_difference_bpm": 0.4375,
+    "within_1bpm": 1.0,
+    "reference": "synthetic target ground truth"
+  },
+  {
+    "kind": "synthetic_csi",
+    "method": "standard_vmd_band_priority_bpm",
+    "n": 6,
+    "mean_absolute_difference_bpm": 0.9375,
+    "within_1bpm": 0.6666666666666666,
+    "reference": "synthetic target ground truth"
+  }
+]

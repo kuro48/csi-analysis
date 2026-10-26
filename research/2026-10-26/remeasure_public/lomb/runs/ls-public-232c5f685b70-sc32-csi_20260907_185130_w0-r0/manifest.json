@@ -1,0 +1,67 @@
+{
+  "run_id": "ls-public-232c5f685b70-sc32-csi_20260907_185130_w0-r0",
+  "campaign_id": "ls-public-232c5f685b70",
+  "config_id": "sc32",
+  "subcarriers": 32,
+  "window_id": "csi_20260907_185130_w0",
+  "repeat_id": 0,
+  "is_representative": false,
+  "status": "prepared_no_compute",
+  "verified": false,
+  "input_origin": "research/2026-10-26/lomb/inputs/csi_20260907_185130_w0_sc32.json",
+  "input_origin_sha256": "0de6273e2d904b9896cece26bbad3b6c272bacaa2b16045db1150b92448a7de1",
+  "physical_tone_mapping": [
+    0,
+    244,
+    122,
+    61,
+    183,
+    30,
+    91,
+    152,
+    213,
+    15,
+    45,
+    76,
+    106,
+    137,
+    167,
+    198,
+    228,
+    53,
+    114,
+    175,
+    236,
+    7,
+    22,
+    37,
+    68,
+    83,
+    98,
+    129,
+    144,
+    159,
+    190,
+    205
+  ],
+  "artifacts": {
+    "input": {
+      "path": "runs/ls-public-232c5f685b70-sc32-csi_20260907_185130_w0-r0/input.json",
+      "sha256": "0de6273e2d904b9896cece26bbad3b6c272bacaa2b16045db1150b92448a7de1"
+    },
+    "source": {
+      "path": "configs/sc32/circuit.circom",
+      "sha256": "2756cbeb793951f82a12040b062c3bbe6bde995515214f53fc39f325c21dcf28"
+    },
+    "source_schema": {
+      "path": "configs/sc32/source_schema.json",
+      "sha256": "71007163062fedd368e0719279ed22c5879081d772a48eae48910ab6ee3c86ed"
+    },
+    "expected_normal_outputs": {
+      "path": "runs/ls-public-232c5f685b70-sc32-csi_20260907_185130_w0-r0/expected_normal_outputs.json",
+      "sha256": "08505f3a34f4304c1a0419a2a1aa4694f6bf8a936d17dc090a9ac990eb778ef8"
+    }
+  },
+  "timings": {},
+  "decoded_from": null
+}

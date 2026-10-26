@@ -1,0 +1,9 @@
+{
+  "compile_seconds": 4.556147542,
+  "nonlinear_constraints": 289022,
+  "linear_constraints": 51715,
+  "total_constraints": 340737,
+  "public_signals": 1786,
+  "conservative_constraints_plus_public": 342523,
+  "fits_ptau19_conservative": true
+}

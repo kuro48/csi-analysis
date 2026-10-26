@@ -1,0 +1,16 @@
+[
+  {
+    "view": "trace_vmd",
+    "method": "VMD",
+    "stage": "各反復のモード波形",
+    "choice": "反復 4",
+    "rendered": true
+  },
+  {
+    "view": "trace_lomb",
+    "method": "Lomb–Scargle",
+    "stage": "LSスコア",
+    "choice": "SC 7（回路が選択）",
+    "rendered": true
+  }
+]

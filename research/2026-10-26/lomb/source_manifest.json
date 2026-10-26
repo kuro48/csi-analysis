@@ -1,0 +1,18 @@
+{
+  "git_head": "36a08083ccdc5e0db6dac63adb2c8f6866452b45",
+  "source_files": {
+    "zkp/circuits/csi_lomb_scargle_end_to_end.circom": "ffe09299a4408bc7e54dd60ef413d03f424422636b009bcc3a44c61e232fc4b7",
+    "zkp/circuits/lomb_scargle_timestamp_basis.circom": "86eb9527b606b94d6188c01421e4d45275986f41dc590de473c69665e56a2d0d"
+  },
+  "research_sources": {
+    "monitor_setup.py": "a9eddc5595c8efaf23bd5fbd2b870ce671daa113b5615ca077e90d1a08a06059",
+    "preserve_evidence.py": "4b3a71d5cda23c15b503234e698b5bd4cbd704e9e1cacf25581dd367708f4bbc",
+    "reference.py": "6536466228750344511c441e70516860503e339a1ae31a4b32f4f37b833bf96a",
+    "remeasure.py": "bbc16f4f1b96724dda18be7595b1301db8c8cc3f5922a9db14bcf74cdbe484f3",
+    "run.py": "12a7cf8a1837d51f61349cd979cd6884925925184a296dfaa7ae86e8c72f8805",
+    "supplement.py": "c9ee8c80dc649d5f0078cd453091a89e5e1844ee8207233129881791737d2f46",
+    "synthetic.py": "49c9e1cbe47dd121aec62512a5d7c34b8d4a389aa17c431df970261c10927cf0",
+    "validate.py": "ff2fc52e885c1cbb4abf2122c0b7942f78307f9be11695ffad6112b57e575e56",
+    "witness_runner.js": "fa2517fc1dfadc6052359d1c177d1582b784f3dda4fbd8ce090d9c3311e4c47b"
+  }
+}

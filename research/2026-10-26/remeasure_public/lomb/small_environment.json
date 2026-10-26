@@ -1,0 +1,12 @@
+{
+  "cpu": "Apple M4 Pro",
+  "memory_bytes": 25769803776,
+  "node": "v26.12.1",
+  "python": "3.9.6",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "node_heap_mib": 8192,
+  "source_generator_sha256": "eedf7362753bbb701f2b33218e3ff80a84d44717fbc553d86d5f5730edc81197",
+  "runner_sha256": "462f01c6b560c9e4d0d053fc50f0a718e66d3d26ca0016af5b57a406cb417887",
+  "reference_sha256": "6536466228750344511c441e70516860503e339a1ae31a4b32f4f37b833bf96a",
+  "concurrency_note": "SC1/2/4 sequential heavy compute with parent CPU handoff; OS/background and light viewer activity remain."
+}

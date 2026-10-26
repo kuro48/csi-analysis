@@ -1,0 +1,128 @@
+{
+  "seed": 20261026,
+  "type": "synthetic controls, not human recordings",
+  "model": "CSI_j(t) = [10 + gain_j sin(2*pi*target_bpm/60*t) + iid Gaussian noise] exp(i phase_j)",
+  "preprocessing": "same100Hz bandpass/PCA/resample/zero-pad as common real windows",
+  "cases": [
+    {
+      "window_id": "synthetic_bpm9_noise0.02",
+      "npz": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/common/synthetic/synthetic_bpm9_noise0.02.npz",
+      "target_bpm": 9,
+      "noise_std": 0.02,
+      "amplitude_dc": 10,
+      "modulation_gain_range": [
+        0.6,
+        1.4
+      ],
+      "n_columns": 32,
+      "physical_duration_seconds": 48,
+      "vmd_padding_samples": 32,
+      "pca_index_zero_based": 0,
+      "pc_scores": [
+        0.9954094678158756,
+        0.4391645002553201,
+        0.20813658082075265
+      ]
+    },
+    {
+      "window_id": "synthetic_bpm9_noise0.15",
+      "npz": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/common/synthetic/synthetic_bpm9_noise0.15.npz",
+      "target_bpm": 9,
+      "noise_std": 0.15,
+      "amplitude_dc": 10,
+      "modulation_gain_range": [
+        0.6,
+        1.4
+      ],
+      "n_columns": 32,
+      "physical_duration_seconds": 48,
+      "vmd_padding_samples": 32,
+      "pca_index_zero_based": 0,
+      "pc_scores": [
+        0.9957328480812787,
+        0.7424048255472573,
+        0.8668742396191992
+      ]
+    },
+    {
+      "window_id": "synthetic_bpm12_noise0.02",
+      "npz": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/common/synthetic/synthetic_bpm12_noise0.02.npz",
+      "target_bpm": 12,
+      "noise_std": 0.02,
+      "amplitude_dc": 10,
+      "modulation_gain_range": [
+        0.6,
+        1.4
+      ],
+      "n_columns": 32,
+      "physical_duration_seconds": 48,
+      "vmd_padding_samples": 32,
+      "pca_index_zero_based": 0,
+      "pc_scores": [
+        0.998401719387108,
+        0.613578921826073,
+        0.04754396080912054
+      ]
+    },
+    {
+      "window_id": "synthetic_bpm12_noise0.15",
+      "npz": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/common/synthetic/synthetic_bpm12_noise0.15.npz",
+      "target_bpm": 12,
+      "noise_std": 0.15,
+      "amplitude_dc": 10,
+      "modulation_gain_range": [
+        0.6,
+        1.4
+      ],
+      "n_columns": 32,
+      "physical_duration_seconds": 48,
+      "vmd_padding_samples": 32,
+      "pca_index_zero_based": 0,
+      "pc_scores": [
+        0.9980608748641597,
+        0.7463001935770633,
+        0.8583792789142796
+      ]
+    },
+    {
+      "window_id": "synthetic_bpm18_noise0.02",
+      "npz": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/common/synthetic/synthetic_bpm18_noise0.02.npz",
+      "target_bpm": 18,
+      "noise_std": 0.02,
+      "amplitude_dc": 10,
+      "modulation_gain_range": [
+        0.6,
+        1.4
+      ],
+      "n_columns": 32,
+      "physical_duration_seconds": 48,
+      "vmd_padding_samples": 32,
+      "pca_index_zero_based": 0,
+      "pc_scores": [
+        0.9979149285938699,
+        0.5945285630427487,
+        0.1601803993743961
+      ]
+    },
+    {
+      "window_id": "synthetic_bpm18_noise0.15",
+      "npz": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/common/synthetic/synthetic_bpm18_noise0.15.npz",
+      "target_bpm": 18,
+      "noise_std": 0.15,
+      "amplitude_dc": 10,
+      "modulation_gain_range": [
+        0.6,
+        1.4
+      ],
+      "n_columns": 32,
+      "physical_duration_seconds": 48,
+      "vmd_padding_samples": 32,
+      "pca_index_zero_based": 0,
+      "pc_scores": [
+        0.998214621609867,
+        0.7385700599707488,
+        0.8956495638712904
+      ]
+    }
+  ]
+}

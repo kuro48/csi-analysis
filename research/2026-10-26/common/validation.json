@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "real_windows": 10,
+  "synthetic_windows": 6,
+  "checks": [
+    "source SHA256",
+    "array/timestamp alignment",
+    "strict monotonic timestamps",
+    "48s window bounds",
+    "finite arrays",
+    "128point integer range",
+    "96point zero padding and quantization equivalence",
+    "flat width = tones * tx * rx * numCSI",
+    "synthetic targets and shapes"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "wall_seconds": 5.192157709,
+  "max_rss_bytes": 576684032,
+  "returncode": 0,
+  "constraints": 430024,
+  "public_signals": 2295,
+  "required_power_conservative": 19,
+  "source_sha256": "7d7a05fafe6ff4dc6a15abee953e9665eb038b1f3ead04899959c93fe1c96dfb",
+  "r1cs_sha256": "a7c3f2ebb64f8c837a18dd04855592ba87894d1b06b9ecb7bb87e3b540608821",
+  "wasm_sha256": "47bab53cedd41c7e08192415119da70cb2a95c3a9a2a00cccfc99cb7bb37972d",
+  "sym_sha256": "02882085d4bbbfc60719d505f8c9c3a771d57643838ab9f5637d7e5cf705e6cf"
+}

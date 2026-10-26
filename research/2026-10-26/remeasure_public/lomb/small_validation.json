@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "verified_runs": 30,
+  "unique_proof_hashes": 30,
+  "unique_public_hashes": 24,
+  "public_duplicates_note": "Representative repeats use byte-identical input/nonce and therefore identical public statements; each run has a different fresh proof hash.",
+  "checks": [
+    "run_id/decoded provenance links",
+    "public-only decoded_from matches",
+    "source/input/schema/vkey/proof/public/trace/decoded/validation file hashes"
+  ],
+  "r1cs_wasm_hash_note": "Recorded and checked at compilation; full independent rehash can be cached per shared config."
+}

@@ -1,0 +1,68 @@
+[
+  {
+    "title": "VMD：中間値を公開出力へ追加",
+    "note": "入力・DFT・反復ごとのモード係数・中心を公開配列として宣言。",
+    "source": "research/2026-10-26/remeasure_public/vmd/k3_r4/vmd_k3_r4_public.circom",
+    "start": 67,
+    "end": 72,
+    "source_sha256": "020ddf39ce2d25ced9be65180f3b0f997a643af677793593d33b9476af1e7d15",
+    "html": "01_vmd_outputs.html",
+    "png": "01_vmd_outputs.png",
+    "png_rendered": true
+  },
+  {
+    "title": "VMD：内部信号と公開出力を制約で接続",
+    "note": "<==で内部計算値と公開値を結び付ける。外部で計算した別の値を公開する実装ではない。",
+    "source": "research/2026-10-26/remeasure_public/vmd/k3_r4/vmd_k3_r4_public.circom",
+    "start": 16513,
+    "end": 16519,
+    "source_sha256": "020ddf39ce2d25ced9be65180f3b0f997a643af677793593d33b9476af1e7d15",
+    "html": "02_vmd_bindings.html",
+    "png": "02_vmd_bindings.png",
+    "png_rendered": true
+  },
+  {
+    "title": "LS：各サブキャリアの処理値を公開",
+    "note": "比較回路自身からI/Q・振幅二乗・平均除去後の値を出力。SC1は実際に証明検証済みの構成。",
+    "source": "research/2026-10-26/remeasure_public/lomb/configs/sc1/circuit.circom",
+    "start": 362,
+    "end": 371,
+    "source_sha256": "af578d1387cc743a37bfda0d44883a7fd18fd6eaef89f2490f711c375abd9c02",
+    "html": "03_ls_bindings.html",
+    "png": "03_ls_bindings.png",
+    "png_rendered": true
+  },
+  {
+    "title": "各実行で生成したproofとpublicを検証・読取",
+    "note": "このrunのproveが書いたpublic.jsonをverifyし、その同じJSONを復号する。",
+    "source": "research/2026-10-26/remeasure_public/lomb/run.py",
+    "start": 329,
+    "end": 346,
+    "source_sha256": "462f01c6b560c9e4d0d053fc50f0a718e66d3d26ca0016af5b57a406cb417887",
+    "html": "04_same_proof.html",
+    "png": "04_same_proof.png",
+    "png_rendered": true
+  },
+  {
+    "title": "波形データに同じpublicの対応情報を保存",
+    "note": "run・設定・入力・鍵・proof・publicを記録。traceのdecoded_fromも当該publicを指す。",
+    "source": "research/2026-10-26/remeasure_public/lomb/run.py",
+    "start": 377,
+    "end": 401,
+    "source_sha256": "462f01c6b560c9e4d0d053fc50f0a718e66d3d26ca0016af5b57a406cb417887",
+    "html": "05_trace_binding.html",
+    "png": "05_trace_binding.png",
+    "png_rendered": true
+  },
+  {
+    "title": "VMD：公開係数を時間波形へ変換",
+    "note": "公開値の復号後に、表示側で逆DFTする。回路内で時間波形を計算したという意味ではない。",
+    "source": "research/2026-10-26/remeasure_public/vmd/trace.py",
+    "start": 36,
+    "end": 45,
+    "source_sha256": "7fe68ae4201d562578ae3adf8ebadf26158fb1ca602abee0677caa9071a6ed3a",
+    "html": "06_vmd_inverse.html",
+    "png": "06_vmd_inverse.png",
+    "png_rendered": true
+  }
+]

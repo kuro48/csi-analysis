@@ -1,0 +1,243 @@
+{
+  "field_modulus": "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+  "subcarriers": 8,
+  "fields": [
+    {
+      "name": "csiCommitment",
+      "shape": [],
+      "signed": false,
+      "count": 1,
+      "public_start_zero_based": 0,
+      "role": "public_output"
+    },
+    {
+      "name": "isNormal",
+      "shape": [],
+      "signed": false,
+      "count": 1,
+      "public_start_zero_based": 1,
+      "role": "public_output"
+    },
+    {
+      "name": "selectedSubcarrier",
+      "shape": [],
+      "signed": false,
+      "count": 1,
+      "public_start_zero_based": 2,
+      "role": "public_output"
+    },
+    {
+      "name": "estimatedFrequencyBin",
+      "shape": [],
+      "signed": false,
+      "count": 1,
+      "public_start_zero_based": 3,
+      "role": "public_output"
+    },
+    {
+      "name": "globalPeakFrequencyBin",
+      "shape": [],
+      "signed": false,
+      "count": 1,
+      "public_start_zero_based": 4,
+      "role": "public_output"
+    },
+    {
+      "name": "debugSignedI",
+      "shape": [
+        64,
+        8
+      ],
+      "signed": true,
+      "count": 512,
+      "public_start_zero_based": 5,
+      "role": "public_output"
+    },
+    {
+      "name": "debugSignedQ",
+      "shape": [
+        64,
+        8
+      ],
+      "signed": true,
+      "count": 512,
+      "public_start_zero_based": 517,
+      "role": "public_output"
+    },
+    {
+      "name": "debugMagnitudeSquared",
+      "shape": [
+        64,
+        8
+      ],
+      "signed": false,
+      "count": 512,
+      "public_start_zero_based": 1029,
+      "role": "public_output"
+    },
+    {
+      "name": "debugCentered",
+      "shape": [
+        64,
+        8
+      ],
+      "signed": true,
+      "count": 512,
+      "public_start_zero_based": 1541,
+      "role": "public_output"
+    },
+    {
+      "name": "debugSignalNorm",
+      "shape": [
+        8
+      ],
+      "signed": false,
+      "count": 8,
+      "public_start_zero_based": 2053,
+      "role": "public_output"
+    },
+    {
+      "name": "debugCosBasis",
+      "shape": [
+        32,
+        64
+      ],
+      "signed": true,
+      "count": 2048,
+      "public_start_zero_based": 2061,
+      "role": "public_output"
+    },
+    {
+      "name": "debugSinBasis",
+      "shape": [
+        32,
+        64
+      ],
+      "signed": true,
+      "count": 2048,
+      "public_start_zero_based": 4109,
+      "role": "public_output"
+    },
+    {
+      "name": "debugCosNorm",
+      "shape": [
+        32
+      ],
+      "signed": false,
+      "count": 32,
+      "public_start_zero_based": 6157,
+      "role": "public_output"
+    },
+    {
+      "name": "debugSinNorm",
+      "shape": [
+        32
+      ],
+      "signed": false,
+      "count": 32,
+      "public_start_zero_based": 6189,
+      "role": "public_output"
+    },
+    {
+      "name": "debugCrossNorm",
+      "shape": [
+        32
+      ],
+      "signed": true,
+      "count": 32,
+      "public_start_zero_based": 6221,
+      "role": "public_output"
+    },
+    {
+      "name": "debugDeterminant",
+      "shape": [
+        32
+      ],
+      "signed": false,
+      "count": 32,
+      "public_start_zero_based": 6253,
+      "role": "public_output"
+    },
+    {
+      "name": "debugCosProjection",
+      "shape": [
+        8,
+        32
+      ],
+      "signed": true,
+      "count": 256,
+      "public_start_zero_based": 6285,
+      "role": "public_output"
+    },
+    {
+      "name": "debugSinProjection",
+      "shape": [
+        8,
+        32
+      ],
+      "signed": true,
+      "count": 256,
+      "public_start_zero_based": 6541,
+      "role": "public_output"
+    },
+    {
+      "name": "debugNumerator",
+      "shape": [
+        8,
+        32
+      ],
+      "signed": false,
+      "count": 256,
+      "public_start_zero_based": 6797,
+      "role": "public_output"
+    },
+    {
+      "name": "debugDenominator",
+      "shape": [
+        8,
+        32
+      ],
+      "signed": false,
+      "count": 256,
+      "public_start_zero_based": 7053,
+      "role": "public_output"
+    },
+    {
+      "name": "debugBandPeak",
+      "shape": [
+        8
+      ],
+      "signed": false,
+      "count": 8,
+      "public_start_zero_based": 7309,
+      "role": "public_output"
+    },
+    {
+      "name": "debugGlobalPeak",
+      "shape": [
+        8
+      ],
+      "signed": false,
+      "count": 8,
+      "public_start_zero_based": 7317,
+      "role": "public_output"
+    },
+    {
+      "name": "timestampsMs",
+      "shape": [
+        64
+      ],
+      "signed": false,
+      "count": 64,
+      "public_start_zero_based": 7325,
+      "role": "public_input"
+    }
+  ],
+  "n_outputs": 7325,
+  "n_public_inputs": 64,
+  "n_public_total": 7389,
+  "array_order": "row-major; final index fastest",
+  "integer_encoding": "decimal strings",
+  "signed_decode": "subtract field modulus only for signed fields > p/2",
+  "source_sha256": "d8f4212e4b69590578968e339fe3ce6de974bcf94f8b65476d647da6cea27d28"
+}

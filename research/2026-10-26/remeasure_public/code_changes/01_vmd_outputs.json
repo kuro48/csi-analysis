@@ -1,0 +1,11 @@
+{
+  "title": "VMD：中間値を公開出力へ追加",
+  "note": "入力・DFT・反復ごとのモード係数・中心を公開配列として宣言。",
+  "source": "research/2026-10-26/remeasure_public/vmd/k3_r4/vmd_k3_r4_public.circom",
+  "start": 67,
+  "end": 72,
+  "source_sha256": "020ddf39ce2d25ced9be65180f3b0f997a643af677793593d33b9476af1e7d15",
+  "html": "01_vmd_outputs.html",
+  "png": "01_vmd_outputs.png",
+  "png_rendered": true
+}

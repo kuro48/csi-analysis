@@ -1,0 +1,7 @@
+{
+  "compile_seconds": 38.8867865,
+  "optimization": "O2",
+  "nonlinear_constraints": 561760,
+  "linear_constraints": 513,
+  "constraints": 562273
+}

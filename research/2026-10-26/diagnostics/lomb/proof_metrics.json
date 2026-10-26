@@ -1,0 +1,12 @@
+{
+  "ptau": "research/2026-10-26/.cache/ppot_0080_21.ptau",
+  "kind": "diagnostic circuit proof; stage values intentionally public; not production timing benchmark",
+  "witness_constraint_check_seconds": 4.2454125,
+  "setup_seconds": 139.61621770800002,
+  "contribution_seconds": 41.476895125,
+  "prove_seconds": 9.90479183399998,
+  "verify_seconds": 0.2663321669999732,
+  "verified": true,
+  "proof_public_equals_decoded_public": true,
+  "tampered_intermediate_public_value_rejected": true
+}

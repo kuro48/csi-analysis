@@ -1,0 +1,67 @@
+{
+  "status": "verified",
+  "config": {
+    "id": "k3_r4_centers8_16_24",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  "run_id": "csi_20260520_013702_w0_repeat0",
+  "window": "csi_20260520_013702_w0",
+  "repeat": 0,
+  "verified": true,
+  "config_id": "k3_r4_centers8_16_24",
+  "source_sha256": "67bfae4f1d8c08897a15330350490571c7d7658d6ce1d9e18ff9a2f3b54fc810",
+  "input_npz_sha256": "7d95a80d0058b57e46c322f408818c180d23742c6497db931e20b8bc77b3797a",
+  "input_json_sha256": "9da7c7b5ea50dfed90cb1b4588614ca64503489ef1cceae8402efd226cfaa7cb",
+  "r1cs_sha256": "49df6143596a1bf6e1ba9e370655b2097922733c80e3850c5f08a23de85f7df7",
+  "wasm_sha256": "741a7a6e225d2e3b930d456b5775e2cf3d396074283c4ed004ba5f12cc7c9745",
+  "vkey_sha256": "7a4751b558554f06889d7b77b0f35356fddf1a071ad7d7021c33cac876462732",
+  "proof_sha256": "7d687baebc8b1c11a5d1b74e011d46b38533b53b4355ac5c359d831efc39a94a",
+  "public_sha256": "b1d29ea1bdb2463383280f75877c93d86b145e1affbb938f18275bceb5e8b05b",
+  "result": {
+    "is_normal": false,
+    "bpm": 22.5,
+    "frequency_bin": 24,
+    "selected_mode_zero_based": 2,
+    "intermediate_hash": "19848432687994673747935983414107098059902343801181489028508085378097427286600",
+    "parent_commitment": "0"
+  },
+  "proof_verified": true,
+  "tamper_rejected": true,
+  "trace_from": "public.json",
+  "vkey_path": "../../verification_key.json",
+  "public_schema_verified": true,
+  "independent_integer_reference_all_stages_match": true,
+  "witness": {
+    "wall_seconds": 2.0555707920000046,
+    "max_rss_bytes": 1178927104,
+    "returncode": 0
+  },
+  "prove": {
+    "wall_seconds": 4.482876417,
+    "max_rss_bytes": 4875141120,
+    "returncode": 0
+  },
+  "verify": {
+    "wall_seconds": 0.24064804199999656,
+    "max_rss_bytes": 188153856,
+    "returncode": 0
+  },
+  "witness_calculation": {
+    "calculation_seconds": 0.217697167,
+    "public_schema_checked": true,
+    "public_count": 1786
+  },
+  "artifact_sha256": {
+    "input.json": "9da7c7b5ea50dfed90cb1b4588614ca64503489ef1cceae8402efd226cfaa7cb",
+    "proof.json": "7d687baebc8b1c11a5d1b74e011d46b38533b53b4355ac5c359d831efc39a94a",
+    "public.json": "b1d29ea1bdb2463383280f75877c93d86b145e1affbb938f18275bceb5e8b05b",
+    "trace.json": "c871869e5537e4348ee71c3948096a5106dfbe4675031898719a90b3fae9c0d4",
+    "witness_public.json": "87f27692bfa218c5326f3566202b623c5b46ad4b0fea8e0887cc8378bf1f0fc8"
+  }
+}

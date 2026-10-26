@@ -1,0 +1,10 @@
+{
+  "subcarriers": 2,
+  "compile_seconds": 14.016160832999999,
+  "nonlinear_constraints": 346822,
+  "linear_constraints": 1,
+  "constraints": 346823,
+  "compiler": "circom2 2.2.3",
+  "optimization": "O2",
+  "source_sha256": "07aff40006816abaa962f2f004d09c7f129c0beb2b373eda1c474b233e0cea02"
+}

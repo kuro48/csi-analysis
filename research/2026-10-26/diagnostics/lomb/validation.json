@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "actual_public_values_checked": 7324,
+  "commitment_note": "Commitment copied from actual circuit output; independently bound by circuit witness/proof checks.",
+  "checks": [
+    "public .sym indices and prefix order",
+    "field modulus",
+    "all stage integer values against independent reference",
+    "all8 local peak/global bins",
+    "original4 estimator outputs"
+  ],
+  "reference_used_for_validation_only": true
+}

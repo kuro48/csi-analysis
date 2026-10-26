@@ -1,0 +1,28 @@
+{
+  "config": {
+    "id": "k8_r32",
+    "modes": 8,
+    "iterations": 32,
+    "initial_centers": [
+      8,
+      24,
+      48,
+      16,
+      32,
+      56,
+      40,
+      4
+    ]
+  },
+  "status": "resource_limit",
+  "estimate": {
+    "estimated_constraints": 5399108,
+    "public_signal_count": 32779,
+    "minimum_ptau_power_estimate": 23,
+    "supported_by_ptau21_estimate": false,
+    "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+    "estimated_peak_config_artifact_bytes": 7558751200,
+    "estimated_retained_run_outputs_bytes": 213063500
+  },
+  "reason": "Estimated required ptau exceeds available power21; no compile/setup/proof attempted"
+}

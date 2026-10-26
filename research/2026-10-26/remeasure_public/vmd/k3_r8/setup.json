@@ -1,0 +1,19 @@
+{
+  "setup": {
+    "wall_seconds": 33.122906834,
+    "max_rss_bytes": 3986472960,
+    "returncode": 0
+  },
+  "contribution": {
+    "wall_seconds": 40.692245625,
+    "max_rss_bytes": 505249792,
+    "returncode": 0
+  },
+  "ptau": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/.cache/ppot_0080_21.ptau",
+  "ptau_sha256": "b4131202088141088d83fc05d654a142b51117df0960568613069e0719e7645a",
+  "zkey_sha256": "7edcb97cc6c2944b4a5aa7b93b5f1bb2cc58c51fde39052035e3e775aec692a5",
+  "vkey_sha256": "14147ab1e298b218072df72342261f2238fdbe793d45d44738eb3b320477f7a8",
+  "source_sha256": "0145f26e7bc46424b778f1ce6c1726a9bbb9e32732340bcb72c7f39807960cf9",
+  "r1cs_sha256": "8e36a2a1bcfc6f11ad8fbc78d0b2b2ee82591015080100c90f8f7ed5b10cef4f",
+  "keys_scope": "Local experiment only"
+}

@@ -1,0 +1,19 @@
+{
+  "window_id": "csi_20260526_034004_w0",
+  "selected_local_sc": 7,
+  "source_tone_index": 32,
+  "source_indices_first8": [
+    0,
+    52,
+    26,
+    13,
+    39,
+    6,
+    19,
+    32
+  ],
+  "band_peak_bin": 10,
+  "global_peak_bin": 10,
+  "normalized_score_note": "CSV ratio numerator/denominator is computed OFF CIRCUIT for display; exact public numerator and denominator remain in CSV/JSON.",
+  "centered_display_note": "The circuit exposes64*mag2-sum(mag2); divide64 in CSV is display-only."
+}

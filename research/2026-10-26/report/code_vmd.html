@@ -1,0 +1,24 @@
+<!doctype html><html lang="ja"><meta charset="utf-8">
+<title>VMDのモード数・反復数を変更して比較</title><style>
+*{box-sizing:border-box} body{margin:0;background:#101923;color:#e6edf3;padding:32px}
+h1{font:600 26px -apple-system,sans-serif;margin:0 0 12px}
+.path{font:16px monospace;color:#91a9c0;margin-bottom:24px}
+.code{font:19px/1.55 Menlo,monospace}
+.line{display:flex;white-space:pre}.number{color:#71869b;display:inline-block;min-width:58px;user-select:none}
+.footer{font:14px -apple-system,sans-serif;color:#91a9c0;margin-top:22px}
+</style><h1>VMDのモード数・反復数を変更して比較</h1><div class="path">research/2026-10-26/vmd/model.py:23–37</div>
+<div class="code"><div class="line"><span class="number">23</span><span>    for _ in range(iterations):</span></div>
+<div class="line"><span class="number">24</span><span>        for k in range(modes):</span></div>
+<div class="line"><span class="number">25</span><span>            residual = f - (u.sum(axis=0) - u[k])</span></div>
+<div class="line"><span class="number">26</span><span>            denominator = (1 + (BINS - centers[k]) ** 2)[:, None]</span></div>
+<div class="line"><span class="number">27</span><span>            u[k] = np.sign(residual) * (np.abs(residual) // denominator)</span></div>
+<div class="line"><span class="number">28</span><span>            if np.max(np.abs(u[k])) &gt; 2 ** 26:</span></div>
+<div class="line"><span class="number">29</span><span>                raise OverflowError(&quot;Mode coefficients exceed the int64-safe experiment bound&quot;)</span></div>
+<div class="line"><span class="number">30</span><span>            energy = (u[k] ** 2).sum(axis=1)</span></div>
+<div class="line"><span class="number">31</span><span>            # Python integers avoid overflow for weighted sums and high K/R.</span></div>
+<div class="line"><span class="number">32</span><span>            total = sum(int(e) for e in energy)</span></div>
+<div class="line"><span class="number">33</span><span>            if total:</span></div>
+<div class="line"><span class="number">34</span><span>                centers[k] = sum(int(j) * int(e) for j, e in zip(BINS, energy)) // total</span></div>
+<div class="line"><span class="number">35</span><span>    power = (u ** 2).sum(axis=2)</span></div>
+<div class="line"><span class="number">36</span><span>    selected, j = np.unravel_index(np.argmax(power), power.shape)</span></div>
+<div class="line"><span class="number">37</span><span>    peak = int(j + 1) if power.max() else 0</span></div></div><div class="footer">2026-10-26 実験コード • 元ファイルからの抜粋</div></html>

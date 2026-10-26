@@ -1,0 +1,224 @@
+{
+  "configuration": {
+    "modes": 3,
+    "iterations": 4,
+    "default_initial_centers": [
+      8,
+      24,
+      48
+    ],
+    "candidate_initial_centers": [
+      8,
+      16,
+      24
+    ],
+    "waveform": "round(80*sin(2*pi*target_bpm/60*arange(128)/2))",
+    "samples": 128,
+    "sample_rate_hz": 2,
+    "observed_seconds": 64,
+    "padded_samples": 0
+  },
+  "interpretation": "Each injected sinusoid is the target. A high-frequency component cannot be identified as physiological target or interference from this signal alone. Low-centered initialization improves the previous low-band controls but can miss genuine higher-rate targets.",
+  "cases": [
+    {
+      "target_bpm": 3,
+      "default_bpm": 2.8125,
+      "candidate_bpm": 2.8125,
+      "dft_bpm": 2.8125,
+      "default_abs_error_bpm": 0.1875,
+      "candidate_abs_error_bpm": 0.1875,
+      "default_centers": [
+        3,
+        20,
+        44
+      ],
+      "candidate_centers": [
+        3,
+        12,
+        20
+      ],
+      "default_is_normal": false,
+      "candidate_is_normal": false
+    },
+    {
+      "target_bpm": 6,
+      "default_bpm": 5.625,
+      "candidate_bpm": 5.625,
+      "dft_bpm": 5.625,
+      "default_abs_error_bpm": 0.375,
+      "candidate_abs_error_bpm": 0.375,
+      "default_centers": [
+        6,
+        20,
+        44
+      ],
+      "candidate_centers": [
+        6,
+        12,
+        20
+      ],
+      "default_is_normal": false,
+      "candidate_is_normal": false
+    },
+    {
+      "target_bpm": 9,
+      "default_bpm": 8.4375,
+      "candidate_bpm": 9.375,
+      "dft_bpm": 9.375,
+      "default_abs_error_bpm": 0.5625,
+      "candidate_abs_error_bpm": 0.375,
+      "default_centers": [
+        8,
+        19,
+        41
+      ],
+      "candidate_centers": [
+        8,
+        9,
+        20
+      ],
+      "default_is_normal": true,
+      "candidate_is_normal": true
+    },
+    {
+      "target_bpm": 12,
+      "default_bpm": 12.1875,
+      "candidate_bpm": 12.1875,
+      "dft_bpm": 12.1875,
+      "default_abs_error_bpm": 0.1875,
+      "candidate_abs_error_bpm": 0.1875,
+      "default_centers": [
+        12,
+        16,
+        44
+      ],
+      "candidate_centers": [
+        11,
+        12,
+        19
+      ],
+      "default_is_normal": true,
+      "candidate_is_normal": true
+    },
+    {
+      "target_bpm": 18,
+      "default_bpm": 17.8125,
+      "candidate_bpm": 17.8125,
+      "dft_bpm": 17.8125,
+      "default_abs_error_bpm": 0.1875,
+      "candidate_abs_error_bpm": 0.1875,
+      "default_centers": [
+        16,
+        19,
+        44
+      ],
+      "candidate_centers": [
+        14,
+        18,
+        19
+      ],
+      "default_is_normal": true,
+      "candidate_is_normal": true
+    },
+    {
+      "target_bpm": 21,
+      "default_bpm": 20.625,
+      "candidate_bpm": 20.625,
+      "dft_bpm": 20.625,
+      "default_abs_error_bpm": 0.375,
+      "candidate_abs_error_bpm": 0.375,
+      "default_centers": [
+        8,
+        22,
+        44
+      ],
+      "candidate_centers": [
+        8,
+        17,
+        22
+      ],
+      "default_is_normal": true,
+      "candidate_is_normal": true
+    },
+    {
+      "target_bpm": 24,
+      "default_bpm": 23.4375,
+      "candidate_bpm": 23.4375,
+      "dft_bpm": 24.375,
+      "default_abs_error_bpm": 0.5625,
+      "candidate_abs_error_bpm": 0.5625,
+      "default_centers": [
+        8,
+        24,
+        44
+      ],
+      "candidate_centers": [
+        8,
+        16,
+        24
+      ],
+      "default_is_normal": false,
+      "candidate_is_normal": false
+    },
+    {
+      "target_bpm": 30,
+      "default_bpm": 30.0,
+      "candidate_bpm": 30.0,
+      "dft_bpm": 30.0,
+      "default_abs_error_bpm": 0.0,
+      "candidate_abs_error_bpm": 0.0,
+      "default_centers": [
+        32,
+        32,
+        32
+      ],
+      "candidate_centers": [
+        32,
+        32,
+        32
+      ],
+      "default_is_normal": false,
+      "candidate_is_normal": false
+    },
+    {
+      "target_bpm": 42,
+      "default_bpm": 42.1875,
+      "candidate_bpm": 22.5,
+      "dft_bpm": 42.1875,
+      "default_abs_error_bpm": 0.1875,
+      "candidate_abs_error_bpm": 19.5,
+      "default_centers": [
+        8,
+        24,
+        44
+      ],
+      "candidate_centers": [
+        8,
+        16,
+        24
+      ],
+      "default_is_normal": false,
+      "candidate_is_normal": false
+    },
+    {
+      "target_bpm": 51,
+      "default_bpm": 47.8125,
+      "candidate_bpm": 25.3125,
+      "dft_bpm": 50.625,
+      "default_abs_error_bpm": 3.1875,
+      "candidate_abs_error_bpm": 25.6875,
+      "default_centers": [
+        17,
+        28,
+        52
+      ],
+      "candidate_centers": [
+        17,
+        23,
+        28
+      ],
+      "default_is_normal": false,
+      "candidate_is_normal": false
+    }
+  ]
+}

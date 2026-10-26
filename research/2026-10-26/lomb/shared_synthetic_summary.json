@@ -1,0 +1,32 @@
+[
+  {
+    "subcarriers": 1,
+    "n_cases": 6,
+    "mae_bpm": 0.11023622047244193
+  },
+  {
+    "subcarriers": 2,
+    "n_cases": 6,
+    "mae_bpm": 0.11023622047244193
+  },
+  {
+    "subcarriers": 4,
+    "n_cases": 6,
+    "mae_bpm": 0.11023622047244193
+  },
+  {
+    "subcarriers": 8,
+    "n_cases": 6,
+    "mae_bpm": 0.11023622047244193
+  },
+  {
+    "subcarriers": 16,
+    "n_cases": 6,
+    "mae_bpm": 0.11023622047244193
+  },
+  {
+    "subcarriers": 32,
+    "n_cases": 6,
+    "mae_bpm": 0.11023622047244193
+  }
+]

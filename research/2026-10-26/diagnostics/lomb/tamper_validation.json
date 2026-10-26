@@ -1,0 +1,10 @@
+{
+  "modified_signal": "debugMagnitudeSquared[0][0]",
+  "public_index_zero_based": 1029,
+  "original": "1164708",
+  "tampered": "1164709",
+  "same_proof": "proof.json",
+  "verify_seconds": 0.21793370900002174,
+  "returncode": 1,
+  "rejected_as_invalid_proof": true
+}

@@ -1,0 +1,10 @@
+{
+  "vmd_k3_r4_public_trace.circom": "6af97f2ae88529afbc3d25ce2ccd893595ea3a4d9eefcc58ff808f8d92452f06",
+  "public_schema.json": "e99a2f812e98cb26513d7304471575cf941e7ad9605df640c191915cdef7fa5f",
+  "input_manifest.json": "9b76bff25d51014c1ff14f404e9e905436df84b4a9afad73b0f34ebe7e23c54a",
+  "public.json": "27ee5bf8218604192b8702f31b58ffb318268359e2941fea85c0b272fbc12874",
+  "proof.json": "7d4f31f7bef1d3e9531d2058b3c5797847c8d4d5cbaeb2f6c17ecbbedea46807",
+  "proof_public.json": "b233b2af6e9a270285f5230075de07d153477547241d9f7c448c37bc2bad4eed",
+  "verification_key.json": "cd5c8caf24abf228566f32e62f445d3f3847ad51188d7438a8879c89595ac156",
+  "trace.json": "541ab985a6a58c3c5867565231ac2ea350fc6482577deafa857f497bc1fe7fe7"
+}

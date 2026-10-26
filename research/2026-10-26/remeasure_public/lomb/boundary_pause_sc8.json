@@ -1,0 +1,11 @@
+{
+  "runner_pid": 34656,
+  "paused_at_config": "sc8",
+  "completed_status": "complete",
+  "next_config_status": "prepared_no_compute",
+  "time_epoch": 1792987932.391712,
+  "timed_stage_interrupted": false,
+  "resumed_epoch": 1792988023.3428621,
+  "pause_duration_seconds": 90.9511501789093,
+  "resume_reason": "Parent graph PNG/SVG finished; CPU returned for SC16"
+}

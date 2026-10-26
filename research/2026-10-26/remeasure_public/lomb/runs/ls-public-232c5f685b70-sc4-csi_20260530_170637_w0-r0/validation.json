@@ -1,0 +1,9 @@
+{
+  "normal_outputs_match_old_accuracy": true,
+  "normal_outputs_match_integer_reference": true,
+  "all_intermediate_values_checked": true,
+  "verified": true,
+  "public_equals_actual_witness_prefix": true,
+  "intermediate_tamper_rejected": true,
+  "tampered_public_index": 517
+}

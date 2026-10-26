@@ -1,0 +1,8 @@
+{
+  "source": "research/2026-10-26/diagnostics/vmd/vmd_k3_r4_public_trace.circom",
+  "start": 16512,
+  "end": 16525,
+  "source_sha256": "6af97f2ae88529afbc3d25ce2ccd893595ea3a4d9eefcc58ff808f8d92452f06",
+  "html": "research/2026-10-26/report/code_debug_vmd.html",
+  "png": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/report/code_debug_vmd.png"
+}

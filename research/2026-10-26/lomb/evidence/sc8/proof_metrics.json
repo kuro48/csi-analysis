@@ -1,0 +1,43 @@
+{
+  "subcarriers": 8,
+  "compile_seconds": 45.233032834,
+  "nonlinear_constraints": 561760,
+  "linear_constraints": 1,
+  "constraints": 561761,
+  "compiler": "circom2 2.2.3",
+  "optimization": "O2",
+  "source_sha256": "ffe09299a4408bc7e54dd60ef413d03f424422636b009bcc3a44c61e232fc4b7",
+  "proof_repeats": 3,
+  "ptau_path": "research/2026-10-26/.cache/ppot_0080_21.ptau",
+  "setup_seconds": 222.60130941600002,
+  "contribution_seconds": 42.370761500000015,
+  "key_status": "local benchmark: existing phase2 ptau plus fresh random circuit contribution",
+  "proof_input": "csi_20260519_114943_w0_sc8.json",
+  "witness_seconds": 0.378510042,
+  "constraint_check_seconds": 7.841354499999966,
+  "proof_status": "verified",
+  "prove_seconds_median": 12.28147899999999,
+  "prove_seconds_min": 11.95240508400002,
+  "prove_seconds_max": 12.733619457999964,
+  "verify_seconds_median": 0.2374477079999906,
+  "measurements": [
+    {
+      "repetition": 0,
+      "prove_seconds": 12.733619457999964,
+      "verify_seconds": 0.23879637499999262,
+      "verified": true
+    },
+    {
+      "repetition": 1,
+      "prove_seconds": 12.28147899999999,
+      "verify_seconds": 0.2374477079999906,
+      "verified": true
+    },
+    {
+      "repetition": 2,
+      "prove_seconds": 11.95240508400002,
+      "verify_seconds": 0.23467729200001486,
+      "verified": true
+    }
+  ]
+}

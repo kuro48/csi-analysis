@@ -1,0 +1,10 @@
+{
+  "pages": 10,
+  "page_size_points": [
+    720,
+    540
+  ],
+  "output": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/output/pdf/2026_10_26_進捗_黒川.pdf",
+  "reference": "2026_10_19_進捗_黒川.pdf",
+  "main_data": "real CSI only"
+}

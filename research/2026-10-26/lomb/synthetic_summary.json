@@ -1,0 +1,44 @@
+[
+  {
+    "subcarriers": 1,
+    "n_cases": 40,
+    "mae_bpm": 0.9834645669291338,
+    "median_absolute_error_bpm": 0.3129921259842514,
+    "within_one_bpm_rate": 0.825
+  },
+  {
+    "subcarriers": 2,
+    "n_cases": 40,
+    "mae_bpm": 0.6622047244094486,
+    "median_absolute_error_bpm": 0.2952755905511806,
+    "within_one_bpm_rate": 0.925
+  },
+  {
+    "subcarriers": 4,
+    "n_cases": 40,
+    "mae_bpm": 0.24566929133858234,
+    "median_absolute_error_bpm": 0.2952755905511806,
+    "within_one_bpm_rate": 1.0
+  },
+  {
+    "subcarriers": 8,
+    "n_cases": 40,
+    "mae_bpm": 0.23779527559055086,
+    "median_absolute_error_bpm": 0.22244094488188937,
+    "within_one_bpm_rate": 1.0
+  },
+  {
+    "subcarriers": 16,
+    "n_cases": 40,
+    "mae_bpm": 0.2301181102362201,
+    "median_absolute_error_bpm": 0.22244094488188937,
+    "within_one_bpm_rate": 1.0
+  },
+  {
+    "subcarriers": 32,
+    "n_cases": 40,
+    "mae_bpm": 0.23425196850393668,
+    "median_absolute_error_bpm": 0.22244094488188937,
+    "within_one_bpm_rate": 1.0
+  }
+]

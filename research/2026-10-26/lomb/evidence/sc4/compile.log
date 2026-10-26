@@ -1,0 +1,12 @@
+[32mtemplate instances[0m: 128
+non-linear constraints: 418468
+linear constraints: 1
+public inputs: 64
+private inputs: 513
+public outputs: 5
+wires: 404750
+labels: 693739
+[32mWritten successfully:[0m research/2026-10-26/lomb/build/sc4/circuit.r1cs
+[32mWritten successfully:[0m research/2026-10-26/lomb/build/sc4/circuit.sym
+[32mWritten successfully:[0m research/2026-10-26/lomb/build/sc4/circuit_js/circuit.wasm
+[32mEverything went okay[0m

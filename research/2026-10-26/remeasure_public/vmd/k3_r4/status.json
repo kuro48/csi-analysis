@@ -1,0 +1,24 @@
+{
+  "config": {
+    "id": "k3_r4",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      24,
+      48
+    ]
+  },
+  "status": "verified",
+  "estimate": {
+    "estimated_constraints": 340737,
+    "public_signal_count": 1786,
+    "minimum_ptau_power_estimate": 19,
+    "supported_by_ptau21_estimate": true,
+    "estimate_basis": "Fit from measured original K1R1/K3R4/K5R8, public promotion adds K; actual compile required",
+    "estimated_peak_config_artifact_bytes": 477031800,
+    "estimated_retained_run_outputs_bytes": 11609000
+  },
+  "active_stage": null,
+  "verified_runs": 10
+}

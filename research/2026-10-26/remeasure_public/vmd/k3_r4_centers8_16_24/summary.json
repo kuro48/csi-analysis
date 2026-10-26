@@ -1,0 +1,127 @@
+{
+  "config": {
+    "id": "k3_r4_centers8_16_24",
+    "modes": 3,
+    "iterations": 4,
+    "initial_centers": [
+      8,
+      16,
+      24
+    ]
+  },
+  "status": "verified",
+  "unique_raw_count": 8,
+  "proof_count": 10,
+  "representative_prove_seconds": [
+    5.055876957999999,
+    4.359589249999999,
+    5.231498875
+  ],
+  "representative_prove_median_seconds": 5.055876957999999,
+  "unique_raw_results": [
+    {
+      "window": "csi_20260519_114943_w0",
+      "is_normal": true,
+      "bpm": 12.1875,
+      "frequency_bin": 13,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "14518129197835933743644309196298834405855639324316901584906818696265367104156",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260520_013702_w0",
+      "is_normal": false,
+      "bpm": 22.5,
+      "frequency_bin": 24,
+      "selected_mode_zero_based": 2,
+      "intermediate_hash": "19848432687994673747935983414107098059902343801181489028508085378097427286600",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260526_034004_w0",
+      "is_normal": true,
+      "bpm": 12.1875,
+      "frequency_bin": 13,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "15034264523095162640532407728923602538982128651080711640779874145831911271306",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260526_072608_w0",
+      "is_normal": true,
+      "bpm": 13.125,
+      "frequency_bin": 14,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "3519051479664916229158484722604241795880546539529459411616351704861327094883",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260530_170637_w0",
+      "is_normal": true,
+      "bpm": 12.1875,
+      "frequency_bin": 13,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "14644561731219693580815007005377402713982848930971627593973685357954151599674",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260708_162812_w0",
+      "is_normal": true,
+      "bpm": 8.4375,
+      "frequency_bin": 9,
+      "selected_mode_zero_based": 0,
+      "intermediate_hash": "11735369226777064712124783716915443383829043668992493677223281661571887549442",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260821_165306_w0",
+      "is_normal": true,
+      "bpm": 12.1875,
+      "frequency_bin": 13,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "20183508857237015944435637669310702770319996344482511470855479312618639024700",
+      "parent_commitment": "0"
+    },
+    {
+      "window": "csi_20260907_185130_w0",
+      "is_normal": true,
+      "bpm": 12.1875,
+      "frequency_bin": 13,
+      "selected_mode_zero_based": 1,
+      "intermediate_hash": "8928543613779010561720742501901581746619862193835439830959055773038722505916",
+      "parent_commitment": "0"
+    }
+  ],
+  "compile": {
+    "wall_seconds": 4.415390875,
+    "max_rss_bytes": 483672064,
+    "returncode": 0,
+    "constraints": 340737,
+    "public_signals": 1786,
+    "required_power_conservative": 19,
+    "source_sha256": "67bfae4f1d8c08897a15330350490571c7d7658d6ce1d9e18ff9a2f3b54fc810",
+    "r1cs_sha256": "49df6143596a1bf6e1ba9e370655b2097922733c80e3850c5f08a23de85f7df7",
+    "wasm_sha256": "741a7a6e225d2e3b930d456b5775e2cf3d396074283c4ed004ba5f12cc7c9745",
+    "sym_sha256": "5fdb47c93f333e32d0499684f18c39c37aefc101395aaf79ea62ec45758b00eb"
+  },
+  "setup": {
+    "setup": {
+      "wall_seconds": 21.051458083,
+      "max_rss_bytes": 3063267328,
+      "returncode": 0
+    },
+    "contribution": {
+      "wall_seconds": 22.370929875000005,
+      "max_rss_bytes": 370556928,
+      "returncode": 0
+    },
+    "ptau": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/zkp/keys/powersOfTau28_hez_final_19.ptau",
+    "ptau_sha256": "831cbbf07b6311548a85db71ed1078f61a2aa56af5aa7c02654bfa58c927b017",
+    "zkey_sha256": "63e00846d5116864e87586ad38a7f56cb35ceeaf45930d70c438880f4a0c2f36",
+    "vkey_sha256": "7a4751b558554f06889d7b77b0f35356fddf1a071ad7d7021c33cac876462732",
+    "source_sha256": "67bfae4f1d8c08897a15330350490571c7d7658d6ce1d9e18ff9a2f3b54fc810",
+    "r1cs_sha256": "49df6143596a1bf6e1ba9e370655b2097922733c80e3850c5f08a23de85f7df7",
+    "keys_scope": "Local experiment only"
+  },
+  "large_artifacts_pruned": true
+}

@@ -1,0 +1,606 @@
+{
+  "campaign_id": "ls-public-232c5f685b70",
+  "root_path": "/Users/ryunosukekurokawa/Research/WiFi-CSI-Privacy/Code/csi-web-platform/research/2026-10-26/remeasure_public/lomb",
+  "runs": [
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260519_114943_w0-r0",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260519_114943_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260519_114943_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260520_013702_w0-r0",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260520_013702_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260520_013702_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260526_034004_w0-r0",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260526_034004_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260526_072608_w0-r0",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260526_072608_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260526_072608_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260530_170637_w0-r0",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260530_170637_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260530_170637_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260708_162812_w0-r0",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260708_162812_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260708_162812_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260821_165306_w0-r0",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260821_165306_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260821_165306_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260907_185130_w0-r0",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260907_185130_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260907_185130_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260526_034004_w0-r1",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 1,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260526_034004_w0-r1/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc1-csi_20260526_034004_w0-r2",
+      "config_id": "sc1",
+      "subcarriers": 1,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 2,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc1-csi_20260526_034004_w0-r2/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260519_114943_w0-r0",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260519_114943_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260519_114943_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260520_013702_w0-r0",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260520_013702_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260520_013702_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260526_034004_w0-r0",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260526_034004_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260526_072608_w0-r0",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260526_072608_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260526_072608_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260530_170637_w0-r0",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260530_170637_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260530_170637_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260708_162812_w0-r0",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260708_162812_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260708_162812_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260821_165306_w0-r0",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260821_165306_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260821_165306_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260907_185130_w0-r0",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260907_185130_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260907_185130_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260526_034004_w0-r1",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 1,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260526_034004_w0-r1/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc2-csi_20260526_034004_w0-r2",
+      "config_id": "sc2",
+      "subcarriers": 2,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 2,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc2-csi_20260526_034004_w0-r2/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260519_114943_w0-r0",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260519_114943_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260519_114943_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260520_013702_w0-r0",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260520_013702_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260520_013702_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260526_034004_w0-r0",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260526_034004_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260526_072608_w0-r0",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260526_072608_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260526_072608_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260530_170637_w0-r0",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260530_170637_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260530_170637_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260708_162812_w0-r0",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260708_162812_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260708_162812_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260821_165306_w0-r0",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260821_165306_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260821_165306_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260907_185130_w0-r0",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260907_185130_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260907_185130_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260526_034004_w0-r1",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 1,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260526_034004_w0-r1/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc4-csi_20260526_034004_w0-r2",
+      "config_id": "sc4",
+      "subcarriers": 4,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 2,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc4-csi_20260526_034004_w0-r2/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260519_114943_w0-r0",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260519_114943_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260519_114943_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260520_013702_w0-r0",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260520_013702_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260520_013702_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260526_034004_w0-r0",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260526_034004_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260526_072608_w0-r0",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260526_072608_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260526_072608_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260530_170637_w0-r0",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260530_170637_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260530_170637_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260708_162812_w0-r0",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260708_162812_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260708_162812_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260821_165306_w0-r0",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260821_165306_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260821_165306_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260907_185130_w0-r0",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260907_185130_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260907_185130_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260526_034004_w0-r1",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 1,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260526_034004_w0-r1/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc8-csi_20260526_034004_w0-r2",
+      "config_id": "sc8",
+      "subcarriers": 8,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 2,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc8-csi_20260526_034004_w0-r2/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260519_114943_w0-r0",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260519_114943_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260519_114943_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260520_013702_w0-r0",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260520_013702_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260520_013702_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260526_034004_w0-r0",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260526_034004_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260526_072608_w0-r0",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260526_072608_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260526_072608_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260530_170637_w0-r0",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260530_170637_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260530_170637_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260708_162812_w0-r0",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260708_162812_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260708_162812_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260821_165306_w0-r0",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260821_165306_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260821_165306_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260907_185130_w0-r0",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260907_185130_w0",
+      "repeat_id": 0,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260907_185130_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260526_034004_w0-r1",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 1,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260526_034004_w0-r1/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc16-csi_20260526_034004_w0-r2",
+      "config_id": "sc16",
+      "subcarriers": 16,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 2,
+      "status": "verified",
+      "verified": true,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc16-csi_20260526_034004_w0-r2/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260519_114943_w0-r0",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260519_114943_w0",
+      "repeat_id": 0,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260519_114943_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260520_013702_w0-r0",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260520_013702_w0",
+      "repeat_id": 0,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260520_013702_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260526_034004_w0-r0",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 0,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260526_034004_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260526_072608_w0-r0",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260526_072608_w0",
+      "repeat_id": 0,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260526_072608_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260530_170637_w0-r0",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260530_170637_w0",
+      "repeat_id": 0,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260530_170637_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260708_162812_w0-r0",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260708_162812_w0",
+      "repeat_id": 0,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260708_162812_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260821_165306_w0-r0",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260821_165306_w0",
+      "repeat_id": 0,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260821_165306_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260907_185130_w0-r0",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260907_185130_w0",
+      "repeat_id": 0,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260907_185130_w0-r0/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260526_034004_w0-r1",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 1,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260526_034004_w0-r1/manifest.json"
+    },
+    {
+      "run_id": "ls-public-232c5f685b70-sc32-csi_20260526_034004_w0-r2",
+      "config_id": "sc32",
+      "subcarriers": 32,
+      "window_id": "csi_20260526_034004_w0",
+      "repeat_id": 2,
+      "status": "prepared_no_compute",
+      "verified": false,
+      "manifest_path": "runs/ls-public-232c5f685b70-sc32-csi_20260526_034004_w0-r2/manifest.json"
+    }
+  ]
+}
