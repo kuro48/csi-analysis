@@ -19,3 +19,7 @@
 !diagnostics/*/input_manifest.json
 
 .venv-pdf/
+
+# Verified research evidence must remain versioned under zkp/.
+!**/proof.json
+!**/public.json
