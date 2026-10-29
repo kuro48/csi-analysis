@@ -51,7 +51,7 @@ rawCSI(振幅行列) --Poseidon--> C0 (公開・オンチェーン事前登録�
 
 ### タスク 2-1: コミットメント設計ドキュメント
 
-- `research/phase2_authenticity/COMMITMENT_DESIGN.md`。
+- `zkp/experiments/phase2_authenticity/COMMITMENT_DESIGN.md`。
 - C0（生CSI）と C1（vmdInput）の具体的な Poseidon 構成、フィールド要素への詰め方、
   固定小数点スケール、段の切り方（回路①がどこからどこまでか）を確定。
 - 制約数の事前見積もりを表で提示。
@@ -72,7 +72,7 @@ rawCSI(振幅行列) --Poseidon--> C0 (公開・オンチェーン事前登録�
   → C1 出力。PCA の固有ベクトル・固有値は Python 側で計算し秘密 witness として渡す。
 - Python 側 witness 生成は `breathing_pipeline.py` の
   `select_subcarriers_by_snr` / `bandpass_filter` / PCA 部分の**出力を利用**するが、
-  本番関数は編集せず、`research/phase2_authenticity/` 内のラッパで witness を組む。
+  本番関数は編集せず、`zkp/experiments/phase2_authenticity/` 内のラッパで witness を組む。
 
 ### タスク 2-4: エッジ署名 + Registry 拡張
 
@@ -80,12 +80,12 @@ rawCSI(振幅行列) --Poseidon--> C0 (公開・オンチェーン事前登録�
   `registerCommitment(bytes32 c0, uint256 ts, bytes deviceId, bytes sig)` を追加し、
   後から `submitProof(c0, proof, publicSignals)` で証明を提出するコミット・リビール構造。
 - エッジデバイス（`csi-edge-device` リポジトリ、別レポ）側の追加は**インターフェース仕様のみ**
-  本フェーズで定義（`research/phase2_authenticity/EDGE_INTERFACE.md`）。実装は別タスク/別レポ。
+  本フェーズで定義（`zkp/experiments/phase2_authenticity/EDGE_INTERFACE.md`）。実装は別タスク/別レポ。
 - バックエンドに新エンドポイント（例 `POST /api/v2/breathing/analyze-committed`）を追加。
 
 ### タスク 2-5: 評価
 
-- `research/phase2_authenticity/results/`:
+- `zkp/experiments/phase2_authenticity/results/`:
   - 段別（回路① / 回路②）制約数・証明生成時間・検証時間
   - Registry のガスコスト（Ganache 実測）
   - エッジ側オーバーヘッド（ハッシュ + 署名 + 登録 POST の時間、見積もりでも可）
@@ -95,7 +95,7 @@ rawCSI(振幅行列) --Poseidon--> C0 (公開・オンチェーン事前登録�
 ## 3. 成果物一覧
 
 ```
-research/phase2_authenticity/
+zkp/experiments/phase2_authenticity/
 ├── COMMITMENT_DESIGN.md
 ├── EDGE_INTERFACE.md
 ├── circuits/                   # csi_preprocess.circom, committed 版証明書回路（ジェネレータ含む）

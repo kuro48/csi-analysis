@@ -18,7 +18,7 @@ ZKP による検証可能性を付与するシステムである。現状の資�
 
 技術スタックは **Python + Circom を主軸**とする。zkVM の実装は削除したが、
 実測した証明時間は「再実行証明が非実用的である」ことの根拠データとして論文で使用する。
-測定記録は `research/zkvm-comparison/results/` に残してあり、破棄しないこと。
+測定記録は `zkp/experiments/zkvm-comparison/results/` に残してあり、破棄しないこと。
 
 ## 2. 研究戦略の全体像
 
@@ -102,7 +102,7 @@ Phase 3: 「継続的に」保証する
 ## 5. スコープ外・凍結事項
 
 - **zkVM（RISC Zero）は実装を削除した**。再開発は行わない。
-  実測証明時間はモチベーションデータとして `research/zkvm-comparison/results/` に保全する。
+  実測証明時間はモチベーションデータとして `zkp/experiments/zkvm-comparison/results/` に保全する。
 - 本番フロー（5-1 / Lomb--Scargle の Circom 証明 / CSIアップロード）は各フェーズで変更しない。
   新機能は別エンドポイント・別回路として追加する。
 - TEE ベースのキャプチャ証明は将来課題として論文で言及するに留める。

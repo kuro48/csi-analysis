@@ -1,0 +1,18 @@
+<!doctype html><html lang="ja"><meta charset="utf-8">
+<title>Lomb–Scargle：入力・振幅・平均除去を公開出力へ</title><style>
+*{box-sizing:border-box} body{margin:0;background:#101923;color:#e6edf3;padding:32px}
+h1{font:600 26px -apple-system,sans-serif;margin:0 0 12px}
+.path{font:16px monospace;color:#91a9c0;margin-bottom:24px}
+.code{font:19px/1.55 Menlo,monospace}
+.line{display:flex;white-space:pre}.number{color:#71869b;display:inline-block;min-width:80px;user-select:none}
+.footer{font:14px -apple-system,sans-serif;color:#91a9c0;margin-top:22px}
+</style><h1>Lomb–Scargle：入力・振幅・平均除去を公開出力へ</h1><div class="path">zkp/experiments/2026-10-26/diagnostics/lomb/diagnostic.circom:362–370</div>
+<div class="code"><div class="line"><span class="number">362</span><span>    // Bind diagnostic public outputs directly to existing constrained stage signals.</span></div>
+<div class="line"><span class="number">363</span><span>    for (var i = 0; i &lt; SAMPLE_COUNT; i++) {</span></div>
+<div class="line"><span class="number">364</span><span>        for (var sc = 0; sc &lt; SUBCARRIERS; sc++) {</span></div>
+<div class="line"><span class="number">365</span><span>            debugSignedI[i][sc] &lt;== signedI[i][sc];</span></div>
+<div class="line"><span class="number">366</span><span>            debugSignedQ[i][sc] &lt;== signedQ[i][sc];</span></div>
+<div class="line"><span class="number">367</span><span>            debugMagnitudeSquared[i][sc] &lt;== magnitudeSquared[i][sc];</span></div>
+<div class="line"><span class="number">368</span><span>            debugCentered[i][sc] &lt;== centered[i][sc];</span></div>
+<div class="line"><span class="number">369</span><span>        }</span></div>
+<div class="line"><span class="number">370</span><span>    }</span></div></div><div class="footer">2026-10-26 実験コード • 元ファイルからの抜粋</div></html>

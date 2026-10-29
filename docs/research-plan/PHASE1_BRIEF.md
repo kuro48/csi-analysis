@@ -13,7 +13,7 @@
 3. 閾値掃引による「正規データ証明成功率 vs 偽造成功率」トレードオフ曲線（図・CSV）。
 4. 対策制約を加えた**硬化版回路のジェネレータ改修案**（差分パッチ or 具体的設計）。
 
-コードは新規ディレクトリ `research/phase1_soundness/` 配下に置き、
+コードは新規ディレクトリ `zkp/experiments/phase1_soundness/` 配下に置き、
 本番フロー（`breathing_pipeline.py` の既存関数・`generate_breathing_certificate_circuit.py`）は
 **このフェーズでは編集しない**（硬化は成果物として提案するに留め、適用は別タスク）。
 
@@ -49,7 +49,7 @@ DFT テーブルは `COS_TABLE[f][t] = round(cos(2π·(0.05 + f·0.01)·t / 5.0)
 
 ### タスク 1-1: 制約チェッカの実装
 
-- `research/phase1_soundness/certificate_checker.py` を新規作成。
+- `zkp/experiments/phase1_soundness/certificate_checker.py` を新規作成。
 - 関数 `check_certificate(vmdInput: list[int], modes: list[list[int]], sel: list[int]) -> dict`
   を実装。回路と**同じ整数演算・同じ COS/SIN 整数テーブル**を使い、
   各制約の成否と `isNormal`、および中間量（errEnergy, sigEnergy, peakPower, totalPower,
@@ -63,7 +63,7 @@ DFT テーブルは `COS_TABLE[f][t] = round(cos(2π·(0.05 + f·0.01)·t / 5.0)
 
 ### タスク 1-2: 攻撃者モデルの定義（ドキュメント）
 
-- `research/phase1_soundness/THREAT_MODEL.md` を作成。以下を明記:
+- `zkp/experiments/phase1_soundness/THREAT_MODEL.md` を作成。以下を明記:
   - 敵の能力: 回路定数を完全に知る証明者。`(vmdInput, modes, sel)` を自由に選べる
     （＝入力真正性なしの現状）。目標は `isNormal=1` の witness を作ること。
   - 2 つの設定を区別:
@@ -76,7 +76,7 @@ DFT テーブルは `COS_TABLE[f][t] = round(cos(2π·(0.05 + f·0.01)·t / 5.0)
 
 ### タスク 1-3: 攻撃探索の実装
 
-- `research/phase1_soundness/attack_search.py`。
+- `zkp/experiments/phase1_soundness/attack_search.py`。
 - **攻撃①（構造的穴の直接利用）**: 異常な目標信号 `s`（例: 頻呼吸 30bpm や無呼吸ノイズ）
   を与え、`modes[0]` に正常帯域の単一正弦（例 12bpm）を微小振幅で置き、
   `modes[1]` に `s − modes[0]` を入れ、残りを 0、`sel=e_0` とする。
@@ -90,18 +90,18 @@ DFT テーブルは `COS_TABLE[f][t] = round(cos(2π·(0.05 + f·0.01)·t / 5.0)
 
 ### タスク 1-4: 閾値較正実験
 
-- `research/phase1_soundness/calibration.py`。
+- `zkp/experiments/phase1_soundness/calibration.py`。
 - 正規データセット（実 `.csi` があれば `run_breathing_pipeline_from_matrix` 経由、
   無ければ合成正常呼吸 8–18bpm）と異常/攻撃データに対し、以下を掃引:
   - `RECON_ERR`（例 0.2〜0.6）
   - `NARROW`（例 0.02〜0.2）
   - **新設**: 選択モードエネルギー下限比 `SEL_ENERGY`（選択モードエネルギー / 入力エネルギー ≥ 閾値）
 - 各設定で「正規データ証明成功率」と「攻撃成功率」を集計し、
-  トレードオフ曲線（CSV + matplotlib PNG）を `research/phase1_soundness/results/` に出力。
+  トレードオフ曲線（CSV + matplotlib PNG）を `zkp/experiments/phase1_soundness/results/` に出力。
 
 ### タスク 1-5: 硬化版回路の設計提案
 
-- `research/phase1_soundness/HARDENING.md`。
+- `zkp/experiments/phase1_soundness/HARDENING.md`。
 - タスク 1-4 で有効だった対策（本命は選択モードエネルギー下限制約）について、
   `generate_breathing_certificate_circuit.py` への具体的な追加制約を Circom 疑似コードで示す。
   例: `selEnergy × SEL_DEN ≥ sigEnergy × SEL_NUM` をハード制約に追加。
@@ -111,7 +111,7 @@ DFT テーブルは `COS_TABLE[f][t] = round(cos(2π·(0.05 + f·0.01)·t / 5.0)
 ## 3. 成果物一覧
 
 ```
-research/phase1_soundness/
+zkp/experiments/phase1_soundness/
 ├── certificate_checker.py      # 回路制約の Python 忠実再実装
 ├── attack_search.py            # 攻撃①②
 ├── calibration.py              # 閾値掃引

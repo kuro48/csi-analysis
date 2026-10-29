@@ -1,0 +1,11 @@
+{
+  "title": "VMD：内部信号と公開出力を制約で接続",
+  "note": "<==で内部計算値と公開値を結び付ける。外部で計算した別の値を公開する実装ではない。",
+  "source": "zkp/experiments/2026-10-26/remeasure_public/vmd/k3_r4/vmd_k3_r4_public.circom",
+  "start": 16513,
+  "end": 16519,
+  "source_sha256": "020ddf39ce2d25ced9be65180f3b0f997a643af677793593d33b9476af1e7d15",
+  "html": "02_vmd_bindings.html",
+  "png": "02_vmd_bindings.png",
+  "png_rendered": true
+}

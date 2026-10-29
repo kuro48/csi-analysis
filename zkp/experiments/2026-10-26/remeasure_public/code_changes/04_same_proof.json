@@ -1,0 +1,11 @@
+{
+  "title": "各実行で生成したproofとpublicを検証・読取",
+  "note": "このrunのproveが書いたpublic.jsonをverifyし、その同じJSONを復号する。",
+  "source": "zkp/experiments/2026-10-26/remeasure_public/lomb/run.py",
+  "start": 329,
+  "end": 346,
+  "source_sha256": "730d66777343918a6c958d147e6dfadb988195c8a22837701df646af3f652cb3",
+  "html": "04_same_proof.html",
+  "png": "04_same_proof.png",
+  "png_rendered": true
+}

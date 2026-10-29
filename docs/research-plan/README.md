@@ -21,11 +21,11 @@ Phase 1（回路硬化）── 前提 ──> Phase 2（真正性チェーン�
 ## エージェントへの共通ルール
 
 - 本番コード（`backend/app/`, `zkp/scripts/`, `zkp/circuits/`, `backend/contracts/`）は
-  各 BRIEF が明示的に許可した範囲以外**編集しない**。研究成果物は `research/<phase>/` に置く。
+  各 BRIEF が明示的に許可した範囲以外**編集しない**。研究成果物は `zkp/experiments/<phase>/` に置く。
 - 本番フロー（`/csi-data/upload` / `/breathing/analyze-verifiable`）は不変。
   新機能は別回路・別エンドポイントとして並存させる。
 - zkVM（RISC Zero）は実装を削除済み。再開発しない。
-  測定記録 `research/zkvm-comparison/results/` は論文の根拠データとして残す。
+  測定記録 `zkp/experiments/zkvm-comparison/results/` は論文の根拠データとして残す。
 - 実データ（`.csi`）が無い場合は合成データで進め、その旨を成果物に明記する。
 
 ## 最初の一手

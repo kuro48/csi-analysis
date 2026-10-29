@@ -76,7 +76,7 @@ npm run setup:preprocess_projection
 ```
 
 コミットメントの正規化仕様と実験方法は
-`research/phase2_authenticity/COMMITMENT_DESIGN.md` を参照。
+`zkp/experiments/phase2_authenticity/COMMITMENT_DESIGN.md` を参照。
 
 ### Lomb--Scargle回路
 
@@ -114,3 +114,11 @@ npm test
 `ZKP_AUTO_COMPILE=true` で起動すると、`backend/entrypoint.sh` が
 回路のコンパイルと Trusted Setup を自動で行う。証明の生成・検証は
 `backend/app/services/zkp_circuit_service.py` とその派生サービスが担当する。
+
+## 実験・証明成果物の保存先
+
+ZKP関連はこの `zkp/` 配下に集約する。実験は `experiments/`、共通回路は `circuits/`、共通実行コードは `scripts/` に保存し、リポジトリ直下の `research/` へ分散させない。
+
+- 最新比較結果: [experiments/2026-10-26/remeasure_public/report.html](experiments/2026-10-26/remeasure_public/report.html)
+- 各証明の公開中間値: [波形ビューア](experiments/2026-10-26/remeasure_public/index.html)
+- 過去の証明・測定JSONに記録された旧パスは生成時点の履歴として保持する。証明・回路・公開値のバイト列は移動で変更しない。

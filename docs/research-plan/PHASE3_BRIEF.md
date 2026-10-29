@@ -30,12 +30,12 @@
 
 ### タスク 3-1: feasibility 実験（最優先・タイムボックス 1〜2 週）
 
-- `research/phase3_folding/feasibility/`。
+- `zkp/experiments/phase3_folding/feasibility/`。
 - Sonobe（Nova/HyperNova, Circom フロントエンド）で、Phase 1 の証明書回路
   （縮小版で可: T を小さく、テーブルを軽く）を 1 ステップ関数として登録し、
   数ステップ折り畳めるか、Solidity 検証器が生成できるかを確認。
 - 固定小数点回路との相性、メモリ/RAM 要件、ビルドの通し方を記録。
-- **判断レポート** `research/phase3_folding/GO_NO_GO.md` を出す:
+- **判断レポート** `zkp/experiments/phase3_folding/GO_NO_GO.md` を出す:
   - Go 条件例: 縮小回路が 10 ステップ以上折り畳め、証明サイズがステップ数に依存せず一定、
     ビルドが再現可能。
   - No-Go なら理由（ツール成熟度・固定小数点非対応・RAM 等）を明記しフォールバックへ。
@@ -60,12 +60,12 @@
 
 - 合成データ（正常呼吸に無呼吸区間・頻呼吸区間を挿入）で「異常ウィンドウ数 ≤ k」の
   検証可能推定が真の挿入頻度とどれだけ一致するかを評価。
-- プライバシー主張（異常時刻の非開示）の説明を `research/phase3_folding/PRIVACY.md` に整理。
+- プライバシー主張（異常時刻の非開示）の説明を `zkp/experiments/phase3_folding/PRIVACY.md` に整理。
 
 ## 3. 成果物一覧
 
 ```
-research/phase3_folding/
+zkp/experiments/phase3_folding/
 ├── feasibility/                # Sonobe 最小実験
 ├── GO_NO_GO.md                 # 判断レポート（最重要・最初の成果物）
 ├── prototype/                  # Go: folding 実装 / No-Go: Merkle 集約実装

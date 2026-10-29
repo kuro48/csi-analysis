@@ -75,7 +75,7 @@ csi-web-platform/
 │   ├── build/                      # コンパイル済み回路 (js/cpp)
 │   ├── keys/                       # 証明鍵・Powers of Tau
 │   └── package.json
-├── research/                        # 研究用の測定記録
+├── zkp/experiments/                 # ZKPの実験・測定記録（zkp配下に集約）
 ├── ganache/                         # 開発用Ethereumノード設定
 ├── nginx/                           # Nginxリバースプロキシ設定
 ├── scripts/                         # 実行スクリプト

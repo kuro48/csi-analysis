@@ -1,0 +1,11 @@
+{
+  "title": "波形データに同じpublicの対応情報を保存",
+  "note": "run・設定・入力・鍵・proof・publicを記録。traceのdecoded_fromも当該publicを指す。",
+  "source": "zkp/experiments/2026-10-26/remeasure_public/lomb/run.py",
+  "start": 377,
+  "end": 401,
+  "source_sha256": "730d66777343918a6c958d147e6dfadb988195c8a22837701df646af3f652cb3",
+  "html": "05_trace_binding.html",
+  "png": "05_trace_binding.png",
+  "png_rendered": true
+}

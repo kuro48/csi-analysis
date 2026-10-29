@@ -61,7 +61,7 @@ class HybridExperimentService:
         self.committed_factory = committed_factory
         self.approx_factory = approx_factory
         self.preprocess_factory = preprocess_factory
-        default_dir = Path(__file__).resolve().parents[3] / "research" / "phase2_authenticity" / "results"
+        default_dir = Path(__file__).resolve().parents[3] / "zkp" / "experiments" / "phase2_authenticity" / "results"
         self.results_dir = Path(results_dir or settings.HYBRID_EXPERIMENT_RESULTS_DIR or default_dir)
 
     async def run(
