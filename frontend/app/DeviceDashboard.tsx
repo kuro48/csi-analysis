@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ResearchAccess } from "./ResearchAccess";
+import { useOperatorToken } from "./operator-access";
 import { AnalysisResultPanel } from "./upload/AnalysisResultPanel";
 import { listMainCSI } from "./upload/api";
 import { GroundTruthBpmEditor } from "./upload/GroundTruthBpmEditor";
@@ -50,16 +52,18 @@ function proofStatusLabel(record: MainCSIResponse): string | null {
 }
 
 export function DeviceDashboard() {
-  const [records, setRecords] = useState<MainCSIResponse[]>([]);
+  const operatorToken = useOperatorToken();
+  const [recordState, setRecordState] = useState<{ token: string; records: MainCSIResponse[] } | null>(null);
+  const records = useMemo(() => recordState?.token === operatorToken ? recordState.records : [], [recordState, operatorToken]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchRecords = useCallback(async (signal?: AbortSignal) => {
     const response = await listMainCSI({ status: "all", pageSize: 20 }, signal);
-    setRecords(response.csi_data);
+    setRecordState({ token: operatorToken, records: response.csi_data });
     setSelectedId((current) => current ?? response.csi_data[0]?.id ?? null);
-  }, []);
+  }, [operatorToken]);
 
   useEffect(() => {
     const abort = new AbortController();
@@ -84,7 +88,7 @@ export function DeviceDashboard() {
       abort.abort();
       clearInterval(timer);
     };
-  }, [fetchRecords]);
+  }, [fetchRecords, operatorToken]);
 
   const selected = useMemo(
     () => records.find((record) => record.id === selectedId) ?? records[0] ?? null,
@@ -118,7 +122,8 @@ export function DeviceDashboard() {
               エッジデバイスのPicoScenes CSIをVMD・Lomb–Scargle処理で解析し、Circomの検証結果を追跡します。
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+            <Link href="/verify" className="inline-flex h-10 items-center justify-center rounded-lg border border-teal-700 bg-white px-4 text-sm font-semibold text-teal-800">オンチェーン検証</Link>
             <Link
               href="/analyze"
               className="inline-flex h-10 items-center justify-center rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800"
@@ -133,6 +138,7 @@ export function DeviceDashboard() {
             </Link>
           </div>
         </header>
+        <ResearchAccess />
 
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="最新20件" value={records.length} digits={0} />
@@ -262,8 +268,11 @@ export function DeviceDashboard() {
                       recordId={selected.id}
                       groundTruthBpm={selected.ground_truth_bpm}
                       onSaved={(updated) =>
-                        setRecords((current) =>
-                          current.map((record) => (record.id === updated.id ? updated : record)),
+                        setRecordState((current) =>
+                          current && current.token === operatorToken ? {
+                            ...current,
+                            records: current.records.map((record) => record.id === updated.id ? updated : record),
+                          } : current,
                         )
                       }
                     />

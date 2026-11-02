@@ -39,7 +39,7 @@ done
 API_PID=$!
 (cd frontend && exec node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3000) > .local/onchain/ui.log 2>&1 &
 UI_PID=$!
-echo "UI: http://127.0.0.1:3000"
+echo "Verification UI: http://127.0.0.1:3000/verify"
 echo "CSI analysis token: .local/onchain/operator-token"
 echo "Disposable test accounts: .local/onchain/chain.log (NEVER fund with real assets)"
 echo "Ctrl-C stops the local stack. Chain state is ephemeral. Research DB screens require a separate DB."

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { UploadSection } from "./UploadSection";
+import { ResearchAccess } from "../ResearchAccess";
 
 export default function UploadPage() {
   return (
@@ -21,6 +22,7 @@ export default function UploadPage() {
           </Link>
         </div>
 
+        <div className="mb-6"><ResearchAccess /></div>
         <UploadSection />
       </div>
     </main>

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { consumeProofHandoff } from "./handoff";
+import { setOperatorToken, useOperatorToken } from "../operator-access";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserProvider, Interface, type Eip1193Provider } from "ethers";
 import { API_BASE } from "../upload/constants";
@@ -118,7 +120,7 @@ export function VerificationConsole() {
   const [bundle, setBundle] = useState<ProofBundle | null>(null);
   const [fileName, setFileName] = useState("");
   const [mode, setMode] = useState<"proof" | "csi">("proof");
-  const [token, setToken] = useState("");
+  const token = useOperatorToken();
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -167,7 +169,19 @@ export function VerificationConsole() {
       } catch {
         /* Storage can be disabled by browser policy. */
       }
-      const shared = new URLSearchParams(window.location.search).get("tx");
+      const params = new URLSearchParams(window.location.search);
+      const imported = params.get("import");
+      if (imported) {
+        try {
+          setBundle(consumeProofHandoff(imported));
+          setFileName("解析結果から引き継いだ証明");
+          setNotice("既存の解析画面から証明を引き継ぎました。公開入力と送信先を確認してください。");
+          // Remove the one-time transfer ID; history receipts remain shareable.
+          window.history.replaceState(null, "", "/verify");
+        } catch (failure) { setError(errorText(failure)); }
+        return;
+      }
+      const shared = params.get("tx");
       if (shared && /^0x[\da-f]{64}$/i.test(shared)) {
         setLookup(shared);
         setTxHash(shared);
@@ -424,8 +438,9 @@ export function VerificationConsole() {
   }
   const pending =
     receipt?.status === "pending" || receipt?.status === "confirming";
-  const matching =
+  const deployedCircuit =
     bundle && chain?.circuits.find((c) => c.name === bundle.circuit);
+  const matching = deployedCircuit && deployedCircuit.publicSignalCount === bundle?.publicSignals.length;
   const explorer = chain?.explorerUrl?.startsWith("https://")
     ? chain.explorerUrl.replace(/\/$/, "")
     : "";
@@ -453,10 +468,11 @@ export function VerificationConsole() {
         </Link>
         <div className={s.workspaceLabel}>WORKSPACE</div>
         <nav aria-label="メインナビゲーション">
-          <Link href="/" className={s.active}>
+          <Link href="/verify" className={s.active}>
             <Glyph />
             検証コンソール<span>01</span>
           </Link>
+          {process.env.NEXT_PUBLIC_APP_MODE !== "public" && <Link href="/research"><Glyph />CSI解析モニター</Link>}
           <a href="#activity">
             <Glyph kind="chain" />
             送信履歴
@@ -622,11 +638,11 @@ export function VerificationConsole() {
                     type="password"
                     autoComplete="off"
                     value={token}
-                    onChange={(e) => setToken(e.target.value)}
+                    onChange={(e) => setOperatorToken(e.target.value)}
                     placeholder="解析権限を持つトークンを入力"
                   />
                   <small>
-                    トークンはこの画面のメモリ内だけで保持します。CSIファイルはサーバーで解析後、一時ファイルを削除します。
+                    トークンはこのタブのメモリ内だけで保持し、解析画面と共有します。CSIファイルはサーバーで解析後、一時ファイルを削除します。
                   </small>
                 </label>
               )}
@@ -684,7 +700,7 @@ export function VerificationConsole() {
                     <code>{bundle.publicSignals.join(", ")}</code>
                   </div>
                   {!matching && (
-                    <p>この回路は接続先にデプロイされていません。</p>
+                    <p>{deployedCircuit ? "公開入力数がデプロイ済み回路と一致しません。解析に使った検証鍵に対応するVerifierが必要です。" : "この回路は接続先にデプロイされていません。対応するVerifierのデプロイが必要です。"}</p>
                   )}
                   <button onClick={() => download(bundle, "csi-proof.json")}>
                     証明JSONを保存 ↓

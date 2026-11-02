@@ -63,7 +63,7 @@ test("local EVM: proof import, tamper rejection, wallet send, receipt and respon
       removeListener: () => {},
     };
   });
-  await page.goto("/");
+  await page.goto("/verify");
   await expect(page.getByText("Local EVM", { exact: true })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
@@ -173,7 +173,7 @@ test("invalid JSON and unavailable chain never display verification success", as
       },
     }),
   );
-  await page.goto("/");
+  await page.goto("/verify");
   await expect(page.getByText("未接続", { exact: true })).toBeVisible();
   await page.getByLabel("証明JSONファイル").setInputFiles({
     name: "invalid.json",

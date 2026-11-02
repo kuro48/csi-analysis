@@ -165,6 +165,8 @@ export interface ProofPerformance {
 }
 
 export interface VerifiableProofResult {
+  proof?: Record<string, unknown>;
+  publicSignals?: string[];
   status: "completed" | "failed";
   isNormal?: boolean;
   isValid?: boolean;

@@ -45,7 +45,7 @@ test("real CSI capture: UI generation to confirmed local EVM receipt", async ({
       removeListener: () => {},
     };
   });
-  await page.goto("/");
+  await page.goto("/verify");
   await expect(page.getByText("Local EVM", { exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: "CSIから証明を生成", exact: true })

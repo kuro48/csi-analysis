@@ -1,5 +1,6 @@
 import { VerificationConsole } from "./verify/VerificationConsole";
+import { DeviceDashboard } from "./DeviceDashboard";
 
 export default function Home() {
-  return <VerificationConsole />;
+  return process.env.NEXT_PUBLIC_APP_MODE === "public" ? <VerificationConsole /> : <DeviceDashboard />;
 }

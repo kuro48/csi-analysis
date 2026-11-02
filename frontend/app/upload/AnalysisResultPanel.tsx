@@ -1,6 +1,9 @@
 "use client";
 
 import { API_BASE } from "./constants";
+import { useState } from "react";
+import { operatorFetch } from "../operator-access";
+import { VerifyAnalysisProof } from "../verify/VerifyAnalysisProof";
 import { MetricCard } from "./MetricCard";
 import { SignalChart } from "./SignalChart";
 import { ProofPerformanceTable } from "./ProofPerformanceTable";
@@ -94,6 +97,18 @@ function CircomBenchmarkSection({
   proofs: ProcessedData["proofs"];
   csiDataId?: string;
 }) {
+  const [downloadError, setDownloadError] = useState("");
+  async function downloadStoredBenchmark() {
+    setDownloadError("");
+    try {
+      const response = await operatorFetch(`${API_BASE}/api/v2/csi-data/${csiDataId}/circom-benchmarks.csv`);
+      if (!response.ok) throw new Error("CSVの取得に失敗しました。アクセス権限を確認してください。");
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = "circom_benchmarks.csv"; anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) { setDownloadError((error as Error).message); }
+  }
   const candidates = [
     { key: "preprocess_projection", label: "前処理PCA射影 + Circom", proof: proofs?.preprocess_projection },
     { key: "python_circom", label: "VMD処理 + Circom", proof: proofs?.python_circom },
@@ -119,13 +134,13 @@ function CircomBenchmarkSection({
           </p>
         </div>
         {csiDataId ? (
-          <a
-            href={`${API_BASE}/api/v2/csi-data/${csiDataId}/circom-benchmarks.csv`}
-            download
+          <button
+            type="button"
+            onClick={() => void downloadStoredBenchmark()}
             className="inline-flex h-9 w-fit items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
           >
             CSVをダウンロード
-          </a>
+          </button>
         ) : (
           <button
             type="button"
@@ -136,6 +151,7 @@ function CircomBenchmarkSection({
           </button>
         )}
       </div>
+      {downloadError && <p role="alert" className="px-4 py-2 text-xs text-red-700">{downloadError}</p>}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] text-left text-xs">
           <thead className="bg-white text-neutral-500">
@@ -521,6 +537,7 @@ function ProofCard({
           {proof.error ?? proof.error_type ?? "証明生成に失敗しました"}
         </p>
       )}
+      {proof && <VerifyAnalysisProof result={proof} />}
     </article>
   );
 }

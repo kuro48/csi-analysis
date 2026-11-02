@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AnalyzeSection } from "./AnalyzeSection";
+import { ResearchAccess } from "../ResearchAccess";
 
 export default function AnalyzePage() {
   return (
@@ -21,6 +22,7 @@ export default function AnalyzePage() {
           </Link>
         </div>
 
+        <div className="mb-6"><ResearchAccess /></div>
         <AnalyzeSection />
       </div>
     </main>

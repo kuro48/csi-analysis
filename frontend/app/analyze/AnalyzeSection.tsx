@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { AnalysisResultPanel } from "../upload/AnalysisResultPanel";
 import { API_BASE } from "../upload/constants";
+import { operatorFetch } from "../operator-access";
 import type { ProcessedData } from "../upload/types";
 
 async function requestAnalysis(file: File, signal: AbortSignal): Promise<ProcessedData> {
   const form = new FormData();
   form.append("file", file);
 
-  const response = await fetch(`${API_BASE}/api/v2/breathing/analyze-verifiable`, {
+  const response = await operatorFetch(`${API_BASE}/api/v2/breathing/analyze-verifiable`, {
     method: "POST",
     body: form,
     signal,

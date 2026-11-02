@@ -1,10 +1,11 @@
 import { API_BASE } from "./constants";
+import { operatorFetch } from "../operator-access";
 import type { CSIDataListResponse, CSIStatus, MainCSIResponse } from "./types";
 
 const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB — 100秒タイムアウト対策
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
+  const res = await operatorFetch(url, init);
   if (!res.ok) {
     let detail = res.statusText;
     try {
