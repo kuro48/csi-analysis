@@ -8,10 +8,12 @@ import time
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Response, UploadFile
 
 from app.core.config import settings
+from app.services.fabric_observation import FabricObservation
 from app.services.observation_chain import ObservationChain
 from app.services.observation_store import ObservationStore, QueueFull
 from app.services.onchain_service import ChainUnavailable
@@ -64,6 +66,7 @@ async def capture(
     observed_at: datetime = Form(...),
     duration_seconds: int = Form(..., ge=1, le=3600),
     file: UploadFile = File(...),
+    ledger: Literal["evm", "fabric"] = Form("evm"),
     db=Depends(store),
 ):
     if observed_at.tzinfo is None:
@@ -92,7 +95,9 @@ async def capture(
         if not size:
             raise HTTPException(422, "CSIファイルが空です")
         try:
-            job = db.enqueue(str(capture_id), str(patient_id), timestamp, duration_seconds, digest.hexdigest(), path)
+            job = db.enqueue(
+                str(capture_id), str(patient_id), timestamp, duration_seconds, digest.hexdigest(), path, ledger
+            )
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
         except QueueFull as exc:
@@ -135,7 +140,7 @@ def verify(capture_id: UUID, response: Response, db=Depends(store)):
         response.status_code = 202
         return {"status": job["status"]}  # No result, especially no default false.
     try:
-        result = ObservationChain().result(job)
+        result = (FabricObservation() if job.get("ledger") == "fabric" else ObservationChain()).result(job)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except ChainUnavailable as exc:

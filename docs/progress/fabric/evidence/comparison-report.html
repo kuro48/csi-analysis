@@ -1,0 +1,328 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CSI 証明基盤の比較</title>
+ <style>*{box-sizing:border-box}body{margin:0;background:#f4f7f5;color:#193e34;font:15px/1.8 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:44px 24px}header{display:flex;justify-content:space-between;border-bottom:1px solid #ceddd4;padding-bottom:18px}.tag{font-size:12px;border:1px solid #ccdcd2;border-radius:20px;padding:3px 12px}h1{font-size:36px;line-height:1.4;letter-spacing:-1px;margin:35px 0 14px}h2{font-size:18px;margin:0 0 18px}.muted{color:#5c7167}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:28px 0}.card,section{background:white;border:1px solid #d8e4dd;border-radius:16px;padding:24px}strong.big{display:block;font-size:32px;line-height:1.6}.bar{background:#e9f0eb;height:10px;border-radius:5px;margin-top:18px}.bar span{display:block;background:#33765c;height:10px;border-radius:5px}section{margin:20px 0}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap}th,td{text-align:left;padding:12px;border-bottom:1px solid #e5ece7;font-size:13px}th{color:#536c5e}small{font-size:12px}.note{background:#fff9e9;border:1px solid #e8ddb8;border-radius:12px;padding:16px;color:#6a5724}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}summary{cursor:pointer}footer{overflow-wrap:anywhere;font-size:12px;color:#60756a}@media(max-width:600px){h1{font-size:28px}main{padding:24px 16px}}</style>
+ <main><header><b>CSI Care <span class="muted">/ Research</span></b><span class="tag">LEDGER BENCHMARK</span></header>
+ <h1>証明の記録と検証を、<br>同じ条件で比較する。</h1><p class="muted">同一のGroth16証明 · 交互の実行順序 · ウォームアップ 1 回 / 本計測 5 回</p>
+ <div class="note">Sepoliaは未計測です。下記のEVM値はローカル環境の実測であり、Sepoliaの性能や料金を表すものではありません。</div>
+ <div class="grid"><div class="card"><h2>Hyperledger Fabric</h2><small class="muted">記録の確定待ちを含む中央値</small><strong class="big">2,036.1 <small>ms</small></strong><small>成功 5 / 5　失敗 0</small><div class="bar"><span style="width:100%"></span></div></div><div class="card"><h2>ローカル EVM</h2><small class="muted">記録の確定待ちを含む中央値</small><strong class="big">71.4 <small>ms</small></strong><small>成功 5 / 5　失敗 0</small><div class="bar"><span style="width:3.5084674121934403%"></span></div></div></div>
+ <section><h2>処理時間</h2><p class="muted">単位 ms / 中央値（p95）。証明生成時間は同じ試料の計測値を両列で共有します。</p><div class="scroll"><table><thead><tr><th>工程</th><th>Hyperledger Fabric</th><th>ローカル EVM</th></tr></thead><tbody><tr><td>証明生成処理</td><td>2,724.4 (2,802.7)</td><td>2,724.4 (2,802.7)</td></tr><tr><td>記録 → 確定条件</td><td>2,036.1 (2,039.5)</td><td>71.4 (78)</td></tr><tr><td>記録後の検証・結果取得</td><td>28.5 (31.3)</td><td>593.7 (615.5)</td></tr><tr><td>上記3工程の合計</td><td>4,787.4 (4,870.7)</td><td>3,387.6 (3,476.5)</td></tr></tbody></table></div></section>
+ <section><h2>コストと比較条件</h2><div class="scroll"><table><tr><th>基盤</th><th>記録gas（中央値）</th><th>全本計測の記録手数料合計</th></tr><tr><td>Hyperledger Fabric</td><td>gasなし</td><td>ネイティブ通貨の取引手数料なし</td></tr><tr><td>ローカル EVM</td><td>301,298</td><td>1558118298204530 wei（テスト通貨）</td></tr></table></div><p class="muted">Fabricのサーバー・証明書管理・運用費は別途必要です。両基盤とも照会は読み取り実行で、検証トランザクションの送信手数料は発生しません。</p><p>運用費：単価・想定処理量が未指定のため未算出。総コストが無料という意味ではありません。</p></section>
+ <section><h2>測定の範囲</h2><p>入力：captured-csi-debug。デバッグ条件での動作確認です。 CSI取得時間・APIキュー待ち・初期接続時間は含みません。</p><p>証明生成の範囲：existing Python service including witness, prove, local verification and subprocess overhead<br>CSI前処理：436.2 ms（参考値、合計には含めません）</p><p>Fabricは2組織・各1 peer・1 ordererの同一ホスト上のテスト構成です。実運用の複数拠点構成との性能差は別途測定が必要です。</p><details><summary>構成・確認条件を表示</summary><pre>{
+  &quot;fabric&quot;: {
+    &quot;deploymentId&quot;: &quot;0x8ec2540a373feb5fb999a945b7abaa595acf603d0dc4e5b5cdb00cd53918ad75&quot;,
+    &quot;topology&quot;: {
+      &quot;peerOrganizations&quot;: 2,
+      &quot;peers&quot;: 2,
+      &quot;orderers&quot;: 1,
+      &quot;consensus&quot;: &quot;Raft&quot;,
+      &quot;endorsementPolicy&quot;: &quot;AND(&#39;Org1MSP.peer&#39;,&#39;Org2MSP.peer&#39;)&quot;,
+      &quot;fabricVersion&quot;: &quot;2.5.16&quot;,
+      &quot;singleHost&quot;: true
+    },
+    &quot;verification&quot;: &quot;Gateway evaluateTransaction (single peer)&quot;,
+    &quot;finality&quot;: &quot;VALID commit status&quot;,
+    &quot;nativeTransactionFee&quot;: &quot;none&quot;
+  },
+  &quot;local-evm&quot;: {
+    &quot;chainId&quot;: 31337,
+    &quot;registryAddress&quot;: &quot;0xF2a55B78C2943a3C11084Cffb44c7f0055086827&quot;,
+    &quot;confirmations&quot;: 1,
+    &quot;verification&quot;: &quot;eth_call at receipt block&quot;,
+    &quot;finality&quot;: &quot;receipt + 1 confirmation(s), not Ethereum finalized&quot;
+  }
+}</pre></details><details><summary>全試行のデータを表示</summary><pre>[
+  {
+    &quot;target&quot;: &quot;fabric&quot;,
+    &quot;trial&quot;: 0,
+    &quot;warmup&quot;: true,
+    &quot;fixtureIndex&quot;: 0,
+    &quot;proofHash&quot;: &quot;8b9e66a1f0571292cf2bdab5150ed00681c8989446a98fe424c74e964b23cdb7&quot;,
+    &quot;proofGenerationMs&quot;: 4339.301396976225,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: null,
+      &quot;feeWei&quot;: null,
+      &quot;nativeTransactionFee&quot;: 0,
+      &quot;unit&quot;: null,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;endorseMs&quot;: 25.935967000000005,
+    &quot;submitMs&quot;: 6.648579000000041,
+    &quot;commitWaitMs&quot;: 2014.7980049999996,
+    &quot;recordCommitMs&quot;: 2047.3825509999997,
+    &quot;transactionId&quot;: &quot;b1ea009114a2c40464dded38eaf6cb096a83c8812537faceb5782669d432919a&quot;,
+    &quot;blockNumber&quot;: &quot;31&quot;,
+    &quot;verifyReadMs&quot;: 27.65361299999995,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 6414.337560976224
+  },
+  {
+    &quot;target&quot;: &quot;local-evm&quot;,
+    &quot;trial&quot;: 0,
+    &quot;warmup&quot;: true,
+    &quot;fixtureIndex&quot;: 0,
+    &quot;proofHash&quot;: &quot;8b9e66a1f0571292cf2bdab5150ed00681c8989446a98fe424c74e964b23cdb7&quot;,
+    &quot;proofGenerationMs&quot;: 4339.301396976225,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: &quot;301298&quot;,
+      &quot;effectiveGasPriceWei&quot;: &quot;1049934824&quot;,
+      &quot;feeWei&quot;: &quot;316343262601552&quot;,
+      &quot;unit&quot;: &quot;local test ETH&quot;,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;transactionId&quot;: &quot;0x84db3fc7d33d1aa45b6ca59adff784b91cc0bdad63e6ae11c35b980e23602764&quot;,
+    &quot;recordCommitMs&quot;: 82.08059099999991,
+    &quot;sendMs&quot;: 69.4405700000002,
+    &quot;receiptWaitMs&quot;: 12.646696999999676,
+    &quot;blockNumber&quot;: 23,
+    &quot;verifyReadMs&quot;: 589.2211310000002,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 5010.603118976225
+  },
+  {
+    &quot;target&quot;: &quot;local-evm&quot;,
+    &quot;trial&quot;: 1,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 1,
+    &quot;proofHash&quot;: &quot;4db7883e0668b774a8db92b99844b2ce56a863938c70475be83fc055430bd19f&quot;,
+    &quot;proofGenerationMs&quot;: 2802.723181899637,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: &quot;301262&quot;,
+      &quot;effectiveGasPriceWei&quot;: &quot;1043818349&quot;,
+      &quot;feeWei&quot;: &quot;314462803456438&quot;,
+      &quot;unit&quot;: &quot;local test ETH&quot;,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;transactionId&quot;: &quot;0x564d16ab91ab6b8a842cb1f3bbee8f87e4a96ef8052c093e7e41e3411b383952&quot;,
+    &quot;recordCommitMs&quot;: 77.96274399999993,
+    &quot;sendMs&quot;: 63.377330000000256,
+    &quot;receiptWaitMs&quot;: 14.58823399999983,
+    &quot;blockNumber&quot;: 24,
+    &quot;verifyReadMs&quot;: 595.7877590000003,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 3476.473684899637
+  },
+  {
+    &quot;target&quot;: &quot;fabric&quot;,
+    &quot;trial&quot;: 1,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 1,
+    &quot;proofHash&quot;: &quot;4db7883e0668b774a8db92b99844b2ce56a863938c70475be83fc055430bd19f&quot;,
+    &quot;proofGenerationMs&quot;: 2802.723181899637,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: null,
+      &quot;feeWei&quot;: null,
+      &quot;nativeTransactionFee&quot;: 0,
+      &quot;unit&quot;: null,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;endorseMs&quot;: 21.886697999999342,
+    &quot;submitMs&quot;: 4.3674210000008316,
+    &quot;commitWaitMs&quot;: 2013.2176649999992,
+    &quot;recordCommitMs&quot;: 2039.4717839999994,
+    &quot;transactionId&quot;: &quot;7e202976ccaf519f02637e1cfccc290c34d9c32987e403e9d6290574d2c8481f&quot;,
+    &quot;blockNumber&quot;: &quot;32&quot;,
+    &quot;verifyReadMs&quot;: 28.518244000000777,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 4870.713209899637
+  },
+  {
+    &quot;target&quot;: &quot;fabric&quot;,
+    &quot;trial&quot;: 2,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 2,
+    &quot;proofHash&quot;: &quot;544eff416244aa981db9152b5d240947f4ec52a323f39b6eea130848d70bd978&quot;,
+    &quot;proofGenerationMs&quot;: 2724.4090150343254,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: null,
+      &quot;feeWei&quot;: null,
+      &quot;nativeTransactionFee&quot;: 0,
+      &quot;unit&quot;: null,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;endorseMs&quot;: 19.7677020000001,
+    &quot;submitMs&quot;: 4.078378999999586,
+    &quot;commitWaitMs&quot;: 2010.7635240000009,
+    &quot;recordCommitMs&quot;: 2034.6096050000006,
+    &quot;transactionId&quot;: &quot;1392879d061ec6a206d53351ceccfa3016618a1651268177b2a516a63e6e1c96&quot;,
+    &quot;blockNumber&quot;: &quot;33&quot;,
+    &quot;verifyReadMs&quot;: 28.429478000000017,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 4787.448098034326
+  },
+  {
+    &quot;target&quot;: &quot;local-evm&quot;,
+    &quot;trial&quot;: 2,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 2,
+    &quot;proofHash&quot;: &quot;544eff416244aa981db9152b5d240947f4ec52a323f39b6eea130848d70bd978&quot;,
+    &quot;proofGenerationMs&quot;: 2724.4090150343254,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: &quot;301298&quot;,
+      &quot;effectiveGasPriceWei&quot;: &quot;1038451063&quot;,
+      &quot;feeWei&quot;: &quot;312883228379774&quot;,
+      &quot;unit&quot;: &quot;local test ETH&quot;,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;transactionId&quot;: &quot;0x270dad3bbaba2534c36f74067ef59ca8455918b5e737e749cc1f9cdc137ad048&quot;,
+    &quot;recordCommitMs&quot;: 69.50538500000039,
+    &quot;sendMs&quot;: 57.884562999999616,
+    &quot;receiptWaitMs&quot;: 11.622002000000066,
+    &quot;blockNumber&quot;: 25,
+    &quot;verifyReadMs&quot;: 593.7040539999998,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 3387.6184540343256
+  },
+  {
+    &quot;target&quot;: &quot;local-evm&quot;,
+    &quot;trial&quot;: 3,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 3,
+    &quot;proofHash&quot;: &quot;ef55fca56b35073228cb6893b9d584ee4f00ca451dd12095eaaef540b98971b0&quot;,
+    &quot;proofGenerationMs&quot;: 2762.0315589010715,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: &quot;301310&quot;,
+      &quot;effectiveGasPriceWei&quot;: &quot;1033741224&quot;,
+      &quot;feeWei&quot;: &quot;311476568203440&quot;,
+      &quot;unit&quot;: &quot;local test ETH&quot;,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;transactionId&quot;: &quot;0x826d30d505b1f5401c002b44db00e1832b3b83879464adbc13bd23cc8f7383c6&quot;,
+    &quot;recordCommitMs&quot;: 66.28261999999995,
+    &quot;sendMs&quot;: 54.79013699999996,
+    &quot;receiptWaitMs&quot;: 11.493946000000506,
+    &quot;blockNumber&quot;: 26,
+    &quot;verifyReadMs&quot;: 587.2224230000011,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 3415.5366019010726
+  },
+  {
+    &quot;target&quot;: &quot;fabric&quot;,
+    &quot;trial&quot;: 3,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 3,
+    &quot;proofHash&quot;: &quot;ef55fca56b35073228cb6893b9d584ee4f00ca451dd12095eaaef540b98971b0&quot;,
+    &quot;proofGenerationMs&quot;: 2762.0315589010715,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: null,
+      &quot;feeWei&quot;: null,
+      &quot;nativeTransactionFee&quot;: 0,
+      &quot;unit&quot;: null,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;endorseMs&quot;: 18.42770399999972,
+    &quot;submitMs&quot;: 3.8881229999988136,
+    &quot;commitWaitMs&quot;: 2013.2373430000007,
+    &quot;recordCommitMs&quot;: 2035.5531699999992,
+    &quot;transactionId&quot;: &quot;a532b76bade08ff4191418bfb553f7162d2e140ccaf0d67e8bcfc81c6a99aac3&quot;,
+    &quot;blockNumber&quot;: &quot;34&quot;,
+    &quot;verifyReadMs&quot;: 28.852335999999923,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 4826.437064901071
+  },
+  {
+    &quot;target&quot;: &quot;fabric&quot;,
+    &quot;trial&quot;: 4,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 4,
+    &quot;proofHash&quot;: &quot;6ff20d1afaa014a30d47bc73d82dda5ea2b226888504e537da3099c16cd9076d&quot;,
+    &quot;proofGenerationMs&quot;: 2705.156150041148,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: null,
+      &quot;feeWei&quot;: null,
+      &quot;nativeTransactionFee&quot;: 0,
+      &quot;unit&quot;: null,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;endorseMs&quot;: 19.571121999999377,
+    &quot;submitMs&quot;: 4.190705999999409,
+    &quot;commitWaitMs&quot;: 2012.3430180000014,
+    &quot;recordCommitMs&quot;: 2036.1048460000002,
+    &quot;transactionId&quot;: &quot;ddbe8a608cdde6e937d76d33fac8f68a00a0ad0051025d6c0c281a88533d468c&quot;,
+    &quot;blockNumber&quot;: &quot;35&quot;,
+    &quot;verifyReadMs&quot;: 31.349398000000292,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 4772.6103940411485
+  },
+  {
+    &quot;target&quot;: &quot;local-evm&quot;,
+    &quot;trial&quot;: 4,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 4,
+    &quot;proofHash&quot;: &quot;6ff20d1afaa014a30d47bc73d82dda5ea2b226888504e537da3099c16cd9076d&quot;,
+    &quot;proofGenerationMs&quot;: 2705.156150041148,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: &quot;301250&quot;,
+      &quot;effectiveGasPriceWei&quot;: &quot;1029608293&quot;,
+      &quot;feeWei&quot;: &quot;310169498266250&quot;,
+      &quot;unit&quot;: &quot;local test ETH&quot;,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;transactionId&quot;: &quot;0x3f59af9d6721425d02bfa998e6475c7c9740fb32170582e51fcfbfb8c8ddc5c3&quot;,
+    &quot;recordCommitMs&quot;: 71.6810000000005,
+    &quot;sendMs&quot;: 59.12415399999918,
+    &quot;receiptWaitMs&quot;: 12.561863000000812,
+    &quot;blockNumber&quot;: 27,
+    &quot;verifyReadMs&quot;: 587.3351030000013,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 3364.17225304115
+  },
+  {
+    &quot;target&quot;: &quot;local-evm&quot;,
+    &quot;trial&quot;: 5,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 5,
+    &quot;proofHash&quot;: &quot;de5be2af4a1396ad682b50f90706cdbb58fba5bf5fab74f68700fb95e809ecdc&quot;,
+    &quot;proofGenerationMs&quot;: 2699.1776360664517,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: &quot;301298&quot;,
+      &quot;effectiveGasPriceWei&quot;: &quot;1025981586&quot;,
+      &quot;feeWei&quot;: &quot;309126199898628&quot;,
+      &quot;unit&quot;: &quot;local test ETH&quot;,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;transactionId&quot;: &quot;0x42f51c3ba598f33e8adc9ded3fcc8e0f997e033d2cc14bf3d0ffe0ce7a7b1d74&quot;,
+    &quot;recordCommitMs&quot;: 71.43607500000144,
+    &quot;sendMs&quot;: 58.16624700000102,
+    &quot;receiptWaitMs&quot;: 13.271324999999706,
+    &quot;blockNumber&quot;: 28,
+    &quot;verifyReadMs&quot;: 615.5352809999986,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 3386.1489920664517
+  },
+  {
+    &quot;target&quot;: &quot;fabric&quot;,
+    &quot;trial&quot;: 5,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 5,
+    &quot;proofHash&quot;: &quot;de5be2af4a1396ad682b50f90706cdbb58fba5bf5fab74f68700fb95e809ecdc&quot;,
+    &quot;proofGenerationMs&quot;: 2699.1776360664517,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: null,
+      &quot;feeWei&quot;: null,
+      &quot;nativeTransactionFee&quot;: 0,
+      &quot;unit&quot;: null,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;endorseMs&quot;: 19.31006200000047,
+    &quot;submitMs&quot;: 4.094778999999107,
+    &quot;commitWaitMs&quot;: 2015.172983999999,
+    &quot;recordCommitMs&quot;: 2038.5778249999985,
+    &quot;transactionId&quot;: &quot;f2e17835a47c603d1de86512211bc5fc66660eb1be723bd224723e87579fff4f&quot;,
+    &quot;blockNumber&quot;: &quot;36&quot;,
+    &quot;verifyReadMs&quot;: 25.652107999998407,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 4763.407569066449
+  }
+]</pre></details></section>
+ <footer>実行ID 0c0baccf-12a7-4145-86b8-f1b0d8a0889b<br>2026-11-02T05:07:01.683Z<br>検証鍵 0x49fc0f46c08b2a35d64b6a7df60665acae7bd016bf17c6a122e21ea717c3f104</footer></main></html>

@@ -1,0 +1,16 @@
+{
+  "targets": ["fabric", "sepolia"],
+  "fixtures": ".local/fabric/csi-fixtures.json",
+  "fabricGateway": ".local/fabric/gateway.json",
+  "output": ".local/fabric/results-sepolia",
+  "trials": 5,
+  "warmup": 1,
+  "evm": {
+    "manifest": "backend/contracts/build/onchain/observations-11155111.json",
+    "recorderKeyFile": ".local/sepolia/recorder.key",
+    "rpcEnv": "ETHEREUM_RPC_URL",
+    "confirmations": 2,
+    "timeoutMs": 180000,
+    "maxTxWei": "10000000000000000"
+  }
+}

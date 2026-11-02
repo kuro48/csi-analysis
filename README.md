@@ -5,6 +5,8 @@ Wi-Fi CSI（Channel State Information）を活用した非接触呼吸監視シ�
 公開用の **CSI Proof** コンソールを追加しました。CSI解析・Groth16証明生成・ウォレット送信・Solidityによるオンチェーン検証・検証記録の共有に対応します。
 [起動・公開運用の手順](docs/ONCHAIN_VERIFICATION.md) と [進捗報告・画面スクリーンショット・検証ログ](docs/progress/onchain/README.md) を参照してください。通常のComposeは開発用です。公開には `docker-compose.public.yml` を使用します。
 
+患者計測には、[CSI収集→証明記録→照会時の検証](docs/PATIENT_OBSERVATIONS.md) を利用できます。既存WebUIからHyperledger Fabricも選択可能です。[Fabricの起動・Sepoliaとの比較手順](docs/FABRIC_COMPARISON.md) と [今回の差分・実測結果・スクリーンショット](docs/progress/fabric/README.md) を参照してください。Sepoliaの実測値はまだなく、保存済みの比較結果はローカルFabricとローカルEVMです。
+
 ## システム概要
 
 - **Frontend**: React + Next.js + TypeScript

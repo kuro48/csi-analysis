@@ -37,6 +37,10 @@ class ObservationStore:
                 CREATE INDEX IF NOT EXISTS patient_time ON captures(patient_id, observed_at);
             """
             )
+            db.execute("BEGIN IMMEDIATE")
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(captures)")}
+            if "ledger" not in columns:
+                db.execute("ALTER TABLE captures ADD COLUMN ledger TEXT NOT NULL DEFAULT 'evm'")
         os.chmod(self.path, 0o600)
 
     @contextmanager
@@ -59,7 +63,10 @@ class ObservationStore:
         patient_id = str(uuid4())
         with self.connect() as db:
             # No names/DOB/medical record numbers are accepted by the public catalog.
-            db.execute("INSERT INTO patients VALUES (?, ?, ?)", (patient_id, "患者 " + patient_id[:8], int(time.time())))
+            db.execute(
+                "INSERT INTO patients VALUES (?, ?, ?)",
+                (patient_id, "患者 " + patient_id[:8], int(time.time())),
+            )
         return {"id": patient_id, "label": "患者 " + patient_id[:8]}
 
     def patient_exists(self, patient_id):
@@ -71,7 +78,18 @@ class ObservationStore:
             row = db.execute("SELECT * FROM captures WHERE id=?", (capture_id,)).fetchone()
             return dict(row) if row else None
 
-    def enqueue(self, capture_id, patient_id, observed_at, duration, digest, raw_path):
+    def enqueue(
+        self,
+        capture_id,
+        patient_id,
+        observed_at,
+        duration,
+        digest,
+        raw_path,
+        ledger="evm",
+    ):
+        if ledger not in ("evm", "fabric"):
+            raise ValueError("Unsupported ledger")
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             existing = db.execute("SELECT 1 FROM captures WHERE id=?", (capture_id,)).fetchone()
@@ -81,16 +99,32 @@ class ObservationStore:
             if not existing and count >= settings.OBSERVATION_MAX_PENDING:
                 raise QueueFull("収集キューが満杯です。後で同じ収集IDで再送してください")
             db.execute(
-                "INSERT OR IGNORE INTO captures (id,patient_id,observed_at,duration,digest,raw_path,created_at) "
-                "VALUES (?,?,?,?,?,?,?)",
-                (capture_id, patient_id, observed_at, duration, digest, str(raw_path), int(time.time())),
+                "INSERT OR IGNORE INTO captures (id,patient_id,observed_at,duration,digest,raw_path,created_at,ledger) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    capture_id,
+                    patient_id,
+                    observed_at,
+                    duration,
+                    digest,
+                    str(raw_path),
+                    int(time.time()),
+                    ledger,
+                ),
             )
             row = dict(db.execute("SELECT * FROM captures WHERE id=?", (capture_id,)).fetchone())
-            if (row["patient_id"], row["observed_at"], row["duration"], row["digest"]) != (
+            if (
+                row["patient_id"],
+                row["observed_at"],
+                row["duration"],
+                row["digest"],
+                row["ledger"],
+            ) != (
                 patient_id,
                 observed_at,
                 duration,
                 digest,
+                ledger,
             ):
                 raise ValueError("同じ収集IDに異なるデータが指定されています")
             return row
@@ -100,7 +134,7 @@ class ObservationStore:
             return [
                 dict(row)
                 for row in db.execute(
-                    "SELECT id,patient_id,observed_at,duration,status FROM captures WHERE patient_id=? "
+                    "SELECT id,patient_id,observed_at,duration,status,ledger FROM captures WHERE patient_id=? "
                     "AND observed_at>=? AND observed_at<? ORDER BY observed_at DESC, id LIMIT 2000",
                     (patient_id, start_at, end_at),
                 )
@@ -151,11 +185,17 @@ class ObservationStore:
     def expire_raw(self):
         cutoff = int(time.time()) - settings.OBSERVATION_RAW_RETENTION_HOURS * 3600
         with self.connect() as db:
-            rows = db.execute("SELECT id,raw_path,bundle,status FROM captures WHERE created_at<?", (cutoff,)).fetchall()
+            rows = db.execute(
+                "SELECT id,raw_path,bundle,status FROM captures WHERE created_at<?",
+                (cutoff,),
+            ).fetchall()
             for row in rows:
                 Path(row["raw_path"]).unlink(missing_ok=True)
                 if row["bundle"] is None and row["status"] in ("queued", "processing"):
-                    db.execute("UPDATE captures SET status='failed',error='raw_expired' WHERE id=?", (row["id"],))
+                    db.execute(
+                        "UPDATE captures SET status='failed',error='raw_expired' WHERE id=?",
+                        (row["id"],),
+                    )
         # Covers a process crash after upload, before queue commit.
         for path in self.raw.glob("*.csi"):
             if path.stat().st_mtime < cutoff:

@@ -74,6 +74,10 @@ def load_account(chain):
 
 
 def process_job(db, job):
+    if job.get("ledger", "evm") == "fabric":
+        from app.services.fabric_observation import process_fabric_job
+
+        return process_fabric_job(db, job)
     chain = ObservationChain()
     account = load_account(chain)
     m = chain.manifest

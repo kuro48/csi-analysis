@@ -1,0 +1,26 @@
+{
+  "kind": "real-fabric-network-integration",
+  "deploymentId": "0x8ec2540a373feb5fb999a945b7abaa595acf603d0dc4e5b5cdb00cd53918ad75",
+  "checks": [
+    {
+      "isNormal": true,
+      "transactionId": "73d4e52e50b4eca07b989d70e8edeaa4b189b0779aa9a973e17e8316db3226bd",
+      "validCommit": true,
+      "readerIsOrg2": true,
+      "tamperedRejected": true,
+      "unauthorizedWriterRejected": true,
+      "idempotency": true,
+      "replayRejected": true
+    },
+    {
+      "isNormal": false,
+      "transactionId": "6f26b31977a6d706b71d529d8e19846ed311c6628c5bddadb074af4fc20ad726",
+      "validCommit": true,
+      "readerIsOrg2": true,
+      "tamperedRejected": true,
+      "unauthorizedWriterRejected": true,
+      "idempotency": true,
+      "replayRejected": true
+    }
+  ]
+}

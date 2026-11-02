@@ -1,0 +1,16 @@
+{
+  "kind": "real-browser-csi-capture-to-fabric",
+  "patient": "726eb0d6-0706-455d-a50d-4a8cc7f24425",
+  "capture": "3b9094a7-f268-44fe-99bf-482057825ea0",
+  "result": {
+    "status": "verified",
+    "isNormal": false,
+    "patientId": "726eb0d6-0706-455d-a50d-4a8cc7f24425",
+    "observedAt": 1793596347,
+    "durationSeconds": 60,
+    "transactionHash": "f01cd9cbd0adb3b0b60a9600f1bd6680e3fb3ff301edcd4427ea5ce957320838",
+    "ledger": "fabric",
+    "networkName": "Fabric local consortium",
+    "debugInput": true
+  }
+}

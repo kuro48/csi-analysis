@@ -1,0 +1,14 @@
+{
+  "inputKind": "captured-csi-debug",
+  "result": {
+    "status": "verified",
+    "isNormal": false,
+    "patientId": "deeddad8-3242-45f1-8948-736e396b2a35",
+    "observedAt": 1793595864,
+    "durationSeconds": 60,
+    "transactionHash": "334fd264c191859b44bd08e814bf1524ca8a94e6c401f76d9cf8bc008c5f98ee",
+    "ledger": "fabric",
+    "networkName": "Fabric local consortium",
+    "debugInput": true
+  }
+}

@@ -38,6 +38,10 @@ class Settings:
     OBSERVATION_MAX_PENDING: int = max(1, int(os.getenv("OBSERVATION_MAX_PENDING", "100")))
     ONCHAIN_CONFIRMATIONS: int = max(1, int(os.getenv("ONCHAIN_CONFIRMATIONS", "2")))
     PUBLIC_MODE: bool = os.getenv("PUBLIC_MODE", "false").lower() == "true"
+    FABRIC_OBSERVATION_MANIFEST: str = os.getenv("FABRIC_OBSERVATION_MANIFEST", "")
+    FABRIC_READER_URL: str = os.getenv("FABRIC_READER_URL", "http://127.0.0.1:8801")
+    FABRIC_WRITER_URL: str = os.getenv("FABRIC_WRITER_URL", "http://127.0.0.1:8802")
+    FABRIC_READER_TOKEN: str = os.getenv("FABRIC_READER_TOKEN", "")
     OPERATOR_API_TOKEN: str = os.getenv("OPERATOR_API_TOKEN", "")
 
     # SECURITY: DATABASE_URL must be set via environment variable

@@ -1,0 +1,445 @@
+{
+  "version": 1,
+  "runId": "9be6e07d-cbf2-4fd1-9a50-2b356412ff89",
+  "startedAt": "2026-11-02T05:03:26.621Z",
+  "inputKind": "synthetic-signal",
+  "debugMode": true,
+  "fixtureBankHash": "37f59e301d2a1692dc21f1912e5b98b6a1e6a5e89d5011e9a862a25b9a932523",
+  "verificationKeyHash": "0x49fc0f46c08b2a35d64b6a7df60665acae7bd016bf17c6a122e21ea717c3f104",
+  "trials": 5,
+  "warmup": 1,
+  "concurrency": 1,
+  "targets": [
+    "fabric",
+    "local-evm"
+  ],
+  "metadata": {
+    "fabric": {
+      "deploymentId": "0x8ec2540a373feb5fb999a945b7abaa595acf603d0dc4e5b5cdb00cd53918ad75",
+      "topology": {
+        "peerOrganizations": 2,
+        "peers": 2,
+        "orderers": 1,
+        "consensus": "Raft",
+        "endorsementPolicy": "AND('Org1MSP.peer','Org2MSP.peer')",
+        "fabricVersion": "2.5.16",
+        "singleHost": true
+      },
+      "verification": "Gateway evaluateTransaction (single peer)",
+      "finality": "VALID commit status",
+      "nativeTransactionFee": "none"
+    },
+    "local-evm": {
+      "chainId": 31337,
+      "registryAddress": "0xF2a55B78C2943a3C11084Cffb44c7f0055086827",
+      "confirmations": 1,
+      "verification": "eth_call at receipt block",
+      "finality": "receipt + 1 confirmation(s), not Ethereum finalized"
+    }
+  },
+  "rows": [
+    {
+      "target": "fabric",
+      "trial": 0,
+      "warmup": true,
+      "fixtureIndex": 0,
+      "proofHash": "dad0333337cf401d390679c1b3c195f470eec64ac53a3cb29523b325942a0c87",
+      "proofGenerationMs": 829.9935009999999,
+      "status": "verified",
+      "cost": {
+        "gasUsed": null,
+        "feeWei": null,
+        "nativeTransactionFee": 0,
+        "unit": null,
+        "infrastructureIncluded": false
+      },
+      "endorseMs": 28.49764099999993,
+      "submitMs": 7.808346000000029,
+      "commitWaitMs": 2012.638535,
+      "recordCommitMs": 2048.9445220000002,
+      "transactionId": "9489327436f32dddef8901759e98c7eebefcb3a571d7e07c8ee7ee03fb3f533b",
+      "blockNumber": "12",
+      "verifyReadMs": 37.9691600000001,
+      "isNormal": true,
+      "totalMs": 2916.9071830000003
+    },
+    {
+      "target": "local-evm",
+      "trial": 0,
+      "warmup": true,
+      "fixtureIndex": 0,
+      "proofHash": "dad0333337cf401d390679c1b3c195f470eec64ac53a3cb29523b325942a0c87",
+      "proofGenerationMs": 829.9935009999999,
+      "status": "verified",
+      "cost": {
+        "gasUsed": "321198",
+        "effectiveGasPriceWei": "1109243609",
+        "feeWei": "356286828723582",
+        "unit": "local test ETH",
+        "infrastructureIncluded": false
+      },
+      "transactionId": "0x70f2329b648b497ac6d7e9c86f6972bd9619000daea380356ed6fade2f65819b",
+      "recordCommitMs": 85.5593100000001,
+      "sendMs": 70.05708700000014,
+      "receiptWaitMs": 15.507944999999836,
+      "blockNumber": 17,
+      "verifyReadMs": 547.7989690000004,
+      "isNormal": true,
+      "totalMs": 1463.3517800000004
+    },
+    {
+      "target": "local-evm",
+      "trial": 1,
+      "warmup": false,
+      "fixtureIndex": 1,
+      "proofHash": "c3aac8c395c6abd61080cc477d2aeb77aa3a90d46c68d6f9a0aba3841e44ca47",
+      "proofGenerationMs": 570.7065,
+      "status": "verified",
+      "cost": {
+        "gasUsed": "321210",
+        "effectiveGasPriceWei": "1095880565",
+        "feeWei": "352007796283650",
+        "unit": "local test ETH",
+        "infrastructureIncluded": false
+      },
+      "transactionId": "0x94ac20045e12ef6fadc7f8c2a93136ccacb4c9bf9cd50ce5041515475848ac7a",
+      "recordCommitMs": 76.82567000000017,
+      "sendMs": 63.54844200000025,
+      "receiptWaitMs": 13.279915999999957,
+      "blockNumber": 18,
+      "verifyReadMs": 546.3499649999999,
+      "isNormal": true,
+      "totalMs": 1193.882135
+    },
+    {
+      "target": "fabric",
+      "trial": 1,
+      "warmup": false,
+      "fixtureIndex": 1,
+      "proofHash": "c3aac8c395c6abd61080cc477d2aeb77aa3a90d46c68d6f9a0aba3841e44ca47",
+      "proofGenerationMs": 570.7065,
+      "status": "verified",
+      "cost": {
+        "gasUsed": null,
+        "feeWei": null,
+        "nativeTransactionFee": 0,
+        "unit": null,
+        "infrastructureIncluded": false
+      },
+      "endorseMs": 19.94217899999967,
+      "submitMs": 3.873682999999801,
+      "commitWaitMs": 2013.9027430000006,
+      "recordCommitMs": 2037.718605,
+      "transactionId": "986049bbba35cbbabe5775f19278ac6da5c37867af6c41289d2ff52c04ee3c31",
+      "blockNumber": "13",
+      "verifyReadMs": 28.5297700000001,
+      "isNormal": true,
+      "totalMs": 2636.9548750000004
+    },
+    {
+      "target": "fabric",
+      "trial": 2,
+      "warmup": false,
+      "fixtureIndex": 2,
+      "proofHash": "f837e48f4d4b89bcbc5608daed36f153926bfafc3e90f1c908eee1371860c3dd",
+      "proofGenerationMs": 845.5971330000002,
+      "status": "verified",
+      "cost": {
+        "gasUsed": null,
+        "feeWei": null,
+        "nativeTransactionFee": 0,
+        "unit": null,
+        "infrastructureIncluded": false
+      },
+      "endorseMs": 20.95945599999959,
+      "submitMs": 3.727498000000196,
+      "commitWaitMs": 2012.1841610000001,
+      "recordCommitMs": 2036.871115,
+      "transactionId": "988d48f44aa1875e67f3dd5aead86aa759e7fcefa044441aed987edc51080d89",
+      "blockNumber": "14",
+      "verifyReadMs": 27.95530300000064,
+      "isNormal": true,
+      "totalMs": 2910.4235510000008
+    },
+    {
+      "target": "local-evm",
+      "trial": 2,
+      "warmup": false,
+      "fixtureIndex": 2,
+      "proofHash": "f837e48f4d4b89bcbc5608daed36f153926bfafc3e90f1c908eee1371860c3dd",
+      "proofGenerationMs": 845.5971330000002,
+      "status": "verified",
+      "cost": {
+        "gasUsed": "321198",
+        "effectiveGasPriceWei": "1084152143",
+        "feeWei": "348227500027314",
+        "unit": "local test ETH",
+        "infrastructureIncluded": false
+      },
+      "transactionId": "0x820979fc5b6f8248bc82da5dd76dfa4a5410c0a0d0605cd25909c99bd96de367",
+      "recordCommitMs": 76.68003300000055,
+      "sendMs": 62.39006100000006,
+      "receiptWaitMs": 14.291988000000856,
+      "blockNumber": 19,
+      "verifyReadMs": 549.2226850000006,
+      "isNormal": true,
+      "totalMs": 1471.4998510000014
+    },
+    {
+      "target": "local-evm",
+      "trial": 3,
+      "warmup": false,
+      "fixtureIndex": 3,
+      "proofHash": "4c1cf183d54f6dc096c2d3d942be59a2a14fe244fd8dc91fccc426bc48e147e5",
+      "proofGenerationMs": 565.5035240000002,
+      "status": "verified",
+      "cost": {
+        "gasUsed": "321210",
+        "effectiveGasPriceWei": "1073858371",
+        "feeWei": "344934047348910",
+        "unit": "local test ETH",
+        "infrastructureIncluded": false
+      },
+      "transactionId": "0x35880d07090013961fe68c86dc8572050d68f3d64b07b26ba25f95a078dedbdd",
+      "recordCommitMs": 115.03369100000054,
+      "sendMs": 99.00102499999957,
+      "receiptWaitMs": 16.034338999999818,
+      "blockNumber": 20,
+      "verifyReadMs": 590.8211889999984,
+      "isNormal": true,
+      "totalMs": 1271.3584039999992
+    },
+    {
+      "target": "fabric",
+      "trial": 3,
+      "warmup": false,
+      "fixtureIndex": 3,
+      "proofHash": "4c1cf183d54f6dc096c2d3d942be59a2a14fe244fd8dc91fccc426bc48e147e5",
+      "proofGenerationMs": 565.5035240000002,
+      "status": "verified",
+      "cost": {
+        "gasUsed": null,
+        "feeWei": null,
+        "nativeTransactionFee": 0,
+        "unit": null,
+        "infrastructureIncluded": false
+      },
+      "endorseMs": 21.980185000000347,
+      "submitMs": 3.6179009999996197,
+      "commitWaitMs": 2012.0202659999995,
+      "recordCommitMs": 2037.6183519999995,
+      "transactionId": "60d361783a6e7ac234a1535318fd18cfda74de24d7eb7f94c5a2a81ae38b8e78",
+      "blockNumber": "15",
+      "verifyReadMs": 27.574946999999156,
+      "isNormal": true,
+      "totalMs": 2630.696822999999
+    },
+    {
+      "target": "fabric",
+      "trial": 4,
+      "warmup": false,
+      "fixtureIndex": 4,
+      "proofHash": "7acf8d730f7b89830c24b19ba86e79a506431256f693e3fe6c5a7e0ebd55cd86",
+      "proofGenerationMs": 564.0767289999999,
+      "status": "verified",
+      "cost": {
+        "gasUsed": null,
+        "feeWei": null,
+        "nativeTransactionFee": 0,
+        "unit": null,
+        "infrastructureIncluded": false
+      },
+      "endorseMs": 18.449978000000556,
+      "submitMs": 3.88801599999897,
+      "commitWaitMs": 2012.5807750000004,
+      "recordCommitMs": 2034.9187689999999,
+      "transactionId": "3569d07429d80d55cdf86f637d6efefd64bf98322d53f50dd70017247ab30564",
+      "blockNumber": "16",
+      "verifyReadMs": 43.63359700000001,
+      "isNormal": true,
+      "totalMs": 2642.629095
+    },
+    {
+      "target": "local-evm",
+      "trial": 4,
+      "warmup": false,
+      "fixtureIndex": 4,
+      "proofHash": "7acf8d730f7b89830c24b19ba86e79a506431256f693e3fe6c5a7e0ebd55cd86",
+      "proofGenerationMs": 564.0767289999999,
+      "status": "verified",
+      "cost": {
+        "gasUsed": "321222",
+        "effectiveGasPriceWei": "1064823776",
+        "feeWei": "342044822974272",
+        "unit": "local test ETH",
+        "infrastructureIncluded": false
+      },
+      "transactionId": "0xa5894d2514c6bc05d3ca1e83942d22a4800d084ee3dec7c1d2420d67e86fb0ce",
+      "recordCommitMs": 77.61905599999955,
+      "sendMs": 63.02747099999942,
+      "receiptWaitMs": 14.595530000000508,
+      "blockNumber": 21,
+      "verifyReadMs": 546.3584100000007,
+      "isNormal": true,
+      "totalMs": 1188.0541950000002
+    },
+    {
+      "target": "local-evm",
+      "trial": 5,
+      "warmup": false,
+      "fixtureIndex": 5,
+      "proofHash": "484cc0766a6a9e0a4ba2218c5ca6302363d02964e9b5fc7a303873827d25a743",
+      "proofGenerationMs": 572.881234,
+      "status": "verified",
+      "cost": {
+        "gasUsed": "321198",
+        "effectiveGasPriceWei": "1056894328",
+        "feeWei": "339472344364944",
+        "unit": "local test ETH",
+        "infrastructureIncluded": false
+      },
+      "transactionId": "0xbce99ea8b0d7e4ee2f10566125f9fcf07dafb1b0f2fb48c41ed6be5e59ef492f",
+      "recordCommitMs": 73.58422700000119,
+      "sendMs": 61.76185600000099,
+      "receiptWaitMs": 11.823319999999512,
+      "blockNumber": 22,
+      "verifyReadMs": 544.1981230000001,
+      "isNormal": true,
+      "totalMs": 1190.6635840000013
+    },
+    {
+      "target": "fabric",
+      "trial": 5,
+      "warmup": false,
+      "fixtureIndex": 5,
+      "proofHash": "484cc0766a6a9e0a4ba2218c5ca6302363d02964e9b5fc7a303873827d25a743",
+      "proofGenerationMs": 572.881234,
+      "status": "verified",
+      "cost": {
+        "gasUsed": null,
+        "feeWei": null,
+        "nativeTransactionFee": 0,
+        "unit": null,
+        "infrastructureIncluded": false
+      },
+      "endorseMs": 19.12590700000146,
+      "submitMs": 3.6141179999995074,
+      "commitWaitMs": 2013.3098730000002,
+      "recordCommitMs": 2036.0498980000011,
+      "transactionId": "b988cc5350629324ebba5e0585b9114ef48cb4e4d52cb87a38c3dac09483948a",
+      "blockNumber": "17",
+      "verifyReadMs": 47.93684800000119,
+      "isNormal": true,
+      "totalMs": 2656.8679800000023
+    }
+  ],
+  "notes": [
+    "Synthetic inputs are not real patient CSI.",
+    "Fabric Evaluate and EVM eth_call both execute verification as read-only requests. No verification transaction is mined.",
+    "Fabric single-host test network is not representative of a geographically distributed production consortium.",
+    "Sepolia fees use test ETH, not a real-money price. Infrastructure is excluded unless explicit assumptions are supplied.",
+    "Timing boundaries: proof generation separately; record includes commit / configured confirmations; verify includes the read RPC. Startup excluded."
+  ],
+  "infrastructureAssumptions": null,
+  "summaries": [
+    {
+      "target": "fabric",
+      "attempted": 5,
+      "expected": 5,
+      "succeeded": 5,
+      "failed": 0,
+      "metrics": {
+        "proofGenerationMs": {
+          "n": 5,
+          "median": 570.7065,
+          "p95": 845.5971330000002,
+          "min": 564.0767289999999,
+          "max": 845.5971330000002
+        },
+        "recordCommitMs": {
+          "n": 5,
+          "median": 2036.871115,
+          "p95": 2037.718605,
+          "min": 2034.9187689999999,
+          "max": 2037.718605
+        },
+        "verifyReadMs": {
+          "n": 5,
+          "median": 28.5297700000001,
+          "p95": 47.93684800000119,
+          "min": 27.574946999999156,
+          "max": 47.93684800000119
+        },
+        "totalMs": {
+          "n": 5,
+          "median": 2642.629095,
+          "p95": 2910.4235510000008,
+          "min": 2630.696822999999,
+          "max": 2910.4235510000008
+        }
+      },
+      "gasUsed": {
+        "n": 0,
+        "median": null,
+        "p95": null,
+        "min": null,
+        "max": null
+      },
+      "feesWei": []
+    },
+    {
+      "target": "local-evm",
+      "attempted": 5,
+      "expected": 5,
+      "succeeded": 5,
+      "failed": 0,
+      "metrics": {
+        "proofGenerationMs": {
+          "n": 5,
+          "median": 570.7065,
+          "p95": 845.5971330000002,
+          "min": 564.0767289999999,
+          "max": 845.5971330000002
+        },
+        "recordCommitMs": {
+          "n": 5,
+          "median": 76.82567000000017,
+          "p95": 115.03369100000054,
+          "min": 73.58422700000119,
+          "max": 115.03369100000054
+        },
+        "verifyReadMs": {
+          "n": 5,
+          "median": 546.3584100000007,
+          "p95": 590.8211889999984,
+          "min": 544.1981230000001,
+          "max": 590.8211889999984
+        },
+        "totalMs": {
+          "n": 5,
+          "median": 1193.882135,
+          "p95": 1471.4998510000014,
+          "min": 1188.0541950000002,
+          "max": 1471.4998510000014
+        }
+      },
+      "gasUsed": {
+        "n": 5,
+        "median": 321210,
+        "p95": 321222,
+        "min": 321198,
+        "max": 321222
+      },
+      "feesWei": [
+        "352007796283650",
+        "348227500027314",
+        "344934047348910",
+        "342044822974272",
+        "339472344364944"
+      ]
+    }
+  ],
+  "completedAt": "2026-11-02T05:03:43.812Z",
+  "proofGenerationScope": "snarkjs fullProve (witness + prove); local validation excluded",
+  "metadataAnnotation": "Proof-generation scope clarified after measurement; raw timing values unchanged."
+}

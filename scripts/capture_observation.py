@@ -26,7 +26,8 @@ def upload(server, token, metadata, path):
         raise ValueError("HTTPS is required outside loopback")
     boundary = uuid4().hex
     fields = b""
-    for key in ("patient_id", "capture_id", "observed_at", "duration_seconds"):
+    metadata = {"ledger": "evm", **metadata}
+    for key in ("ledger", "patient_id", "capture_id", "observed_at", "duration_seconds"):
         fields += (f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{metadata[key]}\r\n').encode()
     fields += (
         f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="capture.csi"\r\nContent-Type: application/octet-stream\r\n\r\n'
@@ -136,6 +137,7 @@ def main():
                 "patient_id": patient,
                 "observed_at": observed.isoformat(),
                 "duration_seconds": duration,
+                "ledger": os.environ.get("CSI_LEDGER", "evm"),
             }
             temporary = path.with_suffix(".tmp")
             with temporary.open("w") as out:

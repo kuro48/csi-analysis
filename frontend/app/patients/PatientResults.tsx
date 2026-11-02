@@ -8,6 +8,7 @@ type Patient = { id: string; label: string };
 type Measurement = {
   id: string;
   observed_at: number;
+  ledger?: "evm" | "fabric";
   duration: number;
   status: string;
 };
@@ -204,6 +205,7 @@ export function PatientResults() {
                 {measurements.map((item) => (
                   <option key={item.id} value={item.id}>
                     {dateLabel(item.observed_at)}
+                    {item.ledger === "fabric" ? " · Fabric" : ""}
                   </option>
                 ))}
               </select>

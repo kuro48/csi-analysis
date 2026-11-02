@@ -194,3 +194,7 @@ sampledata/
 # Browser test runtime artifacts (curated evidence lives in docs/progress)
 frontend/test-results/
 frontend/playwright-report/
+
+# Fabric chaincode source (override generic Python lib ignore)
+!fabric/chaincode/lib/
+!fabric/chaincode/lib/*.js

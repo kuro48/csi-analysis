@@ -10,6 +10,7 @@ const base = `${API_BASE}/api/v2/observations`;
 const field = "mt-2 w-full rounded-lg border border-neutral-300 p-3";
 export default function CapturePage() {
   const [patients, setPatients] = useState<{ id: string; label: string }[]>([]);
+  const [ledger, setLedger] = useState("evm");
   const [patient, setPatient] = useState("");
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState(60);
@@ -80,6 +81,7 @@ export default function CapturePage() {
               data.set("observed_at", new Date(time).toISOString());
               data.set("duration_seconds", String(duration));
               data.set("file", file);
+              data.set("ledger", ledger);
               const result = await checked(
                 await operatorFetch(`${base}/captures`, {
                   method: "POST",
@@ -93,6 +95,24 @@ export default function CapturePage() {
             });
           }}
         >
+          <label className="block text-sm">
+            証明の記録先
+            <select
+              className={field}
+              value={ledger}
+              onChange={(event) => {
+                setLedger(event.target.value);
+                id.current = "";
+              }}
+            >
+              <option value="evm">
+                Ethereum（設定済みのSepolia / ローカル環境）
+              </option>
+              <option value="fabric">
+                Hyperledger Fabric（コンソーシアム）
+              </option>
+            </select>
+          </label>
           <label className="block text-sm">
             患者
             <select
