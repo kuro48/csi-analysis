@@ -1,0 +1,14 @@
+{
+  "name": "csi-onchain",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "deploy:sepolia": "node --env-file-if-exists=../../.env.sepolia.local scripts/deploy-sepolia.mjs",
+    "test": "node --test test/*.test.mjs",
+    "node": "ganache --server.host 127.0.0.1 --chain.chainId 31337"
+  },
+  "dependencies": { "ethers": "6.16.0", "snarkjs": "0.7.6", "solc": "0.8.30" },
+  "devDependencies": { "ganache": "7.9.2" }
+}

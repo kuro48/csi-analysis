@@ -1,0 +1,1640 @@
+diff --git a/.gitignore b/.gitignore
+index 069c4dc..0f550d8 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -2,6 +2,8 @@ backend/outputs/
+ 
+ # Environment variables
+ .env
++.env.public
++.env.sepolia.local
+ .env.local
+ .env.development.local
+ .env.test.local
+@@ -188,3 +190,7 @@ claudedocs/
+ 
+ sampledata/
+ *.csi
++
++# Browser test runtime artifacts (curated evidence lives in docs/progress)
++frontend/test-results/
++frontend/playwright-report/
+diff --git a/.env.public.example b/.env.public.example
+new file mode 100644
+index 0000000..6ef7c0d
+--- /dev/null
++++ b/.env.public.example
+@@ -0,0 +1,10 @@
++# Copy to .env.public (ignored), fill every required value. Never commit secrets.
++PUBLIC_ORIGIN=https://your-domain.example
++PUBLIC_HTTP_PORT=8080
++JWT_SECRET_KEY=
++OPERATOR_API_TOKEN=
++POSTGRES_PASSWORD=
++# Ethereum Sepolia RPC, same network used for contract deployment.
++ETHEREUM_RPC_URL=
++ONCHAIN_MANIFEST=./backend/contracts/build/onchain/deployment-11155111.json
++ONCHAIN_CONFIRMATIONS=3
+diff --git a/.env.sepolia.example b/.env.sepolia.example
+new file mode 100644
+index 0000000..cfea100
+--- /dev/null
++++ b/.env.sepolia.example
+@@ -0,0 +1,5 @@
++# Copy to .env.sepolia.local (gitignored). Used only by npm run deploy:sepolia.
++# Do not put a private key into .env.public, frontend env files, or chat.
++ETHEREUM_RPC_URL=
++BLOCKCHAIN_PRIVATE_KEY=
++ONCHAIN_CHAIN_ID=11155111
+diff --git a/backend/contracts/package.json b/backend/contracts/package.json
+new file mode 100644
+index 0000000..c756c4f
+--- /dev/null
++++ b/backend/contracts/package.json
+@@ -0,0 +1,14 @@
++{
++  "name": "csi-onchain",
++  "private": true,
++  "type": "module",
++  "scripts": {
++    "build": "node scripts/build.mjs",
++    "deploy": "node scripts/deploy.mjs",
++    "deploy:sepolia": "node --env-file-if-exists=../../.env.sepolia.local scripts/deploy-sepolia.mjs",
++    "test": "node --test test/*.test.mjs",
++    "node": "ganache --server.host 127.0.0.1 --chain.chainId 31337"
++  },
++  "dependencies": { "ethers": "6.16.0", "snarkjs": "0.7.6", "solc": "0.8.30" },
++  "devDependencies": { "ganache": "7.9.2" }
++}
+diff --git a/backend/contracts/scripts/deploy.mjs b/backend/contracts/scripts/deploy.mjs
+new file mode 100644
+index 0000000..d7aa411
+--- /dev/null
++++ b/backend/contracts/scripts/deploy.mjs
+@@ -0,0 +1,39 @@
++import { readFileSync, writeFileSync } from 'node:fs';
++import { resolve } from 'node:path';
++import { JsonRpcProvider, Wallet, ContractFactory, keccak256, NonceManager } from 'ethers';
++import { root } from './build.mjs';
++import { deploymentNetwork } from './networks.mjs';
++
++// Explicit network + explicit signer. Never fall back to an unlocked public RPC account.
++const rpc = process.env.ETHEREUM_RPC_URL;
++const expected = Number(process.env.ONCHAIN_CHAIN_ID);
++if (!rpc || !Number.isSafeInteger(expected) || expected <= 0) throw new Error('Set ETHEREUM_RPC_URL and ONCHAIN_CHAIN_ID');
++const network = deploymentNetwork(expected);
++const local = network.local;
++if (!local && process.env.ONCHAIN_DEPLOY_PUBLIC !== 'true') throw new Error('Set ONCHAIN_DEPLOY_PUBLIC=true to deploy to a public testnet');
++if (!process.env.BLOCKCHAIN_PRIVATE_KEY && !(local && process.env.ONCHAIN_LOCAL_UNLOCKED === 'true')) throw new Error('Set BLOCKCHAIN_PRIVATE_KEY');
++const provider = new JsonRpcProvider(rpc);
++if (Number((await provider.getNetwork()).chainId) !== expected) throw new Error('Wrong RPC chain ID');
++const signer = new NonceManager(process.env.BLOCKCHAIN_PRIVATE_KEY ? new Wallet(process.env.BLOCKCHAIN_PRIVATE_KEY, provider) : await provider.getSigner());
++const build = JSON.parse(readFileSync(resolve(root, 'build/onchain/compiled.json')));
++const circuits = [];
++for (const circuit of build.circuits) {
++  const verifier = await new ContractFactory(circuit.abi, circuit.bytecode, signer).deploy();
++  await verifier.waitForDeployment();
++  const address = await verifier.getAddress();
++  const { bytecode, abi, ...metadata } = circuit;
++  circuits.push({ ...metadata, address, codeHash: keccak256(await provider.getCode(address)) });
++}
++const registry = await new ContractFactory(build.registry.abi, build.registry.bytecode, signer).deploy(
++  circuits.map(c => c.circuitId), circuits.map(c => [c.address, c.selector, c.publicSignalCount, c.verificationKeyHash, c.codeHash]));
++await registry.waitForDeployment();
++const receipt = await registry.deploymentTransaction().wait();
++const registryAddress = await registry.getAddress();
++const manifest = { version: 1, chainId: expected, networkName: network.name,
++  explorerUrl: network.explorerUrl, registryAddress,
++  registryCodeHash: keccak256(await provider.getCode(registryAddress)), deploymentBlock: receipt.blockNumber,
++  deploymentTransaction: receipt.hash, circuits, registryAbi: build.registry.abi };
++const output = resolve(root, `build/onchain/deployment-${expected}.json`);
++writeFileSync(output, JSON.stringify(manifest, null, 2));
++console.log(`Deployed: ${registryAddress}\nManifest: ${output}\nSet ONCHAIN_MANIFEST=${output}`);
++provider.destroy();
+diff --git a/backend/contracts/scripts/networks.mjs b/backend/contracts/scripts/networks.mjs
+new file mode 100644
+index 0000000..3d859e6
+--- /dev/null
++++ b/backend/contracts/scripts/networks.mjs
+@@ -0,0 +1,20 @@
++// Deployment policy for the testnet phase. Mainnets are intentionally absent.
++export const NETWORKS = {
++  11155111: { name: 'Ethereum Sepolia', explorerUrl: 'https://sepolia.etherscan.io', local: false },
++  31337: { name: 'Local EVM', explorerUrl: '', local: true },
++  1337: { name: 'Local EVM', explorerUrl: '', local: true },
++};
++
++export function deploymentNetwork(chainId) {
++  const network = Number.isSafeInteger(chainId) ? NETWORKS[chainId] : undefined;
++  if (!network) throw new Error('Only Ethereum Sepolia (11155111) and local EVMs (31337/1337) are enabled');
++  return network;
++}
++
++export function sepoliaEnvironment(env) {
++  if (env.ONCHAIN_CHAIN_ID && env.ONCHAIN_CHAIN_ID !== '11155111') {
++    throw new Error('deploy:sepolia requires ONCHAIN_CHAIN_ID=11155111');
++  }
++  return { ...env, ONCHAIN_CHAIN_ID: '11155111', ONCHAIN_DEPLOY_PUBLIC: 'true',
++    ONCHAIN_NETWORK_NAME: NETWORKS[11155111].name, ONCHAIN_EXPLORER_URL: NETWORKS[11155111].explorerUrl };
++}
+diff --git a/backend/contracts/scripts/deploy-sepolia.mjs b/backend/contracts/scripts/deploy-sepolia.mjs
+new file mode 100644
+index 0000000..a2fa59d
+--- /dev/null
++++ b/backend/contracts/scripts/deploy-sepolia.mjs
+@@ -0,0 +1,4 @@
++import { sepoliaEnvironment } from './networks.mjs';
++
++Object.assign(process.env, sepoliaEnvironment(process.env));
++await import('./deploy.mjs');
+diff --git a/backend/contracts/test/networks.test.mjs b/backend/contracts/test/networks.test.mjs
+new file mode 100644
+index 0000000..b3a2669
+--- /dev/null
++++ b/backend/contracts/test/networks.test.mjs
+@@ -0,0 +1,19 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { deploymentNetwork, sepoliaEnvironment } from '../scripts/networks.mjs';
++
++test('testnet policy rejects mainnet and unknown chains before connecting', () => {
++  for (const chainId of [1, 10, 137, 8453, 42161, 0, NaN, '11155111']) {
++    assert.throws(() => deploymentNetwork(chainId), /Only Ethereum Sepolia/);
++  }
++  assert.equal(deploymentNetwork(11155111).name, 'Ethereum Sepolia');
++  assert.equal(deploymentNetwork(31337).local, true);
++  assert.equal(deploymentNetwork(1337).local, true);
++});
++
++test('Sepolia entrypoint pins the chain without silently overriding another target', () => {
++  assert.throws(() => sepoliaEnvironment({ ONCHAIN_CHAIN_ID: '1' }), /11155111/);
++  assert.equal(sepoliaEnvironment({}).ONCHAIN_CHAIN_ID, '11155111');
++  assert.equal(sepoliaEnvironment({}).ONCHAIN_EXPLORER_URL, 'https://sepolia.etherscan.io');
++  assert.equal(sepoliaEnvironment({ ETHEREUM_RPC_URL: 'https://rpc.example' }).ETHEREUM_RPC_URL, 'https://rpc.example');
++});
+diff --git a/backend/app/services/onchain_service.py b/backend/app/services/onchain_service.py
+new file mode 100644
+index 0000000..4e0d880
+--- /dev/null
++++ b/backend/app/services/onchain_service.py
+@@ -0,0 +1,180 @@
++"""Read-only RPC adapter for the immutable registry. Wallets sign transactions.
++
++No private keys, server-paid transactions, or legacy verification flags are used.
++"""
++import json
++import re
++from pathlib import Path
++from typing import Any
++
++from eth_abi import encode
++from web3 import Web3
++from web3.exceptions import TransactionNotFound
++
++from app.core.config import settings
++
++SCALAR_FIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617
++BASE_FIELD = 21888242871839275222246405745257275088696311157297823662689037894645226208583
++
++
++class ChainUnavailable(RuntimeError):
++    pass
++
++
++def decimal(value: Any, modulus: int) -> int:
++    # JSON numbers cannot safely represent field elements in a browser.
++    if not isinstance(value, str) or not re.fullmatch(r"0|[1-9][0-9]{0,77}", value):
++        raise ValueError("Field elements must be canonical decimal strings")
++    number = int(value)
++    if number >= modulus:
++        raise ValueError("Field element out of range")
++    return number
++
++
++def parse_proof(proof: dict, public_signals: list[str], count: int):
++    if proof.get("protocol") != "groth16" or proof.get("curve") not in ("bn128", "bn254"):
++        raise ValueError("Only Groth16 / BN254 proofs are supported")
++    if len(public_signals) != count:
++        raise ValueError("Public signal count does not match the deployed circuit")
++    try:
++        pa, pb, pc = proof["pi_a"], proof["pi_b"], proof["pi_c"]
++        if (
++            not all(isinstance(point, list) for point in (pa, pb, pc))
++            or len(pa) != 3
++            or len(pb) != 3
++            or len(pc) != 3
++            or any(not isinstance(row, list) or len(row) != 2 for row in pb)
++        ):
++            raise ValueError("Invalid proof dimensions")
++        if pa[2] != "1" or pc[2] != "1" or pb[2] != ["1", "0"]:
++            raise ValueError("Expected affine snarkjs proof")
++        a = [decimal(v, BASE_FIELD) for v in pa[:2]]
++        b = [[decimal(row[1], BASE_FIELD), decimal(row[0], BASE_FIELD)] for row in pb[:2]]
++        c = [decimal(v, BASE_FIELD) for v in pc[:2]]
++    except (KeyError, TypeError, IndexError) as exc:
++        raise ValueError("Invalid Groth16 proof shape") from exc
++    return a, b, c, [decimal(v, SCALAR_FIELD) for v in public_signals]
++
++
++class OnchainService:
++    def __init__(self):
++        if not settings.ONCHAIN_MANIFEST:
++            raise ChainUnavailable("検証コントラクトが未設定です")
++        try:
++            self.manifest = json.loads(Path(settings.ONCHAIN_MANIFEST).read_text())
++            if self.manifest.get("chainId") not in (11155111, 31337, 1337):
++                raise ChainUnavailable("現在はEthereum SepoliaとローカルEVMのみ利用できます")
++            self.w3 = Web3(Web3.HTTPProvider(settings.ETHEREUM_RPC_URL, request_kwargs={"timeout": 10}))
++            if self.w3.eth.chain_id != self.manifest["chainId"]:
++                raise ChainUnavailable("RPCのネットワークが設定と一致しません")
++            address = Web3.to_checksum_address(self.manifest["registryAddress"])
++            if Web3.to_hex(Web3.keccak(self.w3.eth.get_code(address))) != self.manifest["registryCodeHash"]:
++                raise ChainUnavailable("デプロイ済みコントラクトのコードが一致しません")
++            self.contract = self.w3.eth.contract(address=address, abi=self.manifest["registryAbi"])
++            self.circuits = {c["name"]: c for c in self.manifest["circuits"]}
++            for circuit in self.circuits.values():
++                actual = self.contract.functions.circuits(bytes.fromhex(circuit["circuitId"][2:])).call()
++                expected = (
++                    circuit["address"],
++                    bytes.fromhex(circuit["selector"][2:]),
++                    circuit["publicSignalCount"],
++                    bytes.fromhex(circuit["verificationKeyHash"][2:]),
++                    bytes.fromhex(circuit["codeHash"][2:]),
++                )
++                if tuple(actual) != expected:
++                    raise ChainUnavailable("検証回路の設定が一致しません")
++        except ChainUnavailable:
++            raise
++        except Exception as exc:
++            raise ChainUnavailable("ブロックチェーンに接続できません") from exc
++
++    def status(self):
++        return {
++            "connected": True,
++            "chainId": self.manifest["chainId"],
++            "networkName": self.manifest["networkName"],
++            "registryAddress": self.contract.address,
++            "explorerUrl": self.manifest.get("explorerUrl", ""),
++            "currentBlock": self.w3.eth.block_number,
++            "totalVerified": self.contract.functions.totalVerified().call(),
++            "confirmationsRequired": settings.ONCHAIN_CONFIRMATIONS,
++            "circuits": list(self.circuits.values()),
++        }
++
++    def prepare(self, circuit_name: str, proof: dict, public_signals: list[str]):
++        circuit = self.circuits.get(circuit_name)
++        if circuit is None:
++            raise ValueError("この回路の検証コントラクトはデプロイされていません")
++        a, b, c, signals = parse_proof(proof, public_signals, circuit["publicSignalCount"])
++        circuit_id = bytes.fromhex(circuit["circuitId"][2:])
++        proof_id = Web3.to_hex(
++            Web3.keccak(
++                encode(
++                    ["bytes32", "uint256[2]", "uint256[2][2]", "uint256[2]", "uint256[]"],
++                    [circuit_id, a, b, c, signals],
++                )
++            )
++        )
++        existing = self.record(proof_id)
++        if existing["exists"]:
++            return {"alreadyVerified": True, "proofId": proof_id, "record": existing}
++        function = self.contract.functions.verifyAndRecord(circuit_id, a, b, c, signals)
++        # Simulation runs the exact contract path. It does NOT create a verified record.
++        try:
++            function.call({"from": "0x0000000000000000000000000000000000000001"})
++        except Exception as exc:
++            from web3.exceptions import ContractLogicError
++
++            if isinstance(exc, ContractLogicError) or "revert" in str(exc).lower():
++                raise ValueError("証明が検証コントラクトで拒否されました") from exc
++            raise ChainUnavailable("送信前検証に失敗しました。接続を確認してください") from exc
++        return {
++            "alreadyVerified": False,
++            "proofId": proof_id,
++            "chainId": self.manifest["chainId"],
++            "to": self.contract.address,
++            "data": function._encode_transaction_data(),
++            "value": "0x0",
++        }
++
++    def record(self, proof_id: str):
++        record = self.contract.functions.records(bytes.fromhex(proof_id[2:])).call()
++        exists = record[2] != "0x0000000000000000000000000000000000000000"
++        confirmations = max(0, self.w3.eth.block_number - record[4] + 1) if exists else 0
++        return {
++            "proofId": proof_id,
++            "exists": exists,
++            "circuitId": Web3.to_hex(record[0]),
++            "statementHash": Web3.to_hex(record[1]),
++            "submitter": record[2],
++            "timestamp": record[3],
++            "blockNumber": record[4],
++            "confirmations": confirmations,
++            "status": ("confirmed" if confirmations >= settings.ONCHAIN_CONFIRMATIONS else "confirming")
++            if exists
++            else "not_found",
++        }
++
++    def receipt(self, tx_hash: str):
++        try:
++            receipt = self.w3.eth.get_transaction_receipt(tx_hash)
++        except TransactionNotFound:
++            return {"status": "pending", "transactionHash": tx_hash, "confirmations": 0}
++        if not receipt["to"] or receipt["to"].lower() != self.contract.address.lower():
++            raise ValueError("この検証コントラクトへのトランザクションではありません")
++        if receipt["status"] != 1:
++            return {"status": "reverted", "transactionHash": tx_hash, "confirmations": 0}
++        block = self.w3.eth.get_block(receipt["blockNumber"])
++        if block["hash"] != receipt["blockHash"]:
++            return {"status": "pending", "transactionHash": tx_hash, "confirmations": 0}
++        logs = self.contract.events.ProofVerified().process_receipt(receipt)
++        logs = [log for log in logs if log["address"].lower() == self.contract.address.lower()]
++        if len(logs) != 1:
++            raise ValueError("検証成功イベントが見つかりません")
++        record = self.record(Web3.to_hex(logs[0]["args"]["proofId"]))
++        return {
++            **record,
++            "transactionHash": tx_hash,
++            "gasUsed": receipt["gasUsed"],
++            "blockHash": Web3.to_hex(receipt["blockHash"]),
++        }
+diff --git a/backend/tests/unit/test_onchain.py b/backend/tests/unit/test_onchain.py
+new file mode 100644
+index 0000000..dca083d
+--- /dev/null
++++ b/backend/tests/unit/test_onchain.py
+@@ -0,0 +1,163 @@
++import copy
++import io
++import json
++from types import SimpleNamespace
++
++import pytest
++from fastapi import FastAPI
++from fastapi.testclient import TestClient
++from starlette.datastructures import UploadFile
++
++from app.api.endpoints import onchain
++from app.api.endpoints.breathing import _read_upload
++from app.core.access import require_operator
++from app.core.config import settings
++from app.services.onchain_service import BASE_FIELD, SCALAR_FIELD, ChainUnavailable, OnchainService, parse_proof
++
++
++@pytest.mark.parametrize("chain_id", [1, 10, 8453, 42161, 0])
++def test_mainnet_manifest_rejected_before_rpc(monkeypatch, tmp_path, chain_id):
++    path = tmp_path / "deployment.json"
++    path.write_text(json.dumps({"chainId": chain_id}))
++    monkeypatch.setattr(settings, "ONCHAIN_MANIFEST", str(path))
++    with pytest.raises(ChainUnavailable, match="Sepolia"):
++        OnchainService()
++
++PROOF = {
++    "protocol": "groth16",
++    "curve": "bn128",
++    "pi_a": ["1", "2", "1"],
++    "pi_b": [["3", "4"], ["5", "6"], ["1", "0"]],
++    "pi_c": ["7", "8", "1"],
++}
++
++
++def test_snarkjs_pair_order_and_signal_precision():
++    a, b, c, signals = parse_proof(PROOF, [str(SCALAR_FIELD - 1)], 1)
++    assert (a, b, c) == ([1, 2], [[4, 3], [6, 5]], [7, 8])
++    assert signals == [SCALAR_FIELD - 1]
++
++
++@pytest.mark.parametrize("signal", ["-1", "01", "1.5", "1e3", str(SCALAR_FIELD), 1, True, None])
++def test_invalid_public_fields(signal):
++    with pytest.raises(ValueError):
++        parse_proof(PROOF, [signal], 1)
++
++
++def test_invalid_coordinate_and_arity():
++    proof = copy.deepcopy(PROOF)
++    proof["pi_a"][0] = str(BASE_FIELD)
++    with pytest.raises(ValueError):
++        parse_proof(proof, ["1"], 1)
++    with pytest.raises(ValueError):
++        parse_proof(PROOF, ["1", "2"], 1)
++    proof["pi_a"] = "121"
++    with pytest.raises(ValueError):
++        parse_proof(proof, ["1"], 1)
++
++
++@pytest.fixture
++def api():
++    app = FastAPI()
++    app.include_router(onchain.router, prefix="/onchain")
++    with TestClient(app) as client:
++        yield client, app
++
++
++def test_unconfigured_status_does_not_expose_rpc(api, monkeypatch):
++    monkeypatch.setattr(settings, "ONCHAIN_MANIFEST", "")
++    client, _ = api
++    response = client.get("/onchain/status")
++    assert response.status_code == 200
++    assert response.json()["connected"] is False
++    assert "rpc" not in response.text.lower()
++
++
++def test_api_prepare_validation_and_receipt(api):
++    client, app = api
++
++    class Service:
++        def prepare(self, circuit, proof, signals):
++            parse_proof(proof, signals, 1)
++            return {"proofId": "0x" + "a" * 64, "alreadyVerified": False, "value": "0x0"}
++
++        def receipt(self, tx_hash):
++            return {"transactionHash": tx_hash, "status": "pending", "confirmations": 0}
++
++    app.dependency_overrides[onchain.get_onchain_service] = Service
++    response = client.post(
++        "/onchain/prepare", json={"circuit": "csi_breathing_certificate", "proof": PROOF, "publicSignals": ["1"]}
++    )
++    assert response.status_code == 200
++    assert response.json()["value"] == "0x0"
++    response = client.post(
++        "/onchain/prepare", json={"circuit": "csi_breathing_certificate", "proof": PROOF, "publicSignals": ["-1"]}
++    )
++    assert response.status_code == 422
++    assert client.get("/onchain/transactions/invalid").status_code == 422
++    response = client.get("/onchain/transactions/0x" + "a" * 64)
++    assert response.status_code == 200
++    assert response.json()["status"] == "pending"
++
++
++def test_private_research_routes_require_token(monkeypatch):
++    from fastapi import Depends
++
++    monkeypatch.setattr(settings, "PUBLIC_MODE", True)
++    monkeypatch.setattr(settings, "OPERATOR_API_TOKEN", "a" * 40)
++    app = FastAPI()
++
++    @app.get("/research", dependencies=[Depends(require_operator)])
++    def research():
++        return {"ok": True}
++
++    with TestClient(app) as client:
++        assert client.get("/research").status_code == 401
++        assert client.get("/research", headers={"Authorization": "Bearer wrong"}).status_code == 401
++        assert client.get("/research", headers={"Authorization": "Bearer " + "a" * 40}).json() == {"ok": True}
++
++
++@pytest.mark.asyncio
++async def test_streamed_upload_rejects_over_limit(monkeypatch):
++    from fastapi import HTTPException
++
++    from app.api.endpoints import breathing
++
++    monkeypatch.setattr(breathing, "MAX_ANALYSIS_BYTES", 3)
++    with pytest.raises(HTTPException) as error:
++        await _read_upload(UploadFile(file=io.BytesIO(b"1234"), filename="sample.csi"))
++    assert error.value.status_code == 413
++
++
++def test_receipt_requires_correct_contract_event_canonical_block_and_confirmations(monkeypatch):
++    monkeypatch.setattr(settings, "ONCHAIN_CONFIRMATIONS", 3)
++    address = "0x" + "a" * 40
++    proof_id = b"p" * 32
++    receipt = {"to": address, "status": 1, "blockNumber": 10, "blockHash": b"b" * 32, "gasUsed": 340000}
++    logs = [{"address": address, "args": {"proofId": proof_id}}]
++    eth = SimpleNamespace(
++        block_number=11, get_transaction_receipt=lambda _: receipt, get_block=lambda _: {"hash": b"b" * 32}
++    )
++    record = [b"c" * 32, b"s" * 32, "0x" + "1" * 40, 12345, 10]
++    service = OnchainService.__new__(OnchainService)
++    service.w3 = SimpleNamespace(eth=eth)
++    service.contract = SimpleNamespace(
++        address=address,
++        events=SimpleNamespace(ProofVerified=lambda: SimpleNamespace(process_receipt=lambda _: logs)),
++        functions=SimpleNamespace(records=lambda _: SimpleNamespace(call=lambda: record)),
++    )
++    assert service.receipt("tx")["status"] == "confirming"
++    eth.block_number = 12
++    assert service.receipt("tx")["status"] == "confirmed"
++    receipt["status"] = 0
++    assert service.receipt("tx")["status"] == "reverted"
++    receipt["status"] = 1
++    receipt["blockHash"] = b"r" * 32
++    assert service.receipt("tx")["status"] == "pending"
++    receipt["blockHash"] = b"b" * 32
++    logs[0]["address"] = "0x" + "f" * 40
++    with pytest.raises(ValueError, match="イベント"):
++        service.receipt("tx")
++    receipt["to"] = "0x" + "f" * 40
++    with pytest.raises(ValueError, match="コントラクト"):
++        service.receipt("tx")
+diff --git a/frontend/app/verify/VerificationConsole.tsx b/frontend/app/verify/VerificationConsole.tsx
+new file mode 100644
+index 0000000..6af4067
+--- /dev/null
++++ b/frontend/app/verify/VerificationConsole.tsx
+@@ -0,0 +1,951 @@
++"use client";
++
++import Link from "next/link";
++import { useCallback, useEffect, useRef, useState } from "react";
++import { BrowserProvider, Interface, type Eip1193Provider } from "ethers";
++import { API_BASE } from "../upload/constants";
++import {
++  parseBundle,
++  type ChainStatus,
++  type Prepared,
++  type ProofBundle,
++  type Receipt,
++} from "./types";
++import s from "./console.module.css";
++
++type WalletProvider = Eip1193Provider & {
++  on?: (event: string, listener: () => void) => void;
++  removeListener?: (event: string, listener: () => void) => void;
++};
++type HistoryItem = {
++  hash: string;
++  chainId: number;
++  registry: string;
++  date: string;
++};
++const STORE = "csi-verified-transactions-v1";
++const short = (value?: string) =>
++  value ? `${value.slice(0, 8)}…${value.slice(-6)}` : "—";
++const labels: Record<Receipt["status"], string> = {
++  pending: "承認待ち",
++  confirming: "ブロック確認中",
++  confirmed: "オンチェーン検証済み",
++  reverted: "トランザクション失敗",
++  not_found: "未記録",
++};
++function ethereum() {
++  return (window as Window & { ethereum?: WalletProvider }).ethereum;
++}
++async function api<T>(path: string, init?: RequestInit): Promise<T> {
++  const response = await fetch(`${API_BASE}/api/v2${path}`, {
++    ...init,
++    signal: init?.signal ?? AbortSignal.timeout(25_000),
++  });
++  const body = await response.json().catch(() => ({}));
++  if (!response.ok)
++    throw new Error(
++      typeof body.detail === "string"
++        ? body.detail
++        : `リクエストに失敗しました (${response.status})`,
++    );
++  return body as T;
++}
++function errorText(error: unknown) {
++  if (
++    typeof error === "object" &&
++    error &&
++    "code" in error &&
++    [4001, "ACTION_REJECTED"].includes(error.code as string | number)
++  )
++    return "ウォレットで署名がキャンセルされました。再度送信できます。";
++  return error instanceof Error
++    ? error.message
++    : "処理に失敗しました。接続を確認して再試行してください。";
++}
++function download(value: unknown, name: string) {
++  const url = URL.createObjectURL(
++    new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),
++  );
++  const link = document.createElement("a");
++  link.href = url;
++  link.download = name;
++  link.click();
++  URL.revokeObjectURL(url);
++}
++function Glyph({ kind = "grid" }: { kind?: string }) {
++  return (
++    <svg
++      width="20"
++      height="20"
++      viewBox="0 0 24 24"
++      fill="none"
++      stroke="currentColor"
++      strokeWidth="1.6"
++      aria-hidden="true"
++    >
++      {kind === "shield" ? (
++        <>
++          <path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z" />
++          <path d="m8 12 3 3 5-6" />
++        </>
++      ) : kind === "arrow" ? (
++        <>
++          <path d="M5 12h14m-5-5 5 5-5 5" />
++        </>
++      ) : kind === "upload" ? (
++        <>
++          <path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5" />
++        </>
++      ) : kind === "chain" ? (
++        <>
++          <path d="m9 15 6-6m-5-3 2-2a5 5 0 0 1 7 7l-2 2m-3 5-2 2a5 5 0 0 1-7-7l2-2" />
++        </>
++      ) : (
++        <>
++          <rect x="3" y="3" width="7" height="7" rx="1" />
++          <rect x="14" y="3" width="7" height="7" rx="1" />
++          <rect x="3" y="14" width="7" height="7" rx="1" />
++          <rect x="14" y="14" width="7" height="7" rx="1" />
++        </>
++      )}
++    </svg>
++  );
++}
++
++export function VerificationConsole() {
++  const [chain, setChain] = useState<ChainStatus | null>(null);
++  const [wallet, setWallet] = useState("");
++  const [bundle, setBundle] = useState<ProofBundle | null>(null);
++  const [fileName, setFileName] = useState("");
++  const [mode, setMode] = useState<"proof" | "csi">("proof");
++  const [token, setToken] = useState("");
++  const [consent, setConsent] = useState(false);
++  const [busy, setBusy] = useState("");
++  const [error, setError] = useState("");
++  const [notice, setNotice] = useState("");
++  const [txHash, setTxHash] = useState("");
++  const [receipt, setReceipt] = useState<Receipt | null>(null);
++  const [history, setHistory] = useState<HistoryItem[]>([]);
++  const [lookup, setLookup] = useState("");
++  const [prepared, setPrepared] = useState(false);
++  const [lookupVersion, setLookupVersion] = useState(0);
++  const fileRef = useRef<HTMLInputElement>(null);
++  const uploadAbort = useRef<AbortController | null>(null);
++  const lock = useRef(false);
++
++  const refreshChain = useCallback(async () => {
++    try {
++      setChain(await api<ChainStatus>("/onchain/status"));
++    } catch {
++      setChain({
++        connected: false,
++        message: "APIに接続できません。時間をおいて再接続してください。",
++        circuits: [],
++      });
++    }
++  }, []);
++  useEffect(() => {
++    let disposed = false;
++    async function initialize() {
++      await refreshChain();
++      if (disposed) return;
++      try {
++        const saved: unknown = JSON.parse(localStorage.getItem(STORE) || "[]");
++        if (Array.isArray(saved))
++          setHistory(
++            saved
++              .filter(
++                (item) =>
++                  item &&
++                  /^0x[\da-f]{64}$/i.test(item.hash) &&
++                  typeof item.chainId === "number" &&
++                  typeof item.registry === "string" &&
++                  typeof item.date === "string",
++              )
++              .slice(0, 20),
++          );
++      } catch {
++        /* Storage can be disabled by browser policy. */
++      }
++      const shared = new URLSearchParams(window.location.search).get("tx");
++      if (shared && /^0x[\da-f]{64}$/i.test(shared)) {
++        setLookup(shared);
++        setTxHash(shared);
++      }
++    }
++    void initialize();
++    const provider = ethereum();
++    const reset = () => {
++      setWallet("");
++      setPrepared(false);
++      setNotice(
++        "ウォレットの変更を検知しました。送信時に接続先を再確認します。",
++      );
++    };
++    provider?.on?.("accountsChanged", reset);
++    provider?.on?.("chainChanged", reset);
++    return () => {
++      disposed = true;
++      provider?.removeListener?.("accountsChanged", reset);
++      provider?.removeListener?.("chainChanged", reset);
++      uploadAbort.current?.abort();
++    };
++  }, [refreshChain]);
++
++  useEffect(() => {
++    if (!txHash || !chain?.connected) return;
++    let stopped = false;
++    const controller = new AbortController();
++    let timer: ReturnType<typeof setTimeout>;
++    async function poll() {
++      try {
++        const result = await api<Receipt>(`/onchain/transactions/${txHash}`, {
++          signal: controller.signal,
++        });
++        if (stopped) return;
++        setReceipt(result);
++        setError("");
++        if (["confirmed", "reverted"].includes(result.status)) {
++          setNotice(
++            result.status === "confirmed"
++              ? "検証成功イベントと必要なブロック確認数を確認しました。"
++              : "トランザクションが失敗しました。証明は記録されていません。",
++          );
++          void refreshChain();
++          return;
++        }
++      } catch (e) {
++        if (!stopped) setError(errorText(e));
++      }
++      if (!stopped) timer = setTimeout(poll, 5000);
++    }
++    void poll();
++    return () => {
++      stopped = true;
++      controller.abort();
++      clearTimeout(timer);
++    };
++  }, [txHash, chain?.connected, refreshChain, lookupVersion]);
++
++  async function connect() {
++    const injected = ethereum();
++    if (!injected)
++      throw new Error(
++        "MetaMaskなど、EVM対応のブラウザウォレットを接続してください。",
++      );
++    const provider = new BrowserProvider(injected);
++    const signer = await provider.getSigner();
++    setWallet(await signer.getAddress());
++    return { provider, signer, injected };
++  }
++  async function loadFile(file: File) {
++    if (lock.current) return;
++    setError("");
++    setNotice("");
++    setBundle(null);
++    setConsent(false);
++    setPrepared(false);
++    setFileName(file.name);
++    setReceipt(null);
++    setTxHash("");
++    if (mode === "proof") {
++      if (file.size > 128 * 1024) {
++        setError("証明JSONは128 KB以下で指定してください。");
++        return;
++      }
++      lock.current = true;
++      setBusy("証明JSONを確認中…");
++      try {
++        setBundle(
++          parseBundle(
++            JSON.parse(await file.text()),
++            "csi_breathing_certificate",
++          ),
++        );
++      } catch (e) {
++        setError(errorText(e));
++      } finally {
++        lock.current = false;
++        setBusy("");
++      }
++      return;
++    }
++    if (
++      !file.name.toLowerCase().endsWith(".csi") ||
++      file.size === 0 ||
++      file.size > 50 * 1024 * 1024
++    ) {
++      setError(
++        "空でないPicoScenes .csiファイル（50 MB以下）を選択してください。",
++      );
++      return;
++    }
++    if (!token) {
++      setError("CSI解析用の運用者アクセストークンを入力してください。");
++      return;
++    }
++    lock.current = true;
++    setBusy("CSIを解析して証明を生成しています。数分かかる場合があります。");
++    const form = new FormData();
++    form.append("file", file);
++    const abort = new AbortController();
++    uploadAbort.current = abort;
++    const timeout = setTimeout(() => abort.abort(), 15 * 60_000);
++    try {
++      const result = await api<unknown>("/breathing/analyze-certificate", {
++        method: "POST",
++        body: form,
++        headers: { Authorization: `Bearer ${token}` },
++        signal: abort.signal,
++      });
++      setBundle(parseBundle(result, "csi_breathing_certificate"));
++      setNotice(
++        "証明を生成しました。公開入力を確認し、ウォレットから送信してください。",
++      );
++    } catch (e) {
++      setError(errorText(e));
++    } finally {
++      clearTimeout(timeout);
++      lock.current = false;
++      setBusy("");
++    }
++  }
++  async function submit() {
++    if (!bundle || !chain?.connected || !consent || lock.current) return;
++    lock.current = true;
++    setBusy("検証コントラクトで送信前検証を実行中…");
++    setError("");
++    setNotice("");
++    try {
++      const result = await api<Prepared>("/onchain/prepare", {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify(bundle),
++      });
++      setPrepared(true);
++      if (result.alreadyVerified) {
++        setTxHash("");
++        setReceipt(result.record ?? null);
++        setNotice("この証明はすでに記録されています。再送信は不要です。");
++        return;
++      }
++      // Independently encode the transaction: the API cannot substitute a transfer or another call.
++      const circuit = chain.circuits.find((c) => c.name === bundle.circuit);
++      if (
++        !circuit ||
++        result.chainId !== chain.chainId ||
++        result.to.toLowerCase() !== chain.registryAddress?.toLowerCase() ||
++        result.value !== "0x0"
++      )
++        throw new Error("送信先の設定が一致しません。");
++      const { pi_a: a, pi_b: b, pi_c: c } = bundle.proof;
++      const iface = new Interface([
++        "function verifyAndRecord(bytes32,uint256[2],uint256[2][2],uint256[2],uint256[])",
++      ]);
++      const data = iface.encodeFunctionData("verifyAndRecord", [
++        circuit.circuitId,
++        a.slice(0, 2),
++        [
++          [b[0][1], b[0][0]],
++          [b[1][1], b[1][0]],
++        ],
++        c.slice(0, 2),
++        bundle.publicSignals,
++      ]);
++      if (data !== result.data)
++        throw new Error("証明とトランザクションの内容が一致しません。");
++      setBusy("ウォレットのネットワークと署名を確認してください…");
++      let connection = await connect();
++      if (
++        Number((await connection.provider.getNetwork()).chainId) !==
++        chain.chainId
++      ) {
++        await connection.injected.request({
++          method: "wallet_switchEthereumChain",
++          params: [{ chainId: `0x${chain.chainId!.toString(16)}` }],
++        });
++        connection = await connect();
++      }
++      if (
++        Number((await connection.provider.getNetwork()).chainId) !==
++        chain.chainId
++      )
++        throw new Error("ウォレットを対象ネットワークに切り替えてください。");
++      const tx = await connection.signer.sendTransaction({
++        to: result.to,
++        data,
++        value: 0,
++        chainId: result.chainId,
++      });
++      setReceipt({
++        status: "pending",
++        transactionHash: tx.hash,
++        proofId: result.proofId,
++        confirmations: 0,
++      });
++      setTxHash(tx.hash);
++      setLookup(tx.hash);
++      const next = [
++        {
++          hash: tx.hash,
++          chainId: result.chainId,
++          registry: result.to,
++          date: new Date().toISOString(),
++        },
++        ...history,
++      ].slice(0, 20);
++      setHistory(next);
++      try {
++        localStorage.setItem(STORE, JSON.stringify(next));
++      } catch {
++        setNotice(
++          "履歴を保存できません。トランザクションハッシュを控えてください。",
++        );
++      }
++      setNotice("送信しました。ブロックへの取り込みと確認数を確認しています。");
++    } catch (e) {
++      setError(errorText(e));
++    } finally {
++      lock.current = false;
++      setBusy("");
++    }
++  }
++  function inspectTransaction(hash: string) {
++    setError("");
++    setNotice("");
++    setBundle(null);
++    setFileName("");
++    setConsent(false);
++    setPrepared(false);
++    setReceipt(null);
++    setTxHash(hash);
++    setLookup(hash);
++    setLookupVersion((version) => version + 1);
++  }
++  const pending =
++    receipt?.status === "pending" || receipt?.status === "confirming";
++  const matching =
++    bundle && chain?.circuits.find((c) => c.name === bundle.circuit);
++  const explorer = chain?.explorerUrl?.startsWith("https://")
++    ? chain.explorerUrl.replace(/\/$/, "")
++    : "";
++  const stages = [
++    !!bundle,
++    prepared,
++    !!txHash,
++    receipt?.status === "confirmed",
++  ];
++
++  return (
++    <div className={s.shell}>
++      <a className={s.skip} href="#workspace">
++        メインコンテンツへ
++      </a>
++      <aside className={s.sidebar}>
++        <Link className={s.brand} href="/">
++          <span className={s.brandIcon}>
++            <Glyph kind="shield" />
++          </span>
++          <span>
++            CSI <strong>Proof</strong>
++            <small>VERIFIABLE SENSING</small>
++          </span>
++        </Link>
++        <div className={s.workspaceLabel}>WORKSPACE</div>
++        <nav aria-label="メインナビゲーション">
++          <Link href="/" className={s.active}>
++            <Glyph />
++            検証コンソール<span>01</span>
++          </Link>
++          <a href="#activity">
++            <Glyph kind="chain" />
++            送信履歴
++          </a>
++          <Link href="/about">
++            <Glyph kind="shield" />
++            検証とプライバシー
++          </Link>
++        </nav>
++        <div className={s.sidebarBottom}>
++          <span className={s.tinyLabel}>BUILT FOR PRIVACY</span>
++          <p>
++            データの価値を、
++            <br />
++            データを明かさずに。
++          </p>
++          <div className={s.protocol}>
++            Groth16 <span>×</span> EVM
++          </div>
++        </div>
++      </aside>
++      <div className={s.main}>
++        <header className={s.topbar}>
++          <div className={s.breadcrumb}>
++            Workspace <span>/</span> <strong>検証コンソール</strong>
++          </div>
++          <button
++            className={s.wallet}
++            onClick={() => {
++              void connect().catch((e) => setError(errorText(e)));
++            }}
++          >
++            <span className={wallet ? s.liveDot : s.dot} />
++            {wallet ? short(wallet) : "ウォレットを接続"}
++            <Glyph kind="arrow" />
++          </button>
++        </header>
++        <main id="workspace" className={s.content}>
++          <div className={s.heading}>
++            <div>
++              <div className={s.eyebrow}>
++                <span /> PRIVATE DATA. PUBLIC TRUST.
++              </div>
++              <h1>
++                プライバシーを守り、
++                <br />
++                <span>確かさを証明する。</span>
++              </h1>
++              <p>
++                Wi-Fi CSIから生成したゼロ知識証明を、ブロックチェーンで検証。
++                <br className={s.desktopBreak} />
++                生の計測データを公開せずに、検証結果を共有できます。
++              </p>
++            </div>
++            <div className={s.heroArt} aria-hidden="true">
++              <div className={s.orbit} />
++              <div className={s.orbitTwo} />
++              <div className={s.artShield}>
++                <Glyph kind="shield" />
++              </div>
++              <span className={s.artLabel}>ZERO-KNOWLEDGE PROOF</span>
++              <span className={s.artNode}>01</span>
++              <span className={s.artNodeTwo}>✓</span>
++            </div>
++          </div>
++          <section className={s.metrics} aria-label="接続状態">
++            <div>
++              <span className={s.tinyLabel}>NETWORK</span>
++              <strong>
++                <span className={chain?.connected ? s.liveDot : s.dot} />
++                {chain?.connected
++                  ? chain.networkName
++                  : chain
++                    ? "未接続"
++                    : "接続を確認中"}
++              </strong>
++              <small>
++                {chain?.connected
++                  ? `${chain.chainId === 11155111 ? "テストネット" : "ローカル"} · Chain ID ${chain.chainId}`
++                  : "ネットワーク設定が必要です"}
++              </small>
++            </div>
++            <div>
++              <span className={s.tinyLabel}>VERIFIED PROOFS</span>
++              <strong>
++                {chain?.connected ? chain.totalVerified?.toLocaleString() : "—"}
++                <em>件</em>
++              </strong>
++              <small>このコントラクトの検証済み証明</small>
++            </div>
++            <div>
++              <span className={s.tinyLabel}>LATEST BLOCK</span>
++              <strong>
++                {chain?.connected
++                  ? `#${chain.currentBlock?.toLocaleString()}`
++                  : "—"}
++              </strong>
++              <small>RPCから取得した最新ブロック</small>
++            </div>
++            <div>
++              <span className={s.tinyLabel}>DATA DISCLOSURE</span>
++              <strong className={s.privacyValue}>
++                生データ非公開
++                <Glyph kind="shield" />
++              </strong>
++              <small>証明・公開入力はチェーンに公開</small>
++            </div>
++          </section>
++          {chain && !chain.connected && (
++            <div className={s.connectionNotice} role="status">
++              <span>
++                {chain.message ||
++                  "検証コントラクトを設定するとオンチェーン検証を開始できます。"}
++              </span>
++              <button onClick={() => void refreshChain()}>再接続 ↻</button>
++            </div>
++          )}
++          <div className={s.workGrid}>
++            <section className={s.card} aria-labelledby="new-proof">
++              <div className={s.cardHeading}>
++                <div>
++                  <span className={s.tinyLabel}>NEW VERIFICATION</span>
++                  <h2 id="new-proof">証明を検証する</h2>
++                </div>
++                <span className={s.stepTag}>STEP 01 — 04</span>
++              </div>
++              <div className={s.tabs} role="group" aria-label="入力方法">
++                <button
++                  className={mode === "proof" ? s.selected : ""}
++                  disabled={!!busy || pending}
++                  onClick={() => {
++                    setMode("proof");
++                    setBundle(null);
++                    setFileName("");
++                    setConsent(false);
++                    setPrepared(false);
++                    setReceipt(null);
++                    setTxHash("");
++                  }}
++                >
++                  証明JSONを読み込む
++                </button>
++                <button
++                  className={mode === "csi" ? s.selected : ""}
++                  disabled={!!busy || pending}
++                  onClick={() => {
++                    setMode("csi");
++                    setBundle(null);
++                    setFileName("");
++                    setConsent(false);
++                    setPrepared(false);
++                    setReceipt(null);
++                    setTxHash("");
++                  }}
++                >
++                  CSIから証明を生成
++                </button>
++              </div>
++              {mode === "csi" && (
++                <label className={s.tokenLabel}>
++                  運用者アクセストークン
++                  <input
++                    type="password"
++                    autoComplete="off"
++                    value={token}
++                    onChange={(e) => setToken(e.target.value)}
++                    placeholder="解析権限を持つトークンを入力"
++                  />
++                  <small>
++                    トークンはこの画面のメモリ内だけで保持します。CSIファイルはサーバーで解析後、一時ファイルを削除します。
++                  </small>
++                </label>
++              )}
++              <input
++                ref={fileRef}
++                type="file"
++                className={s.hiddenFile}
++                aria-label={
++                  mode === "proof" ? "証明JSONファイル" : "CSIファイル"
++                }
++                accept={mode === "proof" ? ".json,application/json" : ".csi"}
++                disabled={!!busy || pending}
++                onChange={(e) => {
++                  const file = e.target.files?.[0];
++                  if (file) void loadFile(file);
++                  e.target.value = "";
++                }}
++              />
++              <button
++                className={`${s.dropzone} ${bundle ? s.loaded : ""}`}
++                disabled={!!busy || pending}
++                onClick={() => fileRef.current?.click()}
++                onDragOver={(e) => e.preventDefault()}
++                onDrop={(e) => {
++                  e.preventDefault();
++                  if (!busy && !pending && e.dataTransfer.files[0])
++                    void loadFile(e.dataTransfer.files[0]);
++                }}
++              >
++                <span className={s.uploadIcon}>
++                  <Glyph kind={bundle ? "shield" : "upload"} />
++                </span>
++                <strong>
++                  {bundle ? fileName : "ファイルをドロップ、または選択"}
++                </strong>
++                <span>
++                  {bundle
++                    ? "証明を読み込みました・公開入力を確認してください"
++                    : mode === "proof"
++                      ? "Groth16 証明JSON · 最大128 KB"
++                      : "PicoScenes .csi · 最大50 MB"}
++                </span>
++                <span className={s.fileButton}>
++                  {bundle ? "別のファイルを選択" : "ファイルを選択"} ↗
++                </span>
++              </button>
++              {bundle && (
++                <div className={s.proofDetails}>
++                  <div>
++                    <span>回路</span>
++                    <code>{bundle.circuit}</code>
++                  </div>
++                  <div>
++                    <span>公開入力</span>
++                    <code>{bundle.publicSignals.join(", ")}</code>
++                  </div>
++                  {!matching && (
++                    <p>この回路は接続先にデプロイされていません。</p>
++                  )}
++                  <button onClick={() => download(bundle, "csi-proof.json")}>
++                    証明JSONを保存 ↓
++                  </button>
++                </div>
++              )}
++              <label className={s.consent}>
++                <input
++                  type="checkbox"
++                  checked={consent}
++                  disabled={!!busy || pending}
++                  onChange={(e) => setConsent(e.target.checked)}
++                />
++                <span>
++                  証明・公開入力・ウォレットアドレスが公開され、送信後は削除できないことを確認しました。
++                </span>
++              </label>
++              <button
++                className={s.primary}
++                disabled={
++                  !bundle ||
++                  !matching ||
++                  !consent ||
++                  !chain?.connected ||
++                  !!busy ||
++                  pending
++                }
++                onClick={() => void submit()}
++              >
++                {busy
++                  ? "処理中…"
++                  : pending
++                    ? "ブロックの確認を待っています"
++                    : "オンチェーンで検証する"}
++                <Glyph kind="arrow" />
++              </button>
++              <p className={s.gasNote}>
++                ウォレットで署名します。ネットワークのガス代が必要です。
++              </p>
++              {chain?.registryAddress && (
++                <p className={s.gasNote}>
++                  Registry:{" "}
++                  <code title={chain.registryAddress}>
++                    {short(chain.registryAddress)}
++                  </code>
++                </p>
++              )}
++              <div aria-live="polite">
++                {busy && <p className={s.info}>{busy}</p>}
++                {notice && <p className={s.info}>{notice}</p>}
++              </div>
++              {error && (
++                <div role="alert" className={s.error}>
++                  {error}
++                </div>
++              )}
++            </section>
++            <aside className={s.rightColumn}>
++              <section className={`${s.card} ${s.progressCard}`}>
++                <div className={s.cardHeading}>
++                  <div>
++                    <span className={s.tinyLabel}>VERIFICATION FLOW</span>
++                    <h2>検証の進捗</h2>
++                  </div>
++                  <span className={s.liveLabel}>LIVE</span>
++                </div>
++                <ol className={s.timeline}>
++                  {[
++                    ["証明の準備", "CSI解析、または証明JSONの読み込み"],
++                    ["送信前検証", "デプロイ済みVerifierで実行確認"],
++                    [
++                      "トランザクション送信",
++                      "ウォレット署名・ネットワークへ送信",
++                    ],
++                    ["オンチェーン検証", "成功イベントと確認ブロック数を照合"],
++                  ].map(([title, detail], i) => (
++                    <li key={title} className={stages[i] ? s.done : ""}>
++                      <span className={s.stageNumber}>
++                        {stages[i] ? "✓" : `0${i + 1}`}
++                      </span>
++                      <div>
++                        <strong>{title}</strong>
++                        <p>{detail}</p>
++                      </div>
++                    </li>
++                  ))}
++                </ol>
++                {receipt && (
++                  <div className={s.receipt} aria-live="polite">
++                    <strong>{labels[receipt.status]}</strong>
++                    <span>
++                      確認数 {receipt.confirmations} /{" "}
++                      {chain?.confirmationsRequired ?? "—"}
++                    </span>
++                    {receipt.proofId && (
++                      <code>Proof {short(receipt.proofId)}</code>
++                    )}
++                    {receipt.blockNumber && (
++                      <span>Block #{receipt.blockNumber.toLocaleString()}</span>
++                    )}
++                    {receipt.gasUsed && (
++                      <span>Gas {receipt.gasUsed.toLocaleString()}</span>
++                    )}
++                    {txHash &&
++                      (explorer ? (
++                        <a
++                          href={`${explorer}/tx/${txHash}`}
++                          target="_blank"
++                          rel="noreferrer"
++                        >
++                          Explorerで確認 ↗
++                        </a>
++                      ) : (
++                        <code>{txHash}</code>
++                      ))}
++                    <button
++                      onClick={() =>
++                        download(
++                          {
++                            ...receipt,
++                            chainId: chain?.chainId,
++                            registryAddress: chain?.registryAddress,
++                          },
++                          "verification-receipt.json",
++                        )
++                      }
++                    >
++                      検証記録を保存 ↓
++                    </button>
++                    {txHash && (
++                      <button
++                        onClick={() => {
++                          navigator.clipboard
++                            .writeText(
++                              `${window.location.origin}/verify?tx=${txHash}`,
++                            )
++                            .then(() =>
++                              setNotice("検証ページのURLをコピーしました。"),
++                            )
++                            .catch(() =>
++                              setError(
++                                "URLをコピーできませんでした。トランザクションハッシュで照会できます。",
++                              ),
++                            );
++                        }}
++                      >
++                        共有リンクをコピー ↗
++                      </button>
++                    )}
++                  </div>
++                )}
++              </section>
++              <section className={s.privacyCard}>
++                <span className={s.privacyIcon}>
++                  <Glyph kind="shield" />
++                </span>
++                <h3>公開するのは、確かめるための情報。</h3>
++                <p>
++                  生のCSI波形はチェーンに送信しません。証明と公開入力のみで、回路の制約を満たすことを検証します。
++                </p>
++                <Link href="/about">
++                  検証で保証できる範囲を知る <span>↗</span>
++                </Link>
++              </section>
++            </aside>
++          </div>
++          <section id="activity" className={`${s.card} ${s.activity}`}>
++            <div className={s.cardHeading}>
++              <div>
++                <span className={s.tinyLabel}>TRANSACTION ACTIVITY</span>
++                <h2>送信履歴・照会</h2>
++              </div>
++              <span className={s.historyNote}>履歴はこのブラウザに保存</span>
++            </div>
++            <form
++              className={s.lookup}
++              onSubmit={(e) => {
++                e.preventDefault();
++                if (!/^0x[\da-f]{64}$/i.test(lookup.trim())) {
++                  setError(
++                    "0xから始まる64桁のトランザクションハッシュを入力してください。",
++                  );
++                  return;
++                }
++                inspectTransaction(lookup.trim());
++              }}
++            >
++              <label htmlFor="tx-hash" className={s.srOnly}>
++                トランザクションハッシュ
++              </label>
++              <input
++                id="tx-hash"
++                placeholder="トランザクションハッシュを入力（0x…）"
++                value={lookup}
++                onChange={(e) => setLookup(e.target.value)}
++              />
++              <button type="submit" disabled={!chain?.connected}>
++                照会 <Glyph kind="arrow" />
++              </button>
++            </form>
++            <div className={s.tableWrap}>
++              <table>
++                <thead>
++                  <tr>
++                    <th>トランザクション</th>
++                    <th>ネットワーク</th>
++                    <th>送信日時</th>
++                    <th>検証記録</th>
++                  </tr>
++                </thead>
++                <tbody>
++                  {history.length ? (
++                    history.map((item) => (
++                      <tr key={item.hash}>
++                        <td>
++                          <span className={s.txIcon}>↗</span>
++                          <code>{short(item.hash)}</code>
++                        </td>
++                        <td>Chain {item.chainId}</td>
++                        <td>{new Date(item.date).toLocaleString("ja-JP")}</td>
++                        <td>
++                          <button
++                            disabled={
++                              item.chainId !== chain?.chainId ||
++                              item.registry.toLowerCase() !==
++                                chain?.registryAddress?.toLowerCase()
++                            }
++                            onClick={() => {
++                              inspectTransaction(item.hash);
++                            }}
++                          >
++                            チェーンで照会 ↗
++                          </button>
++                        </td>
++                      </tr>
++                    ))
++                  ) : (
++                    <tr>
++                      <td colSpan={4} className={s.empty}>
++                        <Glyph kind="chain" />
++                        <strong>まだ送信した証明はありません</strong>
++                        <span>
++                          最初の証明を送信すると、ここから検証記録を確認できます。
++                        </span>
++                      </td>
++                    </tr>
++                  )}
++                </tbody>
++              </table>
++            </div>
++          </section>
++          <footer className={s.footer}>
++            <span>
++              <span className={s.footerMark}>◈</span> CSI Proof{" "}
++              <span className={s.footerDivider}>/</span> Verifiable sensing
++              infrastructure
++            </span>
++            <Link href="/about">プライバシーと検証範囲 ↗</Link>
++          </footer>
++        </main>
++      </div>
++    </div>
++  );
++}
+diff --git a/docs/ONCHAIN_VERIFICATION.md b/docs/ONCHAIN_VERIFICATION.md
+new file mode 100644
+index 0000000..5a83fc2
+--- /dev/null
++++ b/docs/ONCHAIN_VERIFICATION.md
+@@ -0,0 +1,148 @@
++# CSI → Groth16 → オンチェーン検証
++
++新しい公開コンソールは `/` と `/verify`。既存のデータ一覧は `/research` に残しています。
++標準フローは `csi_breathing_certificate` 回路を使います。CSI解析APIから証明を生成するか、既存の証明JSONを読み込み、ウォレットから検証トランザクションを送信します。
++
++## 検証の仕組み
++
++1. CSIは運用者トークンで保護された `/api/v2/breathing/analyze-certificate` で解析。一時ファイルは処理後に削除。50 MB上限・プロセスあたり同時1件。
++2. `/api/v2/onchain/prepare` は実際のRegistryを `eth_call` で実行し、証明を事前検証。ここでは記録されません。
++3. ブラウザは送信先・チェーンID・calldata・value=0を再確認し、自分でcalldataを再構築。ユーザーのウォレットがガス代を負担します。サーバー署名鍵は不要です。
++4. `VerifiedProofRegistry.verifyAndRecord` が同一トランザクション内でGroth16 Verifierを呼び出します。成功した場合だけ記録と `ProofVerified` イベントを作成します。
++5. APIは送信先、receipt.status、イベントの発行元、ブロックハッシュ、確認数を照合。UIはpending / confirming / confirmed / revertedを表示します。
++
++回路設定はデプロイ時に固定され、管理者による「検証済みフラグの書換え」はありません。旧 `ZKProofRegistry` と互換性のない別契約です。旧レコードを新契約の検証済みとして取り込みません。DBマイグレーションは不要です。
++
++回路IDには検証鍵ファイルのSHA-256を含みます。APIはmanifestと実際のチェーンID・Registryコードハッシュ・登録回路を照合します。デプロイした鍵と証明生成に使用する鍵は必ず同じものを使用してください。
++
++## ローカル起動
++
++Python 3.11、Node.js 22以上、既存の回路WASM・R1CS・zkey・verification keyが必要です。
++鍵は開発用のものと公開運用用のものを区別してください。この手順では既存の鍵からVerifierを生成し、trusted setupを勝手にやり直しません。
++
++```sh
++uv venv --python 3.11 .venv
++uv pip install --python .venv/bin/python -r backend/requirements.txt
++npm ci --prefix zkp
++npm ci --prefix backend/contracts
++npm ci --prefix frontend
++bash scripts/start-onchain-local.sh
++```
++
++起動先は `http://127.0.0.1:3000`。CSI解析用のトークンは `.local/onchain/operator-token` に保存します。
++ブラウザウォレットへローカルネットワーク（RPC `http://127.0.0.1:18545`、Chain ID `31337`、通貨記号 `ETH`）を登録し、`.local/onchain/chain.log` の使い捨てテストアカウントを使用します。実資産を入れないでください。
++ローカルチェーンは終了時に消えます。既存のPostgres/Redisには接続・変更しません。研究用DB画面は別途DBの起動・初期化が必要です。
++
++## 証明JSONの形式
++
++`proof` はsnarkjsが出力したオブジェクトをそのまま利用し、座標・公開入力を**10進数文字列**で渡します。
++
++```json
++{
++  "circuit": "csi_breathing_certificate",
++  "proof": {
++    "protocol": "groth16", "curve": "bn128",
++    "pi_a": ["...", "...", "1"],
++    "pi_b": [["...", "..."], ["...", "..."], ["1", "0"]],
++    "pi_c": ["...", "...", "1"]
++  },
++  "publicSignals": ["0"]
++}
++```
++
++上記は構造の例で、有効な証明ではありません。生のCSIや診断結果を含む解析レスポンスは、画面で証明と公開入力だけに絞り込まれます。
++
++## テストネット（Ethereum Sepolia）へのデプロイ
++
++当面の公開検証先は **Ethereum Sepolia（Chain ID 11155111）** です。デプロイスクリプト・APIとも、SepoliaとローカルEVM（31337/1337）だけを許可します。メインネット用の設定は拒否します。
++
++1. Sepolia対応のRPCと、Sepolia ETHを持つテスト専用ウォレットを用意します。デプロイ用ウォレットと、UIから証明を送信する各ウォレットにガス代が必要です。
++2. ルートで `.env.sepolia.example` を `.env.sepolia.local` にコピーし、`ETHEREUM_RPC_URL` と `BLOCKCHAIN_PRIVATE_KEY` をローカルで設定します。秘密鍵をチャット、フロントエンド、`.env.public` に記載しないでください。このファイルはGit管理対象外です。
++3. 次のコマンドで既存zkeyからVerifierを生成し、Sepoliaにデプロイします。
++
++```sh
++# リポジトリルート
++cp .env.sepolia.example .env.sepolia.local
++chmod 600 .env.sepolia.local
++# ローカルのエディタで上記2項目を設定
++npm run build --prefix backend/contracts
++npm run deploy:sepolia --prefix backend/contracts
++```
++
++専用コマンドは `.env.sepolia.local` を読み込み、実際のRPCのChain IDも確認します。異なる `ONCHAIN_CHAIN_ID` が設定されていれば送信前に停止します。APIサーバーにはデプロイ用秘密鍵を渡しません。
++
++結果は `backend/contracts/build/onchain/deployment-11155111.json`。manifest、生成Solidity、compiled.json、対応する検証鍵・proving keyの版をセットで保管してください。テストネットで公開する際もデプロイ済みソースをExplorerで検証し、manifestのアドレスとコードハッシュを公開運用者がレビューしてください。
++追加回路は `npm run build -- csi_breathing_certificate csi_vmd_approx` のように指定できます。各回路の既存zkeyが必要です。公開入力は1〜256個に制限します。別回路の証明は別レコードで、回路間の連続性は自動的には証明しません。
++
++## 公開Web配信
++
++通常の `docker-compose.yml` は研究・開発用のままです。公開配信には独立した `docker-compose.public.yml` を使用してください。
++
++```sh
++cp .env.public.example .env.public
++# .env.public にRPC、manifestのパス、公開HTTPS Originを設定
++# JWT_SECRET_KEY / OPERATOR_API_TOKEN はそれぞれ openssl rand -hex 32 で生成
++# POSTGRES_PASSWORD も独立した強い値に設定
++docker compose --env-file .env.public -f docker-compose.public.yml config --quiet
++docker compose --env-file .env.public -f docker-compose.public.yml up --build -d
++```
++
++TLSを終端するリバースプロキシから `127.0.0.1:8080` に接続してください。インターネット向けTLS、DNS、バックアップ、監視は配信環境側で用意します。ゲートウェイは接続元IPでレート制限するため、外側にプロキシを置く場合は信頼するプロキシだけを対象にreal-IP設定を行ってください。
++
++公開ゲートウェイは以下だけをAPIとして許可します。
++
++| API | 用途 | 認証 |
++|---|---|---|
++| GET `/api/v2/onchain/status` | 接続・回路・件数 | 公開 |
++| POST `/api/v2/onchain/prepare` | 送信前検証、128 KBまで | 公開、レート制限 |
++| GET `/api/v2/onchain/transactions/{hash}` | 検証トランザクション照会 | 公開 |
++| GET `/api/v2/onchain/proofs/{id}` | Registryレコード照会 | 公開 |
++| POST `/api/v2/breathing/analyze-certificate` | CSI解析と証明生成 | Bearer運用者トークン、レート制限 |
++
++研究API・旧ブロックチェーンAPIはゲートウェイで404。APIコンテナの直接アクセスでも `PUBLIC_MODE=true` で研究APIに認証を要求します。Postgres、RPC、バックエンドのホストポートは公開しません。起動時の旧契約自動デプロイやDBへの `alembic stamp head` は、この構成では実行しません。公開フローはステートレスなので研究用DBテーブルは不要です。
++
++## 保証範囲・制約
++
++- 「有効な証明」と公開判定 `isNormal=1` は別です。`isNormal=0` の有効な証明も記録します。
++- certificate回路は再構成性・帯域判定を検証します。生CSIの真正性、センサーの所有者、VMD処理全体の正しさ、医学的診断は保証しません。
++- 証明・公開入力・送信元・時刻は公開されます。既存certificate回路の公開出力は判定値だけで、個々の計測への暗号学的な紐付けを追加するものではありません。
++- 重複防止は同一証明に対して行います。証明の再ランダム化や新しい証明を排除する計測単位のnullifierではありません。他人の証明を先に送信できるため、送信者は計測所有者の証明になりません。
++- 現在のUIの認証は運用者用の共有トークンです。一般利用者のアカウント登録、ユーザー別課金・隔離、ジョブキューは実装していません。
++- メモリ内の同時実行制限は1ワーカー前提。公開Composeも1ワーカー固定です。複数レプリカに拡張する場合は共有キュー・共有制限を追加してください。
++- pendingが長く続く場合、ウォレットでキャンセル・置換された可能性もあります。置換先のハッシュを照会してください。失われたトランザクションを自動で再送信しません。
++- 独立した回路・コントラクト監査、trusted setupの検証は未実施です。開発用エントロピーから作成された鍵を本番用として扱わないでください。
++
++## テスト・進捗資料
++
++```sh
++cd backend/contracts
++npm run build
++node scripts/proof-fixture.mjs
++npm test
++```
++
++証明fixtureは合成波形から作成しますが、Groth16証明とEVM検証は実際に実行します。再実行する場合はfixtureを再生成してください（同じ証明は重複として拒否されます）。
++
++```sh
++# ルートディレクトリから
++PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 DEBUG=true ZKP_AUTO_COMPILE=false \
++  .venv/bin/python -m pytest -p pytest_asyncio.plugin -p pytest_cov.plugin backend/tests
++cd frontend
++npm run lint
++npm run type-check
++npm run test:unit
++npm run build
++npx playwright install chromium
++# ローカルスタックを起動した状態で
++E2E_LOCAL_CHAIN=true npm run test:e2e
++# 実測CSIも含める場合
++E2E_LOCAL_CHAIN=true E2E_CSI_FILE=../sampledata/csi_20260519_114943.csi \
++  E2E_OPERATOR_TOKEN="$(cat ../.local/onchain/operator-token)" npm run test:e2e
++```
++
++pytestの自動プラグイン読込を無効化する理由は、既存web3 6.15.1のpytestプラグインと新しいeth_typing間の互換性問題です。必要なpytest-asyncioとpytest-covは明示的に読み込みます。
++スクリーンショットと実行結果は [進捗記録](progress/onchain/README.md) に保存します。
++
++Sepoliaの概要・Faucet一覧: [Ethereum公式ネットワーク資料](https://ethereum.org/developers/docs/networks/)。
++
++参照: [snarkjs公式のSolidity検証手順](https://github.com/iden3/snarkjs)、[ethers公式ドキュメント](https://docs.ethers.org/v6/single-page/)、[Next.jsセキュリティ告知](https://nextjs.org/blog/nextjs-security-update-october-14-2026)。

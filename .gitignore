@@ -2,6 +2,8 @@ backend/outputs/
 
 # Environment variables
 .env
+.env.public
+.env.sepolia.local
 .env.local
 .env.development.local
 .env.test.local
@@ -188,3 +190,7 @@ claudedocs/
 
 sampledata/
 *.csi
+
+# Browser test runtime artifacts (curated evidence lives in docs/progress)
+frontend/test-results/
+frontend/playwright-report/

@@ -1,0 +1,15 @@
+{
+  "source": "Existing local PicoScenes capture -> Python analysis -> real Groth16 proof -> local EVM. Test wallet transport; not public-chain deployment.",
+  "proofId": "0x42cb70c3f04d5af259589733b8dd7a36bb549f8560c1e3c06f9029200f675eb8",
+  "exists": true,
+  "circuitId": "0xe5522b219a3973107a870deaac8d7f1cba1d7614e4ff7caa4df56be9e1a4cff5",
+  "statementHash": "0xd36b31f4c266c4b9deed4df9227a6d9f6bc937d241791898583de92d15f960d9",
+  "submitter": "0x4948DB313E8C450e687582F50FAC517c831ff3ef",
+  "timestamp": 1793549772,
+  "blockNumber": 8,
+  "confirmations": 1,
+  "status": "confirmed",
+  "transactionHash": "0x337fa3b9cf635be1b7d692ad20e650d0ef3bbfd75c0194097965ddc661708b1d",
+  "gasUsed": 325811,
+  "blockHash": "0x475903f641d50be05db1213b2bf56479d9e07f9575703dd6e2c2b3b62c2a3684"
+}

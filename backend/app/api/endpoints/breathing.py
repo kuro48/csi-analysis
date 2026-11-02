@@ -8,12 +8,14 @@ CSIファイルを受け取り、breathing_pipeline（5-1.ipynb 移植）を実�
 
 import logging
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi import status as http_status
 from fastapi.concurrency import run_in_threadpool
+from app.core.config import settings
 
 from app.services.breathing_certificate_service import BreathingCertificateService
 from app.services.breathing_pipeline import run_breathing_pipeline
@@ -21,10 +23,34 @@ from app.services.committed_breathing_certificate_service import CommittedBreath
 from app.services.hybrid_experiment_service import HybridExperimentService
 from app.services.verifiable_breathing_service import VerifiableBreathingService
 
-router = APIRouter()
+_analysis_slots = threading.BoundedSemaphore(1)
+
+
+def analysis_slot():
+    if not _analysis_slots.acquire(blocking=False):
+        raise HTTPException(429, "別の解析を実行中です。完了後に再試行してください", headers={"Retry-After": "30"})
+    try:
+        yield
+    finally:
+        _analysis_slots.release()
+
+
+router = APIRouter(dependencies=[Depends(analysis_slot)])
 logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSION = ".csi"
+MAX_ANALYSIS_BYTES = 50 * 1024 * 1024
+
+
+async def _read_upload(file: UploadFile) -> bytes:
+    chunks = []
+    size = 0
+    while chunk := await file.read(1024 * 1024):
+        size += len(chunk)
+        if size > MAX_ANALYSIS_BYTES:
+            raise HTTPException(413, "CSI解析ファイルは50 MB以下にしてください")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 # 証明書検証サービス（回路セットアップ確認を1回だけ行う遅延シングルトン）
 _certificate_service: Optional[BreathingCertificateService] = None
@@ -36,7 +62,7 @@ _experiment_service: Optional[HybridExperimentService] = None
 def _get_certificate_service() -> BreathingCertificateService:
     global _certificate_service
     if _certificate_service is None:
-        _certificate_service = BreathingCertificateService()
+        _certificate_service = BreathingCertificateService(auto_compile=settings.ZKP_AUTO_COMPILE)
     return _certificate_service
 
 
@@ -83,7 +109,7 @@ async def analyze_breathing(
     返り値は VMD で分解された呼吸成分の時系列（サンプリング 100Hz）。
     ウェーブレット・MUSIC・ZKP証明生成・DB保存は行わない。
     """
-    file_data = await file.read()
+    file_data = await _read_upload(file)
     _validate_upload(file.filename, len(file_data))
 
     tmp_path: Optional[Path] = None
@@ -135,7 +161,7 @@ async def analyze_breathing_certificate(
           "diagnostics": {...},          # 再構成誤差比・narrowband比 等
         }
     """
-    file_data = await file.read()
+    file_data = await _read_upload(file)
     _validate_upload(file.filename, len(file_data))
 
     tmp_path: Optional[Path] = None
@@ -148,7 +174,7 @@ async def analyze_breathing_certificate(
         result = await run_in_threadpool(run_breathing_pipeline, str(tmp_path))
         cert_input = result["certificate_input"]
 
-        service = _get_certificate_service()
+        service = await run_in_threadpool(_get_certificate_service)
         proof_result = await service.generate_proof(
             vmd_input=cert_input["vmdInput"],
             modes=cert_input["modes"],
@@ -170,17 +196,17 @@ async def analyze_breathing_certificate(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     except FileNotFoundError as e:
         logger.error("Certificate circuit not set up: %s", e)
-        raise HTTPException(status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE, detail="証明回路の準備が完了していません。運用者に確認してください")
     except RuntimeError as e:
         logger.error("Certificate analysis unavailable: %s", e)
-        raise HTTPException(status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE, detail="証明を生成できませんでした。入力データと回路設定を確認してください")
     except HTTPException:
         raise
     except Exception as e:
         logger.exception("Breathing certificate analysis failed")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"証明書解析に失敗しました: {e}",
+            detail="証明書解析に失敗しました。運用者に確認してください",
         )
     finally:
         if tmp_path is not None:
@@ -192,7 +218,7 @@ async def analyze_breathing_verifiable(
     file: UploadFile = File(..., description="PicoScenes .csi ファイル"),
 ) -> Dict[str, Any]:
     """5-1/Lomb--Scargle比較と各Circom証明を実行する。"""
-    file_data = await file.read()
+    file_data = await _read_upload(file)
     _validate_upload(file.filename, len(file_data))
 
     tmp_path: Optional[Path] = None
@@ -225,7 +251,7 @@ async def analyze_breathing_committed(
 ) -> Dict[str, Any]:
     """Run the unchanged Python estimator and bind its VMD input to public C1."""
 
-    file_data = await file.read()
+    file_data = await _read_upload(file)
     _validate_upload(file.filename, len(file_data))
     tmp_path: Optional[Path] = None
     try:
@@ -272,7 +298,7 @@ async def benchmark_breathing_methods(
 ) -> Dict[str, Any]:
     """Run and persist all comparable methods against one immutable capture."""
 
-    file_data = await file.read()
+    file_data = await _read_upload(file)
     _validate_upload(file.filename, len(file_data))
     tmp_path: Optional[Path] = None
     try:

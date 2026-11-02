@@ -628,7 +628,9 @@ class ZKPCircuitService:
         env = self._node_env()
         try:
             proc = await asyncio.create_subprocess_exec(
-                "snarkjs",
+                str(self.zkp_dir / "node_modules" / ".bin" / "snarkjs")
+                if (self.zkp_dir / "node_modules" / ".bin" / "snarkjs").is_file()
+                else "snarkjs",
                 "groth16",
                 "prove",
                 str(zkey),

@@ -2,13 +2,16 @@
 
 Wi-Fi CSI（Channel State Information）を活用した非接触呼吸監視システムの統合Webプラットフォームです。
 
+公開用の **CSI Proof** コンソールを追加しました。CSI解析・Groth16証明生成・ウォレット送信・Solidityによるオンチェーン検証・検証記録の共有に対応します。
+[起動・公開運用の手順](docs/ONCHAIN_VERIFICATION.md) と [進捗報告・画面スクリーンショット・検証ログ](docs/progress/onchain/README.md) を参照してください。通常のComposeは開発用です。公開には `docker-compose.public.yml` を使用します。
+
 ## システム概要
 
 - **Frontend**: React + Next.js + TypeScript
 - **Backend**: FastAPI + Python
 - **Database**: PostgreSQL
 - **Cache**: Redis
-- **Auth**: JWT
+- **Auth**: 公開検証API / CSI解析・研究APIは運用者Bearerトークン（公開モード）
 - **Blockchain**: Ethereum (Ganache) + Smart Contracts
 
 ## プロジェクト構造

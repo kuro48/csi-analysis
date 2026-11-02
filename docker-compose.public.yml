@@ -1,0 +1,62 @@
+# Standalone public deployment: run behind a TLS reverse proxy.
+# No RPC, PostgreSQL, Redis or backend ports are published to the host.
+services:
+  backend:
+    build: ./backend
+    entrypoint: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    environment:
+      DEBUG: "false"
+      PUBLIC_MODE: "true"
+      RESEARCH_MODE: "false"
+      ENABLE_TEST_ENDPOINTS: "false"
+      ZKP_AUTO_COMPILE: "false"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
+      OPERATOR_API_TOKEN: ${OPERATOR_API_TOKEN:?Set OPERATOR_API_TOKEN}
+      DATABASE_URL: postgresql://csi:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/csi
+      ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:?Set HTTPS PUBLIC_ORIGIN}
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL:?Set ETHEREUM_RPC_URL}
+      ONCHAIN_MANIFEST: /app/contracts/build/onchain/deployment.json
+      ONCHAIN_CONFIRMATIONS: ${ONCHAIN_CONFIRMATIONS:-3}
+      PICOSCENES_PARSER: python
+      PICOSCENES_MAX_FILE_SIZE_MB: "50"
+    volumes:
+      - ./zkp:/zkp:ro
+      - ${ONCHAIN_MANIFEST:?Set manifest path}:/app/contracts/build/onchain/deployment.json:ro
+      - research_uploads:/app/uploads
+    tmpfs:
+      - /tmp:size=1073741824,mode=1777
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: csi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: csi
+    volumes: ["public_db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U csi -d csi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ""
+        API_INTERNAL_URL: http://backend:8000
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  gateway:
+    image: nginx:1.28-alpine
+    ports: ["127.0.0.1:${PUBLIC_HTTP_PORT:-8080}:80"]
+    volumes: ["./nginx/public.conf:/etc/nginx/nginx.conf:ro"]
+    depends_on: [frontend, backend]
+    restart: unless-stopped
+volumes:
+  public_db:
+  research_uploads:

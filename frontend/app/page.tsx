@@ -1,5 +1,5 @@
-import { DeviceDashboard } from "./DeviceDashboard";
+import { VerificationConsole } from "./verify/VerificationConsole";
 
 export default function Home() {
-  return <DeviceDashboard />;
+  return <VerificationConsole />;
 }

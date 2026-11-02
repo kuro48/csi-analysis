@@ -1,0 +1,14 @@
+
+> frontend@0.1.0 test:e2e
+> playwright test
+
+
+Running 3 tests using 1 worker
+
+(node:93895) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/csi-capture.spec.ts:5:5 › real CSI capture: UI generation to confirmed local EVM receipt (7.1s)
+  ✓  2 tests/onchain.spec.ts:6:5 › local EVM: proof import, tamper rejection, wallet send, receipt and responsive screenshots (5.5s)
+  ✓  3 tests/onchain.spec.ts:164:5 › invalid JSON and unavailable chain never display verification success (624ms)
+
+  3 passed (14.2s)

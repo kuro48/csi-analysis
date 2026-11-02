@@ -1,0 +1,15 @@
+{
+  "source": "Synthetic 0.25 Hz input; real Groth16 proof and local EVM transaction. Test wallet adapter; not a public-chain deployment.",
+  "proofId": "0x00a7589567735b4c78d47a25ce8d202b06465e431108fe7365afd32559dbabd6",
+  "exists": true,
+  "circuitId": "0xe5522b219a3973107a870deaac8d7f1cba1d7614e4ff7caa4df56be9e1a4cff5",
+  "statementHash": "0xcf3c8f07d9ff12d8da50176fda14036503ff51f9d2fdd6830dfdec0fe3b742b2",
+  "submitter": "0x4948DB313E8C450e687582F50FAC517c831ff3ef",
+  "timestamp": 1793549777,
+  "blockNumber": 9,
+  "confirmations": 1,
+  "status": "confirmed",
+  "transactionHash": "0xb3ee8de5bc9ebab6493671f9c408a203d16e7005f590f779cda63eea959004a1",
+  "gasUsed": 325835,
+  "blockHash": "0x13305c2510321dff14c0ae306fc9f6386116c66e09c55bd547de67ece1044007"
+}

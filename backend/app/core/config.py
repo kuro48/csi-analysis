@@ -31,6 +31,10 @@ class Settings:
     ZKPROOF_CONTRACT_ADDRESS: str = os.getenv("ZKPROOF_CONTRACT_ADDRESS", "")
     ZKPROOF_VERIFIER_CONTRACT_ADDRESS: str = os.getenv("ZKPROOF_VERIFIER_CONTRACT_ADDRESS", "")
     BLOCKCHAIN_PRIVATE_KEY: str = os.getenv("BLOCKCHAIN_PRIVATE_KEY", "")
+    ONCHAIN_MANIFEST: str = os.getenv("ONCHAIN_MANIFEST", "")
+    ONCHAIN_CONFIRMATIONS: int = max(1, int(os.getenv("ONCHAIN_CONFIRMATIONS", "2")))
+    PUBLIC_MODE: bool = os.getenv("PUBLIC_MODE", "false").lower() == "true"
+    OPERATOR_API_TOKEN: str = os.getenv("OPERATOR_API_TOKEN", "")
 
     # SECURITY: DATABASE_URL must be set via environment variable
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
@@ -100,6 +104,12 @@ def validate_security_settings():
     }
 
     missing_vars = [k for k, v in required_vars.items() if not v]
+
+    if settings.PUBLIC_MODE:
+        if settings.DEBUG or len(settings.OPERATOR_API_TOKEN) < 32:
+            raise ValueError("Public mode requires DEBUG=false and OPERATOR_API_TOKEN of at least 32 characters")
+        if "*" in settings.ALLOWED_ORIGINS:
+            raise ValueError("Public mode requires explicit ALLOWED_ORIGINS")
 
     if missing_vars:
         error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"

@@ -1,0 +1,12 @@
+.env
+.env.*
+.venv
+**/node_modules
+**/__pycache__
+.pytest_cache
+.coverage
+htmlcov
+uploads
+outputs
+contracts/build
+*.log
