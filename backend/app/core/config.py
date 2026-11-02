@@ -32,6 +32,10 @@ class Settings:
     ZKPROOF_VERIFIER_CONTRACT_ADDRESS: str = os.getenv("ZKPROOF_VERIFIER_CONTRACT_ADDRESS", "")
     BLOCKCHAIN_PRIVATE_KEY: str = os.getenv("BLOCKCHAIN_PRIVATE_KEY", "")
     ONCHAIN_MANIFEST: str = os.getenv("ONCHAIN_MANIFEST", "")
+    OBSERVATION_MANIFEST: str = os.getenv("OBSERVATION_MANIFEST", "")
+    OBSERVATION_DATA_DIR: str = os.getenv("OBSERVATION_DATA_DIR", str(Path(__file__).resolve().parents[3] / ".local" / "observations"))
+    OBSERVATION_RAW_RETENTION_HOURS: int = max(1, int(os.getenv("OBSERVATION_RAW_RETENTION_HOURS", "24")))
+    OBSERVATION_MAX_PENDING: int = max(1, int(os.getenv("OBSERVATION_MAX_PENDING", "100")))
     ONCHAIN_CONFIRMATIONS: int = max(1, int(os.getenv("ONCHAIN_CONFIRMATIONS", "2")))
     PUBLIC_MODE: bool = os.getenv("PUBLIC_MODE", "false").lower() == "true"
     OPERATOR_API_TOKEN: str = os.getenv("OPERATOR_API_TOKEN", "")

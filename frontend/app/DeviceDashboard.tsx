@@ -123,6 +123,7 @@ export function DeviceDashboard() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <Link href="/patients" className="inline-flex h-10 items-center justify-center rounded-lg border border-teal-700 bg-white px-4 text-sm font-semibold text-teal-800">患者の呼吸判定</Link>
             <Link href="/verify" className="inline-flex h-10 items-center justify-center rounded-lg border border-teal-700 bg-white px-4 text-sm font-semibold text-teal-800">オンチェーン検証</Link>
             <Link
               href="/analyze"

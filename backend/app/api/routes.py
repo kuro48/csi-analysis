@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends
 from app.api.endpoints import health, csi_data, base_csi, blockchain, breathing, onchain
 from app.core.access import require_operator
+from app.api.endpoints import observations
 
 api_router = APIRouter()
+api_router.include_router(observations.router, prefix="/observations", tags=["observations"])
 
 api_router.include_router(health.router, prefix="/health", tags=["health"])
 api_router.include_router(onchain.router, prefix="/onchain", tags=["onchain"])

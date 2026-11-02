@@ -23,8 +23,8 @@ printf '%s' "$OPERATOR_API_TOKEN" > .local/onchain/operator-token
 export ONCHAIN_MANIFEST="$ROOT/backend/contracts/build/onchain/deployment-31337.json"
 export API_INTERNAL_URL=http://127.0.0.1:8000 NEXT_PUBLIC_API_URL=""
 unset BLOCKCHAIN_PRIVATE_KEY ZKPROOF_CONTRACT_ADDRESS ZKPROOF_VERIFIER_CONTRACT_ADDRESS
-CHAIN_PID="" API_PID="" UI_PID=""
-cleanup() { for pid in "$UI_PID" "$API_PID" "$CHAIN_PID"; do [ -z "$pid" ] || kill "$pid" 2>/dev/null || true; done; }
+CHAIN_PID="" API_PID="" UI_PID="" WORKER_PID=""
+cleanup() { for pid in "$UI_PID" "$WORKER_PID" "$API_PID" "$CHAIN_PID"; do [ -z "$pid" ] || kill "$pid" 2>/dev/null || true; done; }
 trap cleanup EXIT INT TERM
 node backend/contracts/node_modules/ganache/dist/node/cli.js --server.host 127.0.0.1 --server.port 18545 --chain.chainId 31337 > .local/onchain/chain.log 2>&1 &
 CHAIN_PID=$!
@@ -35,6 +35,20 @@ for attempt in {1..30}; do
 done
 [ "$ready" = true ] || { echo "Local EVM failed to start. See .local/onchain/chain.log"; exit 1; }
 (cd backend/contracts && npm run build && npm run deploy)
+if [ "${OBSERVATIONS_ENABLED:-false}" = true ]; then
+  export OBSERVATION_RECORDER_ADDRESS
+  OBSERVATION_RECORDER_ADDRESS=$(node backend/contracts/scripts/create-recorder.mjs "$ROOT/.local/onchain/observation-recorder.key")
+  node backend/contracts/scripts/fund-local-recorder.mjs
+  node backend/contracts/scripts/deploy-observations.mjs
+  export OBSERVATION_MANIFEST="$ROOT/backend/contracts/build/onchain/observations-31337.json"
+  # The EVM is ephemeral, so each run gets a new catalog/queue. No old data is deleted.
+  export OBSERVATION_DATA_DIR="$ROOT/.local/onchain/observations-$(date -u +%Y%m%dT%H%M%SZ)"
+  (cd backend && OBSERVATION_RECORDER_KEY_FILE="$ROOT/.local/onchain/observation-recorder.key" exec ../.venv/bin/python -m app.services.observation_worker) > .local/onchain/worker.log 2>&1 &
+  WORKER_PID=$!
+  echo "Patient results: http://127.0.0.1:3000/patients"
+  echo "Capture administration: http://127.0.0.1:3000/capture"
+  echo "Observation data: $OBSERVATION_DATA_DIR"
+fi
 (cd backend && exec ../.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000) > .local/onchain/api.log 2>&1 &
 API_PID=$!
 (cd frontend && exec node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3000) > .local/onchain/ui.log 2>&1 &

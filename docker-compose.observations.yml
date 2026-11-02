@@ -1,0 +1,35 @@
+# Overlay: docker compose --env-file .env.public -f docker-compose.public.yml
+#          -f docker-compose.observations.yml up --build -d
+services:
+  backend:
+    environment:
+      OBSERVATION_DATA_DIR: /app/observations
+      OBSERVATION_MANIFEST: /app/contracts/build/observations/${OBSERVATION_MANIFEST_FILE:-observations-11155111.json}
+    volumes:
+      - observation_data:/app/observations
+      - ${OBSERVATION_BUILD_DIR:?Set OBSERVATION_BUILD_DIR}:/app/contracts/build/observations:ro
+  observation-worker:
+    build: ./backend
+    entrypoint: ["python", "-m", "app.services.observation_worker"]
+    environment:
+      ZKP_AUTO_COMPILE: "false"
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL:?Set ETHEREUM_RPC_URL}
+      OBSERVATION_DATA_DIR: /app/observations
+      OBSERVATION_MANIFEST: /app/contracts/build/observations/${OBSERVATION_MANIFEST_FILE:-observations-11155111.json}
+      OBSERVATION_RECORDER_KEY_FILE: /run/secrets/recorder
+      OBSERVATION_MAX_TX_WEI: ${OBSERVATION_MAX_TX_WEI:-10000000000000000}
+      ONCHAIN_CONFIRMATIONS: ${ONCHAIN_CONFIRMATIONS:-3}
+      OBSERVATION_RAW_RETENTION_HOURS: ${OBSERVATION_RAW_RETENTION_HOURS:-24}
+      PICOSCENES_PARSER: python
+    volumes:
+      - observation_data:/app/observations
+      - ./zkp:/zkp:ro
+      - ${OBSERVATION_BUILD_DIR:?Set OBSERVATION_BUILD_DIR}:/app/contracts/build/observations:ro
+      - ${OBSERVATION_RECORDER_KEY_FILE:?Set a mode-0600 key file}:/run/secrets/recorder:ro
+    tmpfs: ["/tmp:size=1073741824,mode=1777"]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      disable: true
+volumes:
+  observation_data:

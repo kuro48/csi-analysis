@@ -1,6 +1,6 @@
 # CSI → Groth16 → オンチェーン検証
 
-通常構成では `/` と `/research` が既存のCSI解析モニター、`/verify` がオンチェーン検証コンソールです。公開用Composeではビルド時に `NEXT_PUBLIC_APP_MODE=public` を指定し、トップ `/` も検証コンソールにします。
+通常構成では `/` と `/research` が既存のCSI解析モニター、`/verify` がオンチェーン検証コンソールです。公開用Composeでは `NEXT_PUBLIC_APP_MODE=public` を指定し、トップ `/` は患者別の呼吸判定照会画面になります。証明デバッグコンソールは引き続き `/verify` です。[患者照会・実機収集の運用手順](PATIENT_OBSERVATIONS.md) を参照してください。
 標準フローは `csi_breathing_certificate` 回路を使います。CSI解析APIから証明を生成するか、既存の証明JSONを読み込み、ウォレットから検証トランザクションを送信します。
 
 ## 検証の仕組み

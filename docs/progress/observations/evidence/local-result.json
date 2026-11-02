@@ -1,0 +1,22 @@
+{
+  "source": "Previously captured PicoScenes CSI; 150 samples; DEBUG INPUT MODE with padding. Not a new hardware capture. Patient alias and duration are operator-supplied test metadata. Real proof, signature, local EVM storage and on-chain verification.",
+  "captureId": "fb968f43-6131-4a5a-bb1a-978f5bd3d524",
+  "result": {
+    "status": "verified",
+    "isNormal": false,
+    "patientId": "69d0f91e-7af7-457b-abf0-29b0ac9a2db3",
+    "observedAt": 1779158983,
+    "durationSeconds": 60,
+    "verifiedAtBlock": 16,
+    "confirmations": 1,
+    "transactionHash": "0xe576309803d195c9141925d7d2539223e1780dba390872ed21a979f2cb2c7634",
+    "chainId": 31337,
+    "debugInput": true
+  },
+  "receipt": {
+    "status": 1,
+    "blockNumber": 16,
+    "gasUsed": 301274,
+    "transactionHash": "0xe576309803d195c9141925d7d2539223e1780dba390872ed21a979f2cb2c7634"
+  }
+}

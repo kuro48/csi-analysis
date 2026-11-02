@@ -1,0 +1,2448 @@
+diff --git a/.env.public.example b/.env.public.example
+index 6ef7c0d..1d4d83f 100644
+--- a/.env.public.example
++++ b/.env.public.example
+@@ -8,3 +8,10 @@ POSTGRES_PASSWORD=
+ ETHEREUM_RPC_URL=
+ ONCHAIN_MANIFEST=./backend/contracts/build/onchain/deployment-11155111.json
+ ONCHAIN_CONFIRMATIONS=3
++# Required when adding -f docker-compose.observations.yml:
++OBSERVATION_BUILD_DIR=./backend/contracts/build/onchain
++OBSERVATION_MANIFEST_FILE=observations-11155111.json
++# File path only; the secret is mounted into the signing worker, never the API.
++OBSERVATION_RECORDER_KEY_FILE=./.local/observations/recorder.key
++OBSERVATION_MAX_TX_WEI=10000000000000000
++OBSERVATION_RAW_RETENTION_HOURS=24
+diff --git a/.env.sepolia.example b/.env.sepolia.example
+index cfea100..351fb48 100644
+--- a/.env.sepolia.example
++++ b/.env.sepolia.example
+@@ -3,3 +3,5 @@
+ ETHEREUM_RPC_URL=
+ BLOCKCHAIN_PRIVATE_KEY=
+ ONCHAIN_CHAIN_ID=11155111
++# For deploy:observations only. Public address, not the recorder private key.
++OBSERVATION_RECORDER_ADDRESS=
+diff --git a/.gitattributes b/.gitattributes
+index 2ad2722..448dccc 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,2 +1,3 @@
+ # Unified diffs require a leading space on empty context lines.
+ docs/progress/onchain/*.patch -whitespace
++docs/progress/observations/*.patch -whitespace
+diff --git a/backend/app/api/endpoints/observations.py b/backend/app/api/endpoints/observations.py
+new file mode 100644
+index 0000000..58524f8
+--- /dev/null
++++ b/backend/app/api/endpoints/observations.py
+@@ -0,0 +1,148 @@
++"""Patient catalog and result verification; authenticated capture ingestion."""
++import hashlib
++import logging
++import os
++import secrets
++import tempfile
++import time
++from datetime import datetime
++from pathlib import Path
++from uuid import UUID
++
++from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Response, UploadFile
++
++from app.core.config import settings
++from app.services.observation_chain import ObservationChain
++from app.services.observation_store import ObservationStore, QueueFull
++from app.services.onchain_service import ChainUnavailable
++
++logger = logging.getLogger(__name__)
++router = APIRouter()
++
++
++def operator(authorization: str = Header(default="")):
++    # Capture registration never falls back to anonymous writes, even in DEBUG.
++    if not settings.OPERATOR_API_TOKEN or not secrets.compare_digest(
++        authorization, "Bearer " + settings.OPERATOR_API_TOKEN
++    ):
++        raise HTTPException(401, "収集操作には運用者トークンが必要です", headers={"WWW-Authenticate": "Bearer"})
++
++
++def store():
++    return ObservationStore()
++
++
++def no_cache(response: Response):
++    response.headers["Cache-Control"] = "no-store"
++
++
++@router.get("/patients", dependencies=[Depends(no_cache)])
++def patients(db=Depends(store)):
++    return {"patients": db.patients()}
++
++
++@router.post("/patients", status_code=201, dependencies=[Depends(operator), Depends(no_cache)])
++def add_patient(db=Depends(store)):
++    return db.add_patient()
++
++
++@router.get("/patients/{patient_id}/measurements", dependencies=[Depends(no_cache)])
++def measurements(
++    patient_id: UUID, start_at: int = Query(0, ge=0), end_at: int = Query(253402300799, ge=1), db=Depends(store)
++):
++    if not db.patient_exists(str(patient_id)):
++        raise HTTPException(404, "患者が見つかりません")
++    if end_at <= start_at:
++        raise HTTPException(422, "計測期間の範囲が不正です")
++    return {"measurements": db.observations(str(patient_id), start_at, end_at)}
++
++
++@router.post("/captures", status_code=202, dependencies=[Depends(operator), Depends(no_cache)])
++async def capture(
++    patient_id: UUID = Form(...),
++    capture_id: UUID = Form(...),
++    observed_at: datetime = Form(...),
++    duration_seconds: int = Form(..., ge=1, le=3600),
++    file: UploadFile = File(...),
++    db=Depends(store),
++):
++    if observed_at.tzinfo is None:
++        raise HTTPException(422, "計測開始時刻にはタイムゾーンが必要です")
++    timestamp = int(observed_at.timestamp())
++    if timestamp <= 0 or timestamp + duration_seconds > time.time() + 300:
++        raise HTTPException(422, "計測時刻・期間を確認してください")
++    if not db.patient_exists(str(patient_id)):
++        raise HTTPException(404, "患者が見つかりません")
++    if Path(file.filename or "").suffix.lower() != ".csi":
++        raise HTTPException(422, "PicoScenes .csiファイルが必要です")
++    path = None
++    try:
++        digest = hashlib.sha256()
++        size = 0
++        with tempfile.NamedTemporaryFile(dir=db.raw, suffix=".csi", delete=False) as target:
++            path = Path(target.name)
++            while chunk := await file.read(1024 * 1024):
++                size += len(chunk)
++                if size > 50 * 1024 * 1024:
++                    raise HTTPException(413, "CSIは50 MB以下にしてください")
++                digest.update(chunk)
++                target.write(chunk)
++            target.flush()
++            os.fsync(target.fileno())
++        if not size:
++            raise HTTPException(422, "CSIファイルが空です")
++        try:
++            job = db.enqueue(str(capture_id), str(patient_id), timestamp, duration_seconds, digest.hexdigest(), path)
++        except ValueError as exc:
++            raise HTTPException(409, str(exc)) from exc
++        except QueueFull as exc:
++            raise HTTPException(429, str(exc), headers={"Retry-After": "60"}) from exc
++        if job["raw_path"] == str(path):
++            path = None  # Queue owns this file until proof generation/retention expiry.
++        return {"id": job["id"], "status": job["status"]}
++    finally:
++        if path:
++            path.unlink(missing_ok=True)
++        await file.close()
++
++
++@router.get("/captures/{capture_id}", dependencies=[Depends(operator), Depends(no_cache)])
++def capture_status(capture_id: UUID, db=Depends(store)):
++    job = db.capture(str(capture_id))
++    if not job:
++        raise HTTPException(404, "収集が見つかりません")
++    return {key: job[key] for key in ("id", "status", "attempts", "error", "tx_hash")}
++
++
++@router.post("/captures/{capture_id}/retry", dependencies=[Depends(operator), Depends(no_cache)])
++def retry(capture_id: UUID, db=Depends(store)):
++    job = db.capture(str(capture_id))
++    if not job or job["status"] != "failed":
++        raise HTTPException(409, "再試行できる失敗ジョブがありません")
++    if not job["bundle"] and not Path(job["raw_path"]).exists():
++        raise HTTPException(410, "CSIの保存期限を過ぎています。再収集してください")
++    # Never clear a signed transaction: an uncertain broadcast must not be re-signed.
++    db.update(job["id"], status="queued", attempts=0, next_attempt=0, error=None)
++    return {"id": job["id"], "status": "queued"}
++
++
++@router.post("/measurements/{capture_id}/verify", dependencies=[Depends(no_cache)])
++def verify(capture_id: UUID, response: Response, db=Depends(store)):
++    job = db.capture(str(capture_id))
++    if not job:
++        raise HTTPException(404, "計測が見つかりません")
++    if not job["tx_hash"]:
++        response.status_code = 202
++        return {"status": job["status"]}  # No result, especially no default false.
++    try:
++        result = ObservationChain().result(job)
++    except ValueError as exc:
++        raise HTTPException(422, str(exc)) from exc
++    except ChainUnavailable as exc:
++        raise HTTPException(503, str(exc)) from exc
++    except Exception:
++        logger.exception("Observation verification unavailable")
++        raise HTTPException(503, "チェーンに接続できません。判定結果は表示しません")
++    if result["status"] != "verified":
++        response.status_code = 202
++    return result
+diff --git a/backend/app/api/routes.py b/backend/app/api/routes.py
+index 3f960c9..6d2ae3d 100644
+--- a/backend/app/api/routes.py
++++ b/backend/app/api/routes.py
+@@ -1,8 +1,10 @@
+ from fastapi import APIRouter, Depends
+ from app.api.endpoints import health, csi_data, base_csi, blockchain, breathing, onchain
+ from app.core.access import require_operator
++from app.api.endpoints import observations
+ 
+ api_router = APIRouter()
++api_router.include_router(observations.router, prefix="/observations", tags=["observations"])
+ 
+ api_router.include_router(health.router, prefix="/health", tags=["health"])
+ api_router.include_router(onchain.router, prefix="/onchain", tags=["onchain"])
+diff --git a/backend/app/core/config.py b/backend/app/core/config.py
+index f5842aa..452c610 100644
+--- a/backend/app/core/config.py
++++ b/backend/app/core/config.py
+@@ -32,6 +32,10 @@ class Settings:
+     ZKPROOF_VERIFIER_CONTRACT_ADDRESS: str = os.getenv("ZKPROOF_VERIFIER_CONTRACT_ADDRESS", "")
+     BLOCKCHAIN_PRIVATE_KEY: str = os.getenv("BLOCKCHAIN_PRIVATE_KEY", "")
+     ONCHAIN_MANIFEST: str = os.getenv("ONCHAIN_MANIFEST", "")
++    OBSERVATION_MANIFEST: str = os.getenv("OBSERVATION_MANIFEST", "")
++    OBSERVATION_DATA_DIR: str = os.getenv("OBSERVATION_DATA_DIR", str(Path(__file__).resolve().parents[3] / ".local" / "observations"))
++    OBSERVATION_RAW_RETENTION_HOURS: int = max(1, int(os.getenv("OBSERVATION_RAW_RETENTION_HOURS", "24")))
++    OBSERVATION_MAX_PENDING: int = max(1, int(os.getenv("OBSERVATION_MAX_PENDING", "100")))
+     ONCHAIN_CONFIRMATIONS: int = max(1, int(os.getenv("ONCHAIN_CONFIRMATIONS", "2")))
+     PUBLIC_MODE: bool = os.getenv("PUBLIC_MODE", "false").lower() == "true"
+     OPERATOR_API_TOKEN: str = os.getenv("OPERATOR_API_TOKEN", "")
+diff --git a/backend/app/services/observation_chain.py b/backend/app/services/observation_chain.py
+new file mode 100644
+index 0000000..33f6c99
+--- /dev/null
++++ b/backend/app/services/observation_chain.py
+@@ -0,0 +1,103 @@
++"""Read-only verification of stored breathing proofs against a pinned contract."""
++import json
++from pathlib import Path
++
++from web3 import Web3
++
++from app.core.config import settings
++from app.services.onchain_service import ChainUnavailable
++
++
++def observation_id(capture_id):
++    return Web3.keccak(text="csi-observation:v1:" + capture_id)
++
++
++def patient_ref(patient_id):
++    return Web3.keccak(text="csi-patient:v1:" + patient_id)
++
++
++class ObservationChain:
++    def __init__(self):
++        try:
++            self.manifest = json.loads(Path(settings.OBSERVATION_MANIFEST).read_text())
++            m = self.manifest
++            if (
++                m["kind"] != "breathing-observations"
++                or m["chainId"] not in (11155111, 31337, 1337)
++                or m["circuit"] != "csi_breathing_certificate"
++                or m["publicSignalCount"] != 1
++            ):
++                raise ValueError("Unsupported observation deployment")
++            self.w3 = Web3(Web3.HTTPProvider(settings.ETHEREUM_RPC_URL, request_kwargs={"timeout": 15}))
++            if self.w3.eth.chain_id != m["chainId"]:
++                raise ValueError("Wrong chain")
++            for prefix in ("registry", "verifier"):
++                if Web3.to_hex(Web3.keccak(self.w3.eth.get_code(m[prefix + "Address"]))) != m[prefix + "CodeHash"]:
++                    raise ValueError("Contract code mismatch")
++            self.contract = self.w3.eth.contract(
++                address=Web3.to_checksum_address(m["registryAddress"]), abi=m["registryAbi"]
++            )
++            if (
++                self.contract.functions.recorder().call().lower() != m["recorderAddress"].lower()
++                or self.contract.functions.verifier().call().lower() != m["verifierAddress"].lower()
++                or self.contract.functions.debugMode().call() != m["debugMode"]
++            ):
++                raise ValueError("Deployment configuration mismatch")
++        except Exception as exc:
++            raise ChainUnavailable("呼吸判定の検証先が未設定、またはチェーンに接続できません") from exc
++
++    def metadata(self, capture_id, block="latest"):
++        return self.contract.functions.getObservation(observation_id(capture_id)).call(block_identifier=block)
++
++    def match_metadata(self, job, record):
++        if (
++            record[0] != patient_ref(job["patient_id"])
++            or record[1] != job["observed_at"]
++            or record[2] != job["duration"]
++        ):
++            raise ValueError("患者または計測時刻がチェーン上の記録と一致しません")
++
++    def result(self, job):
++        if (
++            job["chain_id"] != self.manifest["chainId"]
++            or (job["registry"] or "").lower() != self.contract.address.lower()
++        ):
++            raise ValueError("この計測の記録先と現在の設定が一致しません")
++        record = self.metadata(job["id"])
++        if not record[3]:
++            return {"status": "pending"}
++        self.match_metadata(job, record)
++        head = self.w3.eth.block_number
++        confirmations = head - record[3] + 1
++        if confirmations < settings.ONCHAIN_CONFIRMATIONS:
++            return {"status": "confirming", "confirmations": confirmations}
++        # Pin metadata and verifier calls to the same confirmed snapshot.
++        block_number = head - settings.ONCHAIN_CONFIRMATIONS + 1
++        block_hash = self.w3.eth.get_block(block_number)["hash"]
++        stable = self.metadata(job["id"], block_number)
++        if stable != record:
++            raise ChainUnavailable("チェーンの更新中です。再照会してください")
++        try:
++            is_normal = self.contract.functions.verifyObservation(observation_id(job["id"])).call(
++                block_identifier=block_number
++            )
++        except Exception as exc:
++            from web3.exceptions import ContractLogicError
++
++            if isinstance(exc, ContractLogicError) or "revert" in str(exc).lower():
++                raise ValueError("記録された証明を検証できません。判定結果は表示しません") from exc
++            raise
++        if self.w3.eth.get_block(block_number)["hash"] != block_hash:
++            raise ChainUnavailable("チェーンの更新中です。再照会してください")
++        return {
++            "status": "verified",
++            "isNormal": bool(is_normal),
++            "patientId": job["patient_id"],
++            "observedAt": job["observed_at"],
++            "durationSeconds": job["duration"],
++            "verifiedAtBlock": block_number,
++            "confirmations": confirmations,
++            "transactionHash": job["tx_hash"],
++            "chainId": self.manifest["chainId"],
++            "debugInput": self.manifest["debugMode"],
++        }
+diff --git a/backend/app/services/observation_store.py b/backend/app/services/observation_store.py
+new file mode 100644
+index 0000000..67c78af
+--- /dev/null
++++ b/backend/app/services/observation_store.py
+@@ -0,0 +1,162 @@
++"""Durable single-host capture queue. Proofs persist; raw CSI is temporary."""
++import json
++import os
++import sqlite3
++import time
++from contextlib import contextmanager
++from pathlib import Path
++from uuid import uuid4
++
++from app.core.config import settings
++
++
++class QueueFull(RuntimeError):
++    pass
++
++
++class ObservationStore:
++    def __init__(self):
++        self.root = Path(settings.OBSERVATION_DATA_DIR).resolve()
++        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
++        self.raw = self.root / "raw"
++        self.raw.mkdir(exist_ok=True, mode=0o700)
++        self.path = self.root / "observations.sqlite3"
++        with self.connect() as db:
++            db.executescript(
++                """
++                CREATE TABLE IF NOT EXISTS patients (
++                    id TEXT PRIMARY KEY, label TEXT NOT NULL, created_at INTEGER NOT NULL);
++                CREATE TABLE IF NOT EXISTS captures (
++                    id TEXT PRIMARY KEY, patient_id TEXT NOT NULL REFERENCES patients(id),
++                    observed_at INTEGER NOT NULL, duration INTEGER NOT NULL, digest TEXT NOT NULL,
++                    raw_path TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'queued',
++                    bundle TEXT, tx_hash TEXT, signed_tx TEXT, error TEXT,
++                    chain_id INTEGER, registry TEXT,
++                    attempts INTEGER NOT NULL DEFAULT 0, next_attempt INTEGER NOT NULL DEFAULT 0,
++                    created_at INTEGER NOT NULL);
++                CREATE INDEX IF NOT EXISTS patient_time ON captures(patient_id, observed_at);
++            """
++            )
++        os.chmod(self.path, 0o600)
++
++    @contextmanager
++    def connect(self):
++        db = sqlite3.connect(self.path, timeout=30)
++        db.row_factory = sqlite3.Row
++        db.execute("PRAGMA journal_mode=WAL")
++        db.execute("PRAGMA foreign_keys=ON")
++        try:
++            with db:
++                yield db
++        finally:
++            db.close()
++
++    def patients(self):
++        with self.connect() as db:
++            return [dict(row) for row in db.execute("SELECT * FROM patients ORDER BY created_at, id LIMIT 1000")]
++
++    def add_patient(self):
++        patient_id = str(uuid4())
++        with self.connect() as db:
++            # No names/DOB/medical record numbers are accepted by the public catalog.
++            db.execute("INSERT INTO patients VALUES (?, ?, ?)", (patient_id, "患者 " + patient_id[:8], int(time.time())))
++        return {"id": patient_id, "label": "患者 " + patient_id[:8]}
++
++    def patient_exists(self, patient_id):
++        with self.connect() as db:
++            return db.execute("SELECT 1 FROM patients WHERE id=?", (patient_id,)).fetchone() is not None
++
++    def capture(self, capture_id):
++        with self.connect() as db:
++            row = db.execute("SELECT * FROM captures WHERE id=?", (capture_id,)).fetchone()
++            return dict(row) if row else None
++
++    def enqueue(self, capture_id, patient_id, observed_at, duration, digest, raw_path):
++        with self.connect() as db:
++            db.execute("BEGIN IMMEDIATE")
++            existing = db.execute("SELECT 1 FROM captures WHERE id=?", (capture_id,)).fetchone()
++            count = db.execute(
++                "SELECT COUNT(*) FROM captures WHERE status IN ('queued','processing','submitted')"
++            ).fetchone()[0]
++            if not existing and count >= settings.OBSERVATION_MAX_PENDING:
++                raise QueueFull("収集キューが満杯です。後で同じ収集IDで再送してください")
++            db.execute(
++                "INSERT OR IGNORE INTO captures (id,patient_id,observed_at,duration,digest,raw_path,created_at) "
++                "VALUES (?,?,?,?,?,?,?)",
++                (capture_id, patient_id, observed_at, duration, digest, str(raw_path), int(time.time())),
++            )
++            row = dict(db.execute("SELECT * FROM captures WHERE id=?", (capture_id,)).fetchone())
++            if (row["patient_id"], row["observed_at"], row["duration"], row["digest"]) != (
++                patient_id,
++                observed_at,
++                duration,
++                digest,
++            ):
++                raise ValueError("同じ収集IDに異なるデータが指定されています")
++            return row
++
++    def observations(self, patient_id, start_at=0, end_at=253402300799):
++        with self.connect() as db:
++            return [
++                dict(row)
++                for row in db.execute(
++                    "SELECT id,patient_id,observed_at,duration,status FROM captures WHERE patient_id=? "
++                    "AND observed_at>=? AND observed_at<? ORDER BY observed_at DESC, id LIMIT 2000",
++                    (patient_id, start_at, end_at),
++                )
++            ]
++
++    def update(self, capture_id, **fields):
++        allowed = {
++            "status",
++            "bundle",
++            "tx_hash",
++            "signed_tx",
++            "error",
++            "attempts",
++            "next_attempt",
++            "chain_id",
++            "registry",
++        }
++        if not fields or fields.keys() - allowed:
++            raise ValueError("Invalid capture update")
++        with self.connect() as db:
++            db.execute(
++                "UPDATE captures SET " + ",".join(f"{key}=?" for key in fields) + " WHERE id=?",
++                [*fields.values(), capture_id],
++            )
++
++    def next_job(self):
++        with self.connect() as db:
++            # One recorder nonce stream. An uncertain broadcast must settle before
++            # another capture can sign; otherwise a stale RPC nonce could replace it.
++            signed = db.execute(
++                "SELECT * FROM captures WHERE signed_tx IS NOT NULL ORDER BY created_at,id LIMIT 1"
++            ).fetchone()
++            if signed:
++                if signed["status"] == "failed" or signed["next_attempt"] > int(time.time()):
++                    return None
++                return dict(signed)
++            row = db.execute(
++                "SELECT * FROM captures WHERE status IN ('queued','processing','submitted') "
++                "AND next_attempt<=? ORDER BY created_at,id LIMIT 1",
++                (int(time.time()),),
++            ).fetchone()
++            return dict(row) if row else None
++
++    def save_bundle(self, job, bundle):
++        self.update(job["id"], bundle=json.dumps(bundle), status="processing")
++        Path(job["raw_path"]).unlink(missing_ok=True)
++
++    def expire_raw(self):
++        cutoff = int(time.time()) - settings.OBSERVATION_RAW_RETENTION_HOURS * 3600
++        with self.connect() as db:
++            rows = db.execute("SELECT id,raw_path,bundle,status FROM captures WHERE created_at<?", (cutoff,)).fetchall()
++            for row in rows:
++                Path(row["raw_path"]).unlink(missing_ok=True)
++                if row["bundle"] is None and row["status"] in ("queued", "processing"):
++                    db.execute("UPDATE captures SET status='failed',error='raw_expired' WHERE id=?", (row["id"],))
++        # Covers a process crash after upload, before queue commit.
++        for path in self.raw.glob("*.csi"):
++            if path.stat().st_mtime < cutoff:
++                path.unlink(missing_ok=True)
+diff --git a/backend/app/services/observation_worker.py b/backend/app/services/observation_worker.py
+new file mode 100644
+index 0000000..eb3a881
+--- /dev/null
++++ b/backend/app/services/observation_worker.py
+@@ -0,0 +1,204 @@
++"""Single signing worker: python -m app.services.observation_worker [--once]."""
++import argparse
++import asyncio
++import fcntl
++import hashlib
++import json
++import logging
++import os
++import time
++from pathlib import Path
++
++import numpy as np
++from web3 import Web3
++from web3.exceptions import TransactionNotFound
++
++from app.core.config import settings
++from app.services.breathing_certificate_service import BreathingCertificateService
++from app.services.breathing_pipeline import (
++    load_csi_matrix_with_timestamps,
++    run_breathing_pipeline,
++    run_breathing_pipeline_from_matrix,
++)
++from app.services.observation_chain import ObservationChain, observation_id
++from app.services.observation_store import ObservationStore
++from app.services.onchain_service import parse_proof
++
++logger = logging.getLogger(__name__)
++
++
++def validate_capture_timing(matrix, timestamps):
++    # Existing estimator assumes uniform 100 Hz; never silently zero-pad normal captures.
++    if len(matrix) < 5981 or len(timestamps) != len(matrix):
++        raise ValueError("insufficient_capture_samples")
++    intervals = np.diff(np.asarray(timestamps, dtype=np.int64)) / 1e9
++    if np.any(intervals <= 0) or not np.all(np.isfinite(intervals)):
++        raise ValueError("invalid_capture_timestamps")
++    rate = 1 / np.mean(intervals)
++    if not 95 <= rate <= 105 or np.std(intervals) / np.mean(intervals) > 0.2:
++        raise ValueError("capture_requires_uniform_100hz")
++    if (timestamps[5980] - timestamps[0]) / 1e9 < 57:
++        raise ValueError("capture_window_too_short")
++
++
++async def generate_bundle(job, debug_mode=False):
++    service = BreathingCertificateService(auto_compile=False)
++    if debug_mode:
++        analysis = run_breathing_pipeline(job["raw_path"])
++    else:
++        if job["duration"] != 60:
++            raise ValueError("capture_requires_60_second_window")
++        matrix, timestamps = load_csi_matrix_with_timestamps(job["raw_path"])
++        validate_capture_timing(matrix, timestamps)
++        analysis = run_breathing_pipeline_from_matrix(matrix[:6000])
++    cert = analysis["certificate_input"]
++    result = await service.generate_proof(vmd_input=cert["vmdInput"], modes=cert["modes"], sel=cert["sel"])
++    return {"proof": result["proof"], "publicSignals": result["publicSignals"]}
++
++
++def load_account(chain):
++    key_file = os.environ.get("OBSERVATION_RECORDER_KEY_FILE", "")
++    if key_file:
++        path = Path(key_file)
++        if path.stat().st_mode & 0o077:
++            raise RuntimeError("Recorder key file must have mode 0600")
++        key = path.read_text().strip()
++    else:
++        key = os.environ.get("OBSERVATION_RECORDER_PRIVATE_KEY", "")
++    if not key:
++        raise RuntimeError("Configure OBSERVATION_RECORDER_KEY_FILE in the worker only")
++    account = chain.w3.eth.account.from_key(key)
++    if account.address.lower() != chain.manifest["recorderAddress"].lower():
++        raise RuntimeError("Recorder key does not match the deployed contract")
++    return account
++
++
++def process_job(db, job):
++    chain = ObservationChain()
++    account = load_account(chain)
++    m = chain.manifest
++    if job["chain_id"] is not None and (
++        job["chain_id"] != m["chainId"] or job["registry"].lower() != chain.contract.address.lower()
++    ):
++        raise RuntimeError("Job deployment is pinned; restore its original manifest")
++    # Pin before proof generation or signing, including process restart recovery.
++    db.update(job["id"], status="processing", chain_id=m["chainId"], registry=chain.contract.address)
++    job.update(chain_id=m["chainId"], registry=chain.contract.address)
++    if not job["bundle"]:
++        service = BreathingCertificateService(auto_compile=False)
++        vkey = service.keys_dir / "csi_breathing_certificate_verification_key.json"
++        # JSON formatting can differ between exports; compare parsed keys with generated manifest key file.
++        deployed_key = Path(settings.OBSERVATION_MANIFEST).parent / "csi_breathing_certificate.vkey.json"
++        exported = deployed_key.read_bytes()
++        if "0x" + hashlib.sha256(exported).hexdigest() != m["verificationKeyHash"] or json.loads(
++            vkey.read_text()
++        ) != json.loads(exported):
++            raise RuntimeError("Proving key verification-key metadata does not match deployment")
++        bundle = asyncio.run(generate_bundle(job, m["debugMode"]))
++        db.save_bundle(job, bundle)
++        job["bundle"] = json.dumps(bundle)
++    else:
++        Path(job["raw_path"]).unlink(missing_ok=True)
++    bundle = json.loads(job["bundle"])
++    a, b, c, signals = parse_proof(bundle["proof"], bundle["publicSignals"], 1)
++    if signals[0] not in (0, 1):
++        raise ValueError("Not a boolean breathing certificate")
++    existing = chain.metadata(job["id"])
++    if existing[3]:
++        chain.match_metadata(job, existing)
++        result = chain.result(job)
++        if result["status"] == "verified":
++            db.update(job["id"], status="recorded", error=None, signed_tx=None)
++            return
++        db.update(job["id"], status="submitted", next_attempt=int(time.time()) + 10)
++        return
++    if not job["signed_tx"]:
++        from app.services.observation_chain import patient_ref
++
++        function = chain.contract.functions.recordObservation(
++            observation_id(job["id"]),
++            patient_ref(job["patient_id"]),
++            job["observed_at"],
++            job["duration"],
++            a,
++            b,
++            c,
++            signals,
++        )
++        tx = function.build_transaction(
++            {
++                "from": account.address,
++                "chainId": m["chainId"],
++                "nonce": chain.w3.eth.get_transaction_count(account.address, "pending"),
++            }
++        )
++        # Limit fees per transaction; no automatic funding or unbounded gas spend.
++        max_fee = tx.get("maxFeePerGas", tx.get("gasPrice", 0))
++        if tx["gas"] * max_fee > int(os.environ.get("OBSERVATION_MAX_TX_WEI", "10000000000000000")):
++            raise RuntimeError("Transaction exceeds configured fee cap")
++        signed = account.sign_transaction(tx)
++        raw = signed.rawTransaction
++        job["signed_tx"] = Web3.to_hex(raw)
++        job["tx_hash"] = Web3.to_hex(Web3.keccak(raw))
++        # Commit signed bytes before broadcast so retries reuse the SAME transaction.
++        db.update(job["id"], signed_tx=job["signed_tx"], tx_hash=job["tx_hash"], status="submitted")
++    try:
++        receipt = chain.w3.eth.get_transaction_receipt(job["tx_hash"])
++    except TransactionNotFound:
++        try:
++            chain.w3.eth.send_raw_transaction(bytes.fromhex(job["signed_tx"][2:]))
++        except ValueError as exc:
++            if "already known" not in str(exc).lower():
++                raise
++        db.update(job["id"], status="submitted", next_attempt=int(time.time()) + 10)
++        return
++    if receipt["status"] != 1:
++        # The nonce is consumed. Stop this job; a deliberate operator retry may
++        # sign a fresh transaction, while other queued captures can continue.
++        db.update(job["id"], status="failed", error="transaction_reverted", signed_tx=None)
++        return
++    # A successful receipt without matching storage must never become a result.
++    raise RuntimeError("Transaction receipt has no matching observation")
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--once", action="store_true")
++    args = parser.parse_args()
++    os.umask(0o077)
++    logging.basicConfig(level=logging.INFO)
++    db = ObservationStore()
++    with (db.root / "worker.lock").open("w") as lock:
++        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++        while True:
++            db.expire_raw()
++            job = db.next_job()
++            if job:
++                try:
++                    process_job(db, job)
++                except Exception as exc:
++                    attempts = job["attempts"] + 1
++                    quality_errors = {
++                        "insufficient_capture_samples",
++                        "invalid_capture_timestamps",
++                        "capture_requires_uniform_100hz",
++                        "capture_window_too_short",
++                        "capture_requires_60_second_window",
++                    }
++                    quality_error = str(exc) if str(exc) in quality_errors else None
++                    # Log category only: RPC error payloads can contain proof/capture information.
++                    logger.error("Capture %s failed (%s), attempt %s", job["id"], type(exc).__name__, attempts)
++                    db.update(
++                        job["id"],
++                        attempts=attempts,
++                        error=quality_error or "processing_failed",
++                        status="failed" if quality_error or attempts >= 5 else "queued",
++                        next_attempt=int(time.time()) + min(300, 10 * 2**attempts),
++                    )
++            if args.once:
++                return
++            time.sleep(2)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/backend/contracts/BreathingObservationRegistry.sol b/backend/contracts/BreathingObservationRegistry.sol
+new file mode 100644
+index 0000000..16a9d5d
+--- /dev/null
++++ b/backend/contracts/BreathingObservationRegistry.sol
+@@ -0,0 +1,75 @@
++// SPDX-License-Identifier: MIT
++pragma solidity ^0.8.20;
++
++interface IBreathingVerifier {
++    function verifyProof(uint256[2] calldata a, uint256[2][2] calldata b,
++        uint256[2] calldata c, uint256[1] calldata signals) external view returns (bool);
++}
++
++/// @notice Record first, verify on read. Patient/time metadata is attested by
++/// the recorder, NOT proven by the breathing circuit. Public chain, no secrecy.
++contract BreathingObservationRegistry {
++    IBreathingVerifier public immutable verifier;
++    bytes32 public immutable verifierCodeHash;
++    address public immutable recorder;
++    bool public immutable debugMode;
++
++    struct Observation {
++        bytes32 patientRef;
++        uint64 observedAt;
++        uint32 durationSeconds;
++        uint64 recordedBlock;
++        bytes32 proofDigest;
++        uint256[2] a;
++        uint256[2][2] b;
++        uint256[2] c;
++        uint256[1] signals;
++    }
++    mapping(bytes32 => Observation) private observations;
++    mapping(bytes32 => bool) private usedProofs;
++    event ObservationRecorded(bytes32 indexed observationId, bytes32 indexed patientRef, uint64 observedAt);
++    error Unauthorized();
++    error InvalidObservation();
++    error Duplicate();
++    error InvalidProof();
++
++    constructor(address verifierAddress, address recorderAddress, bool allowDebugInputs) {
++        if (verifierAddress.code.length == 0 || recorderAddress == address(0)) revert InvalidObservation();
++        verifier = IBreathingVerifier(verifierAddress);
++        verifierCodeHash = verifierAddress.codehash;
++        recorder = recorderAddress;
++        debugMode = allowDebugInputs;
++    }
++
++    function recordObservation(bytes32 observationId, bytes32 patientRef,
++        uint64 observedAt, uint32 durationSeconds, uint256[2] calldata a,
++        uint256[2][2] calldata b, uint256[2] calldata c, uint256[1] calldata signals) external {
++        if (msg.sender != recorder) revert Unauthorized();
++        if (observationId == bytes32(0) || patientRef == bytes32(0) || observedAt == 0 ||
++            durationSeconds == 0 || durationSeconds > 3600 ||
++            uint256(observedAt) + durationSeconds > block.timestamp + 300 || signals[0] > 1)
++            revert InvalidObservation();
++        bytes32 digest = keccak256(abi.encode(a, b, c, signals));
++        if (observations[observationId].recordedBlock != 0 || usedProofs[digest]) revert Duplicate();
++        // Deliberately no verifier call here. A recorded proof is not a verified result.
++        observations[observationId] = Observation(patientRef, observedAt, durationSeconds,
++            uint64(block.number), digest, a, b, c, signals);
++        usedProofs[digest] = true;
++        emit ObservationRecorded(observationId, patientRef, observedAt);
++    }
++
++    function getObservation(bytes32 observationId) external view returns
++        (bytes32 patientRef, uint64 observedAt, uint32 durationSeconds, uint64 recordedBlock, bytes32 proofDigest) {
++        Observation storage item = observations[observationId];
++        return (item.patientRef, item.observedAt, item.durationSeconds, item.recordedBlock, item.proofDigest);
++    }
++
++    /// @notice A boolean is returned ONLY after the stored proof passes verification.
++    /// Invalid/missing proofs revert; false means a valid proof with output zero.
++    function verifyObservation(bytes32 observationId) external view returns (bool isNormal) {
++        Observation storage item = observations[observationId];
++        if (item.recordedBlock == 0 || address(verifier).codehash != verifierCodeHash) revert InvalidProof();
++        if (!verifier.verifyProof(item.a, item.b, item.c, item.signals)) revert InvalidProof();
++        return item.signals[0] == 1;
++    }
++}
+diff --git a/backend/contracts/package.json b/backend/contracts/package.json
+index c756c4f..a29e1aa 100644
+--- a/backend/contracts/package.json
++++ b/backend/contracts/package.json
+@@ -7,8 +7,15 @@
+     "deploy": "node scripts/deploy.mjs",
+     "deploy:sepolia": "node --env-file-if-exists=../../.env.sepolia.local scripts/deploy-sepolia.mjs",
+     "test": "node --test test/*.test.mjs",
+-    "node": "ganache --server.host 127.0.0.1 --chain.chainId 31337"
++    "node": "ganache --server.host 127.0.0.1 --chain.chainId 31337",
++    "deploy:observations": "node --env-file-if-exists=../../.env.sepolia.local scripts/deploy-observations.mjs"
+   },
+-  "dependencies": { "ethers": "6.16.0", "snarkjs": "0.7.6", "solc": "0.8.30" },
+-  "devDependencies": { "ganache": "7.9.2" }
++  "dependencies": {
++    "ethers": "6.16.0",
++    "snarkjs": "0.7.6",
++    "solc": "0.8.30"
++  },
++  "devDependencies": {
++    "ganache": "7.9.2"
++  }
+ }
+diff --git a/backend/contracts/scripts/create-recorder.mjs b/backend/contracts/scripts/create-recorder.mjs
+new file mode 100644
+index 0000000..63571d5
+--- /dev/null
++++ b/backend/contracts/scripts/create-recorder.mjs
+@@ -0,0 +1,11 @@
++import { mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
++import { dirname, resolve } from 'node:path';
++import { Wallet } from 'ethers';
++
++const path = resolve(process.argv[2] || '../../.local/observations/recorder.key');
++mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
++try { writeFileSync(path, Wallet.createRandom().privateKey, { flag: 'wx', mode: 0o600 }); }
++catch (error) { if (error.code !== 'EEXIST') throw error; }
++if (statSync(path).mode & 0o077) throw new Error('Key file must have mode 0600');
++// Only the public address is printed, never the private key.
++console.log(new Wallet(readFileSync(path, 'utf8').trim()).address);
+diff --git a/backend/contracts/scripts/deploy-observations.mjs b/backend/contracts/scripts/deploy-observations.mjs
+new file mode 100644
+index 0000000..ca50435
+--- /dev/null
++++ b/backend/contracts/scripts/deploy-observations.mjs
+@@ -0,0 +1,40 @@
++import { readFileSync, writeFileSync } from 'node:fs';
++import { resolve } from 'node:path';
++import { JsonRpcProvider, Wallet, ContractFactory, NonceManager, keccak256, getAddress } from 'ethers';
++import { build, compile, root } from './build.mjs';
++import { deploymentNetwork } from './networks.mjs';
++
++const chainId = Number(process.env.ONCHAIN_CHAIN_ID || 11155111);
++const network = deploymentNetwork(chainId);
++const rpc = process.env.ETHEREUM_RPC_URL;
++if (!rpc) throw new Error('Set ETHEREUM_RPC_URL');
++if (!network.local && process.env.ONCHAIN_DEPLOY_PUBLIC !== 'true') throw new Error('Set ONCHAIN_DEPLOY_PUBLIC=true');
++const provider = new JsonRpcProvider(rpc);
++try {
++  if (Number((await provider.getNetwork()).chainId) !== chainId) throw new Error('Wrong RPC chain ID');
++  if (!process.env.BLOCKCHAIN_PRIVATE_KEY && !(network.local && process.env.ONCHAIN_LOCAL_UNLOCKED === 'true')) throw new Error('Set deployment key');
++  const signer = new NonceManager(process.env.BLOCKCHAIN_PRIVATE_KEY
++    ? new Wallet(process.env.BLOCKCHAIN_PRIVATE_KEY, provider) : await provider.getSigner());
++  const recorderAddress = getAddress(process.env.OBSERVATION_RECORDER_ADDRESS || (network.local ? await signer.getAddress() : ''));
++  const debugMode = process.env.OBSERVATION_DEBUG_INPUTS === 'true';
++  const compiled = build(['csi_breathing_certificate']);
++  const circuit = compiled.circuits[0];
++  if (circuit.publicSignalCount !== 1) throw new Error('This registry requires the one-output certificate');
++  const verifier = await new ContractFactory(circuit.abi, circuit.bytecode, signer).deploy();
++  await verifier.waitForDeployment();
++  const verifierAddress = await verifier.getAddress();
++  const artifact = compile({ 'Observation.sol': { content: readFileSync(resolve(root, 'BreathingObservationRegistry.sol'), 'utf8') } })['Observation.sol'].BreathingObservationRegistry;
++  const registry = await new ContractFactory(artifact.abi, '0x' + artifact.evm.bytecode.object, signer).deploy(verifierAddress, recorderAddress, debugMode);
++  await registry.waitForDeployment();
++  const receipt = await registry.deploymentTransaction().wait();
++  const address = await registry.getAddress();
++  const manifest = { version: 1, kind: 'breathing-observations', chainId, networkName: network.name,
++    registryAddress: address, registryCodeHash: keccak256(await provider.getCode(address)), registryAbi: artifact.abi,
++    verifierAddress, verifierCodeHash: keccak256(await provider.getCode(verifierAddress)), recorderAddress, debugMode,
++    deploymentBlock: receipt.blockNumber, deploymentTransaction: receipt.hash,
++    // Debug metadata stays in the off-chain manifest; no circuit name/ID is stored in observations.
++    circuit: circuit.name, verificationKeyHash: circuit.verificationKeyHash, publicSignalCount: 1 };
++  const output = resolve(root, `build/onchain/observations-${chainId}.json`);
++  writeFileSync(output, JSON.stringify(manifest, null, 2));
++  console.log(`Observation registry: ${address}\nManifest: ${output}`);
++} finally { provider.destroy(); }
+diff --git a/backend/contracts/scripts/fund-local-recorder.mjs b/backend/contracts/scripts/fund-local-recorder.mjs
+new file mode 100644
+index 0000000..9f1bceb
+--- /dev/null
++++ b/backend/contracts/scripts/fund-local-recorder.mjs
+@@ -0,0 +1,11 @@
++import { JsonRpcProvider, parseEther } from 'ethers';
++const rpc = process.env.ETHEREUM_RPC_URL;
++const url = new URL(rpc);
++if (!['127.0.0.1', 'localhost'].includes(url.hostname)) throw new Error('Only loopback RPC allowed');
++const provider = new JsonRpcProvider(rpc);
++try {
++  if (Number((await provider.getNetwork()).chainId) !== 31337) throw new Error('Only local chain 31337 allowed');
++  const signer = await provider.getSigner();
++  await (await signer.sendTransaction({ to: process.env.OBSERVATION_RECORDER_ADDRESS, value: parseEther('1') })).wait();
++  console.log('Funded local test recorder. No public network used.');
++} finally { provider.destroy(); }
+diff --git a/backend/contracts/test/observations.test.mjs b/backend/contracts/test/observations.test.mjs
+new file mode 100644
+index 0000000..302a8c8
+--- /dev/null
++++ b/backend/contracts/test/observations.test.mjs
+@@ -0,0 +1,42 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { resolve } from 'node:path';
++import ganache from 'ganache';
++import { BrowserProvider, ContractFactory, id } from 'ethers';
++import { compile, root } from '../scripts/build.mjs';
++
++test('record first; third-party verifies stored proof; invalid output never returned', async () => {
++  const rpc = ganache.provider({ logging: { quiet: true }, chain: { chainId: 31337 } });
++  const provider = new BrowserProvider(rpc);
++  try {
++    const signer = await provider.getSigner();
++    const thirdParty = await provider.getSigner(1);
++    const build = JSON.parse(readFileSync(resolve(root, 'build/onchain/compiled.json')));
++    const bundle = JSON.parse(readFileSync(resolve(root, 'build/onchain/synthetic-proof.json')));
++    const circuit = build.circuits.find(c => c.name === 'csi_breathing_certificate');
++    const verifier = await new ContractFactory(circuit.abi, circuit.bytecode, signer).deploy();
++    await verifier.waitForDeployment();
++    const artifact = compile({ 'Observation.sol': { content: readFileSync(resolve(root, 'BreathingObservationRegistry.sol'), 'utf8') } })['Observation.sol'].BreathingObservationRegistry;
++    const registry = await new ContractFactory(artifact.abi, '0x' + artifact.evm.bytecode.object, signer).deploy(await verifier.getAddress(), await signer.getAddress(), false);
++    await registry.waitForDeployment();
++    assert.equal(await registry.debugMode(), false);
++    const { pi_a: a, pi_b: b, pi_c: c } = bundle.proof;
++    const proof = [a.slice(0, 2), [[b[0][1], b[0][0]], [b[1][1], b[1][0]]], c.slice(0, 2), bundle.publicSignals];
++    const time = (await provider.getBlock('latest')).timestamp - 60;
++    const args = [id('capture'), id('patient'), time, 60, ...proof];
++    await assert.rejects(registry.connect(thirdParty).recordObservation.staticCall(...args), /revert/);
++    await assert.rejects(registry.verifyObservation(id('missing')), /revert/);
++    await (await registry.recordObservation(...args)).wait();
++    assert.equal(await registry.connect(thirdParty).verifyObservation(id('capture')), bundle.publicSignals[0] === '1');
++    assert.equal((await registry.getObservation(id('capture'))).patientRef, id('patient'));
++    await assert.rejects(registry.recordObservation.staticCall(...args), /revert/);
++    await assert.rejects(registry.recordObservation.staticCall(id('reassigned'), id('other-patient'), time, 60, ...proof), /revert/);
++    // Invalid proof can be recorded, but result retrieval MUST revert, not return false.
++    const invalid = [...proof.slice(0, 3), [bundle.publicSignals[0] === '1' ? '0' : '1']];
++    await (await registry.recordObservation(id('invalid'), id('patient'), time, 60, ...invalid)).wait();
++    await assert.rejects(registry.connect(thirdParty).verifyObservation(id('invalid')), /revert/);
++    assert.equal(registry.interface.hasFunction('setVerifier'), false);
++    assert.equal(registry.interface.hasFunction('setResult'), false);
++  } finally { provider.destroy(); await rpc.disconnect(); }
++});
+diff --git a/backend/tests/unit/test_observations.py b/backend/tests/unit/test_observations.py
+new file mode 100644
+index 0000000..827d41b
+--- /dev/null
++++ b/backend/tests/unit/test_observations.py
+@@ -0,0 +1,249 @@
++import io
++import json
++import time
++from types import SimpleNamespace
++from uuid import uuid4
++
++import pytest
++from fastapi import FastAPI
++from fastapi.testclient import TestClient
++
++from app.api.endpoints import observations
++from app.core.config import settings
++from app.services.observation_chain import ObservationChain, patient_ref
++from app.services.observation_store import ObservationStore
++
++
++@pytest.fixture
++def context(monkeypatch, tmp_path):
++    monkeypatch.setattr(settings, "OBSERVATION_DATA_DIR", str(tmp_path))
++    monkeypatch.setattr(settings, "OPERATOR_API_TOKEN", "t" * 40)
++    app = FastAPI()
++    app.include_router(observations.router, prefix="/observations")
++    with TestClient(app) as client:
++        yield client, ObservationStore(), {"Authorization": "Bearer " + "t" * 40}
++
++
++def ingest(client, headers, patient, capture_id=None, **updates):
++    fields = {
++        "patient_id": patient,
++        "capture_id": capture_id or str(uuid4()),
++        "observed_at": "2026-01-01T00:00:00+00:00",
++        "duration_seconds": "60",
++    }
++    fields.update(updates)
++    return client.post(
++        "/observations/captures",
++        headers=headers,
++        data=fields,
++        files={"file": ("test.csi", io.BytesIO(b"private-csi"), "application/octet-stream")},
++    )
++
++
++def test_catalog_write_auth_and_no_secret_or_result_leak(context, monkeypatch):
++    client, db, headers = context
++    assert client.post("/observations/patients").status_code == 401
++    monkeypatch.setattr(settings, "OPERATOR_API_TOKEN", "")
++    assert client.post("/observations/patients").status_code == 401
++    monkeypatch.setattr(settings, "OPERATOR_API_TOKEN", "t" * 40)
++    patient = client.post("/observations/patients", headers=headers).json()["id"]
++    assert client.get("/observations/patients").json()["patients"][0]["id"] == patient
++    assert ingest(client, {}, patient).status_code == 401
++    response = ingest(client, headers, patient)
++    assert response.status_code == 202
++    job = response.json()["id"]
++    public = client.get(f"/observations/patients/{patient}/measurements")
++    assert public.headers["cache-control"] == "no-store"
++    assert "raw" not in public.text and "isNormal" not in public.text and "bundle" not in public.text
++    assert client.get(f"/observations/captures/{job}").status_code == 401
++    result = client.post(f"/observations/measurements/{job}/verify")
++    assert result.status_code == 202 and "isNormal" not in result.json()
++    db.update(job, status="failed")
++    assert "isNormal" not in client.post(f"/observations/measurements/{job}/verify").json()
++
++
++def test_capture_idempotency_conflict_and_file_cleanup(context):
++    client, db, headers = context
++    patient = db.add_patient()["id"]
++    capture_id = str(uuid4())
++    first = ingest(client, headers, patient, capture_id)
++    again = ingest(client, headers, patient, capture_id)
++    assert first.json() == again.json()
++    assert len(list(db.raw.iterdir())) == 1
++    assert ingest(client, headers, patient, capture_id, duration_seconds="61").status_code == 409
++    assert len(list(db.raw.iterdir())) == 1
++    assert ingest(client, headers, patient, observed_at="2026-01-01T00:00:00").status_code == 422
++    assert ingest(client, headers, str(uuid4())).status_code == 404
++    assert ingest(client, headers, patient, observed_at="2100-01-01T00:00:00Z").status_code == 422
++    assert client.get(f"/observations/patients/{patient}/measurements?start_at=1&end_at=2").json()["measurements"] == []
++    assert len(client.get(f"/observations/patients/{patient}/measurements").json()["measurements"]) == 1
++    assert client.get(f"/observations/patients/{patient}/measurements?start_at=2&end_at=1").status_code == 422
++
++
++def test_queue_limit_keeps_existing_capture_idempotent(context, monkeypatch):
++    client, db, headers = context
++    monkeypatch.setattr(settings, "OBSERVATION_MAX_PENDING", 1)
++    patient = db.add_patient()["id"]
++    first = str(uuid4())
++    assert ingest(client, headers, patient, first).status_code == 202
++    assert ingest(client, headers, patient, first).status_code == 202
++    assert ingest(client, headers, patient).status_code == 429
++    assert len(list(db.raw.iterdir())) == 1
++
++
++def test_uncertain_signed_transaction_blocks_later_nonces(context):
++    client, db, headers = context
++    patient = db.add_patient()["id"]
++    first = ingest(client, headers, patient).json()["id"]
++    ingest(client, headers, patient)
++    db.update(first, signed_tx="0x1234", next_attempt=int(time.time()) + 100)
++    assert db.next_job() is None
++    db.update(first, next_attempt=0)
++    assert db.next_job()["id"] == first
++    db.update(first, status="failed")
++    assert db.next_job() is None
++    assert client.post(f"/observations/captures/{first}/retry", headers=headers).status_code == 200
++    assert db.next_job()["signed_tx"] == "0x1234"
++
++
++def test_worker_persists_before_broadcast_and_reuses_signed_bytes(context, monkeypatch):
++    from app.services import observation_worker as worker
++    from web3.exceptions import TransactionNotFound
++    from tests.unit.test_onchain import PROOF
++
++    client, db, headers = context
++    job_id = ingest(client, headers, db.add_patient()["id"]).json()["id"]
++    db.save_bundle(db.capture(job_id), {"proof": PROOF, "publicSignals": ["0"]})
++    sent, signed = [], []
++    address = "0x" + "a" * 40
++
++    def sign(tx):
++        signed.append(tx)
++        return SimpleNamespace(rawTransaction=b"signed-transaction")
++
++    def broadcast(raw):
++        assert db.capture(job_id)["signed_tx"] is not None
++        assert db.capture(job_id)["tx_hash"] is not None
++        sent.append(raw)
++        if len(sent) == 1:
++            raise ConnectionError("Response lost AFTER broadcast")
++
++    def missing(_):
++        raise TransactionNotFound()
++
++    chain = SimpleNamespace(
++        manifest={"chainId": 31337},
++        metadata=lambda _: [b"", 0, 0, 0, b""],
++        w3=SimpleNamespace(
++            eth=SimpleNamespace(
++                get_transaction_count=lambda *a: 0, get_transaction_receipt=missing, send_raw_transaction=broadcast
++            )
++        ),
++        contract=SimpleNamespace(
++            address=address,
++            functions=SimpleNamespace(
++                recordObservation=lambda *a: SimpleNamespace(
++                    build_transaction=lambda args: {**args, "gas": 400000, "gasPrice": 1}
++                )
++            ),
++        ),
++    )
++    monkeypatch.setattr(worker, "ObservationChain", lambda: chain)
++    monkeypatch.setattr(worker, "load_account", lambda _: SimpleNamespace(address=address, sign_transaction=sign))
++    with pytest.raises(ConnectionError):
++        worker.process_job(db, db.capture(job_id))
++    worker.process_job(db, db.capture(job_id))
++    assert len(signed) == 1 and sent == [b"signed-transaction", b"signed-transaction"]
++
++
++def test_persistent_queue_deletes_raw_after_proof_and_expires_failed_capture(context):
++    client, db, headers = context
++    patient = db.add_patient()["id"]
++    job_id = ingest(client, headers, patient).json()["id"]
++    fresh = ObservationStore()
++    job = fresh.next_job()
++    assert job["id"] == job_id
++    fresh.save_bundle(job, {"proof": "test", "publicSignals": ["0"]})
++    assert len(list(db.raw.iterdir())) == 0
++    assert json.loads(db.capture(job_id)["bundle"])["publicSignals"] == ["0"]
++    old = ingest(client, headers, patient).json()["id"]
++    with db.connect() as conn:
++        conn.execute("UPDATE captures SET created_at=0 WHERE id=?", (old,))
++    fresh.expire_raw()
++    assert db.capture(old)["error"] == "raw_expired"
++    assert not list(db.raw.iterdir())
++    assert client.post(f"/observations/captures/{old}/retry", headers=headers).status_code == 410
++
++
++def test_api_releases_only_verified_value_and_failures_have_no_output(context, monkeypatch):
++    client, db, headers = context
++    job_id = ingest(client, headers, db.add_patient()["id"]).json()["id"]
++    db.update(job_id, tx_hash="0x" + "1" * 64)
++    monkeypatch.setattr(
++        observations,
++        "ObservationChain",
++        lambda: SimpleNamespace(result=lambda _: {"status": "verified", "isNormal": False}),
++    )
++    result = client.post(f"/observations/measurements/{job_id}/verify")
++    assert result.status_code == 200 and result.json()["isNormal"] is False
++
++    def invalid(_):
++        raise ValueError("invalid proof")
++
++    monkeypatch.setattr(observations, "ObservationChain", lambda: SimpleNamespace(result=invalid))
++    result = client.post(f"/observations/measurements/{job_id}/verify")
++    assert result.status_code == 422 and "isNormal" not in result.json()
++
++
++def test_chain_result_checks_binding_confirmations_and_calls_verifier(monkeypatch):
++    monkeypatch.setattr(settings, "ONCHAIN_CONFIRMATIONS", 2)
++    job = {
++        "id": str(uuid4()),
++        "patient_id": str(uuid4()),
++        "observed_at": 100,
++        "duration": 60,
++        "chain_id": 31337,
++        "registry": "0x" + "a" * 40,
++        "tx_hash": "0x" + "b" * 64,
++    }
++    record = [patient_ref(job["patient_id"]), 100, 60, 10, b"d" * 32]
++    calls = []
++
++    def checked(**kwargs):
++        calls.append(kwargs)
++        return False
++
++    chain = ObservationChain.__new__(ObservationChain)
++    chain.manifest = {"chainId": 31337, "debugMode": False}
++    chain.metadata = lambda *args: record
++    chain.w3 = SimpleNamespace(eth=SimpleNamespace(block_number=10, get_block=lambda _: {"hash": b"b" * 32}))
++    chain.contract = SimpleNamespace(
++        address=job["registry"], functions=SimpleNamespace(verifyObservation=lambda _: SimpleNamespace(call=checked))
++    )
++    assert chain.result(job)["status"] == "confirming" and not calls
++    chain.w3.eth.block_number = 11
++    result = chain.result(job)
++    assert result["isNormal"] is False and calls == [{"block_identifier": 10}]
++    record[1] = 101
++    with pytest.raises(ValueError, match="時刻"):
++        chain.result(job)
++    record[1] = 100
++    job["patient_id"] = str(uuid4())
++    with pytest.raises(ValueError, match="患者"):
++        chain.result(job)
++
++
++def test_normal_capture_rejects_short_irregular_or_wrong_rate_input():
++    import numpy as np
++    from app.services.observation_worker import validate_capture_timing
++
++    matrix = np.zeros((6000, 3))
++    timestamps = np.arange(6000, dtype=np.int64) * 10_000_000
++    validate_capture_timing(matrix, timestamps)
++    with pytest.raises(ValueError, match="insufficient"):
++        validate_capture_timing(matrix[:150], timestamps[:150])
++    with pytest.raises(ValueError, match="100hz"):
++        validate_capture_timing(matrix, timestamps * 2)
++    timestamps[10] = timestamps[9]
++    with pytest.raises(ValueError, match="timestamps"):
++        validate_capture_timing(matrix, timestamps)
+diff --git a/docker-compose.observations.yml b/docker-compose.observations.yml
+new file mode 100644
+index 0000000..ec6989e
+--- /dev/null
++++ b/docker-compose.observations.yml
+@@ -0,0 +1,35 @@
++# Overlay: docker compose --env-file .env.public -f docker-compose.public.yml
++#          -f docker-compose.observations.yml up --build -d
++services:
++  backend:
++    environment:
++      OBSERVATION_DATA_DIR: /app/observations
++      OBSERVATION_MANIFEST: /app/contracts/build/observations/${OBSERVATION_MANIFEST_FILE:-observations-11155111.json}
++    volumes:
++      - observation_data:/app/observations
++      - ${OBSERVATION_BUILD_DIR:?Set OBSERVATION_BUILD_DIR}:/app/contracts/build/observations:ro
++  observation-worker:
++    build: ./backend
++    entrypoint: ["python", "-m", "app.services.observation_worker"]
++    environment:
++      ZKP_AUTO_COMPILE: "false"
++      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL:?Set ETHEREUM_RPC_URL}
++      OBSERVATION_DATA_DIR: /app/observations
++      OBSERVATION_MANIFEST: /app/contracts/build/observations/${OBSERVATION_MANIFEST_FILE:-observations-11155111.json}
++      OBSERVATION_RECORDER_KEY_FILE: /run/secrets/recorder
++      OBSERVATION_MAX_TX_WEI: ${OBSERVATION_MAX_TX_WEI:-10000000000000000}
++      ONCHAIN_CONFIRMATIONS: ${ONCHAIN_CONFIRMATIONS:-3}
++      OBSERVATION_RAW_RETENTION_HOURS: ${OBSERVATION_RAW_RETENTION_HOURS:-24}
++      PICOSCENES_PARSER: python
++    volumes:
++      - observation_data:/app/observations
++      - ./zkp:/zkp:ro
++      - ${OBSERVATION_BUILD_DIR:?Set OBSERVATION_BUILD_DIR}:/app/contracts/build/observations:ro
++      - ${OBSERVATION_RECORDER_KEY_FILE:?Set a mode-0600 key file}:/run/secrets/recorder:ro
++    tmpfs: ["/tmp:size=1073741824,mode=1777"]
++    restart: unless-stopped
++    security_opt: ["no-new-privileges:true"]
++    healthcheck:
++      disable: true
++volumes:
++  observation_data:
+diff --git a/docs/ONCHAIN_VERIFICATION.md b/docs/ONCHAIN_VERIFICATION.md
+index e3920f0..eda1f89 100644
+--- a/docs/ONCHAIN_VERIFICATION.md
++++ b/docs/ONCHAIN_VERIFICATION.md
+@@ -1,6 +1,6 @@
+ # CSI → Groth16 → オンチェーン検証
+ 
+-通常構成では `/` と `/research` が既存のCSI解析モニター、`/verify` がオンチェーン検証コンソールです。公開用Composeではビルド時に `NEXT_PUBLIC_APP_MODE=public` を指定し、トップ `/` も検証コンソールにします。
++通常構成では `/` と `/research` が既存のCSI解析モニター、`/verify` がオンチェーン検証コンソールです。公開用Composeでは `NEXT_PUBLIC_APP_MODE=public` を指定し、トップ `/` は患者別の呼吸判定照会画面になります。証明デバッグコンソールは引き続き `/verify` です。[患者照会・実機収集の運用手順](PATIENT_OBSERVATIONS.md) を参照してください。
+ 標準フローは `csi_breathing_certificate` 回路を使います。CSI解析APIから証明を生成するか、既存の証明JSONを読み込み、ウォレットから検証トランザクションを送信します。
+ 
+ ## 検証の仕組み
+diff --git a/docs/PATIENT_OBSERVATIONS.md b/docs/PATIENT_OBSERVATIONS.md
+new file mode 100644
+index 0000000..069bfcd
+--- /dev/null
++++ b/docs/PATIENT_OBSERVATIONS.md
+@@ -0,0 +1,188 @@
++# CSI収集から第三者による呼吸判定照会まで
++
++今回の通常フローは、`PicoScenes → 認証付き収集API → 永続キュー → 証明生成ワーカー → 証明記録 → 第三者の照会時にオンチェーン検証 → isNormal表示` です。
++
++第三者画面は `/patients`。公開用ビルドでは `/` もこの画面になります。ログインは設けず、表示用患者IDの一覧と計測開始時刻から選択します。実名・生年月日を登録する項目はありません。患者一覧、計測時刻、公開判定を第三者が読める運用です。
++
++`/capture` は運用者による患者ID登録とデバッグ用アップロードです。既存の `/research`、`/upload`、`/analyze`、`/verify` は残しています。
++
++## 利用者側で必要な作業
++
++| 作業 | 担当環境 | 内容 |
++|---|---|---|
++| テストネットの準備 | 運用PC | Sepolia RPC、デプロイ用ウォレット、記録用ウォレットにSepolia ETHを用意 |
++| 配信環境の準備 | サーバー | Docker、HTTPS、ドメイン、永続ディスクを用意。公開URLの既存502も配信環境側で解消 |
++| 患者ID登録 | `/capture` | 運用者トークンを設定し、表示用IDを登録。実患者との対応表はこの公開サービス外で管理 |
++| 収集端末の設定 | PicoScenes端末 | 対応NIC、送信機、100 Hzの取得条件、時計同期、患者ID、接続先、トークンファイルを設定 |
++| 運用開始 | サーバー・収集端末 | ワーカーと収集クライアントを起動。収集状態と記録用ウォレットの残高を監視 |
++| 結果照会 | 第三者ブラウザ | 患者と時刻を選び「証明を検証して結果を取得」 |
++
++秘密鍵や運用者トークンはチャットに貼り付けず、各端末のファイルで設定します。
++
++## ローカルで確認する
++
++依存関係は [既存のセットアップ手順](ONCHAIN_VERIFICATION.md) を参照してください。現在のポート3000/8000/18545に別のスタックがいる場合は、そのスタックを停止してから起動します。
++
++```sh
++# 通常モード。短い入力・時刻情報の不備を拒否。
++OBSERVATIONS_ENABLED=true bash scripts/start-onchain-local.sh
++
++# 短い既存サンプルのデバッグ時だけこちらを使用。
++# 別のコントラクトとしてデプロイし、画面に「デバッグ計測」を表示。
++OBSERVATIONS_ENABLED=true OBSERVATION_DEBUG_INPUTS=true bash scripts/start-onchain-local.sh
++```
++
++このスクリプトはローカルEVMのみを使い、テスト用記録アカウントへの資金付与、契約デプロイ、API・ワーカー・UIの起動を行います。運用者トークンは `.local/onchain/operator-token`、ワーカーログは `.local/onchain/worker.log` です。
++
++ローカルチェーンは終了時に消えます。再起動ごとに別の患者カタログ・キュー用ディレクトリを作り、以前のデータは削除しません。過去のローカル記録が新しいチェーンでも有効になるわけではありません。
++
++1. `http://127.0.0.1:3000/capture` を開く。
++2. 運用者トークンを設定し、「表示用の患者IDを新規登録」。
++3. 実機収集なら次節のクライアントを設定。デバッグならファイル・計測開始時刻・期間を指定して投入。
++4. 「処理状態を確認」で `recorded` を確認。
++5. `http://127.0.0.1:3000/patients` で患者と計測時刻を選んで照会。古い計測は計測日で絞り込めます（一覧は指定範囲の最新2,000件）。
++
++`recorded` は保存状態です。結果は照会のたびに保存済み証明を再検証して取得します。`isNormal=false` は検証失敗ではなく、検証済みの公開判定値が0だったことを示します。
++
++## 通常モードとデバッグモード
++
++既存certificate回路は、100 Hzを前提にしたPython処理から5 Hz・300点の証明入力を作ります。通常モードでは以下を検査します。
++
++- 収集側の指定期間が60秒。
++- 少なくとも5 Hzへの間引き後に300点を確保できる5,981サンプル。
++- フレーム時刻が単調増加し、平均サンプリング周波数が95〜105 Hz、間隔の変動係数が0.2以下。
++- 対象窓が極端に圧縮されていないこと。解析対象は先頭最大6,000サンプル。
++
++これは既存の固定100 Hz処理を使用するための入力検査です。任意のサンプリング条件に対応する再設計ではありません。収集端末で100 Hzのフレーム取得条件を用意してください。
++
++デバッグモードだけは既存処理による不足分のゼロ埋めを許可します。`debugMode` は契約のデプロイ時に固定し、APIは実契約の値とmanifestを照合します。通常とデバッグを後から設定だけで入れ替えません。UIに必ず区別を表示します。今回の150サンプルの既存CSIを使った実行記録はデバッグモードです。
++
++## Sepoliaへのデプロイ
++
++旧デバッグ用Registryと今回の患者照会用Registryは別契約です。前回の記録を新しい記録と見なして移行しません。
++
++```sh
++# リポジトリルート。初回のみコピーして設定。
++cp .env.sepolia.example .env.sepolia.local
++chmod 600 .env.sepolia.local
++
++# 記録用の専用鍵をファイルに生成。標準出力は公開アドレスのみ。
++node backend/contracts/scripts/create-recorder.mjs .local/observations/sepolia-recorder.key
++```
++
++`.env.sepolia.local` に次を設定してください。
++
++- `ETHEREUM_RPC_URL`: Sepolia RPC。
++- `BLOCKCHAIN_PRIVATE_KEY`: デプロイ専用の秘密鍵。
++- `ONCHAIN_CHAIN_ID=11155111`。
++- `OBSERVATION_RECORDER_ADDRESS`: 上で表示された公開アドレス。
++
++デプロイ用・記録用の両アドレスにSepolia ETHを用意します。記録用アカウントはこのワーカー専用にし、別プロセスから同じ鍵で送信しないでください。
++
++```sh
++# 既存デバッグ用契約も公開構成で使う場合
++npm run build --prefix backend/contracts
++npm run deploy:sepolia --prefix backend/contracts
++
++# 通常の患者照会用契約。OBSERVATION_DEBUG_INPUTSは指定しない。
++ONCHAIN_DEPLOY_PUBLIC=true npm run deploy:observations --prefix backend/contracts
++```
++
++生成物は `backend/contracts/build/onchain/observations-11155111.json` と `csi_breathing_certificate.vkey.json` です。この2つと、使用したWASM・zkey・検証鍵を同じ版として保管します。ビルドは既存の鍵を使用し、trusted setupをやり直しません。既存鍵・回路の監査と生成経緯の確認は別途必要です。
++
++新契約は回路名・回路IDを各計測に保存しません。デバッグ用の識別情報はmanifestに残します。ただし、公開チェーン上のVerifierコードやアドレスから実装を調べることは可能であり、回路そのものを暗号学的に隠す機能ではありません。
++
++## サーバー起動
++
++`.env.public.example` を基に `.env.public` を設定します。観測用の追加項目は以下です。
++
++```dotenv
++OBSERVATION_BUILD_DIR=./backend/contracts/build/onchain
++OBSERVATION_MANIFEST_FILE=observations-11155111.json
++OBSERVATION_RECORDER_KEY_FILE=./.local/observations/sepolia-recorder.key
++OBSERVATION_MAX_TX_WEI=10000000000000000
++OBSERVATION_RAW_RETENTION_HOURS=24
++```
++
++`OBSERVATION_MAX_TX_WEI` は1トランザクションのガス上限×単価の上限です。例は0.01 ETH相当で、実際に必ずこの金額を支払う意味ではありません。残高不足や上限超過時は処理を停止・再試行します。
++
++```sh
++docker compose --env-file .env.public \
++  -f docker-compose.public.yml -f docker-compose.observations.yml config --quiet
++
++docker compose --env-file .env.public \
++  -f docker-compose.public.yml -f docker-compose.observations.yml up --build -d
++```
++
++外側のHTTPSリバースプロキシから `127.0.0.1:8080` に接続します。秘密鍵は署名ワーカーだけに読み取り専用でマウントし、API・フロントエンドには渡しません。公開用ゲートウェイは患者照会APIと認証付き収集APIを許可します。既存研究APIの公開制限は維持します。
++
++今回の永続キューとカタログは専用SQLite/WALで、既存研究DBにマイグレーションは不要です。`observation_data` volumeは保持してください。**単一ホスト・署名ワーカー1プロセス**の構成です。ファイルロックで二重起動を拒否します。複数ホストやNFS共有での運用は対象外です。
++
++患者一覧と計測IDの索引はこのDBにあるため、volumeを失うと患者・時刻の一覧を復元できません。バックアップはAPIとワーカーの書込みを停止してvolume全体を取得するか、SQLiteのbackup APIを使用してください。稼働中のDB本体だけをコピーしないでください。
++
++## PicoScenes端末からの収集
++
++`scripts/capture_observation.py` はPython標準ライブラリのみを使用します。PicoScenes自体のインストール・対応NIC・フレーム送信元の準備は端末側で行います。端末時計はNTP等で同期してください。
++
++```sh
++export CSI_SERVER_URL=https://your-domain.example
++export CSI_PATIENT_ID=登録した患者UUID
++export CSI_OPERATOR_TOKEN_FILE=/保護された場所/operator.token
++export CSI_NIC_INDEX=2
++export CSI_CBW=160
++export CSI_MAIN_DURATION=60
++
++# トークンファイルはサーバーのOPERATOR_API_TOKENと同じ値、権限0600。
++chmod 600 "$CSI_OPERATOR_TOKEN_FILE"
++
++# 1回収集
++python3 scripts/capture_observation.py
++
++# 継続収集。プロセス停止・通信障害後は同じspoolを使って再起動。
++python3 scripts/capture_observation.py --loop
++
++# 未送信分だけを再送
++python3 scripts/capture_observation.py --retry-only
++```
++
++通信はHTTPSを必須とし、ローカル確認時のloopback HTTPだけを例外とします。標準の一時保存先は `~/.csi-observation-spool`、`CSI_OBSERVATION_SPOOL` で変更できます。端末側でもファイルロックで同時収集を防ぎます。
++
++送信失敗時は同じ収集UUIDで再送します。サーバーが永続キューへの受領を返した後に端末側のコピーを削除します。サーバー側で証明生成が失敗した場合はキューの状態を確認してください。端末での未送信CSIは次回実行時に24時間経過したものを削除します（`CSI_SPOOL_RETENTION_HOURS`）。停止したままの端末では削除処理も動かないため、運用時はサービス管理機構で再起動・監視してください。
++
++既存ファイルを使うデバッグ投入も可能です。元ファイルは削除せず、spoolへのコピーだけを管理します。
++
++```sh
++python3 scripts/capture_observation.py \
++  --file sampledata/csi_20260519_114943.csi \
++  --observed-at 2026-05-19T11:49:43+09:00
++```
++
++## 失敗時と再試行
++
++| 状態・エラー | 対応 |
++|---|---|
++| `queued` | ワーカー起動、鍵、RPC、対象manifestを確認 |
++| `processing` | 証明生成中。再起動時は保存済み証明から再開 |
++| `submitted` | 同じ署名済みトランザクションを追跡。再署名しない |
++| `recorded` | 記録済み。第三者照会ではその都度証明を検証 |
++| `insufficient_capture_samples` 等 | 100 Hz・60秒の収集条件を確認して再収集 |
++| `raw_expired` | 生CSIの保存期限切れ。再収集が必要 |
++| `transaction_reverted` | RPC receiptと契約設定を運用者が確認 |
++| `processing_failed` | RPC・鍵・鍵ファイル権限・残高・ガス上限・鍵の版を確認 |
++
++収集状態は認証付き `GET /api/v2/observations/captures/{id}`、再試行は認証付き `POST /api/v2/observations/captures/{id}/retry` です。通常は最大5回、待ち時間を増やして再試行します。入力品質違反は即失敗にします。生CSIは証明保存直後に削除し、未処理・失敗分もワーカー稼働中は保存期限を適用します。
++
++受付中ジョブは標準100件までです。満杯の場合は429を返し、端末に残った同じ収集IDで後から再送します。
++
++署名済みトランザクションの成否が不明な場合、同じnonceで別計測を送ることを避けるため後続署名を止めます。5回失敗後も署名済みデータは保持し、運用者の再試行で同じbytesを再送します。ガス不足による長期pending、外部からのnonce消費、手動置換の自動解決は実装していません。
++
++## 検証範囲
++
++- コントラクトは先に証明を保存し、`verifyObservation` が保存済み証明を検証してからbooleanを返します。不正・未登録はrevertします。
++- APIは患者参照ID・計測時刻・期間をチェーンと照合し、必要な確認数と同じブロックの状態で検証します。未確定、照合不一致、RPC障害、検証失敗では `isNormal` を返しません。
++- 判定値そのものは公開チェーンのストレージ・トランザクションに存在します。「検証前は暗号学的に秘密」という設計ではありません。
++- 患者・時刻・期間は認証された収集側／記録者の申告です。呼吸回路が患者の身元、時計の正確さ、生CSIのセンサー由来を証明しているわけではありません。外部の患者対応表と端末設置・時計管理が必要です。
++- 新契約は単一certificate Verifierを固定します。既存VMD/LSのデバッグ回路を切り替えて記録する経路は `/verify` に残します。
++- 通常モードの実機連続収集、Sepoliaでの公開運用、コンテナ実起動はこの開発環境では未確認です。手元の実行記録は保存済みCSIを使ったローカルEVMでのデバッグ確認です。
++
++実装コード、スクリーンショット、検証記録は [進捗資料](progress/observations/README.md) にあります。
+diff --git a/frontend/app/DeviceDashboard.tsx b/frontend/app/DeviceDashboard.tsx
+index 8aec08e..7aa997b 100644
+--- a/frontend/app/DeviceDashboard.tsx
++++ b/frontend/app/DeviceDashboard.tsx
+@@ -123,6 +123,7 @@ export function DeviceDashboard() {
+             </p>
+           </div>
+           <div className="flex flex-wrap gap-3">
++            <Link href="/patients" className="inline-flex h-10 items-center justify-center rounded-lg border border-teal-700 bg-white px-4 text-sm font-semibold text-teal-800">患者の呼吸判定</Link>
+             <Link href="/verify" className="inline-flex h-10 items-center justify-center rounded-lg border border-teal-700 bg-white px-4 text-sm font-semibold text-teal-800">オンチェーン検証</Link>
+             <Link
+               href="/analyze"
+diff --git a/frontend/app/capture/page.tsx b/frontend/app/capture/page.tsx
+new file mode 100644
+index 0000000..1e28918
+--- /dev/null
++++ b/frontend/app/capture/page.tsx
+@@ -0,0 +1,221 @@
++"use client";
++
++import Link from "next/link";
++import { useEffect, useRef, useState } from "react";
++import { ResearchAccess } from "../ResearchAccess";
++import { operatorFetch } from "../operator-access";
++import { API_BASE } from "../upload/constants";
++
++const base = `${API_BASE}/api/v2/observations`;
++const field = "mt-2 w-full rounded-lg border border-neutral-300 p-3";
++export default function CapturePage() {
++  const [patients, setPatients] = useState<{ id: string; label: string }[]>([]);
++  const [patient, setPatient] = useState("");
++  const [time, setTime] = useState("");
++  const [duration, setDuration] = useState(60);
++  const [file, setFile] = useState<File | null>(null);
++  const [message, setMessage] = useState("");
++  const [busy, setBusy] = useState(false);
++  const [job, setJob] = useState("");
++  const id = useRef("");
++  useEffect(() => {
++    let active = true;
++    fetch(`${base}/patients`, { cache: "no-store" })
++      .then((r) => {
++        if (!r.ok) throw new Error("患者一覧を取得できません");
++        return r.json();
++      })
++      .then((data) => {
++        if (active) setPatients(data.patients);
++      })
++      .catch((error) => {
++        if (active) setMessage(error.message);
++      });
++    return () => {
++      active = false;
++    };
++  }, []);
++  async function action(operation: () => Promise<void>) {
++    setBusy(true);
++    setMessage("");
++    try {
++      await operation();
++    } catch (error) {
++      setMessage((error as Error).message);
++    } finally {
++      setBusy(false);
++    }
++  }
++  async function checked(response: Response) {
++    const data = await response.json();
++    if (!response.ok)
++      throw new Error(
++        typeof data.detail === "string"
++          ? data.detail
++          : "入力内容と運用者トークンを確認してください",
++      );
++    return data;
++  }
++  return (
++    <main className="min-h-screen bg-neutral-50 px-5 py-10 text-neutral-900">
++      <div className="mx-auto max-w-2xl space-y-6">
++        <header>
++          <p className="text-sm text-teal-700">CSI Care · Operator</p>
++          <h1 className="mt-2 text-2xl font-bold">収集管理・デバッグ</h1>
++          <p className="mt-3 text-sm leading-6 text-neutral-600">
++            通常運用は収集端末から自動送信します。このフォームは保存済みCSIを使う動作確認用です。運用者トークンが必要です。
++          </p>
++        </header>
++        <ResearchAccess />
++        <form
++          className="space-y-5 rounded-xl border bg-white p-6"
++          onSubmit={(event) => {
++            event.preventDefault();
++            void action(async () => {
++              if (!file) throw new Error("CSIを選択してください");
++              if (!id.current) id.current = crypto.randomUUID();
++              const data = new FormData();
++              data.set("patient_id", patient);
++              data.set("capture_id", id.current);
++              data.set("observed_at", new Date(time).toISOString());
++              data.set("duration_seconds", String(duration));
++              data.set("file", file);
++              const result = await checked(
++                await operatorFetch(`${base}/captures`, {
++                  method: "POST",
++                  body: data,
++                }),
++              );
++              setJob(result.id);
++              setMessage(
++                "収集を受け付けました。ワーカーが証明生成とチェーンへの記録を行います。",
++              );
++            });
++          }}
++        >
++          <label className="block text-sm">
++            患者
++            <select
++              required
++              className={field}
++              value={patient}
++              onChange={(e) => {
++                setPatient(e.target.value);
++                id.current = "";
++              }}
++            >
++              <option value="">患者を選択</option>
++              {patients.map((p) => (
++                <option key={p.id} value={p.id}>
++                  {p.label}
++                </option>
++              ))}
++            </select>
++          </label>
++          <button
++            type="button"
++            disabled={busy}
++            className="text-sm text-teal-800 underline"
++            onClick={() =>
++              void action(async () => {
++                const p = await checked(
++                  await operatorFetch(`${base}/patients`, { method: "POST" }),
++                );
++                setPatients((old) => [...old, p]);
++                setPatient(p.id);
++                id.current = "";
++              })
++            }
++          >
++            表示用の患者IDを新規登録
++          </button>
++          {patient && (
++            <p className="break-all font-mono text-xs text-neutral-500">
++              収集端末の CSI_PATIENT_ID: {patient}
++            </p>
++          )}
++          <label className="block text-sm">
++            計測開始時刻（この端末の現地時刻）
++            <input
++              required
++              type="datetime-local"
++              step="1"
++              className={field}
++              value={time}
++              onChange={(e) => {
++                setTime(e.target.value);
++                id.current = "";
++              }}
++            />
++          </label>
++          <label className="block text-sm">
++            計測期間（秒）
++            <input
++              required
++              type="number"
++              min="1"
++              max="3600"
++              className={field}
++              value={duration}
++              onChange={(e) => {
++                setDuration(Number(e.target.value));
++                id.current = "";
++              }}
++            />
++          </label>
++          <label className="block text-sm">
++            CSIファイル
++            <input
++              required
++              type="file"
++              accept=".csi"
++              className={field}
++              onChange={(e) => {
++                setFile(e.target.files?.[0] || null);
++                id.current = "";
++              }}
++            />
++          </label>
++          <button
++            disabled={busy}
++            type="submit"
++            className="w-full rounded-lg bg-teal-800 p-3 text-white disabled:opacity-40"
++          >
++            {busy ? "処理中…" : "デバッグ用CSIを収集キューへ送信"}
++          </button>
++        </form>
++        {message && (
++          <p role="status" className="rounded-lg border bg-white p-4 text-sm">
++            {message}
++          </p>
++        )}
++        {job && (
++          <div className="space-y-3">
++            <p className="break-all font-mono text-xs">収集ID: {job}</p>
++            <button
++              disabled={busy}
++              className="text-sm text-teal-800 underline"
++              onClick={() =>
++                void action(async () => {
++                  const data = await checked(
++                    await operatorFetch(`${base}/captures/${job}`),
++                  );
++                  setMessage(
++                    `状態: ${data.status} / 試行: ${data.attempts}${data.error ? " / 運用者による確認が必要です" : ""}`,
++                  );
++                })
++              }
++            >
++              処理状態を確認
++            </button>
++          </div>
++        )}
++        <nav className="flex flex-wrap gap-5 text-sm text-teal-800">
++          <Link href="/patients">第三者用の照会画面 →</Link>
++          <Link href="/research">既存の解析モニター</Link>
++          <Link href="/verify">証明デバッグ</Link>
++        </nav>
++      </div>
++    </main>
++  );
++}
+diff --git a/frontend/app/page.tsx b/frontend/app/page.tsx
+index d8da56a..51b6c5e 100644
+--- a/frontend/app/page.tsx
++++ b/frontend/app/page.tsx
+@@ -1,6 +1,6 @@
+-import { VerificationConsole } from "./verify/VerificationConsole";
++import { PatientResults } from "./patients/PatientResults";
+ import { DeviceDashboard } from "./DeviceDashboard";
+ 
+ export default function Home() {
+-  return process.env.NEXT_PUBLIC_APP_MODE === "public" ? <VerificationConsole /> : <DeviceDashboard />;
++  return process.env.NEXT_PUBLIC_APP_MODE === "public" ? <PatientResults /> : <DeviceDashboard />;
+ }
+diff --git a/frontend/app/patients/PatientResults.tsx b/frontend/app/patients/PatientResults.tsx
+new file mode 100644
+index 0000000..186fc68
+--- /dev/null
++++ b/frontend/app/patients/PatientResults.tsx
+@@ -0,0 +1,287 @@
++"use client";
++
++import Link from "next/link";
++import { useEffect, useRef, useState } from "react";
++import { API_BASE } from "../upload/constants";
++
++type Patient = { id: string; label: string };
++type Measurement = {
++  id: string;
++  observed_at: number;
++  duration: number;
++  status: string;
++};
++type Result = {
++  status: string;
++  isNormal?: boolean;
++  observedAt?: number;
++  durationSeconds?: number;
++  debugInput?: boolean;
++};
++const selectClass =
++  "mt-2 w-full min-w-0 rounded-xl border border-neutral-300 bg-white p-3 text-base text-neutral-900 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100 disabled:bg-neutral-100";
++const dateLabel = (seconds: number) =>
++  new Date(seconds * 1000).toLocaleString("ja-JP", { timeZoneName: "short" });
++
++async function request<T>(path: string, init?: RequestInit): Promise<T> {
++  const response = await fetch(`${API_BASE}/api/v2/observations${path}`, {
++    cache: "no-store",
++    ...init,
++  });
++  if (!response.ok) {
++    const body = await response.json().catch(() => ({}));
++    throw new Error(
++      typeof body.detail === "string"
++        ? body.detail
++        : "照会できませんでした。時間をおいて再度お試しください。",
++    );
++  }
++  return response.json();
++}
++
++export function PatientResults() {
++  const [patients, setPatients] = useState<Patient[]>([]);
++  const [patient, setPatient] = useState("");
++  const [day, setDay] = useState("");
++  const [measurements, setMeasurements] = useState<Measurement[]>([]);
++  const [measurement, setMeasurement] = useState("");
++  const [result, setResult] = useState<Result | null>(null);
++  const [busy, setBusy] = useState("一覧を読み込み中");
++  const [error, setError] = useState("");
++  const version = useRef(0);
++  useEffect(() => {
++    const controller = new AbortController();
++    request<{ patients: Patient[] }>("/patients", { signal: controller.signal })
++      .then((data) => {
++        if (!controller.signal.aborted) setPatients(data.patients);
++      })
++      .catch((failure) => {
++        if (!controller.signal.aborted) setError(failure.message);
++      })
++      .finally(() => {
++        if (!controller.signal.aborted) setBusy("");
++      });
++    return () => {
++      controller.abort();
++    };
++  }, []);
++
++  async function choosePatient(id: string, date = day) {
++    const current = ++version.current;
++    setPatient(id);
++    setMeasurements([]);
++    setMeasurement("");
++    setResult(null);
++    setError("");
++    if (!id) {
++      setBusy("");
++      return;
++    }
++    setBusy("計測時刻を読み込み中");
++    try {
++      let query = "";
++      if (date) {
++        const start = new Date(`${date}T00:00:00`);
++        const end = new Date(start);
++        end.setDate(end.getDate() + 1);
++        query = `?start_at=${Math.floor(start.getTime() / 1000)}&end_at=${Math.floor(end.getTime() / 1000)}`;
++      }
++      const data = await request<{ measurements: Measurement[] }>(
++        `/patients/${id}/measurements${query}`,
++      );
++      if (current === version.current) setMeasurements(data.measurements);
++    } catch (failure) {
++      if (current === version.current) setError((failure as Error).message);
++    } finally {
++      if (current === version.current) setBusy("");
++    }
++  }
++
++  async function verify() {
++    const current = ++version.current;
++    setResult(null);
++    setError("");
++    setBusy("記録された証明を検証しています");
++    try {
++      const data = await request<Result>(
++        `/measurements/${measurement}/verify`,
++        { method: "POST" },
++      );
++      if (current !== version.current) return;
++      if (data.status === "verified" && typeof data.isNormal === "boolean")
++        setResult(data);
++      else
++        setError(
++          data.status === "failed"
++            ? "この計測の処理に失敗しています。運用者に確認してください。"
++            : "証明の記録またはブロックの確定を待っています。時間をおいて再照会してください。",
++        );
++    } catch (failure) {
++      if (current === version.current) setError((failure as Error).message);
++    } finally {
++      if (current === version.current) setBusy("");
++    }
++  }
++
++  const selected = measurements.find((item) => item.id === measurement);
++  return (
++    <main className="min-h-screen bg-[#f5f8f6] px-5 py-8 text-[#193e34] sm:px-8">
++      <div className="mx-auto max-w-3xl">
++        <header className="flex items-center justify-between border-b border-[#dce6df] pb-5">
++          <Link
++            href="/patients"
++            className="text-xl font-semibold tracking-tight"
++          >
++            CSI <span className="font-normal">Care</span>
++          </Link>
++          <span className="rounded-full bg-white px-3 py-1 text-xs text-neutral-600">
++            呼吸判定の照会
++          </span>
++        </header>
++        <div className="py-10 sm:py-14">
++          <p className="text-xs font-semibold tracking-widest text-teal-700">
++            PATIENT RESULTS
++          </p>
++          <h1 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
++            その時刻の呼吸判定を、
++            <br />
++            確かめる。
++          </h1>
++          <p className="mt-5 max-w-xl text-sm leading-7 text-neutral-600">
++            患者と計測時刻を選んでください。記録された証明を検証した後に、呼吸判定結果を表示します。
++          </p>
++        </div>
++        <section
++          aria-label="計測の選択"
++          className="rounded-2xl border border-[#dce6df] bg-white p-6 shadow-sm sm:p-8"
++        >
++          <label className="mb-5 block max-w-xs text-sm font-semibold">
++            計測日で絞り込む（任意）
++            <input
++              type="date"
++              aria-label="計測日で絞り込む"
++              value={day}
++              className={selectClass}
++              onChange={(event) => {
++                setDay(event.target.value);
++                void choosePatient(patient, event.target.value);
++              }}
++            />
++          </label>
++          <div className="grid gap-6 sm:grid-cols-2">
++            <label className="min-w-0 text-sm font-semibold">
++              患者
++              <select
++                aria-label="患者"
++                value={patient}
++                className={selectClass}
++                onChange={(event) => void choosePatient(event.target.value)}
++              >
++                <option value="">患者を選択</option>
++                {patients.map((item) => (
++                  <option key={item.id} value={item.id}>
++                    {item.label}
++                  </option>
++                ))}
++              </select>
++            </label>
++            <label className="min-w-0 text-sm font-semibold">
++              計測開始時刻
++              <select
++                aria-label="計測開始時刻"
++                value={measurement}
++                disabled={!patient || !measurements.length}
++                className={selectClass}
++                onChange={(event) => {
++                  version.current++;
++                  setMeasurement(event.target.value);
++                  setResult(null);
++                  setError("");
++                  setBusy("");
++                }}
++              >
++                <option value="">時刻を選択</option>
++                {measurements.map((item) => (
++                  <option key={item.id} value={item.id}>
++                    {dateLabel(item.observed_at)}
++                  </option>
++                ))}
++              </select>
++            </label>
++          </div>
++          {selected && (
++            <p className="mt-4 text-xs text-neutral-500">
++              選択した計測期間：{selected.duration}秒間
++            </p>
++          )}
++          {!busy && !error && !patients.length && (
++            <p className="mt-4 text-sm text-neutral-600">
++              登録された患者はまだいません。
++            </p>
++          )}
++          {patient && !busy && !error && !measurements.length && (
++            <p className="mt-4 text-sm text-neutral-600">
++              この患者の計測はまだありません。
++            </p>
++          )}
++          <button
++            type="button"
++            disabled={!measurement || !!busy}
++            onClick={() => void verify()}
++            className="mt-7 w-full rounded-xl bg-[#245847] px-5 py-4 text-sm font-semibold text-white hover:bg-[#193e34] disabled:bg-neutral-200 disabled:text-neutral-500"
++          >
++            {busy || "証明を検証して結果を取得"}
++          </button>
++        </section>
++        <div aria-live="polite" aria-busy={!!busy}>
++          {error && (
++            <p
++              role="alert"
++              className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900"
++            >
++              {error}
++            </p>
++          )}
++          {result && (
++            <section
++              aria-label="呼吸判定結果"
++              className={`mt-6 rounded-2xl border p-7 sm:p-9 ${result.isNormal ? "border-teal-200 bg-teal-50" : "border-amber-200 bg-amber-50"}`}
++            >
++              <p className="text-xs font-semibold tracking-widest text-neutral-600">
++                証明の検証が完了しました
++              </p>
++              <h2 className="mt-4 text-3xl font-semibold">
++                {result.isNormal
++                  ? "判定条件を満たしています"
++                  : "判定条件を満たしていません"}
++              </h2>
++              <p className="mt-3 font-mono text-sm">
++                isNormal: {String(result.isNormal)}
++              </p>
++              <p className="mt-5 text-sm text-neutral-600">
++                {result.observedAt && dateLabel(result.observedAt)} から{" "}
++                {result.durationSeconds}秒間（収集側の指定期間）
++              </p>
++              <p className="mt-3 text-xs leading-6 text-neutral-600">
++                設定された周波数帯域と狭帯域条件による判定です。証明の有効性と判定結果は別の情報です。
++              </p>
++              {result.debugInput && (
++                <p className="mt-4 rounded-lg border border-amber-300 bg-white/70 p-3 text-sm leading-6 text-amber-950">
++                  デバッグ計測です。短い入力の補完を許可した検証先を使用しています。通常運用の計測条件を満たすことは確認していません。
++                </p>
++              )}
++            </section>
++          )}
++        </div>
++        <footer className="mt-9 flex flex-wrap justify-between gap-3 border-t border-[#dce6df] py-5 text-xs leading-6 text-neutral-500">
++          <p>
++            患者は表示用IDで識別しています。計測時刻は端末のタイムゾーンで表示します。
++          </p>
++          <Link className="underline" href="/capture">
++            収集管理・デバッグ
++          </Link>
++        </footer>
++      </div>
++    </main>
++  );
++}
+diff --git a/frontend/app/patients/page.tsx b/frontend/app/patients/page.tsx
+new file mode 100644
+index 0000000..923d6fe
+--- /dev/null
++++ b/frontend/app/patients/page.tsx
+@@ -0,0 +1,5 @@
++import { PatientResults } from "./PatientResults";
++
++export default function PatientsPage() {
++  return <PatientResults />;
++}
+diff --git a/frontend/scripts/capture-observation-code.mjs b/frontend/scripts/capture-observation-code.mjs
+new file mode 100644
+index 0000000..fc7b1f5
+--- /dev/null
++++ b/frontend/scripts/capture-observation-code.mjs
+@@ -0,0 +1,16 @@
++import { chromium } from '@playwright/test';
++import { readFileSync, mkdirSync } from 'node:fs';
++import { resolve } from 'node:path';
++
++const root = resolve(import.meta.dirname, '../..');
++const source = readFileSync(resolve(root, 'backend/contracts/BreathingObservationRegistry.sol'), 'utf8');
++const escape = text => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
++const lines = source.split('\n').map((line, index) => `<div><span>${index + 1}</span>${escape(line) || ' '}</div>`).slice(38).join('');
++const browser = await chromium.launch();
++try {
++  const page = await browser.newPage({viewport: {width: 1500, height: 1050}});
++  await page.setContent(`<html><meta charset="utf-8"><style>body{margin:0;padding:42px;background:#10231d;color:#d8e9de;font:14px system-ui}h1{font-size:28px;font-weight:500}p{color:#9ab8a5}article{padding:24px 18px;border:1px solid #405b4c;border-radius:14px;background:#162f25;font:13px/25px ui-monospace,monospace;white-space:pre}article span{display:inline-block;width:38px;color:#83a78e}footer{margin-top:24px;color:#9ab8a5}</style><h1>Record a proof. Verify before returning the result.</h1><p>Actual source · backend/contracts/BreathingObservationRegistry.sol</p><article>${lines}</article><footer>Invalid or missing proofs revert. A valid zero output returns false.</footer></html>`);
++  const directory = resolve(root, 'docs/progress/observations/evidence');
++  mkdirSync(directory, {recursive: true});
++  await page.screenshot({path: resolve(directory, '03-record-and-verify-code.png'), fullPage: true});
++} finally { await browser.close(); }
+diff --git a/frontend/src/__tests__/PatientResults.test.tsx b/frontend/src/__tests__/PatientResults.test.tsx
+new file mode 100644
+index 0000000..f53d107
+--- /dev/null
++++ b/frontend/src/__tests__/PatientResults.test.tsx
+@@ -0,0 +1,92 @@
++import { afterEach, expect, test, vi } from "vitest";
++import { cleanup, fireEvent, render, screen } from "@testing-library/react";
++import { PatientResults } from "../../app/patients/PatientResults";
++
++afterEach(() => {
++  cleanup();
++  vi.unstubAllGlobals();
++});
++async function selectMeasurement(verify: () => Promise<unknown>) {
++  vi.stubGlobal(
++    "fetch",
++    vi.fn(async (url: string) => {
++      if (url.endsWith("/verify")) return verify();
++      const data = url.endsWith("/patients")
++        ? { patients: [{ id: "patient-a", label: "患者 A" }] }
++        : {
++            measurements: [
++              {
++                id: "measurement-a",
++                observed_at: 1700000000,
++                duration: 60,
++                status: "recorded",
++              },
++            ],
++          };
++      return { ok: true, json: async () => data };
++    }),
++  );
++  render(<PatientResults />);
++  await screen.findByRole("option", { name: "患者 A" });
++  fireEvent.change(screen.getByLabelText("患者"), {
++    target: { value: "patient-a" },
++  });
++  await screen.findByRole("option", { name: /2023/ });
++  fireEvent.change(screen.getByLabelText("計測開始時刻"), {
++    target: { value: "measurement-a" },
++  });
++  fireEvent.click(
++    screen.getByRole("button", { name: "証明を検証して結果を取得" }),
++  );
++}
++
++test("valid proof with output zero displays a verified false result", async () => {
++  await selectMeasurement(async () => ({
++    ok: true,
++    json: async () => ({
++      status: "verified",
++      isNormal: false,
++      observedAt: 1700000000,
++      durationSeconds: 60,
++    }),
++  }));
++  expect(await screen.findByText("isNormal: false")).toBeInTheDocument();
++  fireEvent.change(screen.getByLabelText("患者"), { target: { value: "" } });
++  expect(screen.queryByText("isNormal: false")).not.toBeInTheDocument();
++});
++
++test.each(["confirming", "pending", "failed"])(
++  "%s never releases an unverified boolean",
++  async (status) => {
++    await selectMeasurement(async () => ({
++      ok: true,
++      json: async () => ({ status, isNormal: true }),
++    }));
++    await screen.findByRole("alert");
++    expect(screen.queryByText(/isNormal:/)).not.toBeInTheDocument();
++  },
++);
++
++test("RPC or verification failure is not rendered as isNormal=false", async () => {
++  await selectMeasurement(async () => ({
++    ok: false,
++    json: async () => ({ detail: "検証できません" }),
++  }));
++  expect(await screen.findByRole("alert")).toHaveTextContent("検証できません");
++  expect(screen.queryByText(/isNormal:/)).not.toBeInTheDocument();
++});
++
++test("late verification response cannot replace a changed selection", async () => {
++  let resolve!: (response: unknown) => void;
++  const deferred = new Promise((r) => {
++    resolve = r;
++  });
++  await selectMeasurement(() => deferred);
++  fireEvent.change(screen.getByLabelText("患者"), { target: { value: "" } });
++  resolve({
++    ok: true,
++    json: async () => ({ status: "verified", isNormal: true }),
++  });
++  await vi.waitFor(() => expect(screen.getByRole("button")).toBeDisabled());
++  expect(screen.queryByText(/isNormal:/)).not.toBeInTheDocument();
++});
+diff --git a/frontend/tests/patient-results.spec.ts b/frontend/tests/patient-results.spec.ts
+new file mode 100644
+index 0000000..ed317d4
+--- /dev/null
++++ b/frontend/tests/patient-results.spec.ts
+@@ -0,0 +1,110 @@
++import { expect, test } from "@playwright/test";
++import { resolve } from "node:path";
++
++test("real recorded CSI: third party retrieves result after verification", async ({
++  page,
++  request,
++}) => {
++  test.skip(
++    process.env.E2E_OBSERVATIONS !== "true",
++    "Needs the local observation worker and real CSI record",
++  );
++  const response = await request.get("/api/v2/observations/patients");
++  expect(response.ok()).toBeTruthy();
++  const { patients } = await response.json();
++  let patient: { id: string; label: string } | undefined;
++  let measurement: { id: string } | undefined;
++  for (const item of patients) {
++    const response = await request.get(
++      `/api/v2/observations/patients/${item.id}/measurements`,
++    );
++    const data = await response.json();
++    const recorded = data.measurements.find(
++      (m: { status: string }) => m.status === "recorded",
++    );
++    if (recorded) {
++      patient = item;
++      measurement = recorded;
++      break;
++    }
++  }
++  expect(patient).toBeTruthy();
++  expect(measurement).toBeTruthy();
++  const errors: string[] = [];
++  page.on("pageerror", (e) => errors.push(e.message));
++  await page.goto("/patients");
++  await page.getByLabel("患者", { exact: true }).selectOption(patient!.id);
++  await page
++    .getByLabel("計測開始時刻", { exact: true })
++    .selectOption(measurement!.id);
++  await expect(page.getByText(/isNormal:/)).toHaveCount(0);
++  await page.getByRole("button", { name: "証明を検証して結果を取得" }).click();
++  await expect(page.getByText(/isNormal: (true|false)/)).toBeVisible();
++  const evidence = resolve(
++    __dirname,
++    "../../docs/progress/observations/evidence",
++  );
++  await page.screenshot({
++    path: resolve(evidence, "01-patient-result-desktop.png"),
++    fullPage: true,
++  });
++  await page.setViewportSize({ width: 390, height: 844 });
++  expect(
++    await page.evaluate(
++      () => document.documentElement.scrollWidth <= innerWidth,
++    ),
++  ).toBe(true);
++  await page.screenshot({
++    path: resolve(evidence, "02-patient-result-mobile.png"),
++    fullPage: true,
++  });
++  await page.getByLabel("患者", { exact: true }).selectOption("");
++  await expect(page.getByText(/isNormal:/)).toHaveCount(0);
++  expect(errors).toEqual([]);
++});
++
++test("failed verification never leaves a prior result visible", async ({
++  page,
++}) => {
++  await page.route("**/api/v2/observations/patients", (route) =>
++    route.fulfill({ json: { patients: [{ id: "p", label: "UI fixture" }] } }),
++  );
++  await page.route("**/api/v2/observations/patients/p/measurements", (route) =>
++    route.fulfill({
++      json: {
++        measurements: [
++          {
++            id: "m",
++            observed_at: 1700000000,
++            duration: 60,
++            status: "recorded",
++          },
++        ],
++      },
++    }),
++  );
++  let count = 0;
++  await page.route("**/api/v2/observations/measurements/m/verify", (route) =>
++    ++count === 1
++      ? route.fulfill({
++          json: {
++            status: "verified",
++            isNormal: false,
++            observedAt: 1700000000,
++            durationSeconds: 60,
++          },
++        })
++      : route.fulfill({
++          status: 422,
++          json: { detail: "記録された証明を検証できません" },
++        }),
++  );
++  await page.goto("/patients");
++  await page.getByLabel("患者", { exact: true }).selectOption("p");
++  await page.getByLabel("計測開始時刻", { exact: true }).selectOption("m");
++  await page.getByRole("button", { name: "証明を検証して結果を取得" }).click();
++  await expect(page.getByText("isNormal: false")).toBeVisible();
++  await page.getByRole("button", { name: "証明を検証して結果を取得" }).click();
++  await expect(page.locator("main").getByRole("alert")).toBeVisible();
++  await expect(page.getByText(/isNormal:/)).toHaveCount(0);
++});
+diff --git a/nginx/public.conf b/nginx/public.conf
+index 2ff6b25..c59e1b9 100644
+--- a/nginx/public.conf
++++ b/nginx/public.conf
+@@ -22,6 +22,18 @@ http {
+             proxy_pass http://backend:8000;
+             proxy_read_timeout 40s;
+         }
++        location = /api/v2/observations/captures {
++            limit_req zone=proof_generation burst=2 nodelay;
++            proxy_pass http://backend:8000;
++            proxy_read_timeout 120s;
++        }
++        location /api/v2/observations/ {
++            client_max_body_size 16k;
++            limit_req zone=public_api burst=10 nodelay;
++            proxy_pass http://backend:8000;
++            proxy_read_timeout 60s;
++            add_header Cache-Control "no-store" always;
++        }
+         location = /api/v2/breathing/analyze-certificate {
+             limit_req zone=proof_generation burst=2 nodelay;
+             proxy_pass http://backend:8000;
+diff --git a/scripts/capture_observation.py b/scripts/capture_observation.py
+new file mode 100644
+index 0000000..ae7136b
+--- /dev/null
++++ b/scripts/capture_observation.py
+@@ -0,0 +1,153 @@
++#!/usr/bin/env python3
++"""PicoScenes capture -> durable local spool -> authenticated observation queue.
++
++Standard library only. CSI_PATIENT_ID / CSI_SERVER_URL / CSI_OPERATOR_TOKEN_FILE
++must be configured. Run --retry-only after network failures, or --loop for
++continuous acquisition. Existing debug upload/capture scripts are unchanged.
++"""
++import argparse
++from datetime import datetime, timezone
++import http.client
++import json
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import time
++from urllib.parse import urlsplit
++from uuid import UUID, uuid4
++
++
++def upload(server, token, metadata, path):
++    url = urlsplit(server)
++    if url.scheme not in ("https", "http") or url.username or url.password or url.query or url.fragment:
++        raise ValueError("CSI_SERVER_URL must be an HTTPS origin")
++    if url.scheme != "https" and url.hostname not in ("localhost", "127.0.0.1", "::1"):
++        raise ValueError("HTTPS is required outside loopback")
++    boundary = uuid4().hex
++    fields = b""
++    for key in ("patient_id", "capture_id", "observed_at", "duration_seconds"):
++        fields += (f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{metadata[key]}\r\n').encode()
++    fields += (
++        f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="capture.csi"\r\nContent-Type: application/octet-stream\r\n\r\n'
++    ).encode()
++    tail = f"\r\n--{boundary}--\r\n".encode()
++    size = path.stat().st_size
++    if not 0 < size <= 50 * 1024 * 1024:
++        raise ValueError("CSI must be between 1 byte and 50 MB")
++    factory = http.client.HTTPSConnection if url.scheme == "https" else http.client.HTTPConnection
++    conn = factory(url.hostname, url.port, timeout=120)
++    try:
++        conn.putrequest("POST", url.path.rstrip("/") + "/api/v2/observations/captures")
++        conn.putheader("Authorization", "Bearer " + token)
++        conn.putheader("Content-Type", "multipart/form-data; boundary=" + boundary)
++        conn.putheader("Content-Length", str(len(fields) + size + len(tail)))
++        conn.endheaders()
++        conn.send(fields)
++        with path.open("rb") as source:
++            while chunk := source.read(1024 * 1024):
++                conn.send(chunk)
++        conn.send(tail)
++        response = conn.getresponse()
++        body = response.read(65536)
++        if response.status not in (200, 202):
++            raise RuntimeError(f"Upload failed: HTTP {response.status}; capture remains in spool")
++        data = json.loads(body)
++        if data.get("id") != metadata["capture_id"]:
++            raise RuntimeError("Unexpected capture acknowledgement")
++        return data
++    finally:
++        conn.close()
++
++
++def flush(spool, server, token):
++    cutoff = time.time() - max(1, int(os.environ.get("CSI_SPOOL_RETENTION_HOURS", "24"))) * 3600
++    for raw in spool.glob("*.csi"):
++        if raw.stat().st_mtime < cutoff:
++            raw.with_suffix(".json").unlink(missing_ok=True)
++            raw.unlink(missing_ok=True)
++            print("Expired an unsent capture; acquire a new measurement.", flush=True)
++    for info in sorted(spool.glob("*.json")):
++        metadata = json.loads(info.read_text())
++        csi = info.with_suffix(".csi")
++        reply = upload(server, token, metadata, csi)
++        # Server now owns durable delivery. Never print keys, raw data or proof.
++        print(f'Accepted capture {reply["id"]}: {reply["status"]}', flush=True)
++        info.unlink()
++        csi.unlink(missing_ok=True)
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--loop", action="store_true")
++    parser.add_argument("--retry-only", action="store_true")
++    parser.add_argument("--file", type=Path, help="Debug: copy existing CSI into the capture spool")
++    parser.add_argument("--observed-at", help="Required with --file; ISO8601 with timezone")
++    args = parser.parse_args()
++    os.umask(0o077)
++    patient = str(UUID(os.environ["CSI_PATIENT_ID"]))
++    server = os.environ["CSI_SERVER_URL"]
++    token_file = Path(os.environ["CSI_OPERATOR_TOKEN_FILE"])
++    if token_file.stat().st_mode & 0o077:
++        raise ValueError("Token file must have mode 0600")
++    token = token_file.read_text().strip()
++    if len(token) < 32:
++        raise ValueError("Use an operator token of at least 32 characters")
++    spool = Path(os.environ.get("CSI_OBSERVATION_SPOOL", str(Path.home() / ".csi-observation-spool"))).resolve()
++    spool.mkdir(parents=True, exist_ok=True, mode=0o700)
++    duration = int(os.environ.get("CSI_MAIN_DURATION", "60"))
++    if not 1 <= duration <= 3600:
++        raise ValueError("Capture duration must be between 1 and 3600 seconds")
++    if args.file and (not args.observed_at or args.loop):
++        raise ValueError("--file requires --observed-at and cannot be combined with --loop")
++    # Keep one hardware capture loop and spool sender per device.
++    import fcntl
++
++    with (spool / "capture.lock").open("w") as lock:
++        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++        while True:
++            flush(spool, server, token)
++            if args.retry_only:
++                return
++            capture_id = str(uuid4())
++            path = spool / (capture_id + ".csi")
++            observed = datetime.now(timezone.utc)
++            if args.file:
++                observed = datetime.fromisoformat(args.observed_at.replace("Z", "+00:00"))
++                if observed.tzinfo is None:
++                    raise ValueError("--observed-at requires a timezone")
++                shutil.copyfile(args.file, path)
++            else:
++                if any(char.isspace() for char in str(spool)):
++                    raise ValueError("PicoScenes spool path must not contain whitespace")
++                nic = int(os.environ.get("CSI_NIC_INDEX", "2"))
++                bandwidth = int(os.environ.get("CSI_CBW", "160"))
++                command = (
++                    f"-d debug -i {nic} --mode logger --cbw {bandwidth} --output {path.with_suffix('')} -q {duration}"
++                )
++                with (spool / "picoscenes.log").open("w") as log:
++                    subprocess.run(
++                        ["PicoScenes", command], stdout=log, stderr=subprocess.STDOUT, check=True, timeout=duration + 30
++                    )
++            if not path.exists() or not path.stat().st_size:
++                raise RuntimeError("PicoScenes produced no CSI")
++            metadata = {
++                "capture_id": capture_id,
++                "patient_id": patient,
++                "observed_at": observed.isoformat(),
++                "duration_seconds": duration,
++            }
++            temporary = path.with_suffix(".tmp")
++            with temporary.open("w") as out:
++                json.dump(metadata, out)
++                out.flush()
++                os.fsync(out.fileno())
++            temporary.replace(path.with_suffix(".json"))
++            flush(spool, server, token)
++            if not args.loop:
++                return
++            time.sleep(1)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/scripts/start-onchain-local.sh b/scripts/start-onchain-local.sh
+index c31d571..cc22172 100755
+--- a/scripts/start-onchain-local.sh
++++ b/scripts/start-onchain-local.sh
+@@ -23,8 +23,8 @@ printf '%s' "$OPERATOR_API_TOKEN" > .local/onchain/operator-token
+ export ONCHAIN_MANIFEST="$ROOT/backend/contracts/build/onchain/deployment-31337.json"
+ export API_INTERNAL_URL=http://127.0.0.1:8000 NEXT_PUBLIC_API_URL=""
+ unset BLOCKCHAIN_PRIVATE_KEY ZKPROOF_CONTRACT_ADDRESS ZKPROOF_VERIFIER_CONTRACT_ADDRESS
+-CHAIN_PID="" API_PID="" UI_PID=""
+-cleanup() { for pid in "$UI_PID" "$API_PID" "$CHAIN_PID"; do [ -z "$pid" ] || kill "$pid" 2>/dev/null || true; done; }
++CHAIN_PID="" API_PID="" UI_PID="" WORKER_PID=""
++cleanup() { for pid in "$UI_PID" "$WORKER_PID" "$API_PID" "$CHAIN_PID"; do [ -z "$pid" ] || kill "$pid" 2>/dev/null || true; done; }
+ trap cleanup EXIT INT TERM
+ node backend/contracts/node_modules/ganache/dist/node/cli.js --server.host 127.0.0.1 --server.port 18545 --chain.chainId 31337 > .local/onchain/chain.log 2>&1 &
+ CHAIN_PID=$!
+@@ -35,6 +35,20 @@ for attempt in {1..30}; do
+ done
+ [ "$ready" = true ] || { echo "Local EVM failed to start. See .local/onchain/chain.log"; exit 1; }
+ (cd backend/contracts && npm run build && npm run deploy)
++if [ "${OBSERVATIONS_ENABLED:-false}" = true ]; then
++  export OBSERVATION_RECORDER_ADDRESS
++  OBSERVATION_RECORDER_ADDRESS=$(node backend/contracts/scripts/create-recorder.mjs "$ROOT/.local/onchain/observation-recorder.key")
++  node backend/contracts/scripts/fund-local-recorder.mjs
++  node backend/contracts/scripts/deploy-observations.mjs
++  export OBSERVATION_MANIFEST="$ROOT/backend/contracts/build/onchain/observations-31337.json"
++  # The EVM is ephemeral, so each run gets a new catalog/queue. No old data is deleted.
++  export OBSERVATION_DATA_DIR="$ROOT/.local/onchain/observations-$(date -u +%Y%m%dT%H%M%SZ)"
++  (cd backend && OBSERVATION_RECORDER_KEY_FILE="$ROOT/.local/onchain/observation-recorder.key" exec ../.venv/bin/python -m app.services.observation_worker) > .local/onchain/worker.log 2>&1 &
++  WORKER_PID=$!
++  echo "Patient results: http://127.0.0.1:3000/patients"
++  echo "Capture administration: http://127.0.0.1:3000/capture"
++  echo "Observation data: $OBSERVATION_DATA_DIR"
++fi
+ (cd backend && exec ../.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000) > .local/onchain/api.log 2>&1 &
+ API_PID=$!
+ (cd frontend && exec node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3000) > .local/onchain/ui.log 2>&1 &
