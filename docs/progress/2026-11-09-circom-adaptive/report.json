@@ -1,0 +1,32 @@
+{
+  "circuitId": "csi-lomb-scargle-adaptive-64-v1-experimental",
+  "data": "synthetic-64-candidates-0.25Hz-index13",
+  "constraints": 625867,
+  "wires": 596947,
+  "publicSignalCount": 70,
+  "r1csSha256": "3da8c58da7cd1bb93185ef7fc5de76bf03b03d8ad025a321bee5f8eb3c1f70f8",
+  "verificationPassed": true,
+  "tamperChecks": {
+    "commitment": true,
+    "isNormal": true,
+    "selectedSubcarrier": true,
+    "timestamp": true,
+    "candidateCount": true
+  },
+  "timingsSeconds": {
+    "witness": 0.906,
+    "witness_check": 7.128,
+    "setup": 92.907,
+    "contribution": 98.447,
+    "prove": 20.999,
+    "verify": 0.01
+  },
+  "result": {
+    "isNormal": 1,
+    "selectedSubcarrier": 13,
+    "estimatedFrequencyBin": 18,
+    "globalPeakFrequencyBin": 18,
+    "candidateCount": 64
+  },
+  "deployed": false
+}
