@@ -1,0 +1,23 @@
+
+> csi-fabric-tools@1.0.0 test
+> node --test test/*.test.mjs
+
+✔ 70-signal protocol verifies a real compact fixture only on read (563.874606ms)
+✔ wrong public shape and candidate count fail before storage (0.642669ms)
+✔ Record stores no verified flag; metadata and idempotency never disclose output (15.03899ms)
+✔ Organization, certificate, channel and time authorization (11.227818ms)
+✔ Reject malformed or non-canonical proof fields before storing (3.019351ms)
+✔ Median, nearest-rank p95, and absent values (3.946826ms)
+✔ Failures counted, warmups excluded, no fake zero measurements (0.399458ms)
+✔ Infrastructure cost requires explicit positive workload (0.341553ms)
+✔ HTML escapes report values and labels absent Sepolia (0.826169ms)
+✔ Fees from a committed record remain counted when the later verification fails (0.555748ms)
+✔ A broadcast with unknown receipt is reported as unknown cost (0.195117ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1370.780602

@@ -57,7 +57,7 @@ export function openGateway(config, role) {
     async record(payload) {
       if (role !== "writer")
         throw new Error("Reader identity cannot submit observations");
-      const input = normalize(payload);
+      const input = normalize(payload, config);
       const started = performance.now();
       const proposal = contract.newProposal("RecordObservation", {
         arguments: [JSON.stringify(input)],

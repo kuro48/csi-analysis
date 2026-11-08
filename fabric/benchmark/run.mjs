@@ -20,6 +20,10 @@ const config = JSON.parse(
 );
 const bankBytes = readFileSync(config.fixtures),
   bank = JSON.parse(bankBytes);
+const publicSignalCount = bank.publicSignalCount ?? 1;
+const isNormalIndex = bank.isNormalIndex ?? 0;
+if (!((publicSignalCount === 1 && isNormalIndex === 0) || (publicSignalCount === 70 && isNormalIndex === 1))) throw Error("Unsupported proof bank protocol");
+if (bank.samples.some(sample => sample.publicSignals?.length !== publicSignalCount || !["0", "1"].includes(sample.publicSignals[isNormalIndex]))) throw Error("Malformed proof bank outputs");
 const targets = config.targets || ["fabric", "sepolia"];
 if (
   !Array.isArray(targets) ||
@@ -65,6 +69,7 @@ const report = {
   fixtureBankHash: hash(bankBytes),
   preprocessingMs: bank.preprocessingMs ?? null,
   verificationKeyHash: bank.verificationKeyHash,
+  publicSignalCount, isNormalIndex,
   trials,
   warmup,
   concurrency: 1,
@@ -116,6 +121,7 @@ async function setup() {
       await reader.configuration();
       if (
         actual.verificationKeyHash !== bank.verificationKeyHash ||
+        (actual.publicSignalCount ?? 1) !== publicSignalCount ||
         actual.debugMode !== bank.debugMode
       )
         throw Error("Fabric proof bank configuration mismatch");
@@ -144,6 +150,7 @@ async function setup() {
       if (
         chainId !== manifest.chainId ||
         manifest.verificationKeyHash !== bank.verificationKeyHash ||
+        manifest.publicSignalCount !== publicSignalCount ||
         manifest.debugMode !== bank.debugMode
       )
         throw Error("EVM proof bank configuration mismatch");
@@ -204,7 +211,7 @@ async function measure(target, payload, sample, row) {
       verified.result.observedAt !== payload.observedAt ||
       verified.result.durationSeconds !== payload.durationSeconds ||
       verified.result.transactionId !== recorded.result.transactionId ||
-      verified.result.isNormal !== (sample.publicSignals[0] === "1")
+      verified.result.isNormal !== (sample.publicSignals[isNormalIndex] === "1")
     )
       throw Error("Verification mismatch");
     Object.assign(row, verified.timings, {
@@ -277,7 +284,7 @@ async function measure(target, payload, sample, row) {
     if (
       (await connections.evm.provider.getBlock(receipt.blockNumber)).hash !==
         receipt.blockHash ||
-      normal !== (sample.publicSignals[0] === "1")
+      normal !== (sample.publicSignals[isNormalIndex] === "1")
     )
       throw Error("Verification mismatch");
     row.isNormal = normal;

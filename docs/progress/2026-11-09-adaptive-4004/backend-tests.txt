@@ -1,0 +1,166 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.15, pytest-7.4.4, pluggy-1.7.0
+rootdir: /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend
+configfile: pytest.ini
+asyncio: mode=Mode.AUTO
+collected 183 items
+
+backend/tests/unit/test_adaptive_observations.py .............           [  7%]
+backend/tests/unit/test_breathing_endpoint.py ...........                [ 13%]
+backend/tests/unit/test_breathing_pipeline.py ..................         [ 22%]
+backend/tests/unit/test_circom_benchmark.py .....                        [ 25%]
+backend/tests/unit/test_csi_processing_verifiable.py ..                  [ 26%]
+backend/tests/unit/test_fabric_observations.py ...............           [ 34%]
+backend/tests/unit/test_health.py ..                                     [ 36%]
+backend/tests/unit/test_hybrid_experiment_service.py .                   [ 36%]
+backend/tests/unit/test_lomb_scargle_certificate_service.py .......      [ 40%]
+backend/tests/unit/test_lomb_scargle_pipeline.py ....                    [ 42%]
+backend/tests/unit/test_observations.py .........                        [ 47%]
+backend/tests/unit/test_onchain.py ....................                  [ 58%]
+backend/tests/unit/test_pcap_analyzer.py .........                       [ 63%]
+backend/tests/unit/test_poseidon_commitment.py ...                       [ 65%]
+backend/tests/unit/test_preprocess_projection_service.py ..              [ 66%]
+backend/tests/unit/test_refactor_contracts.py .........                  [ 71%]
+backend/tests/unit/test_verifiable_breathing_service.py .........        [ 75%]
+backend/tests/unit/test_vmd_approx_input.py .......                      [ 79%]
+backend/tests/unit/test_vmd_approx_service.py .............              [ 86%]
+backend/tests/unit/test_zkp_circuit_metrics.py ......                    [ 90%]
+backend/tests/unit/test_zkp_circuit_setup.py ........                    [ 94%]
+backend/tests/unit/test_zkp_proof_performance.py ....                    [ 96%]
+backend/tests/unit/test_zkp_stage_profile.py ......                      [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/starlette/testclient.py:40
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.venv/lib/python3.11/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+backend/app/core/database.py:24
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend/app/core/database.py:24: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    Base = declarative_base()
+
+.venv/lib/python3.11/site-packages/pydantic/_internal/_config.py:271
+.venv/lib/python3.11/site-packages/pydantic/_internal/_config.py:271
+.venv/lib/python3.11/site-packages/pydantic/_internal/_config.py:271
+.venv/lib/python3.11/site-packages/pydantic/_internal/_config.py:271
+.venv/lib/python3.11/site-packages/pydantic/_internal/_config.py:271
+.venv/lib/python3.11/site-packages/pydantic/_internal/_config.py:271
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.venv/lib/python3.11/site-packages/pydantic/_internal/_config.py:271: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.5/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+.venv/lib/python3.11/site-packages/web3/providers/websocket/websocket.py:21
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.venv/lib/python3.11/site-packages/web3/providers/websocket/websocket.py:21: DeprecationWarning: websockets.client.connect is deprecated
+    from websockets.client import (
+
+.venv/lib/python3.11/site-packages/websockets/legacy/__init__.py:6
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.venv/lib/python3.11/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+.venv/lib/python3.11/site-packages/web3/providers/websocket/websocket_v2.py:18
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.venv/lib/python3.11/site-packages/web3/providers/websocket/websocket_v2.py:18: DeprecationWarning: websockets.client.connect is deprecated
+    from websockets.client import (
+
+backend/app/main.py:76
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend/app/main.py:76: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+.venv/lib/python3.11/site-packages/fastapi/applications.py:4495
+.venv/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.venv/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)
+
+backend/app/main.py:124
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend/app/main.py:124: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("shutdown")
+
+tests/unit/test_lomb_scargle_pipeline.py::test_lomb_scargle_recovers_breathing_from_irregular_timestamps
+tests/unit/test_lomb_scargle_pipeline.py::test_lomb_scargle_recovers_breathing_from_irregular_timestamps
+tests/unit/test_lomb_scargle_pipeline.py::test_lomb_scargle_recovers_breathing_from_irregular_timestamps
+tests/unit/test_lomb_scargle_pipeline.py::test_lomb_scargle_sorts_and_removes_duplicate_timestamps
+tests/unit/test_lomb_scargle_pipeline.py::test_lomb_scargle_sorts_and_removes_duplicate_timestamps
+tests/unit/test_lomb_scargle_pipeline.py::test_lomb_scargle_sorts_and_removes_duplicate_timestamps
+tests/unit/test_lomb_scargle_pipeline.py::test_lomb_scargle_consumes_shared_pipeline_input_without_csi_preprocessing
+tests/unit/test_lomb_scargle_pipeline.py::test_lomb_scargle_consumes_shared_pipeline_input_without_csi_preprocessing
+tests/unit/test_lomb_scargle_pipeline.py::test_lomb_scargle_consumes_shared_pipeline_input_without_csi_preprocessing
+  /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.venv/lib/python3.11/site-packages/scipy/_lib/deprecation.py:234: DeprecationWarning: Use of parameter 'precenter' is deprecated as of SciPy 1.17.0 and will be removed in 1.19.0. Please leave 'precenter' unspecified. Passing True to 'precenter' can be exactly substituted by passing 'y = (y - y.mean())' into the input. Consider setting `floating_mean` to True instead.
+    return f(*args, **kwargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+--------- coverage: platform darwin, python 3.11.15-final-0 ----------
+Name                                                              Stmts   Miss  Cover   Missing
+-----------------------------------------------------------------------------------------------
+backend/app/__init__.py                                               0      0   100%
+backend/app/api/__init__.py                                           0      0   100%
+backend/app/api/endpoints/__init__.py                                 0      0   100%
+backend/app/api/endpoints/base_csi.py                               106     73    31%   28-32, 54-101, 116-139, 151-167, 177-185, 193-198, 206-211, 220-222
+backend/app/api/endpoints/blockchain.py                              93     65    30%   28-34, 52-61, 71-80, 96-109, 119-127, 137-150, 166-210
+backend/app/api/endpoints/breathing.py                              174     50    71%   31, 64-66, 71-73, 78-80, 85-87, 129-133, 196, 200-207, 230-239, 277-284, 314-318
+backend/app/api/endpoints/csi_data.py                               139     40    71%   101, 116-118, 187-243, 262-300, 316, 356, 363-364, 382-389, 412-419
+backend/app/api/endpoints/health.py                                  49     33    33%   20-25, 32, 44-61, 76-120
+backend/app/api/endpoints/observations.py                           130     14    89%   72, 99, 109, 115, 142-145, 152, 164, 179-181, 183
+backend/app/api/endpoints/onchain.py                                 44     11    75%   22-25, 34-36, 44-46, 61
+backend/app/api/routes.py                                            12      0   100%
+backend/app/core/__init__.py                                          0      0   100%
+backend/app/core/access.py                                            9      0   100%
+backend/app/core/config.py                                           91      6    93%   131-134, 139-140
+backend/app/core/database.py                                         18      6    67%   28-32, 36-38
+backend/app/core/errors.py                                           56     15    73%   46-51, 56, 66, 76, 86, 95-105, 118-128
+backend/app/main.py                                                  84     18    79%   34-35, 63, 88-93, 96-101, 118-119, 151
+backend/app/models/__init__.py                                        4      0   100%
+backend/app/models/base.py                                           11      1    91%   22
+backend/app/models/base_csi.py                                       27      5    81%   27, 30-32, 35
+backend/app/models/csi_data.py                                       18      0   100%
+backend/app/schemas/__init__.py                                       1      0   100%
+backend/app/schemas/base_csi.py                                      45      0   100%
+backend/app/schemas/csi_data.py                                      43      0   100%
+backend/app/services/adaptive_csi_input.py                           48     10    79%   34, 65-74
+backend/app/services/base_csi.py                                    126     74    41%   20, 36-70, 80-81, 85, 95, 109-115, 126-141, 150-158, 167-177, 185-201, 205-212
+backend/app/services/blockchain_service.py                          304    268    12%   39-78, 82-92, 96-106, 110-129, 133-143, 147-162, 166-169, 173-175, 184-187, 191-195, 210-235, 244-261, 268-271, 275-283, 287, 291, 295-305, 318-334, 354-382, 405-483, 495-523, 535-550, 562-574, 587-620, 629-643
+backend/app/services/breathing_certificate_service.py                40      6    85%   56, 61, 81, 119, 121, 123
+backend/app/services/breathing_pipeline.py                          395     40    90%   107, 125, 137, 139, 143, 179, 184, 198, 206, 224, 227-228, 239, 241, 256, 279, 424, 454-455, 567, 578, 587, 611, 629, 652-655, 664, 666, 668, 670, 790, 800, 819-829
+backend/app/services/committed_breathing_certificate_service.py      20     12    40%   24-41
+backend/app/services/csi_data.py                                    110     79    28%   21-38, 47-61, 73-91, 100-114, 124-134, 147-160, 164-176
+backend/app/services/csi_processing.py                               62     19    69%   32, 66, 80-92, 97-107
+backend/app/services/fabric_observation.py                           92     25    73%   31-32, 43, 51-60, 74, 109-126, 133, 145, 148
+backend/app/services/file_validation.py                              20      3    85%   36, 50, 57
+backend/app/services/hybrid_experiment_service.py                   113      4    96%   76, 169, 212-213
+backend/app/services/lomb_scargle_certificate_service.py             68     11    84%   34, 39, 52, 61, 64, 71-72, 75, 133, 141, 146
+backend/app/services/lomb_scargle_pipeline.py                       135     14    90%   58, 60, 62, 64, 74, 84-87, 113, 115, 128, 138, 160, 179, 280
+backend/app/services/observation_chain.py                            64     30    53%   22-53, 56, 71, 74, 90, 95-100, 102
+backend/app/services/observation_protocol.py                         25     11    56%   29-43
+backend/app/services/observation_store.py                            99      5    95%   95, 97, 164, 209-210
+backend/app/services/observation_worker.py                          151     81    46%   42, 46-57, 61-77, 82-84, 92, 97-114, 121, 124-130, 154, 167-168, 171-177, 181-216, 220
+backend/app/services/onchain_service.py                             105     39    63%   36, 50, 55, 67-85, 88-89, 92, 105-131, 161-162
+backend/app/services/pcap_analyzer.py                                39      0   100%
+backend/app/services/pcap_analyzer_common.py                        129     50    61%   22, 38, 59-72, 77-78, 83-94, 100, 104, 113, 134, 143, 166-170, 181, 185-188, 192-193, 198-199, 202-203, 210-211, 215-216, 247-248, 252-253
+backend/app/services/pcap_analyzer_frequency.py                     106     24    77%   29, 33, 43, 48-52, 70-71, 93, 97-98, 107-109, 120, 136-137, 161, 165, 173, 178-179, 201-205
+backend/app/services/pcap_analyzer_pipeline.py                      297    214    28%   30-64, 71, 83, 106-114, 127-143, 156-257, 261, 273-349, 359-368, 384-385, 414-416, 512-591, 615-624, 637-643, 659-667
+backend/app/services/poseidon_commitment.py                          81      9    89%   41, 64, 82, 121, 130, 149, 151, 154, 168
+backend/app/services/preprocess_projection_service.py                45     19    58%   23, 55, 64-85
+backend/app/services/verifiable_breathing_service.py                123      8    93%   93, 105, 132, 140, 145-147, 172
+backend/app/services/vmd_approx_service.py                           34      3    91%   15, 28, 48
+backend/app/services/zkp_circuit_metrics.py                          50      1    98%   65
+backend/app/services/zkp_circuit_service.py                         339    172    49%   84-85, 93-94, 127-132, 149-191, 225-274, 277-313, 332-354, 363-367, 381, 404-405, 485-508, 523-556, 567-575, 581-616, 619-661, 676, 686-703, 714-719
+backend/app/services/zkp_paths.py                                    13      7    46%   22-31
+backend/app/services/zkp_stage_profile.py                            38      4    89%   32-34, 39
+-----------------------------------------------------------------------------------------------
+TOTAL                                                              4425   1579    64%
+Coverage HTML written to dir htmlcov
+
+Required test coverage of 10% reached. Total coverage: 64.32%
+====================== 183 passed, 24 warnings in 16.79s =======================

@@ -23,6 +23,7 @@ from app.services.breathing_pipeline import (
 from app.services.observation_chain import ObservationChain, observation_id
 from app.services.observation_store import ObservationStore
 from app.services.onchain_service import parse_proof
+from app.services.observation_protocol import validate_protocol, validate_adaptive_artifacts
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,10 @@ async def generate_bundle(job, debug_mode=False):
 
 
 def load_account(chain):
-    key_file = os.environ.get("OBSERVATION_RECORDER_KEY_FILE", "")
+    adaptive = getattr(chain, "profile", "legacy") == "adaptive4004"
+    key_file = (os.environ.get("ADAPTIVE_RECORDER_KEY_FILE", "") if adaptive else "") or os.environ.get(
+        "OBSERVATION_RECORDER_KEY_FILE", ""
+    )
     if key_file:
         path = Path(key_file)
         if path.stat().st_mode & 0o077:
@@ -78,7 +82,8 @@ def process_job(db, job):
         from app.services.fabric_observation import process_fabric_job
 
         return process_fabric_job(db, job)
-    chain = ObservationChain()
+    profile = job.get("proof_profile", "legacy")
+    chain = ObservationChain(profile) if profile != "legacy" else ObservationChain()
     account = load_account(chain)
     m = chain.manifest
     if job["chain_id"] is not None and (
@@ -89,23 +94,30 @@ def process_job(db, job):
     db.update(job["id"], status="processing", chain_id=m["chainId"], registry=chain.contract.address)
     job.update(chain_id=m["chainId"], registry=chain.contract.address)
     if not job["bundle"]:
-        service = BreathingCertificateService(auto_compile=False)
-        vkey = service.keys_dir / "csi_breathing_certificate_verification_key.json"
-        # JSON formatting can differ between exports; compare parsed keys with generated manifest key file.
-        deployed_key = Path(settings.OBSERVATION_MANIFEST).parent / "csi_breathing_certificate.vkey.json"
-        exported = deployed_key.read_bytes()
-        if "0x" + hashlib.sha256(exported).hexdigest() != m["verificationKeyHash"] or json.loads(
-            vkey.read_text()
-        ) != json.loads(exported):
-            raise RuntimeError("Proving key verification-key metadata does not match deployment")
-        bundle = asyncio.run(generate_bundle(job, m["debugMode"]))
+        if profile == "adaptive4004":
+            from app.services.adaptive_observation import generate_adaptive_bundle
+
+            validate_adaptive_artifacts(m, settings.ADAPTIVE_OBSERVATION_MANIFEST)
+            bundle = asyncio.run(generate_adaptive_bundle(job))
+        else:
+            service = BreathingCertificateService(auto_compile=False)
+            vkey = service.keys_dir / "csi_breathing_certificate_verification_key.json"
+            # JSON formatting can differ between exports; compare parsed keys with generated manifest key file.
+            deployed_key = Path(settings.OBSERVATION_MANIFEST).parent / "csi_breathing_certificate.vkey.json"
+            exported = deployed_key.read_bytes()
+            if "0x" + hashlib.sha256(exported).hexdigest() != m["verificationKeyHash"] or json.loads(
+                vkey.read_text()
+            ) != json.loads(exported):
+                raise RuntimeError("Proving key verification-key metadata does not match deployment")
+            bundle = asyncio.run(generate_bundle(job, m["debugMode"]))
         db.save_bundle(job, bundle)
         job["bundle"] = json.dumps(bundle)
     else:
         Path(job["raw_path"]).unlink(missing_ok=True)
     bundle = json.loads(job["bundle"])
-    a, b, c, signals = parse_proof(bundle["proof"], bundle["publicSignals"], 1)
-    if signals[0] not in (0, 1):
+    count, index = validate_protocol(m, profile)
+    a, b, c, signals = parse_proof(bundle["proof"], bundle["publicSignals"], count)
+    if signals[index] not in (0, 1):
         raise ValueError("Not a boolean breathing certificate")
     existing = chain.metadata(job["id"])
     if existing[3]:
@@ -189,7 +201,7 @@ def main():
                         "capture_window_too_short",
                         "capture_requires_60_second_window",
                     }
-                    quality_error = str(exc) if str(exc) in quality_errors else None
+                    quality_error = str(exc) if str(exc) in quality_errors or str(exc).startswith("adaptive_") else None
                     # Log category only: RPC error payloads can contain proof/capture information.
                     logger.error("Capture %s failed (%s), attempt %s", job["id"], type(exc).__name__, attempts)
                     db.update(

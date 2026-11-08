@@ -1,5 +1,6 @@
 """Patient catalog and result verification; authenticated capture ingestion."""
 import hashlib
+import json
 import logging
 import os
 import secrets
@@ -17,6 +18,7 @@ from app.services.fabric_observation import FabricObservation
 from app.services.observation_chain import ObservationChain
 from app.services.observation_store import ObservationStore, QueueFull
 from app.services.onchain_service import ChainUnavailable
+from app.services.observation_protocol import validate_protocol
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -36,6 +38,20 @@ def store():
 
 def no_cache(response: Response):
     response.headers["Cache-Control"] = "no-store"
+
+
+def adaptive_ready(ledger):
+    path = settings.ADAPTIVE_FABRIC_MANIFEST if ledger == "fabric" else settings.ADAPTIVE_OBSERVATION_MANIFEST
+    try:
+        validate_protocol(json.loads(Path(path).read_text()), "adaptive4004")
+        return True
+    except (OSError, ValueError, KeyError):
+        return False
+
+
+@router.get("/capabilities", dependencies=[Depends(no_cache)])
+def capabilities():
+    return {"adaptive4004": {ledger: adaptive_ready(ledger) for ledger in ("evm", "fabric")}}
 
 
 @router.get("/patients", dependencies=[Depends(no_cache)])
@@ -67,8 +83,11 @@ async def capture(
     duration_seconds: int = Form(..., ge=1, le=3600),
     file: UploadFile = File(...),
     ledger: Literal["evm", "fabric"] = Form("evm"),
+    proof_profile: Literal["legacy", "adaptive4004"] = Form("legacy"),
     db=Depends(store),
 ):
+    if proof_profile == "adaptive4004" and not adaptive_ready(ledger):
+        raise HTTPException(503, "この記録先では全候補選択回路がまだ設定されていません")
     if observed_at.tzinfo is None:
         raise HTTPException(422, "計測開始時刻にはタイムゾーンが必要です")
     timestamp = int(observed_at.timestamp())
@@ -96,7 +115,14 @@ async def capture(
             raise HTTPException(422, "CSIファイルが空です")
         try:
             job = db.enqueue(
-                str(capture_id), str(patient_id), timestamp, duration_seconds, digest.hexdigest(), path, ledger
+                str(capture_id),
+                str(patient_id),
+                timestamp,
+                duration_seconds,
+                digest.hexdigest(),
+                path,
+                ledger,
+                proof_profile,
             )
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
@@ -116,7 +142,7 @@ def capture_status(capture_id: UUID, db=Depends(store)):
     job = db.capture(str(capture_id))
     if not job:
         raise HTTPException(404, "収集が見つかりません")
-    return {key: job[key] for key in ("id", "status", "attempts", "error", "tx_hash")}
+    return {key: job[key] for key in ("id", "status", "attempts", "error", "tx_hash", "proof_profile")}
 
 
 @router.post("/captures/{capture_id}/retry", dependencies=[Depends(operator), Depends(no_cache)])
@@ -140,7 +166,12 @@ def verify(capture_id: UUID, response: Response, db=Depends(store)):
         response.status_code = 202
         return {"status": job["status"]}  # No result, especially no default false.
     try:
-        result = (FabricObservation() if job.get("ledger") == "fabric" else ObservationChain()).result(job)
+        profile = job.get("proof_profile", "legacy")
+        if job.get("ledger") == "fabric":
+            chain = FabricObservation(profile=profile) if profile != "legacy" else FabricObservation()
+        else:
+            chain = ObservationChain(profile) if profile != "legacy" else ObservationChain()
+        result = chain.result(job)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except ChainUnavailable as exc:

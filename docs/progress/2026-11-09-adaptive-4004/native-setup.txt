@@ -1,0 +1,36 @@
+13981543 wires, 70 public, 14530543 constraints
+constraints 0/14530543
+constraints 1000000/14530543
+constraints 2000000/14530543
+constraints 3000000/14530543
+constraints 4000000/14530543
+constraints 5000000/14530543
+constraints 6000000/14530543
+constraints 7000000/14530543
+constraints 8000000/14530543
+constraints 9000000/14530543
+constraints 10000000/14530543
+constraints 11000000/14530543
+constraints 12000000/14530543
+constraints 13000000/14530543
+constraints 14000000/14530543
+completed in 288.968s
+/Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/circom-adaptive-4004/artifacts.json
+      308.19 real       778.93 user        77.71 sys
+         10061606912  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+            25373357  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+               48590  voluntary context switches
+             1119005  involuntary context switches
+        247434814672  instructions retired
+         92248729775  cycles elapsed
+            92622848  peak memory footprint

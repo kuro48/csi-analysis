@@ -4,7 +4,16 @@ const FQ = 218882428718392752222464057452572750886963111572978236626890378946452
 const FR = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 const decimal = (value, field) => typeof value === 'string' && /^(0|[1-9][0-9]{0,77})$/.test(value) && BigInt(value) < field;
 
-function normalize(input) {
+function protocol(config = {}) {
+  const count = config.publicSignalCount ?? 1;
+  const index = config.isNormalIndex ?? 0;
+  if (count === 1 && index === 0) return { count, index };
+  if (count === 70 && index === 1 && config.circuit === 'csi_lomb_scargle_adaptive_4004') return { count, index };
+  throw new Error('Unsupported observation protocol');
+}
+
+function normalize(input, config = {}) {
+  const { count, index } = protocol(config);
   if (!input || typeof input !== 'object') throw new Error('Invalid observation');
   for (const field of ['observationId', 'patientRef']) {
     if (!/^0x[0-9a-f]{64}$/.test(input[field]) || /^0x0+$/.test(input[field])) throw new Error('Invalid identifier');
@@ -17,8 +26,9 @@ function normalize(input) {
       || !Array.isArray(p.pi_b) || p.pi_b.length !== 3
       || !p.pi_b.every(row => Array.isArray(row) && row.length === 2 && row.every(v => decimal(v, FQ)))
       || p.pi_a[2] !== '1' || p.pi_c[2] !== '1' || p.pi_b[2][0] !== '1' || p.pi_b[2][1] !== '0'
-      || !Array.isArray(input.publicSignals) || input.publicSignals.length !== 1
-      || !input.publicSignals.every(v => decimal(v, FR)) || !['0', '1'].includes(input.publicSignals[0])) throw new Error('Invalid proof encoding');
+      || !Array.isArray(input.publicSignals) || input.publicSignals.length !== count
+      || !input.publicSignals.every(v => decimal(v, FR)) || !['0', '1'].includes(input.publicSignals[index])) throw new Error('Invalid proof encoding');
+  if (count === 70 && (BigInt(input.publicSignals[69]) < 1n || BigInt(input.publicSignals[69]) > 4004n)) throw new Error('Invalid candidate count');
   return { observationId: input.observationId, patientRef: input.patientRef, observedAt: input.observedAt,
     durationSeconds: input.durationSeconds, proof: {protocol: 'groth16', curve: 'bn128', pi_a: p.pi_a, pi_b: p.pi_b, pi_c: p.pi_c},
     publicSignals: input.publicSignals };
@@ -27,7 +37,7 @@ function normalize(input) {
 function proofDigest(input) {
   const {pi_a:a, pi_b:b, pi_c:c} = input.proof;
   // Identical digest to the EVM registry: snarkjs Fp2 -> Solidity order.
-  return keccak256(AbiCoder.defaultAbiCoder().encode(['uint256[2]','uint256[2][2]','uint256[2]','uint256[1]'],
+  return keccak256(AbiCoder.defaultAbiCoder().encode(['uint256[2]','uint256[2][2]','uint256[2]',`uint256[${input.publicSignals.length}]`],
     [a.slice(0,2), [[b[0][1],b[0][0]],[b[1][1],b[1][0]]], c.slice(0,2), input.publicSignals]));
 }
-module.exports = { normalize, proofDigest };
+module.exports = { normalize, proofDigest, protocol };

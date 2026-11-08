@@ -4,7 +4,7 @@ const { createHash, X509Certificate } = require('node:crypto');
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { groth16 } = require('snarkjs');
-const { normalize, proofDigest } = require('./proof');
+const { normalize, proofDigest, protocol } = require('./proof');
 const hash = data => createHash('sha256').update(data).digest('hex');
 
 function reader(ctx, config) {
@@ -20,10 +20,10 @@ class Observations extends Contract {
   constructor(config, vkeyBytes) {
     super('Observations');
     this.config = config || JSON.parse(readFileSync(join(__dirname, '../deployment/config.json')));
-    const bytes = vkeyBytes || readFileSync(join(__dirname, '../deployment/csi_breathing_certificate.vkey.json'));
+    const bytes = vkeyBytes || readFileSync(join(__dirname, '../deployment', this.config.verificationKeyFile || 'csi_breathing_certificate.vkey.json'));
     if (hash(bytes) !== this.config.verificationKeyHash.replace(/^0x/, '')) throw new Error('Verification key mismatch');
     this.vkey = JSON.parse(bytes);
-    if (this.vkey.nPublic !== 1 || this.vkey.protocol !== 'groth16' || this.vkey.curve !== 'bn128') throw new Error('Unsupported verification key');
+    if (this.vkey.nPublic !== protocol(this.config).count || this.vkey.protocol !== 'groth16' || this.vkey.curve !== 'bn128') throw new Error('Unsupported verification key');
   }
 
   async GetConfiguration(ctx) {
@@ -36,7 +36,7 @@ class Observations extends Contract {
     const certificateHash = hash(new X509Certificate(ctx.clientIdentity.getIDBytes()).raw);
     if (ctx.clientIdentity.getMSPID() !== this.config.recorderMspId || certificateHash !== this.config.recorderCertificateHash) throw new Error('Unauthorized recorder');
     if (Buffer.byteLength(encoded) > 16384) throw new Error('Observation too large');
-    const input = normalize(JSON.parse(encoded));
+    const input = normalize(JSON.parse(encoded), this.config);
     if (input.observedAt + input.durationSeconds > Number(ctx.stub.getTxTimestamp().seconds.toString()) + 300) throw new Error('Future observation');
     const key = ctx.stub.createCompositeKey('observation', [input.observationId]);
     const payloadHash = hash(JSON.stringify(input));
@@ -72,7 +72,7 @@ class Observations extends Contract {
     const item = JSON.parse(data.toString());
     // Groth16 pairing verification runs INSIDE the endorsing peer's chaincode.
     if (await groth16.verify(this.vkey, item.publicSignals, item.proof) !== true) throw new Error('Invalid proof');
-    return JSON.stringify({...metadata(item, this.config), status:'verified', isNormal:item.publicSignals[0] === '1', debugInput:this.config.debugMode});
+    return JSON.stringify({...metadata(item, this.config), status:'verified', isNormal:item.publicSignals[protocol(this.config).index] === '1', debugInput:this.config.debugMode});
   }
 }
 module.exports = Observations;

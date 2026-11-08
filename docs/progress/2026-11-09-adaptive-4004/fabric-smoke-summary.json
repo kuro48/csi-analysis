@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "runId": "7b7bfa4b-c40e-4c9a-b23a-ce2c8335ed39",
+  "startedAt": "2026-11-08T19:29:21.589Z",
+  "inputKind": "csi-adaptive-full-pool",
+  "proofGenerationScope": "artifact checks + witness + native Groth16 + independent snarkjs verify; preprocessing separate",
+  "debugMode": false,
+  "fixtureBankHash": "fb64eb73c64bbe388c9a0c6a209cab05a16ad62335e07fdf71fd1b2cd8db78fd",
+  "preprocessingMs": 356.1113050673157,
+  "verificationKeyHash": "0x9985133091b50d97f8ca1f59197ff2b28fcb8646bd8d375477252434a65b04a1",
+  "publicSignalCount": 70,
+  "isNormalIndex": 1,
+  "trials": 1,
+  "warmup": 0,
+  "concurrency": 1,
+  "targets": [
+    "fabric"
+  ],
+  "metadata": {
+    "fabric": {
+      "deploymentId": "0xcfb1fe0a663d64dec372ce2ca4c9902697a7506fab3136c98cf14e526c27a83d",
+      "topology": {
+        "peerOrganizations": 2,
+        "peers": 2,
+        "orderers": 1,
+        "consensus": "Raft",
+        "endorsementPolicy": "AND('Org1MSP.peer','Org2MSP.peer')",
+        "fabricVersion": "2.5.16",
+        "singleHost": true
+      },
+      "verification": "Gateway evaluateTransaction (single peer)",
+      "finality": "VALID commit status",
+      "nativeTransactionFee": "none"
+    }
+  },
+  "rows": [
+    {
+      "target": "fabric",
+      "trial": 1,
+      "warmup": false,
+      "fixtureIndex": 0,
+      "proofHash": "4a12948266046c96eac175710357afcb0532114a30cc523b29ec5f5fafa7e61a",
+      "proofGenerationMs": 635187.387937,
+      "status": "verified",
+      "cost": {
+        "gasUsed": null,
+        "feeWei": null,
+        "nativeTransactionFee": 0,
+        "unit": null,
+        "infrastructureIncluded": false
+      },
+      "endorseMs": 175.18917499999998,
+      "submitMs": 14.433091999999988,
+      "commitWaitMs": 2018.3051990000004,
+      "recordCommitMs": 2207.927466,
+      "transactionId": "c04c7294ecb1b7638f47cf7580e8aa41f3a62b0bd4feee63b75df4eb8d81fd9e",
+      "blockNumber": "43",
+      "verifyReadMs": 575.0059490000003,
+      "isNormal": false,
+      "totalMs": 637970.321352
+    }
+  ],
+  "clientEnvironment": {
+    "cpu": "Intel(R) Core(TM) i5-8500B CPU @ 3.00GHz",
+    "memoryBytes": 17179869184,
+    "platform": "darwin",
+    "architecture": "x64",
+    "node": "v26.3.1"
+  },
+  "notes": [
+    "Captured CSI input; preprocessing time reported separately from proof generation.",
+    "Fabric Evaluate and EVM eth_call both execute verification as read-only requests. No verification transaction is mined.",
+    "Fabric single-host test network is not representative of a geographically distributed production consortium.",
+    "Sepolia fees use test ETH, not a real-money price. Infrastructure is excluded unless explicit assumptions are supplied.",
+    "Timing boundaries: proof generation separately; record includes commit / configured confirmations; verify includes the read RPC. Startup excluded."
+  ],
+  "infrastructureAssumptions": null,
+  "summaries": [
+    {
+      "target": "fabric",
+      "attempted": 1,
+      "expected": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "unknownFeeCount": 0,
+      "metrics": {
+        "proofGenerationMs": {
+          "n": 1,
+          "median": 635187.387937,
+          "p95": 635187.387937,
+          "min": 635187.387937,
+          "max": 635187.387937
+        },
+        "recordCommitMs": {
+          "n": 1,
+          "median": 2207.927466,
+          "p95": 2207.927466,
+          "min": 2207.927466,
+          "max": 2207.927466
+        },
+        "verifyReadMs": {
+          "n": 1,
+          "median": 575.0059490000003,
+          "p95": 575.0059490000003,
+          "min": 575.0059490000003,
+          "max": 575.0059490000003
+        },
+        "totalMs": {
+          "n": 1,
+          "median": 637970.321352,
+          "p95": 637970.321352,
+          "min": 637970.321352,
+          "max": 637970.321352
+        }
+      },
+      "gasUsed": {
+        "n": 0,
+        "median": null,
+        "p95": null,
+        "min": null,
+        "max": null
+      },
+      "feesWei": []
+    }
+  ],
+  "completedAt": "2026-11-08T19:29:24.514Z"
+}

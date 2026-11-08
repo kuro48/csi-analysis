@@ -6,6 +6,7 @@ from web3 import Web3
 
 from app.core.config import settings
 from app.services.onchain_service import ChainUnavailable
+from app.services.observation_protocol import validate_protocol
 
 
 def observation_id(capture_id):
@@ -17,18 +18,23 @@ def patient_ref(patient_id):
 
 
 class ObservationChain:
-    def __init__(self):
+    def __init__(self, profile="legacy"):
         try:
-            self.manifest = json.loads(Path(settings.OBSERVATION_MANIFEST).read_text())
+            self.profile = profile
+            self.manifest_path = (
+                settings.ADAPTIVE_OBSERVATION_MANIFEST if profile == "adaptive4004" else settings.OBSERVATION_MANIFEST
+            )
+            self.manifest = json.loads(Path(self.manifest_path).read_text())
             m = self.manifest
-            if (
-                m["kind"] != "breathing-observations"
-                or m["chainId"] not in (11155111, 31337, 1337)
-                or m["circuit"] != "csi_breathing_certificate"
-                or m["publicSignalCount"] != 1
-            ):
+            if m["kind"] != "breathing-observations" or m["chainId"] not in (11155111, 31337, 1337):
                 raise ValueError("Unsupported observation deployment")
-            self.w3 = Web3(Web3.HTTPProvider(settings.ETHEREUM_RPC_URL, request_kwargs={"timeout": 15}))
+            validate_protocol(m, profile)
+            rpc = (
+                (settings.ADAPTIVE_ETHEREUM_RPC_URL or settings.ETHEREUM_RPC_URL)
+                if profile == "adaptive4004"
+                else settings.ETHEREUM_RPC_URL
+            )
+            self.w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 15}))
             if self.w3.eth.chain_id != m["chainId"]:
                 raise ValueError("Wrong chain")
             for prefix in ("registry", "verifier"):
@@ -68,11 +74,16 @@ class ObservationChain:
             return {"status": "pending"}
         self.match_metadata(job, record)
         head = self.w3.eth.block_number
+        required_confirmations = (
+            settings.ADAPTIVE_ONCHAIN_CONFIRMATIONS
+            if job.get("proof_profile") == "adaptive4004"
+            else settings.ONCHAIN_CONFIRMATIONS
+        )
         confirmations = head - record[3] + 1
-        if confirmations < settings.ONCHAIN_CONFIRMATIONS:
+        if confirmations < required_confirmations:
             return {"status": "confirming", "confirmations": confirmations}
         # Pin metadata and verifier calls to the same confirmed snapshot.
-        block_number = head - settings.ONCHAIN_CONFIRMATIONS + 1
+        block_number = head - required_confirmations + 1
         block_hash = self.w3.eth.get_block(block_number)["hash"]
         stable = self.metadata(job["id"], block_number)
         if stable != record:

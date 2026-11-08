@@ -1,0 +1,14 @@
+
+> frontend@0.1.0 test:unit
+> vitest run
+
+
+ RUN  v5.0.5 /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/frontend
+
+(node:90943) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+ Test Files  3 passed (3)
+      Tests  17 passed (17)
+   Start at  04:12:47
+   Duration  2.88s (environment 55%, tests 27%, setup 9%, import 6%, transform 2%, worker 1%)

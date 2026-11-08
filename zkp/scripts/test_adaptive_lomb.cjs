@@ -3,7 +3,7 @@
 const path = require("path");
 const Mocha = require("mocha");
 const suite = new Mocha({ timeout: 3600000 });
-for (const name of ["adaptive_lomb_input", "csi_motion_selector", "lomb_scargle_adaptive", "lomb_scargle_end_to_end"]) {
+for (const name of ["adaptive_lomb_input", "csi_motion_selector", "csi_motion_selector_large", "lomb_scargle_adaptive", "lomb_scargle_end_to_end"]) {
   suite.addFile(path.join(__dirname, "../test", `${name}.test.js`));
 }
 suite.run(failures => { process.exitCode = failures ? 1 : 0; });

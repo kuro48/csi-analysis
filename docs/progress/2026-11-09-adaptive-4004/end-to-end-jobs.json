@@ -1,0 +1,36 @@
+[
+  {
+    "ledger": "evm",
+    "captureId": "fae35571-8b34-4c74-899e-71567b840389",
+    "status": "recorded",
+    "transactionHash": "0xf87f3926fa67f903c6e701b787ca0b971dcd8eb55f8ab890d9befc6d94a24a62",
+    "metrics": {
+      "artifactCheckMs": 19113.369259,
+      "witnessMs": 20028.453218,
+      "proveMs": 595730.098706,
+      "verifyMs": 315.4667540000519,
+      "totalProverMs": 635187.387937,
+      "preparationMs": 356.1113050673157
+    },
+    "isNormal": false,
+    "selectedColumn": 721,
+    "candidateCount": 4004
+  },
+  {
+    "ledger": "fabric",
+    "captureId": "405328aa-5ca0-4d39-b203-3ec20803684d",
+    "status": "recorded",
+    "transactionHash": "48d043e2ca64e19ec95b853dbcbfdf4cd384286731b361c838a42df249a3d978",
+    "metrics": {
+      "artifactCheckMs": 19104.067661,
+      "witnessMs": 19557.890617,
+      "proveMs": 575804.9693090001,
+      "verifyMs": 295.5722619999433,
+      "totalProverMs": 614762.499849,
+      "preparationMs": 369.7950888890773
+    },
+    "isNormal": false,
+    "selectedColumn": 721,
+    "candidateCount": 4004
+  }
+]

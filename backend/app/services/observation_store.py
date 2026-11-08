@@ -41,6 +41,8 @@ class ObservationStore:
             columns = {row["name"] for row in db.execute("PRAGMA table_info(captures)")}
             if "ledger" not in columns:
                 db.execute("ALTER TABLE captures ADD COLUMN ledger TEXT NOT NULL DEFAULT 'evm'")
+            if "proof_profile" not in columns:
+                db.execute("ALTER TABLE captures ADD COLUMN proof_profile TEXT NOT NULL DEFAULT 'legacy'")
         os.chmod(self.path, 0o600)
 
     @contextmanager
@@ -87,7 +89,10 @@ class ObservationStore:
         digest,
         raw_path,
         ledger="evm",
+        proof_profile="legacy",
     ):
+        if proof_profile not in ("legacy", "adaptive4004"):
+            raise ValueError("Unsupported proof profile")
         if ledger not in ("evm", "fabric"):
             raise ValueError("Unsupported ledger")
         with self.connect() as db:
@@ -99,8 +104,8 @@ class ObservationStore:
             if not existing and count >= settings.OBSERVATION_MAX_PENDING:
                 raise QueueFull("収集キューが満杯です。後で同じ収集IDで再送してください")
             db.execute(
-                "INSERT OR IGNORE INTO captures (id,patient_id,observed_at,duration,digest,raw_path,created_at,ledger) "
-                "VALUES (?,?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO captures (id,patient_id,observed_at,duration,digest,raw_path,created_at,ledger,proof_profile) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
                 (
                     capture_id,
                     patient_id,
@@ -110,6 +115,7 @@ class ObservationStore:
                     str(raw_path),
                     int(time.time()),
                     ledger,
+                    proof_profile,
                 ),
             )
             row = dict(db.execute("SELECT * FROM captures WHERE id=?", (capture_id,)).fetchone())
@@ -119,12 +125,14 @@ class ObservationStore:
                 row["duration"],
                 row["digest"],
                 row["ledger"],
+                row["proof_profile"],
             ) != (
                 patient_id,
                 observed_at,
                 duration,
                 digest,
                 ledger,
+                proof_profile,
             ):
                 raise ValueError("同じ収集IDに異なるデータが指定されています")
             return row
@@ -134,7 +142,7 @@ class ObservationStore:
             return [
                 dict(row)
                 for row in db.execute(
-                    "SELECT id,patient_id,observed_at,duration,status,ledger FROM captures WHERE patient_id=? "
+                    "SELECT id,patient_id,observed_at,duration,status,ledger,proof_profile FROM captures WHERE patient_id=? "
                     "AND observed_at>=? AND observed_at<? ORDER BY observed_at DESC, id LIMIT 2000",
                     (patient_id, start_at, end_at),
                 )

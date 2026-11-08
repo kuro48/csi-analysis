@@ -1,0 +1,52 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CSI 証明基盤の比較</title>
+ <style>*{box-sizing:border-box}body{margin:0;background:#f4f7f5;color:#193e34;font:15px/1.8 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:44px 24px}header{display:flex;justify-content:space-between;border-bottom:1px solid #ceddd4;padding-bottom:18px}.tag{font-size:12px;border:1px solid #ccdcd2;border-radius:20px;padding:3px 12px}h1{font-size:36px;line-height:1.4;letter-spacing:-1px;margin:35px 0 14px}h2{font-size:18px;margin:0 0 18px}.muted{color:#5c7167}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:28px 0}.card,section{background:white;border:1px solid #d8e4dd;border-radius:16px;padding:24px}strong.big{display:block;font-size:32px;line-height:1.6}.bar{background:#e9f0eb;height:10px;border-radius:5px;margin-top:18px}.bar span{display:block;background:#33765c;height:10px;border-radius:5px}section{margin:20px 0}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap}th,td{text-align:left;padding:12px;border-bottom:1px solid #e5ece7;font-size:13px}th{color:#536c5e}small{font-size:12px}.note{background:#fff9e9;border:1px solid #e8ddb8;border-radius:12px;padding:16px;color:#6a5724}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}summary{cursor:pointer}footer{overflow-wrap:anywhere;font-size:12px;color:#60756a}@media(max-width:600px){h1{font-size:28px}main{padding:24px 16px}}</style>
+ <main><header><b>CSI Care <span class="muted">/ Research</span></b><span class="tag">LEDGER BENCHMARK</span></header>
+ <h1>証明の記録と検証を、<br>同じ条件で比較する。</h1><p class="muted">同一のGroth16証明 · 交互の実行順序 · ウォームアップ 0 回 / 本計測 1 回</p>
+ <div class="note">Sepoliaは未計測です。下記のEVM値はローカル環境の実測であり、Sepoliaの性能や料金を表すものではありません。</div>
+ <div class="grid"><div class="card"><h2>Hyperledger Fabric</h2><small class="muted">記録の確定待ちを含む中央値</small><strong class="big">2,207.9 <small>ms</small></strong><small>成功 1 / 1　失敗 0</small><div class="bar"><span style="width:100%"></span></div></div></div>
+ <section><h2>処理時間</h2><p class="muted">単位 ms / 中央値（p95）。証明生成時間は同じ試料の計測値を両列で共有します。</p><div class="scroll"><table><thead><tr><th>工程</th><th>Hyperledger Fabric</th></tr></thead><tbody><tr><td>証明生成処理</td><td>635,187.4 (635,187.4)</td></tr><tr><td>記録 → 確定条件</td><td>2,207.9 (2,207.9)</td></tr><tr><td>記録後の検証・結果取得</td><td>575 (575)</td></tr><tr><td>上記3工程の合計</td><td>637,970.3 (637,970.3)</td></tr></tbody></table></div></section>
+ <section><h2>コストと比較条件</h2><div class="scroll"><table><tr><th>基盤</th><th>記録gas（中央値）</th><th>全本計測の記録手数料合計</th></tr><tr><td>Hyperledger Fabric</td><td>gasなし</td><td>ネイティブ通貨の取引手数料なし</td></tr></table></div><p class="muted">Fabricのサーバー・証明書管理・運用費は別途必要です。両基盤とも照会は読み取り実行で、検証トランザクションの送信手数料は発生しません。</p><p>運用費：単価・想定処理量が未指定のため未算出。総コストが無料という意味ではありません。</p></section>
+ <section><h2>測定の範囲</h2><p>入力：csi-adaptive-full-pool。通常入力条件です。 CSI取得時間・APIキュー待ち・初期接続時間は含みません。</p><p>証明生成の範囲：artifact checks + witness + native Groth16 + independent snarkjs verify; preprocessing separate<br>CSI前処理：356.1 ms（参考値、合計には含めません）</p><p>Fabricは2組織・各1 peer・1 ordererの同一ホスト上のテスト構成です。実運用の複数拠点構成との性能差は別途測定が必要です。</p><details><summary>構成・確認条件を表示</summary><pre>{
+  &quot;fabric&quot;: {
+    &quot;deploymentId&quot;: &quot;0xcfb1fe0a663d64dec372ce2ca4c9902697a7506fab3136c98cf14e526c27a83d&quot;,
+    &quot;topology&quot;: {
+      &quot;peerOrganizations&quot;: 2,
+      &quot;peers&quot;: 2,
+      &quot;orderers&quot;: 1,
+      &quot;consensus&quot;: &quot;Raft&quot;,
+      &quot;endorsementPolicy&quot;: &quot;AND(&#39;Org1MSP.peer&#39;,&#39;Org2MSP.peer&#39;)&quot;,
+      &quot;fabricVersion&quot;: &quot;2.5.16&quot;,
+      &quot;singleHost&quot;: true
+    },
+    &quot;verification&quot;: &quot;Gateway evaluateTransaction (single peer)&quot;,
+    &quot;finality&quot;: &quot;VALID commit status&quot;,
+    &quot;nativeTransactionFee&quot;: &quot;none&quot;
+  }
+}</pre></details><details><summary>全試行のデータを表示</summary><pre>[
+  {
+    &quot;target&quot;: &quot;fabric&quot;,
+    &quot;trial&quot;: 1,
+    &quot;warmup&quot;: false,
+    &quot;fixtureIndex&quot;: 0,
+    &quot;proofHash&quot;: &quot;4a12948266046c96eac175710357afcb0532114a30cc523b29ec5f5fafa7e61a&quot;,
+    &quot;proofGenerationMs&quot;: 635187.387937,
+    &quot;status&quot;: &quot;verified&quot;,
+    &quot;cost&quot;: {
+      &quot;gasUsed&quot;: null,
+      &quot;feeWei&quot;: null,
+      &quot;nativeTransactionFee&quot;: 0,
+      &quot;unit&quot;: null,
+      &quot;infrastructureIncluded&quot;: false
+    },
+    &quot;endorseMs&quot;: 175.18917499999998,
+    &quot;submitMs&quot;: 14.433091999999988,
+    &quot;commitWaitMs&quot;: 2018.3051990000004,
+    &quot;recordCommitMs&quot;: 2207.927466,
+    &quot;transactionId&quot;: &quot;c04c7294ecb1b7638f47cf7580e8aa41f3a62b0bd4feee63b75df4eb8d81fd9e&quot;,
+    &quot;blockNumber&quot;: &quot;43&quot;,
+    &quot;verifyReadMs&quot;: 575.0059490000003,
+    &quot;isNormal&quot;: false,
+    &quot;totalMs&quot;: 637970.321352
+  }
+]</pre></details></section>
+ <footer>実行ID 7b7bfa4b-c40e-4c9a-b23a-ce2c8335ed39<br>2026-11-08T19:29:21.589Z<br>検証鍵 0x9985133091b50d97f8ca1f59197ff2b28fcb8646bd8d375477252434a65b04a1</footer></main></html>

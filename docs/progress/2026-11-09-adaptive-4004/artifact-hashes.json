@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "prover": "arkworks-0.5",
+  "setup": "single-party-local-csprng-testnet-only",
+  "circuit": "csi_lomb_scargle_adaptive_4004",
+  "capacity": 4004,
+  "sampleCount": 64,
+  "publicSignalCount": 70,
+  "isNormalIndex": 1,
+  "sha256": {
+    "r1cs": "c7c14b5cc2ecea4276e826f49a8b1ca25b96b8e464e9f4c116c203d3d2272c08",
+    "wasm": "156481c3705983d71837149efd8843b86e95e9506240b0aa3f3973d81376207b",
+    "prover": "d76744fe84bc155bce43fa8c0357ec34eea6eabedbe16f060d72a45c158cb0fd",
+    "provingKey": "4addeebc4fe3c92a6b5568b2b9bec4ebf8e3241ea210143ed8d2e01b1ad167cb",
+    "verificationKey": "9985133091b50d97f8ca1f59197ff2b28fcb8646bd8d375477252434a65b04a1"
+  }
+}

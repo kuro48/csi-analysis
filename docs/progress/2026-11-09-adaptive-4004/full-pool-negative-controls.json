@@ -1,0 +1,13 @@
+{
+  "fullPool": 4004,
+  "validEvmProof": true,
+  "modifiedPublicSignalsRejected": [
+    0,
+    1,
+    2,
+    5,
+    69
+  ],
+  "invalidFabricRecordRejectedOnRead": true,
+  "negativeControlTransaction": "429b438b6f0bf99784763b5d47d24556d6437df7a2fb67a2903779990332945d"
+}

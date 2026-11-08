@@ -11,6 +11,8 @@ const field = "mt-2 w-full rounded-lg border border-neutral-300 p-3";
 export default function CapturePage() {
   const [patients, setPatients] = useState<{ id: string; label: string }[]>([]);
   const [ledger, setLedger] = useState("evm");
+  const [proofProfile, setProofProfile] = useState("legacy");
+  const [adaptiveAvailable, setAdaptiveAvailable] = useState<Record<string, boolean>>({});
   const [patient, setPatient] = useState("");
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState(60);
@@ -21,6 +23,10 @@ export default function CapturePage() {
   const id = useRef("");
   useEffect(() => {
     let active = true;
+    fetch(`${base}/capabilities`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => { if (active && data) setAdaptiveAvailable(data.adaptive4004 || {}); })
+      .catch(() => {});
     fetch(`${base}/patients`, { cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error("患者一覧を取得できません");
@@ -82,6 +88,7 @@ export default function CapturePage() {
               data.set("duration_seconds", String(duration));
               data.set("file", file);
               data.set("ledger", ledger);
+              data.set("proof_profile", proofProfile);
               const result = await checked(
                 await operatorFetch(`${base}/captures`, {
                   method: "POST",
@@ -102,6 +109,7 @@ export default function CapturePage() {
               value={ledger}
               onChange={(event) => {
                 setLedger(event.target.value);
+                setProofProfile("legacy");
                 id.current = "";
               }}
             >
@@ -112,6 +120,29 @@ export default function CapturePage() {
                 Hyperledger Fabric（コンソーシアム）
               </option>
             </select>
+          </label>
+          <label className="block text-sm">
+            呼吸判定の方式
+            <select
+              className={field}
+              value={proofProfile}
+              onChange={(event) => {
+                setProofProfile(event.target.value);
+                id.current = "";
+              }}
+            >
+              <option value="legacy">既存の解析方式（デバッグ・比較用）</option>
+              <option value="adaptive4004" disabled={!adaptiveAvailable[ledger]}>
+                Circom内で全候補から選択（最大4,004列）
+              </option>
+            </select>
+            <span className="mt-2 block text-xs leading-5 text-neutral-500">
+              {proofProfile === "adaptive4004"
+                ? "サブキャリアの評価・選択から呼吸判定までを証明します。全列を処理するため、証明生成に時間がかかります。"
+                : !adaptiveAvailable[ledger]
+                  ? "全候補選択は、この記録先の検証回路を設定すると利用できます。"
+                  : "保存済みCSIを両方式で処理して比較できます。"}
+            </span>
           </label>
           <label className="block text-sm">
             患者

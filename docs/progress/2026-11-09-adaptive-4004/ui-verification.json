@@ -1,0 +1,56 @@
+{
+  "apiMocked": false,
+  "patient": {
+    "id": "432ed160-208d-4e3f-9ba9-fe69af4b367d",
+    "label": "患者 432ed160"
+  },
+  "acceptedCaptures": [
+    {
+      "ledger": "fabric",
+      "id": "405328aa-5ca0-4d39-b203-3ec20803684d",
+      "status": "queued"
+    },
+    {
+      "ledger": "evm",
+      "id": "fae35571-8b34-4c74-899e-71567b840389",
+      "status": "queued"
+    }
+  ],
+  "results": [
+    {
+      "capture": {
+        "id": "405328aa-5ca0-4d39-b203-3ec20803684d",
+        "ledger": "fabric"
+      },
+      "result": {
+        "status": "verified",
+        "isNormal": false,
+        "patientId": "432ed160-208d-4e3f-9ba9-fe69af4b367d",
+        "observedAt": 1779158991,
+        "durationSeconds": 60,
+        "transactionHash": "48d043e2ca64e19ec95b853dbcbfdf4cd384286731b361c838a42df249a3d978",
+        "ledger": "fabric",
+        "networkName": "Fabric local consortium",
+        "debugInput": false
+      }
+    },
+    {
+      "capture": {
+        "id": "fae35571-8b34-4c74-899e-71567b840389",
+        "ledger": "evm"
+      },
+      "result": {
+        "status": "verified",
+        "isNormal": false,
+        "patientId": "432ed160-208d-4e3f-9ba9-fe69af4b367d",
+        "observedAt": 1779158991,
+        "durationSeconds": 60,
+        "verifiedAtBlock": 8,
+        "confirmations": 1,
+        "transactionHash": "0xf87f3926fa67f903c6e701b787ca0b971dcd8eb55f8ab890d9befc6d94a24a62",
+        "chainId": 1337,
+        "debugInput": false
+      }
+    }
+  ]
+}

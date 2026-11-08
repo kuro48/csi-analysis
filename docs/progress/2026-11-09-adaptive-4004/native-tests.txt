@@ -1,0 +1,9 @@
+   Compiling csi-native-prover v0.1.0 (/Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/zkp/native-prover)
+    Finished `release` profile [optimized] target(s) in 9.79s
+     Running unittests src/main.rs (zkp/native-prover/target/release/deps/csi_native_prover-0be3da9c30c39f34)
+
+running 2 tests
+test tests::rejects_truncation_and_noncanonical_scalars ... ok
+test tests::enforces_original_r1cs_and_rejects_wrong_witness ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s

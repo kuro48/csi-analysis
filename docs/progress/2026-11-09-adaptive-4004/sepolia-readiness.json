@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-11-08T19:36:40.323Z",
+  "chainId": 11155111,
+  "balances": [
+    {
+      "address": "0xec77D2B256e1c9079CbA30869ca74bBFBb28C32f",
+      "balanceWei": "0"
+    },
+    {
+      "address": "0xbe0EEc5d93231938Cf743a792516fbb103B48651",
+      "balanceWei": "0"
+    }
+  ],
+  "deployed": false
+}

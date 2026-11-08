@@ -13,7 +13,7 @@ const root = resolve(import.meta.dirname, "../..");
 const local = resolve(
   process.env.FABRIC_WORK_DIR || join(root, ".local/fabric"),
 );
-const network = join(local, "fabric-samples/test-network");
+const network = resolve(process.env.FABRIC_NETWORK_DIR || join(local, "fabric-samples/test-network"));
 const source = join(root, "fabric/chaincode");
 const destination = join(local, "chaincode");
 const deployment = join(local, "deployment");
@@ -46,7 +46,7 @@ const writer = identity(1),
 const config = {
   version: 1,
   channelName: "csi",
-  chaincodeName: "csiobservations",
+  chaincodeName: process.env.FABRIC_CHAINCODE_NAME || "csiobservations",
   networkName: "Fabric local consortium",
   debugMode: process.env.FABRIC_DEBUG_MODE === "true",
   recorderMspId: writer.mspId,
@@ -55,6 +55,10 @@ const config = {
   ),
   readerMspIds: ["Org1MSP", "Org2MSP"],
   verificationKeyHash: "0x" + hash(vkey),
+  publicSignalCount: JSON.parse(vkey).nPublic,
+  isNormalIndex: JSON.parse(vkey).nPublic === 70 ? 1 : 0,
+  circuit: JSON.parse(vkey).nPublic === 70 ? "csi_lomb_scargle_adaptive_4004" : "csi_breathing_certificate",
+  verificationKeyFile: "verification_key.json",
   sourceHash: hash(
     [
       "index.js",
@@ -76,6 +80,16 @@ const config = {
     singleHost: true,
   },
 };
+if (![1, 70].includes(config.publicSignalCount)) throw Error("Unsupported proof protocol");
+if (config.publicSignalCount === 70 && config.chaincodeName === "csiobservations") throw Error("Adaptive proofs require a separate chaincode name");
+if (config.publicSignalCount === 70) {
+  if (!process.env.ADAPTIVE_ARTIFACT_MANIFEST) throw Error("Adaptive deployment requires its artifact manifest");
+  const artifacts = JSON.parse(readFileSync(process.env.ADAPTIVE_ARTIFACT_MANIFEST));
+  if (artifacts.circuit !== config.circuit || artifacts.capacity !== 4004 || artifacts.sampleCount !== 64
+      || artifacts.publicSignalCount !== 70 || artifacts.isNormalIndex !== 1 || artifacts.sha256.verificationKey !== hash(vkey)) {
+    throw Error("Fabric key does not match the full-pool artifact manifest");
+  }
+}
 config.deploymentId = "0x" + hash(JSON.stringify(config));
 if (
   existsSync(join(deployment, "manifest.json")) &&
@@ -95,7 +109,8 @@ for (const dir of [join(destination, "deployment"), deployment]) {
     join(dir, dir === deployment ? "manifest.json" : "config.json"),
     JSON.stringify(config, null, 2) + "\n",
   );
-  writeFileSync(join(dir, "csi_breathing_certificate.vkey.json"), vkey);
+  writeFileSync(join(dir, config.verificationKeyFile), vkey);
+  if (config.publicSignalCount === 1) writeFileSync(join(dir, "csi_breathing_certificate.vkey.json"), vkey);
 }
 const gateway = {
   ...config,

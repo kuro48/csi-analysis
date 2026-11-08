@@ -1,0 +1,21 @@
+{
+  "network": "local Ganache",
+  "chainId": 1337,
+  "registryAddress": "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7",
+  "transactionHash": "0xf87f3926fa67f903c6e701b787ca0b971dcd8eb55f8ab890d9befc6d94a24a62",
+  "status": 1,
+  "blockNumber": 8,
+  "gasUsed": 1823250,
+  "effectiveGasPriceWei": "1368928746",
+  "feeWei": "2495899336144500",
+  "feeUnit": "local test ETH",
+  "verifyReadMs": 855.1553799770772,
+  "isNormal": false,
+  "trials": 1,
+  "recordLatencyMs": null,
+  "notes": [
+    "Not a Sepolia measurement",
+    "Local EVM recording latency was not instrumented in the worker",
+    "Verification read timing measured separately from Fabric and includes HTTP RPC overhead"
+  ]
+}

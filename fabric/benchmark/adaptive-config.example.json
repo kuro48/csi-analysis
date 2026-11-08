@@ -1,0 +1,16 @@
+{
+  "fixtures": ".local/adaptive-benchmark/fixtures.json",
+  "targets": ["fabric", "sepolia"],
+  "fabricGateway": ".local/fabric-adaptive/gateway.json",
+  "trials": 5,
+  "warmup": 1,
+  "evm": {
+    "manifest": ".local/adaptive-evm/11155111/manifest.json",
+    "recorderKeyFile": ".local/sepolia-adaptive/recorder.key",
+    "rpcEnv": "ADAPTIVE_ETHEREUM_RPC_URL",
+    "confirmations": 2,
+    "timeoutMs": 180000,
+    "maxTxWei": "10000000000000000"
+  },
+  "output": ".local/adaptive-benchmark/results"
+}

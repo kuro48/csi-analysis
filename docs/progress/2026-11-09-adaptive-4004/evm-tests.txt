@@ -1,0 +1,45 @@
+
+> test
+> node --test test/*.test.mjs
+
+This version of µWS is not compatible with your Node.js build:
+
+Error: Cannot find module '../binaries/uws_darwin_x64_147.node'
+Require stack:
+- /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend/contracts/node_modules/ganache/node_modules/@trufflesuite/uws-js-unofficial/src/uws.js
+- /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend/contracts/node_modules/ganache/dist/node/core.js
+Falling back to a NodeJS implementation; performance may be degraded.
+
+
+✔ 70-signal observation protocol with a real compact-circuit fixture (13039.177126ms)
+✔ testnet policy rejects mainnet and unknown chains before connecting (2.184345ms)
+✔ Sepolia entrypoint pins the chain without silently overriding another target (0.278718ms)
+This version of µWS is not compatible with your Node.js build:
+
+Error: Cannot find module '../binaries/uws_darwin_x64_147.node'
+Require stack:
+- /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend/contracts/node_modules/ganache/node_modules/@trufflesuite/uws-js-unofficial/src/uws.js
+- /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend/contracts/node_modules/ganache/dist/node/core.js
+Falling back to a NodeJS implementation; performance may be degraded.
+
+
+✔ record first; third-party verifies stored proof; invalid output never returned (5096.384616ms)
+This version of µWS is not compatible with your Node.js build:
+
+Error: Cannot find module '../binaries/uws_darwin_x64_147.node'
+Require stack:
+- /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend/contracts/node_modules/ganache/node_modules/@trufflesuite/uws-js-unofficial/src/uws.js
+- /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/backend/contracts/node_modules/ganache/dist/node/core.js
+Falling back to a NodeJS implementation; performance may be degraded.
+
+
+{"proofId":"0x00a7589567735b4c78d47a25ce8d202b06465e431108fe7365afd32559dbabd6","gasUsed":"342935","block":4,"signal":"1"}
+✔ real Groth16 proof: atomic verification, invalid inputs, duplicate and immutable binding (8681.206547ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14381.146523

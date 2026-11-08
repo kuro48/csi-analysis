@@ -139,6 +139,11 @@ template CSIMotionSelector(N, C) {
     component chosen[C];
     signal chosenI[N][C];
     signal chosenQ[N][C];
+    // Large flat symbolic sums make Circom compilation quadratic in C.
+    // Materialize 16-column partial sums; preserve the original <=64 R1CS.
+    var GROUPS = C > 64 ? (C + 15) \ 16 : 0;
+    signal groupI[N][GROUPS];
+    signal groupQ[N][GROUPS];
     for (var sc = 0; sc < C; sc++) {
         chosen[sc] = IsEqual();
         chosen[sc].in[0] <== selectedSubcarrier;
@@ -147,11 +152,28 @@ template CSIMotionSelector(N, C) {
     for (var i = 0; i < N; i++) {
         var sumI = 0;
         var sumQ = 0;
+        var chunkI = 0;
+        var chunkQ = 0;
         for (var sc = 0; sc < C; sc++) {
             chosenI[i][sc] <== chosen[sc].out * csiI[i][sc];
             chosenQ[i][sc] <== chosen[sc].out * csiQ[i][sc];
-            sumI += chosenI[i][sc];
-            sumQ += chosenQ[i][sc];
+            if (C <= 64) {
+                sumI += chosenI[i][sc];
+                sumQ += chosenQ[i][sc];
+            } else {
+                chunkI += chosenI[i][sc];
+                chunkQ += chosenQ[i][sc];
+                if (sc % 16 == 15 || sc == C - 1) {
+                    groupI[i][sc \ 16] <== chunkI;
+                    groupQ[i][sc \ 16] <== chunkQ;
+                    chunkI = 0;
+                    chunkQ = 0;
+                }
+            }
+        }
+        for (var g = 0; g < GROUPS; g++) {
+            sumI += groupI[i][g];
+            sumQ += groupQ[i][g];
         }
         selectedI[i] <== sumI;
         selectedQ[i] <== sumQ;

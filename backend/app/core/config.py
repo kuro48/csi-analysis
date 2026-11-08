@@ -33,7 +33,9 @@ class Settings:
     BLOCKCHAIN_PRIVATE_KEY: str = os.getenv("BLOCKCHAIN_PRIVATE_KEY", "")
     ONCHAIN_MANIFEST: str = os.getenv("ONCHAIN_MANIFEST", "")
     OBSERVATION_MANIFEST: str = os.getenv("OBSERVATION_MANIFEST", "")
-    OBSERVATION_DATA_DIR: str = os.getenv("OBSERVATION_DATA_DIR", str(Path(__file__).resolve().parents[3] / ".local" / "observations"))
+    OBSERVATION_DATA_DIR: str = os.getenv(
+        "OBSERVATION_DATA_DIR", str(Path(__file__).resolve().parents[3] / ".local" / "observations")
+    )
     OBSERVATION_RAW_RETENTION_HOURS: int = max(1, int(os.getenv("OBSERVATION_RAW_RETENTION_HOURS", "24")))
     OBSERVATION_MAX_PENDING: int = max(1, int(os.getenv("OBSERVATION_MAX_PENDING", "100")))
     ONCHAIN_CONFIRMATIONS: int = max(1, int(os.getenv("ONCHAIN_CONFIRMATIONS", "2")))
@@ -42,6 +44,18 @@ class Settings:
     FABRIC_READER_URL: str = os.getenv("FABRIC_READER_URL", "http://127.0.0.1:8801")
     FABRIC_WRITER_URL: str = os.getenv("FABRIC_WRITER_URL", "http://127.0.0.1:8802")
     FABRIC_READER_TOKEN: str = os.getenv("FABRIC_READER_TOKEN", "")
+    ADAPTIVE_ARTIFACT_MANIFEST: str = os.getenv("ADAPTIVE_ARTIFACT_MANIFEST", "")
+    ADAPTIVE_OBSERVATION_MANIFEST: str = os.getenv("ADAPTIVE_OBSERVATION_MANIFEST", "")
+    ADAPTIVE_ETHEREUM_RPC_URL: str = os.getenv("ADAPTIVE_ETHEREUM_RPC_URL", "")
+    ADAPTIVE_ONCHAIN_CONFIRMATIONS: int = max(1, int(os.getenv("ADAPTIVE_ONCHAIN_CONFIRMATIONS", "2")))
+    ADAPTIVE_FABRIC_MANIFEST: str = os.getenv("ADAPTIVE_FABRIC_MANIFEST", "")
+    ADAPTIVE_FABRIC_READER_URL: str = os.getenv("ADAPTIVE_FABRIC_READER_URL", "http://127.0.0.1:8811")
+    ADAPTIVE_FABRIC_WRITER_URL: str = os.getenv("ADAPTIVE_FABRIC_WRITER_URL", "http://127.0.0.1:8812")
+    ADAPTIVE_FABRIC_READER_TOKEN: str = os.getenv("ADAPTIVE_FABRIC_READER_TOKEN", "")
+    ADAPTIVE_PROVER_SCRIPT: str = os.getenv(
+        "ADAPTIVE_PROVER_SCRIPT", str(Path(__file__).resolve().parents[3] / "zkp/scripts/prove_adaptive_capture.cjs")
+    )
+    ADAPTIVE_PROOF_TIMEOUT_SECONDS: int = int(os.getenv("ADAPTIVE_PROOF_TIMEOUT_SECONDS", "7200"))
     OPERATOR_API_TOKEN: str = os.getenv("OPERATOR_API_TOKEN", "")
 
     # SECURITY: DATABASE_URL must be set via environment variable
