@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
 """Convert PicoScenes CSI or NPZ data into the private circuit input.
 
-The conversion is deterministic except for the private commitment nonce:
-1. keep frames having the modal CSI width and a systemns timestamp;
-2. select eight evenly spaced subcarriers;
-3. sort by timestamp and deduplicate after millisecond quantization;
-4. select 64 observations uniformly across the capture;
-5. apply one shared I/Q scale and encode signed values with offset 2048.
+The conversion is deterministic except for the private commitment nonce.
+All subcarriers are scored on at most 1024 representative observations. Only
+8 original I/Q columns and 64 original timestamps enter the existing circuit.
+Selection statistics and physical/array indices remain local metadata.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import secrets
 import tempfile
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
 import numpy as np
+
+from select_subcarriers import capture_rows, rank_subcarriers, select_capture
 
 
 SAMPLES = 64
@@ -82,50 +83,82 @@ def _new_parser():
         return Picoscenes(empty.name, False)
 
 
-def load_picoscenes(path: Path) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+def load_picoscenes(path: Path, selection: str = "motion-quality") -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     parser = _new_parser()
     widths: Counter[int] = Counter()
-    for offset, count in _frame_batches(path):
-        parser.seek(str(path), offset, count)
-        for frame in parser.raw:
-            csi = frame.get("CSI")
-            if csi is None or csi.get("CSI") is None or _timestamp_ns(frame) is None:
-                continue
-            widths[np.asarray(csi["CSI"]).size] += 1
-        parser.raw.clear()
-    if not widths:
-        raise ValueError("no CSI/systemns frame pairs found")
-
-    width, frame_count = widths.most_common(1)[0]
-    subcarrier_indices = np.rint(np.linspace(0, width - 1, SUBCARRIERS)).astype(np.int64)
-    rows: list[np.ndarray] = []
-    timestamps: list[int] = []
+    references = defaultdict(list)
+    layout = {}
+    ordinal = 0
     for offset, count in _frame_batches(path):
         parser.seek(str(path), offset, count)
         for frame in parser.raw:
             csi = frame.get("CSI")
             timestamp = _timestamp_ns(frame)
-            if csi is None or csi.get("CSI") is None or timestamp is None:
-                continue
-            values = np.asarray(csi["CSI"]).reshape(-1)
-            if values.size == width:
-                rows.append(values[subcarrier_indices].astype(np.complex128, copy=False))
-                timestamps.append(timestamp)
+            if csi is not None and csi.get("CSI") is not None and timestamp is not None:
+                width = np.asarray(csi["CSI"]).size
+                widths[width] += 1
+                references[width].append((ordinal, timestamp))
+                if width not in layout:
+                    layout[width] = {key: int(csi[key]) for key in ("numTones", "numRx", "numTx") if key in csi}
+            ordinal += 1
         parser.raw.clear()
-
+    if not widths:
+        raise ValueError("no CSI/systemns frame pairs found")
+    width, frame_count = widths.most_common(1)[0]
+    if width < SUBCARRIERS:
+        raise ValueError("capture needs at least 8 distinct CSI columns")
+    refs = references[width]
+    timestamps = np.asarray([entry[1] for entry in refs], dtype=np.int64)
+    analysis, proof = capture_rows(timestamps)
+    selected_rows = np.union1d(analysis, proof) if selection == "motion-quality" else proof
+    wanted = {refs[int(row)][0]: index for index, row in enumerate(selected_rows)}
+    # Keep at most 1024+64 full-width rows. The parser also holds only a 32-frame batch.
+    selected = np.empty((len(selected_rows), width), dtype=np.complex128)
+    seen = set()
+    ordinal = 0
+    for offset, count in _frame_batches(path):
+        parser.seek(str(path), offset, count)
+        for frame in parser.raw:
+            if ordinal in wanted:
+                values = np.asarray(frame["CSI"]["CSI"]).reshape(-1)
+                if values.size != width or _timestamp_ns(frame) != timestamps[selected_rows[wanted[ordinal]]]:
+                    raise ValueError("CSI source changed during preparation")
+                selected[wanted[ordinal]] = values
+                seen.add(ordinal)
+            ordinal += 1
+        parser.raw.clear()
+    if len(seen) != len(wanted):
+        raise ValueError("CSI source changed during preparation")
+    positions = {int(row): index for index, row in enumerate(selected_rows)}
+    proof_positions = [positions[int(row)] for row in proof]
+    if selection == "motion-quality":
+        analysis_positions = [positions[int(row)] for row in analysis]
+        columns, details = rank_subcarriers(
+            selected[analysis_positions], timestamps[analysis], selected[proof_positions]
+        )
+    elif selection == "uniform":
+        columns = np.rint(np.linspace(0, width - 1, SUBCARRIERS)).astype(int).tolist()
+        details = {"method": "uniform-v1", "proof_scope": "selection_not_proven"}
+    else:
+        raise ValueError("unsupported selection method")
     return (
-        np.asarray(rows, dtype=np.complex128),
-        np.asarray(timestamps, dtype=np.int64),
+        selected[np.ix_(proof_positions, columns)],
+        timestamps[proof],
         {
             "source_format": "picoscenes",
             "modal_csi_width": int(width),
             "modal_frame_count": int(frame_count),
-            "selected_subcarrier_indices": subcarrier_indices.tolist(),
+            "original_input_frames": int(frame_count),
+            "buffered_full_width_frames": int(len(selected_rows)),
+            "selected_subcarrier_indices": columns,
+            "index_semantics": "flattened_CSI_array_column_not_RF_frequency",
+            "csi_layout": layout[width],
+            "selection": details,
         },
     )
 
 
-def load_npz(path: Path) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+def load_npz(path: Path, selection: str = "motion-quality") -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     with np.load(path) as data:
         if "csi" not in data:
             raise ValueError("NPZ must contain a 2-D complex array named 'csi'")
@@ -133,22 +166,29 @@ def load_npz(path: Path) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
         if csi.ndim != 2:
             raise ValueError("NPZ csi must have shape [samples, subcarriers]")
         if "timestamps_ns" in data:
-            timestamps = np.asarray(data["timestamps_ns"], dtype=np.int64)
+            timestamps = np.asarray(data["timestamps_ns"])
         elif "timestamps_ms" in data:
-            timestamps = np.asarray(data["timestamps_ms"], dtype=np.int64) * 1_000_000
+            milliseconds = np.asarray(data["timestamps_ms"])
+            if milliseconds.dtype.kind not in "iu" or milliseconds.ndim != 1:
+                raise ValueError("timestamps_ms must be a one-dimensional integer array")
+            bound = np.iinfo(np.int64).max // 1_000_000
+            if np.any(milliseconds > bound) or (milliseconds.dtype.kind == "i" and np.any(milliseconds < -bound)):
+                raise ValueError("timestamps_ms exceed signed 64-bit nanosecond range")
+            timestamps = milliseconds.astype(np.int64) * 1_000_000
         else:
             raise ValueError("NPZ must contain timestamps_ns or timestamps_ms")
     if csi.shape[0] != timestamps.size:
         raise ValueError("CSI rows and timestamps must have the same length")
-    indices = np.rint(np.linspace(0, csi.shape[1] - 1, SUBCARRIERS)).astype(np.int64)
+    selected, selected_times, metadata = select_capture(csi, timestamps, selection)
     return (
-        csi[:, indices].astype(np.complex128),
-        timestamps,
+        selected,
+        selected_times,
         {
             "source_format": "npz",
             "modal_csi_width": int(csi.shape[1]),
             "modal_frame_count": int(csi.shape[0]),
-            "selected_subcarrier_indices": indices.tolist(),
+            "index_semantics": "CSI_array_column",
+            **metadata,
         },
     )
 
@@ -187,6 +227,11 @@ def canonicalize(csi: np.ndarray, timestamps_ns: np.ndarray) -> tuple[dict[str, 
 
     encoded_i = signed_i + CSI_OFFSET
     encoded_q = signed_q + CSI_OFFSET
+    power = signed_i * signed_i + signed_q * signed_q
+    if np.any(np.ptp(power, axis=0) == 0):
+        raise ValueError(
+            "selected channel power is constant after shared I/Q quantization; circuit requires dynamic channels"
+        )
     nonce = secrets.randbelow(BN254_FIELD - 1) + 1
     circuit_input = {
         "csiI": encoded_i.tolist(),
@@ -209,30 +254,34 @@ def canonicalize(csi: np.ndarray, timestamps_ns: np.ndarray) -> tuple[dict[str, 
 
 
 def main() -> None:
+    os.umask(0o077)
     parser = argparse.ArgumentParser()
     parser.add_argument("source", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--metadata", type=Path)
+    parser.add_argument("--selection", choices=("motion-quality", "uniform"), default="motion-quality")
     args = parser.parse_args()
 
     source = args.source.resolve()
     if not source.is_file():
         raise SystemExit(f"input file not found: {source}")
     if source.suffix.lower() == ".csi":
-        csi, timestamps, source_metadata = load_picoscenes(source)
+        csi, timestamps, source_metadata = load_picoscenes(source, args.selection)
     elif source.suffix.lower() == ".npz":
-        csi, timestamps, source_metadata = load_npz(source)
+        csi, timestamps, source_metadata = load_npz(source, args.selection)
     else:
         raise SystemExit("supported inputs are .csi and .npz")
 
     circuit_input, conversion_metadata = canonicalize(csi, timestamps)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(circuit_input, separators=(",", ":")))
+    os.chmod(args.output, 0o600)
     if args.metadata:
         args.metadata.parent.mkdir(parents=True, exist_ok=True)
         args.metadata.write_text(
             json.dumps({**source_metadata, **conversion_metadata}, ensure_ascii=False, indent=2) + "\n"
         )
+        os.chmod(args.metadata, 0o600)
 
 
 if __name__ == "__main__":

@@ -8,8 +8,8 @@
 - Linux/macOS x86_64またはARM64
 - Node.js 18以上（20推奨）
 - Python 3.10以上
+- `.csi` / `.npz` の入力変換にはNumPy
 - `.csi` を直接処理する場合のみ:
-  - NumPy
   - PicoScenes Python Toolbox
 
 回路のコンパイル、Circom、snarkjsのnpmインストール、ptauは端末側では不要。
@@ -90,12 +90,37 @@ PicoScenes以外から渡す場合、次の配列を持つNPZを利用できる�
 `.csi` 入力では次を決定論的に実行する。
 
 1. `systemns` とCSIを持つフレームから最頻CSI幅を選ぶ。
-2. CSI幅全体から等間隔に8サブキャリアを選ぶ。
-3. 時刻順に整列し、1 ms量子化後の重複時刻を除く。
-4. 全収録区間から等間隔に64観測を選ぶ。
-5. 選択I/Q全体へ共通スケールを適用し、最大絶対値を1800へ合わせる。
-6. `[-2048, 2047]` に制限し、2048を加えて12-bit値にする。
-7. 暗号学的乱数から秘密Poseidon nonceを生成する。
+2. 時刻順に整列し、1 ms量子化後の重複を除く。評価用に最大1,024観測を決定論的に取り出す。
+3. 全候補列について、振幅の相対変動、外れ値、時刻を考慮した局所残差ノイズを評価する。
+4. 品質スコアの上位候補から、波形の重複も減点して8列を選ぶ。正常BPM帯域は選択基準に使わない。
+5. 全収録区間から等間隔に64観測を選ぶ。選ばれた列の元のI/Qを使い、選択用のクリップ・トレンド除去は回路入力に適用しない。
+6. 選択I/Q全体へ共通スケールを適用し、最大絶対値を1800へ合わせる。
+7. `[-2048, 2047]` に制限し、2048を加えて12-bit値にする。量子化後にパワーが一定となる列は事前エラーにする。
+8. 暗号学的乱数から秘密Poseidon nonceを生成する。
+
+回路外の8列選択は `motion-quality-v1`、回路内のLomb–Scargle処理と鍵は従来のまま。
+**全候補からの選択の正しさは証明していない。** 回路は渡された8列のI/Qからの計算を証明する。
+公開結果の `selectedSubcarrier` は8列内のスロット番号（0〜7）で、元データの列番号やRFサブキャリア番号ではない。
+複数アンテナの場合、候補番号はflatten後のCSI配列の列番号である。
+
+旧方式との比較:
+
+```bash
+CSI_SUBCARRIER_SELECTION=uniform ./bin/prove.sh capture.csi uniform_result.json
+CSI_SUBCARRIER_SELECTION=motion-quality ./bin/prove.sh capture.csi adaptive_result.json
+```
+
+ローカルで選択理由を確認する場合（保存先は新しいファイル名を指定）:
+
+```bash
+CSI_SELECTION_METADATA_FILE="$PWD/private/selection.json" ./bin/prove.sh capture.csi proof_result.json
+```
+
+このメタデータは0600で保存し、公開proof結果には追加しない。個別の選択列・品質スコア・入力スケールを含む。
+直接変換する場合は `python3 bin/prepare_input.py capture.csi input.json --metadata selection.json --selection motion-quality`。
+
+動的な列が8本未満、時間情報が不正、量子化で波形が消える場合はエラーになる。動きが弱くスコアがゼロの候補を補充した場合は、ローカルメタデータの `low_quality_fallback` がtrueになる。
+本選択スコアは体動の原因や呼吸の正解を保証しない。呼吸器や映像などの正解値との比較は別途必要。
 
 サブキャリア番号、入力スケール、入力振幅の統計値などの変換メタデータも公開結果には
 含めない。変換用一時ファイルはwitnessとともに実行終了時に削除される。

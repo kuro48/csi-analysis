@@ -52,7 +52,7 @@ case "${SOURCE##*.}" in
     cp -- "$SOURCE" "$INPUT_JSON"
     ;;
   csi|npz)
-    "$PYTHON_BIN" "$PACKAGE_DIR/bin/prepare_input.py" "$SOURCE" "$INPUT_JSON" --metadata "$METADATA_JSON"
+    "$PYTHON_BIN" "$PACKAGE_DIR/bin/prepare_input.py" "$SOURCE" "$INPUT_JSON" --metadata "$METADATA_JSON" --selection "${CSI_SUBCARRIER_SELECTION:-motion-quality}"
     ;;
   *)
     echo "supported inputs are .csi, .npz, and canonical .json" >&2
@@ -85,6 +85,19 @@ VERIFY_DONE="$(date +%s)"
   --public "$WORK_DIR/public.json" \
   --output "$OUTPUT"
 
+# Optional PRIVATE diagnostics. Never add selection statistics to the upload-safe proof.
+if [[ -n "${CSI_SELECTION_METADATA_FILE:-}" && -f "$METADATA_JSON" ]]; then
+  (umask 077; "$PYTHON_BIN" - "$METADATA_JSON" "$CSI_SELECTION_METADATA_FILE" <<'PYMETA'
+import os, sys
+from pathlib import Path
+path = Path(sys.argv[2])
+path.parent.mkdir(parents=True, exist_ok=True)
+with path.open("xb") as destination:
+    os.chmod(path, 0o600)
+    destination.write(Path(sys.argv[1]).read_bytes())
+PYMETA
+  )
+fi
 echo "proof written: $OUTPUT"
 echo "witness_seconds=$((WITNESS_DONE - STARTED)) proof_seconds=$((PROOF_DONE - WITNESS_DONE)) verify_seconds=$((VERIFY_DONE - PROOF_DONE))"
 
