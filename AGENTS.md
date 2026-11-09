@@ -21,6 +21,7 @@
 - Keep env-specific values in `.env`/`.env.local`; never commit secrets.
 
 ## Testing Guidelines
+- CSI selection and breathing-performance evaluations must use real captured CSI by default. Do not generate or use synthetic CSI for these evaluations unless the user explicitly requests it. When ground-truth labels are unavailable, report reference agreement and measured differences separately from accuracy; do not substitute synthetic results for missing real-world evidence.
 - Backend: `pytest backend/tests` for unit/integration; add fixtures over hard-coded IDs; cover new API paths with status and payload assertions.
 - Frontend: No formal tests yet; at minimum run `npm run lint` and `npm run type-check` before pushes. Add React Testing Library tests under `src/__tests__` when introducing logic-heavy components.
 

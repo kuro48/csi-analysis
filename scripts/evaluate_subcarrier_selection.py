@@ -305,31 +305,43 @@ def render_report(report, output):
         for key in ["circom", "pythonInteger64", "pythonSpectral64", "pythonSpectralAll"]:
             synthetic_rows += f'<td>{counts[key]["correctChannels"]} / {counts[key]["total"]}</td>'
         synthetic_rows += "</tr>"
+    synthetic_section = ""
+    if synthetic_rows:
+        synthetic_section = f"""<h2>正解が分かる合成データ：呼吸信号を含む列を選べた件数</h2>
+        <div class="scroll"><table><tr><th>条件</th><th>Circom</th><th>Python 同式・整数64</th><th>周期性・整数64</th><th>周期性・全点</th></tr>{synthetic_rows}</table></div>
+        <p>明示指定で追加した合成評価です。合成の成功率は実測の呼吸判定精度ではありません。</p>"""
     content = f"""<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
     <title>CSI サブキャリア選択比較</title><style>body{{font:16px/1.7 system-ui;background:#f3f6f5;color:#183a34;margin:32px auto;padding:0 24px;max-width:1200px}}h1{{font-size:32px}}table{{border-collapse:collapse;width:100%;background:white;font-size:14px}}td,th{{padding:12px;border-bottom:1px solid #ccc;text-align:left}}img{{width:100%}}figure{{margin:24px 0}}.scroll{{overflow:auto}}pre{{white-space:pre-wrap;background:#fff;padding:20px}}</style>
     <p>CSI / 評価用レポート</p><h1>Circom と Python のサブキャリア選択比較</h1>
     <p>実回路の WASM を実行。実データの正解ラベルは未提供のため、表は精度ではなく選択の一致を示します。番号は 0 始まりの CSI 列です。</p>
     <div class="scroll"><table><tr><th>CSI</th><th>Circom</th><th>Python 同式・整数64</th><th>同式・実数64</th><th>同式・実数全点</th><th>周期性・整数64</th><th>周期性・全点</th></tr>{rows}</table></div>
     <p>周期性基準: 回路の正常帯域に対応する約 0.107–0.358 Hz で、定数項付き Lomb–Scargle の説明分散率が最大の列。呼吸由来であることは保証しません。</p>
-    <h2>正解が分かる合成データ：呼吸信号を含む列を選べた件数</h2>
-    <div class="scroll"><table><tr><th>条件</th><th>Circom</th><th>Python 同式・整数64</th><th>周期性・整数64</th><th>周期性・全点</th></tr>{synthetic_rows}</table></div>
-    <p>clean / slow_drift / in_band_interference 各4件。合成の成功率は実測の呼吸判定精度ではありません。既存の本番選択回路・WebUIは変更していません。</p>
+    {synthetic_section}
     {figures}<p>詳細: <a href="results.json">results.json</a> / <a href="README.md">評価手順・制約</a></p></html>"""
     (output / "index.html").write_text(content)
     (output / "results.json").write_text(json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n")
 
 
-def main():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("captures", nargs="+", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, default=ROOT / ".local/circom-adaptive-4004/artifacts.json")
     parser.add_argument(
+        "--include-synthetic",
+        action="store_true",
+        help="Explicit opt-in for historical synthetic experiments; default evaluates real captures only.",
+    )
+    parser.add_argument(
         "--compact-wasm",
         type=Path,
         default=ROOT / ".local/circom-adaptive/build/csi_lomb_scargle_adaptive_js/csi_lomb_scargle_adaptive.wasm",
     )
-    args = parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def main():
+    args = parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(args.manifest.read_text())
     wasm = Path(manifest["files"]["wasm"])
@@ -344,7 +356,7 @@ def main():
         },
         "artifacts": {
             "fullWasmSha256": sha256(wasm),
-            "compactWasmSha256": sha256(args.compact_wasm),
+            "compactWasmSha256": sha256(args.compact_wasm) if args.include_synthetic else None,
             "evaluationSha256": sha256(__file__),
             "witnessRunnerSha256": sha256(ROOT / "scripts/selection_witness.cjs"),
         },
@@ -372,11 +384,11 @@ def main():
             json.dumps({key: result[key] for key in ["name", "circuit", "pythonSelections", "error"] if key in result}),
             flush=True,
         )
-    for name, matrix, timestamps, truth in synthetic_cases():
+    for name, matrix, timestamps, truth in synthetic_cases() if args.include_synthetic else ():
         result = compare(name, matrix, timestamps, args.compact_wasm, 64, args.output, truth)
         report["synthetic"].append(result)
         print(f"Synthetic {name}: {result['syntheticAccuracy']['circom']}", flush=True)
-    for scenario in ["clean", "slow_drift", "in_band_interference"]:
+    for scenario in sorted({r["groundTruth"]["scenario"] for r in report["synthetic"]}):
         cases = [r for r in report["synthetic"] if r["groundTruth"]["scenario"] == scenario]
         report["syntheticSummary"][scenario] = {
             key: {

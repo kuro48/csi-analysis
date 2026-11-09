@@ -15,6 +15,20 @@ from evaluate_subcarrier_selection import (
 from scipy.signal import lombscargle
 
 
+def test_real_only_is_cli_default():
+    args = evaluation.parse_args(["capture.csi", "--output", "output"])
+    assert args.include_synthetic is False
+
+
+def test_real_only_report_omits_synthetic_table(tmp_path):
+    report = {"real": [], "synthetic": [], "syntheticSummary": {}}
+    evaluation.render_report(report, tmp_path)
+    page = (tmp_path / "index.html").read_text()
+    assert "合成データ" not in page
+    assert "各4件" not in page
+    assert page.count("<table>") == 1
+
+
 def test_exact_reference_ignores_padding_breaks_ties_and_rejects_flat():
     t = np.arange(64)
     signal = 1000 + 100 * np.sin(t / 4)

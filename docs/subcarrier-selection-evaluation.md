@@ -3,6 +3,10 @@
 評価専用の Python を追加した。本番入力を Python で選別する処理は追加していない。
 現行の Circom 選択回路、証明、チェーン連携、既存 WebUI の動作は変更しない。
 
+今後の評価は実測CSIを基本とする。スクリプトの既定動作も実測のみで、合成データを自動追加しない。
+合成評価は過去の結果の再現用に残すが、ユーザーから明示的な依頼がある場合に限って使用する。
+以下の合成データの説明と2026-11-09の保存済みレポートは、この方針決定前の実験記録である。
+
 実測結果、図、画面・コードのスクリーンショットは
 [2026-11-09 の評価レポート](progress/2026-11-09-selection-comparison/README.md) を参照。
 `index.html` はダウンロードしてブラウザーで開ける独立した閲覧用ページ。
@@ -74,15 +78,16 @@ Python の選択を正解と定義しない。Spectral が自身の目的関数�
 ```sh
 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 .venv/bin/python \
   scripts/evaluate_subcarrier_selection.py sampledata/*.csi \
-  --output docs/progress/2026-11-09-selection-comparison
+  --output .local/selection-real-only
 
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest \
   scripts/test_evaluate_subcarrier_selection.py -q
 
-node scripts/capture_selection_report.cjs docs/progress/2026-11-09-selection-comparison
+node scripts/capture_selection_report.cjs .local/selection-real-only
 ```
 
-別環境では `--manifest` と `--compact-wasm` でアーティファクトを指定する。
+別環境では `--manifest` で実測用アーティファクトを指定する。
+合成評価は `--include-synthetic` の明示指定がある場合だけ実行し、その場合だけ `--compact-wasm` が必要になる。
 既定値は `.local/circom-adaptive-4004/artifacts.json` と
 `.local/circom-adaptive/build/csi_lomb_scargle_adaptive_js/csi_lomb_scargle_adaptive.wasm`。
 実データは4004候補版、合成データは同じ選択・LSテンプレートの64候補版を使う。
