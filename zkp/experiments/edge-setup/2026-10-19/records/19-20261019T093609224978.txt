@@ -1,0 +1,248 @@
+STEP 19 | 保存済み実CSIの読み込み・形状確認
+START 2026-10-19T09:36:09.224978+09:00
+4件の既存CSIを端末内で読み込み、元のCSI幅・アンテナ構成・期間・64×8変換の可否を記録する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 /home/infonetworking/csi-zkp/scripts/inspect_csi.py
+{
+  "file": "csi_20260907_185130.csi",
+  "path": "/home/infonetworking/csi_data/main/csi_20260907_185130.csi",
+  "bytes": 23700389,
+  "sha256": "29b3d3092f5276100d64d09bd4786a9f9a2622feeb4bc539c7fcf9c2671b9ffb",
+  "source_format": "picoscenes",
+  "modal_csi_width": 980,
+  "modal_frame_count": 4518,
+  "selected_subcarrier_indices": [
+    0,
+    140,
+    280,
+    420,
+    559,
+    699,
+    839,
+    979
+  ],
+  "duration_seconds": 58.579475338,
+  "selected_matrix_shape": [
+    4518,
+    8
+  ],
+  "first_frame_csi_shape": [
+    980
+  ],
+  "first_frame_metadata_fields": [
+    "CBW",
+    "CSI",
+    "CarrierFreq",
+    "DeviceType",
+    "FirmwareVersion",
+    "Mag",
+    "PacketFormat",
+    "Phase",
+    "SamplingRate",
+    "SubcarrierBandwidth",
+    "SubcarrierIndex",
+    "ant_sel",
+    "numCSI",
+    "numESS",
+    "numRx",
+    "numTones",
+    "numTx"
+  ],
+  "numTones": "245",
+  "numRx": "2",
+  "numTx": "2",
+  "numESS": "0",
+  "circuit_shape": [
+    64,
+    8
+  ],
+  "canonicalization": "ok"
+}
+{
+  "file": "csi_20261005_115523.csi",
+  "path": "/home/infonetworking/csi_data/main/csi_20261005_115523.csi",
+  "bytes": 7867009,
+  "sha256": "ce290aaa107a136d0cddfec21f559464b9686dcfcd149e7fb7714204f8677b40",
+  "source_format": "picoscenes",
+  "modal_csi_width": 980,
+  "modal_frame_count": 1779,
+  "selected_subcarrier_indices": [
+    0,
+    140,
+    280,
+    420,
+    559,
+    699,
+    839,
+    979
+  ],
+  "duration_seconds": 59.618360718,
+  "selected_matrix_shape": [
+    1779,
+    8
+  ],
+  "first_frame_csi_shape": [
+    980
+  ],
+  "first_frame_metadata_fields": [
+    "CBW",
+    "CSI",
+    "CarrierFreq",
+    "DeviceType",
+    "FirmwareVersion",
+    "Mag",
+    "PacketFormat",
+    "Phase",
+    "SamplingRate",
+    "SubcarrierBandwidth",
+    "SubcarrierIndex",
+    "ant_sel",
+    "numCSI",
+    "numESS",
+    "numRx",
+    "numTones",
+    "numTx"
+  ],
+  "numTones": "245",
+  "numRx": "2",
+  "numTx": "2",
+  "numESS": "0",
+  "circuit_shape": [
+    64,
+    8
+  ],
+  "canonicalization": "ok"
+}
+{
+  "file": "csi_20261005_115619.csi",
+  "path": "/home/infonetworking/csi_data/main/csi_20261005_115619.csi",
+  "bytes": 24396188,
+  "sha256": "fd03205e3724ce81a3d79e7f079a22b283e18df763ab946d8933f15d423d0a12",
+  "source_format": "picoscenes",
+  "modal_csi_width": 980,
+  "modal_frame_count": 5531,
+  "selected_subcarrier_indices": [
+    0,
+    140,
+    280,
+    420,
+    559,
+    699,
+    839,
+    979
+  ],
+  "duration_seconds": 58.948076927,
+  "selected_matrix_shape": [
+    5531,
+    8
+  ],
+  "first_frame_csi_shape": [
+    980
+  ],
+  "first_frame_metadata_fields": [
+    "CBW",
+    "CSI",
+    "CarrierFreq",
+    "DeviceType",
+    "FirmwareVersion",
+    "Mag",
+    "PacketFormat",
+    "Phase",
+    "SamplingRate",
+    "SubcarrierBandwidth",
+    "SubcarrierIndex",
+    "ant_sel",
+    "numCSI",
+    "numESS",
+    "numRx",
+    "numTones",
+    "numTx"
+  ],
+  "numTones": "245",
+  "numRx": "2",
+  "numTx": "2",
+  "numESS": "0",
+  "circuit_shape": [
+    64,
+    8
+  ],
+  "canonicalization": "ok"
+}
+{
+  "file": "rx_2_260616_113124.csi",
+  "path": "/home/infonetworking/rx_2_260616_113124.csi",
+  "bytes": 6667462,
+  "sha256": "8f31e2dcdd5dc79f4cdda1a95455fe183d698a333be515a518816cace41b74e9",
+  "source_format": "picoscenes",
+  "modal_csi_width": 4004,
+  "modal_frame_count": 400,
+  "selected_subcarrier_indices": [
+    0,
+    572,
+    1144,
+    1716,
+    2287,
+    2859,
+    3431,
+    4003
+  ],
+  "duration_seconds": 1.511691398,
+  "selected_matrix_shape": [
+    400,
+    8
+  ],
+  "first_frame_csi_shape": [
+    4004
+  ],
+  "first_frame_metadata_fields": [
+    "CBW",
+    "CSI",
+    "CarrierFreq",
+    "DeviceType",
+    "FirmwareVersion",
+    "Mag",
+    "PacketFormat",
+    "Phase",
+    "SamplingRate",
+    "SubcarrierBandwidth",
+    "SubcarrierIndex",
+    "ant_sel",
+    "numCSI",
+    "numESS",
+    "numRx",
+    "numTones",
+    "numTx"
+  ],
+  "numTones": "1001",
+  "numRx": "2",
+  "numTx": "2",
+  "numESS": "0",
+  "circuit_shape": [
+    64,
+    8
+  ],
+  "canonicalization": "ok"
+}
+
+END exit_code=0 elapsed_seconds=4.361

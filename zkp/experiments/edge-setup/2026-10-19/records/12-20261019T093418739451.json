@@ -1,0 +1,30 @@
+{
+  "id": "12",
+  "title": "PicoScenes Python Toolboxのビルド・インストール",
+  "purpose": "端末上でCSIファイルを読めるようにC/C++拡張をビルドする。ビルド時間・最大RSSも測る。",
+  "expect": "picoscenesのimportとpip checkが成功する。",
+  "script": "scripts/12_parser_build.sh",
+  "started_at": "2026-10-19T09:34:18.739451+09:00",
+  "log": "12-20261019T093418739451.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\ncd \"$CSI_ZKP_ROOT/sources/PicoScenes-Python-Toolbox\"\n/usr/bin/time -v python3 -m pip install --no-build-isolation .\ncd \"$CSI_ZKP_ROOT\"\npython3 -c 'import picoscenes; from picoscenes import Picoscenes; print(\"picoscenes module:\", picoscenes.__file__); print(\"parser class:\", Picoscenes)'\npython3 -m pip check\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 27.327,
+  "ended_at": "2026-10-19T09:34:46.066141+09:00"
+}

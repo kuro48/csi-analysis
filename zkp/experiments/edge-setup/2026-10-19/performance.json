@@ -1,0 +1,42 @@
+[
+  {
+    "step": "17",
+    "label": "合成15 BPM",
+    "witness_s": 1,
+    "proof_s": 13,
+    "verify_s": 0,
+    "total_wall": "0:14.34",
+    "max_rss_kib": 5498552,
+    "source_record": "17-20261019T093553946542.txt"
+  },
+  {
+    "step": "20",
+    "label": "実CSI① 10/05 11:56",
+    "witness_s": 1,
+    "proof_s": 13,
+    "verify_s": 0,
+    "total_wall": "0:15.58",
+    "max_rss_kib": 5795624,
+    "source_record": "20-20261019T093740683871.txt"
+  },
+  {
+    "step": "21",
+    "label": "実CSI② 10/05 11:55",
+    "witness_s": 1,
+    "proof_s": 13,
+    "verify_s": 0,
+    "total_wall": "0:14.77",
+    "max_rss_kib": 5756984,
+    "source_record": "21-20261019T093756622801.txt"
+  },
+  {
+    "step": "22",
+    "label": "実CSI③ 09/07",
+    "witness_s": 1,
+    "proof_s": 13,
+    "verify_s": 0,
+    "total_wall": "0:15.76",
+    "max_rss_kib": 5650116,
+    "source_record": "22-20261019T093811785942.txt"
+  }
+]

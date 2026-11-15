@@ -1,0 +1,9 @@
+{
+  "revision": 2,
+  "supersedes": "vmd-20261019T123127",
+  "corrections": [
+    "Use complete modal CSI width instead of eight-series edge loader",
+    "Keep compact 2 Hz Lomb-Scargle search strictly below 1 Hz Nyquist frequency"
+  ],
+  "original_results_preserved": true
+}

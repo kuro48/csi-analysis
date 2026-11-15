@@ -1,0 +1,37 @@
+STEP 28 | 撮影用ブラウザの展開停滞からの復旧
+START 2026-10-19T09:46:48.227147+09:00
+ダウンロード済みZIPの整合性を検査し、OSのunzipで別フォルダへ展開して撮影用ブラウザを利用可能にする。
+
++ RENDER_ROOT=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer
++ ARCHIVE=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
++ DEST=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194
++ test -f /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
++ test '!' -e /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194
++ shasum -a 256 /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
+a84cf791a7c7d195c3fdfced9e28c591383522d396a15242602304587b825755  /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
++ unzip -t /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
+Archive:  /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
+    testing: chrome-mac/              OK
+    testing: chrome-mac/libEGL.dylib   OK
+    testing: chrome-mac/headless_command_resources.pak   OK
+    testing: chrome-mac/vk_swiftshader_icd.json   OK
+    testing: chrome-mac/icudtl.dat    OK
+    testing: chrome-mac/resources/    OK
+    testing: chrome-mac/resources/inspector_overlay/   OK
+    testing: chrome-mac/resources/inspector_overlay/main.js   OK
+    testing: chrome-mac/resources/inspector_overlay/inspector_overlay_resources.grd   OK
+    testing: chrome-mac/headless_lib_strings.pak   OK
+    testing: chrome-mac/libvk_swiftshader.dylib   OK
+    testing: chrome-mac/headless_lib_data.pak   OK
+    testing: chrome-mac/v8_context_snapshot.x86_64.bin   OK
+    testing: chrome-mac/headless_shell   OK
+    testing: chrome-mac/libGLESv2.dylib   OK
+No errors detected in compressed data of /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip.
++ mkdir -p /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194
++ unzip -q /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip -d /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194
++ /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194/chrome-mac/headless_shell --version
+Chromium 141.0.7390.37
++ node /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js --version
+Version 1.56.1
+
+END exit_code=0 elapsed_seconds=6.016

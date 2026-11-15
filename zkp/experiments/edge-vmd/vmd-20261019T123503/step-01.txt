@@ -1,0 +1,9 @@
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 infonetworking@100.111.253.60 'bash -c '"'"'set -euo pipefail; umask 077; source /home/infonetworking/csi-zkp/env.sh; test ! -e /home/infonetworking/csi-zkp/packages/vmd-comparison-20261019-v2; test ! -e /home/infonetworking/csi-zkp/results/vmd-20261019T123503; mkdir /home/infonetworking/csi-zkp/results/vmd-20261019T123503; python3 -m pip freeze > /home/infonetworking/csi-zkp/results/vmd-20261019T123503/freeze-before.txt; free -h; ps -C PicoScenes -o pid,etime,%cpu,%mem,comm; sha256sum /home/infonetworking/csi_data/main/csi_20261005_115619.csi /home/infonetworking/csi_data/main/csi_20261005_115523.csi /home/infonetworking/csi_data/main/csi_20260907_185130.csi > /home/infonetworking/csi-zkp/results/vmd-20261019T123503/sources.sha256; cat /home/infonetworking/csi-zkp/results/vmd-20261019T123503/sources.sha256'"'"''
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       1.0Gi       7.5Gi        38Mi       6.9Gi        13Gi
+Swap:          2.0Gi          0B       2.0Gi
+    PID     ELAPSED %CPU %MEM COMMAND
+  63729 14-00:39:39  0.4  0.5 PicoScenes
+fd03205e3724ce81a3d79e7f079a22b283e18df763ab946d8933f15d423d0a12  /home/infonetworking/csi_data/main/csi_20261005_115619.csi
+ce290aaa107a136d0cddfec21f559464b9686dcfcd149e7fb7714204f8677b40  /home/infonetworking/csi_data/main/csi_20261005_115523.csi
+29b3d3092f5276100d64d09bd4786a9f9a2622feeb4bc539c7fcf9c2671b9ffb  /home/infonetworking/csi_data/main/csi_20260907_185130.csi

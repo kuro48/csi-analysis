@@ -1,0 +1,38 @@
+STEP 10 | SciPyのインストール
+START 2026-10-19T09:34:03.944564+09:00
+今後の浮動小数点Lomb–Scargle比較実験用ライブラリを導入する。既存エッジ証明自体の必須依存ではない。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 -m pip install scipy==1.15.3
+Collecting scipy==1.15.3
+  Downloading scipy-1.15.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)
+Requirement already satisfied: numpy<2.5,>=1.23.5 in ./csi-zkp/venv/lib/python3.11/site-packages (from scipy==1.15.3) (1.26.4)
+Downloading scipy-1.15.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (37.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 37.7/37.7 MB 16.6 MB/s  0:00:02
+Installing collected packages: scipy
+Successfully installed scipy-1.15.3
++ python3 -c 'import scipy; from scipy.signal import lombscargle; print("scipy", scipy.__version__); print("Lomb-Scargle import:", callable(lombscargle))'
+scipy 1.15.3
+Lomb-Scargle import: True
+
+END exit_code=0 elapsed_seconds=6.191

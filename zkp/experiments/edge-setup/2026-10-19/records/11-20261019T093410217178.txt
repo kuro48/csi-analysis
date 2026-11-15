@@ -1,0 +1,40 @@
+STEP 11 | PicoScenes Python Toolboxの取得
+START 2026-10-19T09:34:10.217178+09:00
+既存バックエンドと同じコミットを固定し、解析コアのサブモジュールも取得する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ git clone https://github.com/wifisensing/PicoScenes-Python-Toolbox.git /home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
+Cloning into '/home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox'...
++ cd /home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
++ git checkout --detach f676855accedf79e848bf2f1d10ee5c1f649a33a
+HEAD is now at f676855 Merge pull request #10 from nzqo/master
++ git submodule update --init --recursive
+Submodule 'rxs_parsing_core' (https://github.com/wifisensing/RXS-Parsing-Core.git) registered for path 'rxs_parsing_core'
+Cloning into '/home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox/rxs_parsing_core'...
+Submodule path 'rxs_parsing_core': checked out '75b099d9841e539e8c3c50151e1442b5f4bd5382'
++ git rev-parse HEAD
+f676855accedf79e848bf2f1d10ee5c1f649a33a
++ git submodule status --recursive
+ 75b099d9841e539e8c3c50151e1442b5f4bd5382 rxs_parsing_core (heads/master)
+
+END exit_code=0 elapsed_seconds=8.439

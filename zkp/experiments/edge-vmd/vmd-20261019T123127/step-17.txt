@@ -1,0 +1,90 @@
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 infonetworking@100.111.253.60 'bash -c '"'"'set -euo pipefail; umask 077; source /home/infonetworking/csi-zkp/env.sh; /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e/bin/self_test.sh; sha256sum --check /home/infonetworking/csi-zkp/results/vmd-20261019T123127/sources.sha256; python3 -m pip freeze > /home/infonetworking/csi-zkp/results/vmd-20261019T123127/freeze-after.txt; python3 -m pip check; ps -C PicoScenes -o pid,etime,%cpu,%mem,comm; python3 -c '"'"'"'"'"'"'"'"'import hashlib,json,pathlib; p=pathlib.Path('"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'/home/infonetworking/csi-zkp/packages/vmd-comparison-20261019'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'"'); m=json.loads((p/"MANIFEST.json").read_text()); assert all(hashlib.sha256((p/n).read_bytes()).hexdigest()==h for n,h in m.items()); print("manifest OK",len(m))'"'"'"'"'"'"'"'"''"'"''
+[32;22m[INFO]  [39;1msnarkJS[0m: OK!
+proof written: /tmp/csi-lomb-self-test.IoVRwv/result.json
+witness_seconds=0 proof_seconds=13 verify_seconds=1
+[32;22m[INFO]  [39;1msnarkJS[0m: OK!
+self-test passed
+{
+  "csiCommitment": "16321607559812079937626861827168685950663181809365538435249906554904584751810",
+  "isNormal": true,
+  "selectedSubcarrier": 0,
+  "estimatedFrequencyBin": 18,
+  "estimatedFrequencyHz": 0.255511811023622,
+  "estimatedBpm": 15.330708661417322,
+  "globalPeakFrequencyBin": 18,
+  "globalPeakFrequencyHz": 0.255511811023622,
+  "globalPeakBpm": 15.330708661417322,
+  "timestampsMs": [
+    0,
+    963,
+    1915,
+    2849,
+    3768,
+    4683,
+    5607,
+    6548,
+    7505,
+    8470,
+    9430,
+    10374,
+    11302,
+    12218,
+    13135,
+    14065,
+    15013,
+    15975,
+    16939,
+    17894,
+    18831,
+    19753,
+    20668,
+    21589,
+    22526,
+    23480,
+    24445,
+    25407,
+    26355,
+    27286,
+    28203,
+    29119,
+    30046,
+    30990,
+    31949,
+    32914,
+    33872,
+    34813,
+    35738,
+    36653,
+    37572,
+    38505,
+    39456,
+    40419,
+    41383,
+    42335,
+    43269,
+    44189,
+    45104,
+    46027,
+    46967,
+    47924,
+    48889,
+    49849,
+    50795,
+    51722,
+    52639,
+    53556,
+    54485,
+    55432,
+    56394,
+    57358,
+    58314,
+    59252
+  ]
+}
+/home/infonetworking/csi_data/main/csi_20261005_115619.csi: OK
+/home/infonetworking/csi_data/main/csi_20261005_115523.csi: OK
+/home/infonetworking/csi_data/main/csi_20260907_185130.csi: OK
+No broken requirements found.
+    PID     ELAPSED %CPU %MEM COMMAND
+  63729 14-00:38:16  0.4  0.5 PicoScenes
+manifest OK 11

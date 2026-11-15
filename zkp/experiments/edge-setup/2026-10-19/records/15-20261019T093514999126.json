@@ -1,0 +1,28 @@
+{
+  "id": "15",
+  "title": "証明パッケージのエッジ転送",
+  "purpose": "WASM・proving key・verification key・snarkjs依存一式をSSH経由で配置する。",
+  "expect": "アーカイブとチェックサムの転送成功。生CSIは転送しない。",
+  "command": [
+    "scp",
+    "-o",
+    "BatchMode=yes",
+    "research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz",
+    "research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz.sha256",
+    "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/downloads/"
+  ],
+  "started_at": "2026-10-19T09:35:14.999126+09:00",
+  "log": "15-20261019T093514999126.txt",
+  "status": "passed",
+  "executed_argv": [
+    "scp",
+    "-o",
+    "BatchMode=yes",
+    "research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz",
+    "research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz.sha256",
+    "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/downloads/"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 34.808,
+  "ended_at": "2026-10-19T09:35:49.806925+09:00"
+}

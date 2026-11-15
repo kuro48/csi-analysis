@@ -1,0 +1,97 @@
+STEP 25 | 環境固定情報・最終状態の記録
+START 2026-10-19T09:38:30.386819+09:00
+実際に動いたバージョン、ソースのコミット、配置先、ディスク・メモリ状態を保存する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 /home/infonetworking/csi-zkp/scripts/final_inventory.py
+{
+  "host": "infonetworking-CSI",
+  "python": "3.11.14 (main, Feb 12 2026, 00:42:50) [Clang 21.1.4 ]",
+  "executable": "/home/infonetworking/csi-zkp/venv/bin/python3",
+  "node": "v22.23.3",
+  "npm": "10.9.9",
+  "uv": "uv 0.13.1 (x86_64-unknown-linux-gnu)",
+  "packages": {
+    "pip": "26.2.1",
+    "setuptools": "75.8.2",
+    "wheel": "0.45.1",
+    "Cython": "3.0.12",
+    "numpy": "1.26.4",
+    "scipy": "1.15.3",
+    "picoscenes": "0.1.0"
+  },
+  "parser_commit": "f676855accedf79e848bf2f1d10ee5c1f649a33a",
+  "parser_submodules": "75b099d9841e539e8c3c50151e1442b5f4bd5382 rxs_parsing_core (heads/master)",
+  "environment_script": "/home/infonetworking/csi-zkp/env.sh",
+  "package_dir": "/home/infonetworking/csi-zkp/packages/lomb_scargle_e2e"
+}
+Cython==3.0.12
+numpy==1.26.4
+picoscenes @ file:///home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
+pip==26.2.1
+scipy==1.15.3
+setuptools==75.8.2
+wheel==0.45.1
+
++ python3 -m pip check
+No broken requirements found.
++ python3 /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e/bin/verify_manifest.py
+manifest OK: 1622 files
++ du -sh /home/infonetworking/csi-zkp /home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64 /home/infonetworking/csi-zkp/tools/python /home/infonetworking/csi-zkp/tools/python-bin /home/infonetworking/csi-zkp/tools/uv /home/infonetworking/csi-zkp/venv /home/infonetworking/csi-zkp/packages /home/infonetworking/csi-zkp/results
+1.4G	/home/infonetworking/csi-zkp
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p2  468G   23G  422G   6% /
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       998Mi       7.9Gi        38Mi       6.5Gi        14Gi
+Swap:          2.0Gi          0B       2.0Gi
++ df -h /
++ free -h
++ ps -C PicoScenes -o pid,etime,%cpu,%mem,comm
+    PID     ELAPSED %CPU %MEM COMMAND
+  63729 13-21:43:07  0.4  0.5 PicoScenes
++ sha256sum /home/infonetworking/csi_data/main/csi_20260907_185130.csi /home/infonetworking/csi_data/main/csi_20261005_115523.csi /home/infonetworking/csi_data/main/csi_20261005_115619.csi /home/infonetworking/rx_2_260616_113124.csi
+29b3d3092f5276100d64d09bd4786a9f9a2622feeb4bc539c7fcf9c2671b9ffb  /home/infonetworking/csi_data/main/csi_20260907_185130.csi
+ce290aaa107a136d0cddfec21f559464b9686dcfcd149e7fb7714204f8677b40  /home/infonetworking/csi_data/main/csi_20261005_115523.csi
+fd03205e3724ce81a3d79e7f079a22b283e18df763ab946d8933f15d423d0a12  /home/infonetworking/csi_data/main/csi_20261005_115619.csi
+8f31e2dcdd5dc79f4cdda1a95455fe183d698a333be515a518816cace41b74e9  /home/infonetworking/rx_2_260616_113124.csi
+/home/infonetworking/csi-zkp
+/home/infonetworking/csi-zkp/downloads
+/home/infonetworking/csi-zkp/packages
+/home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
+/home/infonetworking/csi-zkp/venv
+/home/infonetworking/csi-zkp/venv/lib
+/home/infonetworking/csi-zkp/venv/bin
+/home/infonetworking/csi-zkp/reports
+/home/infonetworking/csi-zkp/sources
+/home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
+/home/infonetworking/csi-zkp/tools
+/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64
+/home/infonetworking/csi-zkp/tools/python
+/home/infonetworking/csi-zkp/tools/uv
+/home/infonetworking/csi-zkp/tools/python-bin
+/home/infonetworking/csi-zkp/scripts
+/home/infonetworking/csi-zkp/cache
+/home/infonetworking/csi-zkp/results
++ find /home/infonetworking/csi-zkp -maxdepth 2 -type d -not -path '*/cache/*' -not -path '*/.git/*'
+
+END exit_code=0 elapsed_seconds=1.910

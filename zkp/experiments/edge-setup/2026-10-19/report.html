@@ -1,0 +1,2112 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PicoScenes Edge / 環境構築記録 2026-10-19</title><style>
+:root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP","Hiragino Sans",sans-serif;color:#14293b;background:#eef2f6}
+*{box-sizing:border-box}body{margin:0}header{padding:42px 5vw 28px;background:#102a43;color:white}header p{max-width:1000px;line-height:1.8}h1{font-size:30px;margin:8px 0}h2{font-size:25px;margin:10px 0 16px}h3{font-size:15px}p,li{line-height:1.75}a{color:#176d91}.eyebrow{letter-spacing:.13em;color:#387283;font-size:13px;font-weight:700}header .eyebrow{color:#96d6d7}.toolbar{position:sticky;top:0;background:#fff;z-index:5;border-bottom:1px solid #ced8e1;padding:12px 3vw;display:flex;align-items:center;gap:10px;flex-wrap:wrap}button,select{font:inherit;padding:8px 14px;border:1px solid #b9cad6;border-radius:6px;background:#fff;color:#173e57;cursor:pointer}main{max-width:1450px;margin:auto;padding:24px}.overview,.step{background:white;border:1px solid #dbe3e8;border-radius:12px;padding:30px;margin-bottom:24px;box-shadow:0 5px 20px #14293b05}.step{scroll-margin-top:85px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:22px}.columns>div{min-width:0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f5f8;padding:16px;border-radius:6px;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;tab-size:2;margin:10px 0}.badge{font-size:13px;font-weight:700;display:inline-block;border-radius:20px;background:#e9edf1;padding:5px 12px}.passed{background:#dff3e9;color:#175d43}.failed{background:#fff0d9;color:#825010}.timing{font-size:12px;color:#627d91}.goal p,.result p{margin:4px 0}.result{background:#eaf5f5;border-left:4px solid #2e8b83;padding:14px 18px;margin-top:16px}.takeaway{font-size:14px}details{border-top:1px solid #dde6ed;margin-top:18px;padding-top:12px;color:#4b6071}summary{cursor:pointer}details pre{font-size:12px}nav{display:flex;gap:6px 20px;flex-wrap:wrap}nav a{font-size:13px;text-decoration:none;padding:3px 0}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #dde6ed;padding:9px 12px;text-align:left}footer{padding:25px;color:#627d91;font-size:12px}.capture header,.capture .overview,.capture footer{display:none}.capture main{max-width:1450px;padding:20px}.capture .step{display:none}.capture .step.active{display:block}.capture .toolbar{position:static}.capture details{display:none}.capture .step h2{font-size:27px}.capture .columns pre{font-size:14px}.capture .step{box-shadow:none}.help{font-size:13px;color:#4b6071}.notice{padding:12px 16px;background:#fff7e5;border-left:4px solid #d2a44e}
+@media(max-width:850px){.columns{grid-template-columns:1fr}main{padding:12px}.step,.overview{padding:20px}}
+@media print{body{background:#fff}.toolbar,nav,details{display:none!important}.step{break-before:page;box-shadow:none;border:0}.capture .step.active{display:block}header{background:white;color:#102a43}.overview{box-shadow:none}}
+</style></head><body>
+<header><div class="eyebrow">RESEARCH EXECUTION RECORD · 2026 / 10 / 19</div><h1>PicoScenesエッジPC 証明生成環境の構築記録</h1><p>対象：infonetworking@100.111.253.60 · Ubuntu 22.04.5 · Core i5-12450H / 8コア12スレッド / 約16GB RAM<br>インストールを独立ステップとして記録。各カードに目的・実行コマンド・実出力・結果・発表ポイントを掲載。</p></header>
+<div class="toolbar"><button id="mode">スクショモードに切り替え</button><button id="prev">← 前</button><select id="selector"></select><button id="next">次 →</button><button onclick="window.print()">印刷 / PDF保存</button><span class="help">スクショモードで1ステップ表示。ブラウザの拡大率を調整して撮影。</span></div>
+<main><section class="overview"><h2>到達点と資料の読み方</h2><ul><li>PicoScenes搭載PC（100.111.253.60）に、管理者権限を使わず証明生成環境を構築した。配置先は /home/infonetworking/csi-zkp。</li><li>合成15 BPM入力の自己診断と、保存済み実CSI 3件のGroth16証明生成・検証に成功した。3件とも証明生成13秒（1秒刻みの計測）。</li><li>実CSIの読み込みを含む全体時間は15.58秒・14.77秒・15.76秒。GNU timeによる最大RSSは約5.53・5.49・5.39 GiB。</li><li>保存した証明の再検証は3件とも成功。公開判定を反転すると Invalid proof で拒否された。これは改変拒否の動作確認であり、回路全体の健全性監査ではない。</li><li>元CSI 4件のSHA-256は作業前後で一致。既存PicoScenesプロセス（PID 63729）とシステムPython 3.10.12を維持した。</li><li>実CSI 3件では先頭フレームに245サブキャリア・送信2・受信2、採用フレームのCSI幅980を確認。今回の回路はそこから8系列を選択する既存方式。</li><li>旧manifestの不一致はREADMEのみ。回路・証明鍵・実行コードに差分がないことを確認し、別の配布コピーでmanifestを更新した。失敗ログも残した。</li></ul><p>操作場所はカードに明示。所要時間はSSH・ダウンロード等を含むステップ全体の時間で、証明時間とは別。失敗した試行も削除せず保持しています。</p><p class="notice">今回の対象は既存の64観測×8サブキャリア回路を動かす環境の構築です。「全サブキャリア比較」「判定値だけの公開」「オンチェーン検証」の完成を意味しません。</p><h3>導入・確認したツール</h3><table><thead><tr><th>ツール</th><th>バージョン</th><th>用途</th></tr></thead><tbody><tr><td>Node.js / npm</td><td>22.23.3 / 10.9.9</td><td>witness・Groth16生成用。公式バイナリのSHA-256を照合</td></tr><tr><td>uv</td><td>0.13.1</td><td>ユーザー領域へのPython導入。配布アーカイブのSHA-256を照合</td></tr><tr><td>専用Python</td><td>3.11.14</td><td>開発用ヘッダー付き。仮想環境を /csi-zkp/venv に作成</td></tr><tr><td>pip</td><td>26.2.1</td><td>専用仮想環境のパッケージ管理</td></tr><tr><td>setuptools / wheel / Cython</td><td>75.8.2 / 0.45.1 / 3.0.12</td><td>PicoScenes解析器のC/C++拡張ビルド</td></tr><tr><td>NumPy</td><td>1.26.4</td><td>複素数CSI配列、量子化、解析器ビルド</td></tr><tr><td>SciPy</td><td>1.15.3</td><td>今後の浮動小数点Lomb–Scargle比較用</td></tr><tr><td>PicoScenes Python Toolbox</td><td>0.1.0 / f676855accedf79e848bf2f1d10ee5c1f649a33a</td><td>.csi解析。RXS-Parsing-Coreも固定コミット</td></tr><tr><td>snarkjs</td><td>0.7.6（パッケージ同梱）</td><td>Groth16証明生成・検証。npmの全体更新は実施せず</td></tr><tr><td>GCC / G++ / GNU time</td><td>11.4.0 / 11.4.0 / 既存OS提供</td><td>既存ツールの再利用。C++拡張ビルド・時間/RSS計測</td></tr><tr><td>Circomコンパイラ / ptau</td><td>端末には未導入</td><td>今回の証明生成は配布済みWASM・zkeyを使用。回路変更・鍵再生成は別作業</td></tr></tbody></table><h3>端末上の実測結果</h3><table><thead><tr><th>入力</th><th>witness 秒</th><th>proof 秒</th><th>verify 秒</th><th>全体 分:秒</th><th>最大RSS</th></tr></thead><tbody><tr><td>合成15 BPM</td><td>1</td><td>13</td><td>0</td><td>0:14.34</td><td>5.24 GiB</td></tr><tr><td>実CSI① 10/05 11:56</td><td>1</td><td>13</td><td>0</td><td>0:15.58</td><td>5.53 GiB</td></tr><tr><td>実CSI② 10/05 11:55</td><td>1</td><td>13</td><td>0</td><td>0:14.77</td><td>5.49 GiB</td></tr><tr><td>実CSI③ 09/07</td><td>1</td><td>13</td><td>0</td><td>0:15.76</td><td>5.39 GiB</td></tr></tbody></table><p>各入力1回。工程別時間は整数秒、全体時間と最大RSSはGNU time。全体は読み込み等も含む（合成入力は再検証も含む）。0秒は計測分解能による。</p><h3>ステップ一覧</h3><nav><a href="#step-01" data-target="01">01 接続・実機スペック・導入前環境の記録</a><a href="#step-02" data-target="02">02 専用作業フォルダの作成</a><a href="#step-03" data-target="03">03 環境切り替えスクリプトの配置</a><a href="#step-04" data-target="04">04 Node.js・npmのインストール</a><a href="#step-05" data-target="05">05 uvのインストール</a><a href="#step-06" data-target="06">06 Python 3.11・仮想環境の構築</a><a href="#step-07" data-target="07">07 pipのインストール</a><a href="#step-08" data-target="08">08 setuptools・wheel・Cythonのインストール</a><a href="#step-09" data-target="09">09 NumPyのインストール</a><a href="#step-10" data-target="10">10 SciPyのインストール</a><a href="#step-11" data-target="11">11 PicoScenes Python Toolboxの取得</a><a href="#step-12" data-target="12">12 PicoScenes Python Toolboxのビルド・インストール</a><a href="#step-13" data-target="13">13 既存配布物のチェックサム監査</a><a href="#step-14" data-target="14">14 配布用コピーのmanifest更新・アーカイブ作成</a><a href="#step-15" data-target="15">15 証明パッケージのエッジ転送</a><a href="#step-16" data-target="16">16 証明パッケージ・snarkjsの配置と整合性検査</a><a href="#step-17" data-target="17">17 合成15 BPM信号による自己診断</a><a href="#step-18" data-target="18">18 CSI調査スクリプトの配置</a><a href="#step-19" data-target="19">19 保存済み実CSIの読み込み・形状確認</a><a href="#step-20" data-target="20">20 実CSI①：2026-10-05 11:56収録の証明生成</a><a href="#step-21" data-target="21">21 実CSI②：2026-10-05 11:55収録の証明生成</a><a href="#step-22" data-target="22">22 実CSI③：2026-09-07収録の証明生成</a><a href="#step-23" data-target="23">23 検証・環境記録スクリプトの配置</a><a href="#step-24" data-target="24">24 再検証・判定改変の拒否・元データ保全の確認</a><a href="#step-25" data-target="25">25 環境固定情報・最終状態の記録</a><a href="#step-26" data-target="26">26 報告用メタデータの回収</a><a href="#step-27" data-target="27">27 資料撮影用Playwright・Chromiumのインストール</a><a href="#step-28" data-target="28">28 撮影用ブラウザの展開停滞からの復旧</a></nav><h3>操作手順</h3><pre>ssh infonetworking@100.111.253.60
+source /home/infonetworking/csi-zkp/env.sh
+cd /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
+./bin/self_test.sh
+
+# 結果ファイル名は毎回変えて保存
+./bin/prove.sh /home/infonetworking/csi_data/main/csi_20261005_115619.csi /home/infonetworking/csi-zkp/results/my_run_01.json
+./bin/verify.sh /home/infonetworking/csi-zkp/results/my_run_01.json</pre><h3>制約・今後の課題</h3><ul><li>本回路の入力は64観測×8系列、32周波数bin。元の全サブキャリアを回路内で比較する実装ではない。</li><li>現行証明の公開信号は69個。判定値以外にコミットメント・選択番号・周波数bin・相対タイムスタンプを含む。『判定1ビットのみ公開』は未実装。</li><li>回路はエッジ向けの直接Lomb–Scargle方式。既存PythonのSNR選択・Butterworth・PCA経由の推定器と同一ではない。</li><li>実CSIの正解BPMは今回用意していないため、推定精度・異常検出精度を評価したものではない。証明が有効であることと推定の正確さは別。</li><li>1.51秒の旧CSIは読み込み・形状確認のみ。変換に成功しても呼吸推定に十分な観測時間であるとはいえない。</li><li>今回の証明・再検証は端末内で実施。オンチェーン検証・医療機関クライアントへの共有・測定デバイスの真正性保証は未実装。</li><li>proof_seconds等は既存スクリプトのdate +%s差分で1秒単位。verify_seconds=0は瞬時を意味しない。GNU timeの最大RSSはOS全体のピーク使用量ではない。</li><li>3実験は異なる入力各1回。中央値・ばらつき・同時収集への影響・最大入力規模の評価は今後の実験とする。</li><li>この記録は既存環境を再構築するための手順・バージョンを保持する。新規作成や上書き防止のガードがあるため、全ステップの無条件再実行用ではない。</li></ul><h3>参照した一次資料</h3><ul><li><a href="https://nodejs.org/en/download/archive/v22">Node.js v22 公式配布</a></li><li><a href="https://docs.astral.sh/uv/getting-started/installation/">uv 公式インストール方法</a></li><li><a href="https://docs.astral.sh/uv/concepts/python-versions/">uv管理Pythonの説明</a></li><li><a href="https://github.com/wifisensing/PicoScenes-Python-Toolbox/tree/f676855accedf79e848bf2f1d10ee5c1f649a33a">PicoScenes Python Toolbox（固定コミット）</a></li><li><a href="https://playwright.dev/docs/browsers">Playwright ブラウザ導入（資料撮影用）</a></li></ul></section><section class="step" id="step-01" data-step="01">
+          <div class="eyebrow">STEP 01 · エッジPC</div>
+          <h2>接続・実機スペック・導入前環境の記録</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:33:30.964120+09:00 / 0.486 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>CPU・メモリ・既存PicoScenes・欠けているツールを確認し、元CSIのSHA-256を保存する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>ssh infonetworking@100.111.253.60
+lscpu
+free -h
+df -h /
+python3 -m pip --version
+sha256sum /home/infonetworking/csi_data/main/*.csi</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>CPU(s):                             12
+Model name:                         12th Gen Intel(R) Core(TM) i5-12450H
+Core(s) per socket:                 8
+NUMA node0 CPU(s):                  0-11
+Mem:            15Gi       994Mi       9.5Gi        38Mi       4.9Gi        14Gi
+Swap:          2.0Gi          0B       2.0Gi
+/dev/nvme0n1p2  468G   22G  423G   5% /
+/usr/bin/python3: No module named pip
+python_headers_missing
+sudo: a password is required</pre></div></div>
+          <div class="result"><b>確認結果</b><p>i5-12450H・8コア12スレッド・約16GB。Node/npm/pipとPython開発ヘッダーが不足。sudoは非対話では利用できなかった。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>導入前の状態を先に記録し、システム変更ではなくユーザー領域の独立環境で不足を解消した。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+date -Is
+id -un
+hostname
+uname -srm
+cat /etc/os-release
+lscpu | grep -E &#x27;Architecture:|CPU\(s\):|Model name:|Core\(s\)|Thread\(s\)|Socket\(s\)|CPU max&#x27;
+free -h
+df -h /
+python3 --version
+command -v PicoScenes gcc g++ make git curl
+dpkg-query -W &#x27;picoscenes*&#x27;
+for tool in node npm circom snarkjs; do command -v &quot;$tool&quot; || true; done
+python3 -m pip --version || true
+test -f /usr/include/python3.10/Python.h &amp;&amp; echo python_headers_present || echo python_headers_missing
+sudo -n -l || true
+ps -C PicoScenes -o pid,etime,%cpu,%mem,comm
+find /home/infonetworking/csi_data -type f -name &#x27;*.csi&#x27; -printf &#x27;%s %p\n&#x27;
+sha256sum /home/infonetworking/csi_data/main/*.csi /home/infonetworking/rx_2_260616_113124.csi
+</pre><pre>STEP 01 | 接続・実機スペック・導入前環境の記録
+START 2026-10-19T09:33:30.964120+09:00
+CPU・メモリ・既存PicoScenes・欠けているツールを確認し、元CSIのSHA-256を保存する。
+
++ date -Is
+2026-10-19T09:33:31+09:00
+infonetworking
++ id -un
++ hostname
+infonetworking-CSI
+Linux 6.5.0-15-generic x86_64
++ uname -srm
++ cat /etc/os-release
+PRETTY_NAME=&quot;Ubuntu 22.04.5 LTS&quot;
+NAME=&quot;Ubuntu&quot;
+VERSION_ID=&quot;22.04&quot;
+VERSION=&quot;22.04.5 LTS (Jammy Jellyfish)&quot;
+VERSION_CODENAME=jammy
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL=&quot;https://www.ubuntu.com/&quot;
+SUPPORT_URL=&quot;https://help.ubuntu.com/&quot;
+BUG_REPORT_URL=&quot;https://bugs.launchpad.net/ubuntu/&quot;
+PRIVACY_POLICY_URL=&quot;https://www.ubuntu.com/legal/terms-and-policies/privacy-policy&quot;
+UBUNTU_CODENAME=jammy
+Architecture:                       x86_64
+CPU(s):                             12
+Model name:                         12th Gen Intel(R) Core(TM) i5-12450H
+Thread(s) per core:                 2
+Core(s) per socket:                 8
+Socket(s):                          1
+CPU max MHz:                        4400.0000
+NUMA node0 CPU(s):                  0-11
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       994Mi       9.5Gi        38Mi       4.9Gi        14Gi
+Swap:          2.0Gi          0B       2.0Gi
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p2  468G   22G  423G   5% /
+Python 3.10.12
+/usr/bin/PicoScenes
+/usr/bin/gcc
+/usr/bin/g++
+/usr/bin/make
+/usr/bin/git
+/usr/bin/curl
++ lscpu
++ grep -E &#x27;Architecture:|CPU\(s\):|Model name:|Core\(s\)|Thread\(s\)|Socket\(s\)|CPU max&#x27;
++ free -h
++ df -h /
++ python3 --version
++ command -v PicoScenes gcc g++ make git curl
++ dpkg-query -W &#x27;picoscenes*&#x27;
+picoscenes-all	20200715
+picoscenes-driver-modules-6.5.0-15-generic	20240210
+picoscenes-platform	2025.1217.1547
+picoscenes-plugins-demo-echoprobe-forwarder	2025.1217.1604
+picoscenes-source-updater	1.3
++ for tool in node npm circom snarkjs
++ command -v node
++ true
++ for tool in node npm circom snarkjs
++ command -v npm
++ true
++ for tool in node npm circom snarkjs
++ command -v circom
++ true
++ for tool in node npm circom snarkjs
++ command -v snarkjs
++ true
++ python3 -m pip --version
+/usr/bin/python3: No module named pip
+python_headers_missing
++ true
++ test -f /usr/include/python3.10/Python.h
++ echo python_headers_missing
++ sudo -n -l
+sudo: a password is required
++ true
++ ps -C PicoScenes -o pid,etime,%cpu,%mem,comm
+    PID     ELAPSED %CPU %MEM COMMAND
+  63729 13-21:38:06  0.4  0.5 PicoScenes
++ find /home/infonetworking/csi_data -type f -name &#x27;*.csi&#x27; -printf &#x27;%s %p\n&#x27;
+7867009 /home/infonetworking/csi_data/main/csi_20261005_115523.csi
+24396188 /home/infonetworking/csi_data/main/csi_20261005_115619.csi
+23700389 /home/infonetworking/csi_data/main/csi_20260907_185130.csi
++ sha256sum /home/infonetworking/csi_data/main/csi_20260907_185130.csi /home/infonetworking/csi_data/main/csi_20261005_115523.csi /home/infonetworking/csi_data/main/csi_20261005_115619.csi /home/infonetworking/rx_2_260616_113124.csi
+29b3d3092f5276100d64d09bd4786a9f9a2622feeb4bc539c7fcf9c2671b9ffb  /home/infonetworking/csi_data/main/csi_20260907_185130.csi
+ce290aaa107a136d0cddfec21f559464b9686dcfcd149e7fb7714204f8677b40  /home/infonetworking/csi_data/main/csi_20261005_115523.csi
+fd03205e3724ce81a3d79e7f079a22b283e18df763ab946d8933f15d423d0a12  /home/infonetworking/csi_data/main/csi_20261005_115619.csi
+8f31e2dcdd5dc79f4cdda1a95455fe183d698a333be515a518816cace41b74e9  /home/infonetworking/rx_2_260616_113124.csi
+
+END exit_code=0 elapsed_seconds=0.485
+</pre><ul><li><a href="records/01-20261019T093330964120.txt">試行 1: passed / 2026-10-19T09:33:30.964120+09:00</a></li></ul></details>
+          </section><section class="step" id="step-02" data-step="02">
+          <div class="eyebrow">STEP 02 · エッジPC</div>
+          <h2>専用作業フォルダの作成</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:33:31.533959+09:00 / 0.378 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>ユーザー権限で研究環境を独立配置する。既存ディレクトリがあれば停止する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>test ! -e /home/infonetworking/csi-zkp
+umask 077
+mkdir -p /home/infonetworking/csi-zkp/{tools,downloads,cache,sources,packages,results,reports,scripts}</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>drwx------ 10 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/cache
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/downloads
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/packages
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/reports
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/results
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/scripts
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/sources
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/tools</pre></div></div>
+          <div class="result"><b>確認結果</b><p>専用フォルダを所有者のみアクセス可能な権限で新規作成。既存csi_data・Desktop・PicoScenes本体とは分離した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>実行ツール、入力データ、結果、報告資料の配置を分けることで実験の再現と追跡がしやすくなる。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+test ! -e /home/infonetworking/csi-zkp
+umask 077
+mkdir -p /home/infonetworking/csi-zkp/{tools,downloads,cache,sources,packages,results,reports,scripts}
+ls -ld /home/infonetworking/csi-zkp /home/infonetworking/csi-zkp/*
+</pre><pre>STEP 02 | 専用作業フォルダの作成
+START 2026-10-19T09:33:31.533959+09:00
+ユーザー権限で研究環境を独立配置する。既存ディレクトリがあれば停止する。
+
++ test &#x27;!&#x27; -e /home/infonetworking/csi-zkp
++ umask 077
++ mkdir -p /home/infonetworking/csi-zkp/tools /home/infonetworking/csi-zkp/downloads /home/infonetworking/csi-zkp/cache /home/infonetworking/csi-zkp/sources /home/infonetworking/csi-zkp/packages /home/infonetworking/csi-zkp/results /home/infonetworking/csi-zkp/reports /home/infonetworking/csi-zkp/scripts
++ ls -ld /home/infonetworking/csi-zkp /home/infonetworking/csi-zkp/cache /home/infonetworking/csi-zkp/downloads /home/infonetworking/csi-zkp/packages /home/infonetworking/csi-zkp/reports /home/infonetworking/csi-zkp/results /home/infonetworking/csi-zkp/scripts /home/infonetworking/csi-zkp/sources /home/infonetworking/csi-zkp/tools
+drwx------ 10 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/cache
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/downloads
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/packages
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/reports
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/results
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/scripts
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/sources
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/tools
+
+END exit_code=0 elapsed_seconds=0.378
+</pre><ul><li><a href="records/02-20261019T093331533959.txt">試行 1: passed / 2026-10-19T09:33:31.533959+09:00</a></li></ul></details>
+          </section><section class="step" id="step-03" data-step="03">
+          <div class="eyebrow">STEP 03 · 操作元Mac → エッジPC</div>
+          <h2>環境切り替えスクリプトの配置</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:33:31.998414+09:00 / 0.379 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>source env.sh だけで専用Node/Pythonを使用できるようにする。元CSIを削除する設定は無効にする。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>scp research/edge-setup/env.sh \
+  infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/env.sh
+# 以降、エッジで実行
+source /home/infonetworking/csi-zkp/env.sh</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>END exit_code=0 elapsed_seconds=0.379</pre></div></div>
+          <div class="result"><b>確認結果</b><p>env.shを配置。専用Python/NodeへのPATH、uvの配置先、Nodeヒープ設定、元CSIを削除しない設定をまとめた。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>既存の.bashrcやシステムPythonを変更せず、sourceで研究環境へ切り替えられる。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>scp -o BatchMode=yes research/edge-setup/env.sh infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/env.sh</pre><pre>STEP 03 | 環境切り替えスクリプトの配置
+START 2026-10-19T09:33:31.998414+09:00
+source env.sh だけで専用Node/Pythonを使用できるようにする。元CSIを削除する設定は無効にする。
+
+
+END exit_code=0 elapsed_seconds=0.379
+</pre><ul><li><a href="records/03-20261019T093331998414.txt">試行 1: passed / 2026-10-19T09:33:31.998414+09:00</a></li></ul></details>
+          </section><section class="step" id="step-04" data-step="04">
+          <div class="eyebrow">STEP 04 · エッジPC</div>
+          <h2>Node.js・npmのインストール</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:33:32.460807+09:00 / 4.272 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>証明生成用JavaScriptランタイムを公式バイナリから配置し、公式SHA-256と照合する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>source /home/infonetworking/csi-zkp/env.sh
+# 公式配布から取得したファイルを照合
+grep &#x27; node-v22.23.3-linux-x64.tar.xz$&#x27; node-v22.23.3-SHASUMS256.txt | sha256sum --check -
+tar -xJf node-v22.23.3-linux-x64.tar.xz -C &quot;$CSI_ZKP_ROOT/tools&quot;
+node --version
+npm --version</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>node-v22.23.3-linux-x64.tar.xz: OK
+v22.23.3
+10.9.9
+/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin/node
+/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin/npm</pre></div></div>
+          <div class="result"><b>確認結果</b><p>Node.js v22.23.3・npm 10.9.9をインストール。公式配布のSHA-256と一致した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>端末内でJavaScriptのwitness計算とsnarkjsを実行できる基盤を用意した。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/downloads&quot;
+curl --fail --show-error --location --retry 3 --max-time 180 -O https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz
+curl --fail --show-error --location --retry 3 --max-time 60 -o node-v22.23.3-SHASUMS256.txt https://nodejs.org/dist/v22.23.3/SHASUMS256.txt
+grep &#x27; node-v22.23.3-linux-x64.tar.xz$&#x27; node-v22.23.3-SHASUMS256.txt | sha256sum --check -
+tar -xJf node-v22.23.3-linux-x64.tar.xz -C &quot;$CSI_ZKP_ROOT/tools&quot;
+node --version
+npm --version
+command -v node npm
+</pre><pre>STEP 04 | Node.js・npmのインストール
+START 2026-10-19T09:33:32.460807+09:00
+証明生成用JavaScriptランタイムを公式バイナリから配置し、公式SHA-256と照合する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/downloads
++ curl --fail --show-error --location --retry 3 --max-time 180 -O https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ 13 29.5M   13 4095k    0     0  10.9M      0  0:00:02 --:--:--  0:00:02 10.9M
+ 61 29.5M   61 18.3M    0     0  13.2M      0  0:00:02  0:00:01  0:00:01 13.2M
+100 29.5M  100 29.5M    0     0  13.5M      0  0:00:02  0:00:02 --:--:-- 13.5M
++ curl --fail --show-error --location --retry 3 --max-time 60 -o node-v22.23.3-SHASUMS256.txt https://nodejs.org/dist/v22.23.3/SHASUMS256.txt
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100  3981  100  3981    0     0  54008      0 --:--:-- --:--:-- --:--:-- 54534
++ grep &#x27; node-v22.23.3-linux-x64.tar.xz$&#x27; node-v22.23.3-SHASUMS256.txt
++ sha256sum --check -
+node-v22.23.3-linux-x64.tar.xz: OK
++ tar -xJf node-v22.23.3-linux-x64.tar.xz -C /home/infonetworking/csi-zkp/tools
++ node --version
+v22.23.3
++ npm --version
+10.9.9
+/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin/node
+/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin/npm
++ command -v node npm
+
+END exit_code=0 elapsed_seconds=4.272
+</pre><ul><li><a href="records/04-20261019T093332460807.txt">試行 1: passed / 2026-10-19T09:33:32.460807+09:00</a></li></ul></details>
+          </section><section class="step" id="step-05" data-step="05">
+          <div class="eyebrow">STEP 05 · エッジPC</div>
+          <h2>uvのインストール</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:33:50.086388+09:00 / 2.746 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>管理者権限なしで開発用ヘッダーを含むPythonを導入するため、uv 0.13.1を配置する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre># uv 0.13.1の公式配布を取得
+sha256sum --check uv-x86_64-unknown-linux-gnu.tar.gz.sha256
+tar -xzf uv-x86_64-unknown-linux-gnu.tar.gz --strip-components=1 -C &quot;$CSI_ZKP_ROOT/tools/uv&quot;
+uv --version</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>uv-x86_64-unknown-linux-gnu.tar.gz: OK
+uv 0.13.1 (x86_64-unknown-linux-gnu)</pre></div></div>
+          <div class="result"><b>確認結果</b><p>uv 0.13.1をユーザー領域に導入し、配布チェックサムを確認した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>管理者権限なしで開発用Pythonを取得するためのツールも、独立した導入ステップとして記録した。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/downloads&quot;
+curl --fail --show-error --location --retry 3 --max-time 180 -O https://github.com/astral-sh/uv/releases/download/0.13.1/uv-x86_64-unknown-linux-gnu.tar.gz
+curl --fail --show-error --location --retry 3 --max-time 60 -O https://github.com/astral-sh/uv/releases/download/0.13.1/uv-x86_64-unknown-linux-gnu.tar.gz.sha256
+sha256sum --check uv-x86_64-unknown-linux-gnu.tar.gz.sha256
+mkdir -p &quot;$CSI_ZKP_ROOT/tools/uv&quot;
+tar -xzf uv-x86_64-unknown-linux-gnu.tar.gz --strip-components=1 -C &quot;$CSI_ZKP_ROOT/tools/uv&quot;
+uv --version
+</pre><pre>STEP 05 | uvのインストール
+START 2026-10-19T09:33:50.086388+09:00
+管理者権限なしで開発用ヘッダーを含むPythonを導入するため、uv 0.13.1を配置する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/downloads
++ curl --fail --show-error --location --retry 3 --max-time 180 -O https://github.com/astral-sh/uv/releases/download/0.13.1/uv-x86_64-unknown-linux-gnu.tar.gz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+
+ 22 15.9M   22 3633k    0     0  4893k      0  0:00:03 --:--:--  0:00:03 4893k
+100 15.9M  100 15.9M    0     0  10.0M      0  0:00:01  0:00:01 --:--:-- 14.7M
++ curl --fail --show-error --location --retry 3 --max-time 60 -O https://github.com/astral-sh/uv/releases/download/0.13.1/uv-x86_64-unknown-linux-gnu.tar.gz.sha256
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+
+100   101  100   101    0     0    174      0 --:--:-- --:--:-- --:--:--   174
++ sha256sum --check uv-x86_64-unknown-linux-gnu.tar.gz.sha256
+uv-x86_64-unknown-linux-gnu.tar.gz: OK
++ mkdir -p /home/infonetworking/csi-zkp/tools/uv
++ tar -xzf uv-x86_64-unknown-linux-gnu.tar.gz --strip-components=1 -C /home/infonetworking/csi-zkp/tools/uv
+uv 0.13.1 (x86_64-unknown-linux-gnu)
++ uv --version
+
+END exit_code=0 elapsed_seconds=2.746
+</pre><ul><li><a href="records/05-20261019T093350086388.txt">試行 1: passed / 2026-10-19T09:33:50.086388+09:00</a></li></ul></details>
+          </section><section class="step" id="step-06" data-step="06">
+          <div class="eyebrow">STEP 06 · エッジPC</div>
+          <h2>Python 3.11・仮想環境の構築</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:33:52.915394+09:00 / 3.061 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>バックエンドと同じPython 3.11系を専用配置し、PicoScenes解析器のビルドに必要なPython.hを確保する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>source /home/infonetworking/csi-zkp/env.sh
+uv python install 3.11.14
+uv venv --python 3.11.14 --managed-python &quot;$CSI_ZKP_ROOT/venv&quot;
+python3 --version
+/usr/bin/python3 --version</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>Installed Python 3.11.14 in 2.60s
+Creating virtual environment at: csi-zkp/venv
+Python 3.11.14
+executable: /home/infonetworking/csi-zkp/venv/bin/python3
+headers: /home/infonetworking/csi-zkp/tools/python/cpython-3.11.14-linux-x86_64-gnu/include/python3.11/Python.h exists: True
+Python 3.10.12</pre></div></div>
+          <div class="result"><b>確認結果</b><p>専用Python 3.11.14と仮想環境を作成し、Python.hの存在も確認。OS標準Pythonは3.10.12のまま。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>既存CSI収集環境を保ったまま、解析器のネイティブ拡張をビルドできる。uvのPATH警告はvenv/bin経由で実行するため支障なし。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+uv python install 3.11.14
+uv python find --managed-python 3.11.14
+uv venv --python 3.11.14 --managed-python &quot;$CSI_ZKP_ROOT/venv&quot;
+python3 --version
+python3 -c &#x27;import sys, sysconfig; from pathlib import Path; print(&quot;executable:&quot;, sys.executable); p=Path(sysconfig.get_path(&quot;include&quot;))/&quot;Python.h&quot;; print(&quot;headers:&quot;, p, &quot;exists:&quot;, p.is_file()); assert p.is_file()&#x27;
+/usr/bin/python3 --version
+</pre><pre>STEP 06 | Python 3.11・仮想環境の構築
+START 2026-10-19T09:33:52.915394+09:00
+バックエンドと同じPython 3.11系を専用配置し、PicoScenes解析器のビルドに必要なPython.hを確保する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ uv python install 3.11.14
+Downloading cpython-3.11.14-linux-x86_64-gnu (download) (29.8MiB)
+ Downloaded cpython-3.11.14-linux-x86_64-gnu (download)
+Installed Python 3.11.14 in 2.60s
+ + cpython-3.11.14-linux-x86_64-gnu (python3.11)
+warning: `/home/infonetworking/csi-zkp/tools/python-bin` is not on your PATH. To use installed Python executables, run `export PATH=&quot;/home/infonetworking/csi-zkp/tools/python-bin:$PATH&quot;` or `uv python update-shell`.
++ uv python find --managed-python 3.11.14
+/home/infonetworking/csi-zkp/tools/python/cpython-3.11.14-linux-x86_64-gnu/bin/python3.11
++ uv venv --python 3.11.14 --managed-python /home/infonetworking/csi-zkp/venv
+Using CPython 3.11.14
+Creating virtual environment at: csi-zkp/venv
+Activate with: source csi-zkp/venv/bin/activate
++ python3 --version
+Python 3.11.14
++ python3 -c &#x27;import sys, sysconfig; from pathlib import Path; print(&quot;executable:&quot;, sys.executable); p=Path(sysconfig.get_path(&quot;include&quot;))/&quot;Python.h&quot;; print(&quot;headers:&quot;, p, &quot;exists:&quot;, p.is_file()); assert p.is_file()&#x27;
+executable: /home/infonetworking/csi-zkp/venv/bin/python3
+headers: /home/infonetworking/csi-zkp/tools/python/cpython-3.11.14-linux-x86_64-gnu/include/python3.11/Python.h exists: True
+Python 3.10.12
++ /usr/bin/python3 --version
+
+END exit_code=0 elapsed_seconds=3.061
+</pre><ul><li><a href="records/06-20261019T093352915394.txt">試行 1: passed / 2026-10-19T09:33:52.915394+09:00</a></li></ul></details>
+          </section><section class="step" id="step-07" data-step="07">
+          <div class="eyebrow">STEP 07 · エッジPC</div>
+          <h2>pipのインストール</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:33:56.062606+09:00 / 1.069 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>専用仮想環境へPythonパッケージ管理ツールを導入する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>uv pip install --python &quot;$CSI_ZKP_ROOT/venv/bin/python3&quot; &#x27;pip==26.2.1&#x27;
+python3 -m pip --version</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>Installed 1 package in 5ms
+pip 26.2.1 from /home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages/pip (python 3.11)</pre></div></div>
+          <div class="result"><b>確認結果</b><p>専用仮想環境にpip 26.2.1を導入。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>pipの導入も記録し、どのPython環境にパッケージをインストールしたか確認できるようにした。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+uv pip install --python &quot;$CSI_ZKP_ROOT/venv/bin/python3&quot; &#x27;pip==26.2.1&#x27;
+python3 -m pip --version
+</pre><pre>STEP 07 | pipのインストール
+START 2026-10-19T09:33:56.062606+09:00
+専用仮想環境へPythonパッケージ管理ツールを導入する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ uv pip install --python /home/infonetworking/csi-zkp/venv/bin/python3 pip==26.2.1
+Using Python 3.11.14 environment at: csi-zkp/venv
+Resolved 1 package in 138ms
+Downloading pip (1.7MiB)
+ Downloaded pip
+Prepared 1 package in 150ms
+Installed 1 package in 5ms
+ + pip==26.2.1
++ python3 -m pip --version
+pip 26.2.1 from /home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages/pip (python 3.11)
+
+END exit_code=0 elapsed_seconds=1.069
+</pre><ul><li><a href="records/07-20261019T093356062606.txt">試行 1: passed / 2026-10-19T09:33:56.062606+09:00</a></li></ul></details>
+          </section><section class="step" id="step-08" data-step="08">
+          <div class="eyebrow">STEP 08 · エッジPC</div>
+          <h2>setuptools・wheel・Cythonのインストール</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:33:57.215654+09:00 / 2.818 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>PicoScenes Python ToolboxのC/C++拡張をビルドするためのPython側ツールを導入する。gcc/g++は既存のものを使う。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>python3 -m pip install &#x27;setuptools==75.8.2&#x27; &#x27;wheel==0.45.1&#x27; &#x27;Cython==3.0.12&#x27;
+gcc --version
+g++ --version</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>Successfully installed Cython-3.0.12 setuptools-75.8.2 wheel-0.45.1
+setuptools 75.8.2
+wheel 0.45.1
+Cython 3.0.12
+gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0</pre></div></div>
+          <div class="result"><b>確認結果</b><p>ビルド用Pythonツール3種を導入。GCC/G++ 11.4.0は既存環境のものを再利用した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>PicoScenesのPython解析器はC/C++コードを含むため、Pythonライブラリだけでなくビルド環境も必要。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+python3 -m pip install &#x27;setuptools==75.8.2&#x27; &#x27;wheel==0.45.1&#x27; &#x27;Cython==3.0.12&#x27;
+python3 -c &#x27;import setuptools, wheel, Cython; print(&quot;setuptools&quot;, setuptools.__version__); print(&quot;wheel&quot;, wheel.__version__); print(&quot;Cython&quot;, Cython.__version__)&#x27;
+gcc --version | head -1
+g++ --version | head -1
+</pre><pre>STEP 08 | setuptools・wheel・Cythonのインストール
+START 2026-10-19T09:33:57.215654+09:00
+PicoScenes Python ToolboxのC/C++拡張をビルドするためのPython側ツールを導入する。gcc/g++は既存のものを使う。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 -m pip install setuptools==75.8.2 wheel==0.45.1 Cython==3.0.12
+Collecting setuptools==75.8.2
+  Downloading setuptools-75.8.2-py3-none-any.whl.metadata (6.7 kB)
+Collecting wheel==0.45.1
+  Downloading wheel-0.45.1-py3-none-any.whl.metadata (2.3 kB)
+Collecting Cython==3.0.12
+  Downloading Cython-3.0.12-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.3 kB)
+Downloading setuptools-75.8.2-py3-none-any.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 15.6 MB/s  0:00:00
+Downloading wheel-0.45.1-py3-none-any.whl (72 kB)
+Downloading Cython-3.0.12-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.6/3.6 MB 15.6 MB/s  0:00:00
+Installing collected packages: wheel, setuptools, Cython
+
+Successfully installed Cython-3.0.12 setuptools-75.8.2 wheel-0.45.1
++ python3 -c &#x27;import setuptools, wheel, Cython; print(&quot;setuptools&quot;, setuptools.__version__); print(&quot;wheel&quot;, wheel.__version__); print(&quot;Cython&quot;, Cython.__version__)&#x27;
+setuptools 75.8.2
+wheel 0.45.1
+Cython 3.0.12
+gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
++ gcc --version
++ head -1
++ g++ --version
++ head -1
+g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+
+END exit_code=0 elapsed_seconds=2.818
+</pre><ul><li><a href="records/08-20261019T093357215654.txt">試行 1: passed / 2026-10-19T09:33:57.215654+09:00</a></li></ul></details>
+          </section><section class="step" id="step-09" data-step="09">
+          <div class="eyebrow">STEP 09 · エッジPC</div>
+          <h2>NumPyのインストール</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:34:00.124366+09:00 / 3.736 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>CSIの複素数配列・量子化処理、および解析器のビルドに必要なNumPyを導入する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>python3 -m pip install &#x27;numpy==1.26.4&#x27;
+python3 -c &#x27;import numpy as np; print(np.__version__); print(np.abs([3+4j]))&#x27;</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>Successfully installed numpy-1.26.4
+numpy 1.26.4
+complex array smoke test [5.]</pre></div></div>
+          <div class="result"><b>確認結果</b><p>NumPy 1.26.4を導入し、複素数3+4jの絶対値が5になることを確認した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>CSIの複素数行列と量子化処理の実行基盤を確認した。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+python3 -m pip install &#x27;numpy==1.26.4&#x27;
+python3 -c &#x27;import numpy as np; print(&quot;numpy&quot;, np.__version__); a=np.array([3+4j]); print(&quot;complex array smoke test&quot;, np.abs(a)); assert np.abs(a)[0] == 5&#x27;
+</pre><pre>STEP 09 | NumPyのインストール
+START 2026-10-19T09:34:00.124366+09:00
+CSIの複素数配列・量子化処理、および解析器のビルドに必要なNumPyを導入する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 -m pip install numpy==1.26.4
+Collecting numpy==1.26.4
+  Downloading numpy-1.26.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)
+Downloading numpy-1.26.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.3/18.3 MB 16.2 MB/s  0:00:01
+Installing collected packages: numpy
+Successfully installed numpy-1.26.4
++ python3 -c &#x27;import numpy as np; print(&quot;numpy&quot;, np.__version__); a=np.array([3+4j]); print(&quot;complex array smoke test&quot;, np.abs(a)); assert np.abs(a)[0] == 5&#x27;
+numpy 1.26.4
+complex array smoke test [5.]
+
+END exit_code=0 elapsed_seconds=3.736
+</pre><ul><li><a href="records/09-20261019T093400124366.txt">試行 1: passed / 2026-10-19T09:34:00.124366+09:00</a></li></ul></details>
+          </section><section class="step" id="step-10" data-step="10">
+          <div class="eyebrow">STEP 10 · エッジPC</div>
+          <h2>SciPyのインストール</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:34:03.944564+09:00 / 6.191 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>今後の浮動小数点Lomb–Scargle比較実験用ライブラリを導入する。既存エッジ証明自体の必須依存ではない。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>python3 -m pip install &#x27;scipy==1.15.3&#x27;
+python3 -c &#x27;import scipy; from scipy.signal import lombscargle; print(scipy.__version__, callable(lombscargle))&#x27;</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>Successfully installed scipy-1.15.3
+scipy 1.15.3
+Lomb-Scargle import: True</pre></div></div>
+          <div class="result"><b>確認結果</b><p>SciPy 1.15.3を導入し、Lomb–Scargle関数をimportできた。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>今後の浮動小数点版との比較用。今回のWASM証明生成がSciPy内部の計算を証明するわけではない。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+python3 -m pip install &#x27;scipy==1.15.3&#x27;
+python3 -c &#x27;import scipy; from scipy.signal import lombscargle; print(&quot;scipy&quot;, scipy.__version__); print(&quot;Lomb-Scargle import:&quot;, callable(lombscargle))&#x27;
+</pre><pre>STEP 10 | SciPyのインストール
+START 2026-10-19T09:34:03.944564+09:00
+今後の浮動小数点Lomb–Scargle比較実験用ライブラリを導入する。既存エッジ証明自体の必須依存ではない。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 -m pip install scipy==1.15.3
+Collecting scipy==1.15.3
+  Downloading scipy-1.15.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)
+Requirement already satisfied: numpy&lt;2.5,&gt;=1.23.5 in ./csi-zkp/venv/lib/python3.11/site-packages (from scipy==1.15.3) (1.26.4)
+Downloading scipy-1.15.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (37.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 37.7/37.7 MB 16.6 MB/s  0:00:02
+Installing collected packages: scipy
+Successfully installed scipy-1.15.3
++ python3 -c &#x27;import scipy; from scipy.signal import lombscargle; print(&quot;scipy&quot;, scipy.__version__); print(&quot;Lomb-Scargle import:&quot;, callable(lombscargle))&#x27;
+scipy 1.15.3
+Lomb-Scargle import: True
+
+END exit_code=0 elapsed_seconds=6.191
+</pre><ul><li><a href="records/10-20261019T093403944564.txt">試行 1: passed / 2026-10-19T09:34:03.944564+09:00</a></li></ul></details>
+          </section><section class="step" id="step-11" data-step="11">
+          <div class="eyebrow">STEP 11 · エッジPC</div>
+          <h2>PicoScenes Python Toolboxの取得</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:34:10.217178+09:00 / 8.439 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>既存バックエンドと同じコミットを固定し、解析コアのサブモジュールも取得する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>git clone https://github.com/wifisensing/PicoScenes-Python-Toolbox.git
+cd PicoScenes-Python-Toolbox
+git checkout --detach f676855accedf79e848bf2f1d10ee5c1f649a33a
+git submodule update --init --recursive
+git rev-parse HEAD
+git submodule status --recursive</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>HEAD is now at f676855 Merge pull request #10 from nzqo/master
+Submodule path &#x27;rxs_parsing_core&#x27;: checked out &#x27;75b099d9841e539e8c3c50151e1442b5f4bd5382&#x27;
+f676855accedf79e848bf2f1d10ee5c1f649a33a
+ 75b099d9841e539e8c3c50151e1442b5f4bd5382 rxs_parsing_core (heads/master)</pre></div></div>
+          <div class="result"><b>確認結果</b><p>解析器をバックエンドと同じf676855…へ固定。RXS-Parsing-Coreは75b099…で取得した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>解析器の差による結果変化を追跡できるよう、メインとサブモジュール双方のコミットを記録した。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+git clone https://github.com/wifisensing/PicoScenes-Python-Toolbox.git &quot;$CSI_ZKP_ROOT/sources/PicoScenes-Python-Toolbox&quot;
+cd &quot;$CSI_ZKP_ROOT/sources/PicoScenes-Python-Toolbox&quot;
+git checkout --detach f676855accedf79e848bf2f1d10ee5c1f649a33a
+git submodule update --init --recursive
+git rev-parse HEAD
+git submodule status --recursive
+</pre><pre>STEP 11 | PicoScenes Python Toolboxの取得
+START 2026-10-19T09:34:10.217178+09:00
+既存バックエンドと同じコミットを固定し、解析コアのサブモジュールも取得する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ git clone https://github.com/wifisensing/PicoScenes-Python-Toolbox.git /home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
+Cloning into &#x27;/home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox&#x27;...
++ cd /home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
++ git checkout --detach f676855accedf79e848bf2f1d10ee5c1f649a33a
+HEAD is now at f676855 Merge pull request #10 from nzqo/master
++ git submodule update --init --recursive
+Submodule &#x27;rxs_parsing_core&#x27; (https://github.com/wifisensing/RXS-Parsing-Core.git) registered for path &#x27;rxs_parsing_core&#x27;
+Cloning into &#x27;/home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox/rxs_parsing_core&#x27;...
+Submodule path &#x27;rxs_parsing_core&#x27;: checked out &#x27;75b099d9841e539e8c3c50151e1442b5f4bd5382&#x27;
++ git rev-parse HEAD
+f676855accedf79e848bf2f1d10ee5c1f649a33a
++ git submodule status --recursive
+ 75b099d9841e539e8c3c50151e1442b5f4bd5382 rxs_parsing_core (heads/master)
+
+END exit_code=0 elapsed_seconds=8.439
+</pre><ul><li><a href="records/11-20261019T093410217178.txt">試行 1: passed / 2026-10-19T09:34:10.217178+09:00</a></li></ul></details>
+          </section><section class="step" id="step-12" data-step="12">
+          <div class="eyebrow">STEP 12 · エッジPC</div>
+          <h2>PicoScenes Python Toolboxのビルド・インストール</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:34:18.739451+09:00 / 27.327 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>端末上でCSIファイルを読めるようにC/C++拡張をビルドする。ビルド時間・最大RSSも測る。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>cd &quot;$CSI_ZKP_ROOT/sources/PicoScenes-Python-Toolbox&quot;
+/usr/bin/time -v python3 -m pip install --no-build-isolation .
+cd &quot;$CSI_ZKP_ROOT&quot;
+python3 -c &#x27;from picoscenes import Picoscenes; print(Picoscenes)&#x27;
+python3 -m pip check</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>Successfully built picoscenes
+Successfully installed picoscenes-0.1.0
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:26.35
+	Maximum resident set size (kbytes): 398900
+picoscenes module: /home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages/picoscenes.cpython-311-x86_64-linux-gnu.so
+parser class: &lt;class &#x27;picoscenes.Picoscenes&#x27;&gt;
+No broken requirements found.</pre></div></div>
+          <div class="result"><b>確認結果</b><p>ビルド成功。処理時間26.35秒、最大RSS 398,900 KiB。インストール済み.soのimportと依存関係検査に成功した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>PicoScenes搭載PC自身で、生CSIを読み込むための解析環境が動作した。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/sources/PicoScenes-Python-Toolbox&quot;
+/usr/bin/time -v python3 -m pip install --no-build-isolation .
+cd &quot;$CSI_ZKP_ROOT&quot;
+python3 -c &#x27;import picoscenes; from picoscenes import Picoscenes; print(&quot;picoscenes module:&quot;, picoscenes.__file__); print(&quot;parser class:&quot;, Picoscenes)&#x27;
+python3 -m pip check
+</pre><pre>STEP 12 | PicoScenes Python Toolboxのビルド・インストール
+START 2026-10-19T09:34:18.739451+09:00
+端末上でCSIファイルを読めるようにC/C++拡張をビルドする。ビルド時間・最大RSSも測る。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
++ /usr/bin/time -v python3 -m pip install --no-build-isolation .
+Processing ./.
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status &#x27;done&#x27;
+Requirement already satisfied: numpy&gt;=1.21.3 in /home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages (from picoscenes==0.1.0) (1.26.4)
+Building wheels for collected packages: picoscenes
+  Building wheel for picoscenes (pyproject.toml): started
+  Building wheel for picoscenes (pyproject.toml): finished with status &#x27;done&#x27;
+  Created wheel for picoscenes: filename=picoscenes-0.1.0-cp311-cp311-linux_x86_64.whl size=4063315 sha256=3487d904d1b8500d5f1cc78e04b6b4453a5d55b10923cd4196cfe39a8b942b91
+  Stored in directory: /tmp/pip-ephem-wheel-cache-ekzbjdrf/wheels/95/b1/0f/4518b758779bf3297d5696c286d8e08fb194f1e22b5c89d201
+Successfully built picoscenes
+Installing collected packages: picoscenes
+Successfully installed picoscenes-0.1.0
+	Command being timed: &quot;python3 -m pip install --no-build-isolation .&quot;
+	User time (seconds): 26.02
+	System time (seconds): 5.50
+	Percent of CPU this job got: 119%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:26.35
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 398900
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 388
+	Minor (reclaiming a frame) page faults: 1188979
+	Voluntary context switches: 1008
+	Involuntary context switches: 381
+	Swaps: 0
+	File system inputs: 71600
+	File system outputs: 298128
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
++ cd /home/infonetworking/csi-zkp
++ python3 -c &#x27;import picoscenes; from picoscenes import Picoscenes; print(&quot;picoscenes module:&quot;, picoscenes.__file__); print(&quot;parser class:&quot;, Picoscenes)&#x27;
+picoscenes module: /home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages/picoscenes.cpython-311-x86_64-linux-gnu.so
+parser class: &lt;class &#x27;picoscenes.Picoscenes&#x27;&gt;
++ python3 -m pip check
+No broken requirements found.
+
+END exit_code=0 elapsed_seconds=27.326
+</pre><ul><li><a href="records/12-20261019T093418739451.txt">試行 1: passed / 2026-10-19T09:34:18.739451+09:00</a></li></ul></details>
+          </section><section class="step" id="step-13" data-step="13">
+          <div class="eyebrow">STEP 13 · 操作元Mac</div>
+          <h2>既存配布物のチェックサム監査</h2><span class="badge failed">不一致検出 → 後続ステップで対応済み</span>
+          <p class="timing">2026-10-19T09:34:54.146273+09:00 / 1.476 秒 / exit 1</p>
+          <div class="goal"><b>目的</b><p>配布前に全ファイルを旧manifestと比較し、不一致箇所を特定する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>python3 research/edge-setup/prepare_release.py --audit-only</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>  &quot;checked_files&quot;: 1611,
+      &quot;path&quot;: &quot;README.md&quot;,
+      &quot;expected&quot;: &quot;506dbcbda57876cb4a71fe68481a5ddf787a0f5b90b1de5260884c354a914545&quot;,
+      &quot;actual&quot;: &quot;a4d826fb9b098b2683933638d87775e0e7a3af9ed8cc1241020f4ec03f2a1f41&quot;
+END exit_code=1 elapsed_seconds=1.476</pre></div></div>
+          <div class="result"><b>確認結果</b><p>1,611件を検査し、不一致はREADME.mdのみ。監査はexit 1で終了し、その事実を保持した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>不一致を無視せず特定。暗号成果物や実行コードには既存manifestとの差がなかったため、次段で配布コピーのみ更新した。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>python3 research/edge-setup/prepare_release.py --audit-only</pre><pre>STEP 13 | 既存配布物のチェックサム監査
+START 2026-10-19T09:34:54.146273+09:00
+配布前に全ファイルを旧manifestと比較し、不一致箇所を特定する。
+
+{
+  &quot;checked_files&quot;: 1611,
+  &quot;differences&quot;: [
+    {
+      &quot;path&quot;: &quot;README.md&quot;,
+      &quot;expected&quot;: &quot;506dbcbda57876cb4a71fe68481a5ddf787a0f5b90b1de5260884c354a914545&quot;,
+      &quot;actual&quot;: &quot;a4d826fb9b098b2683933638d87775e0e7a3af9ed8cc1241020f4ec03f2a1f41&quot;
+    }
+  ]
+}
+
+END exit_code=1 elapsed_seconds=1.476
+</pre><ul><li><a href="records/13-20261019T093454146273.txt">試行 1: failed / 2026-10-19T09:34:54.146273+09:00</a></li></ul></details>
+          </section><section class="step" id="step-14" data-step="14">
+          <div class="eyebrow">STEP 14 · 操作元Mac</div>
+          <h2>配布用コピーのmanifest更新・アーカイブ作成</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:35:02.759298+09:00 / 12.13 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>READMEのみの不一致であることを条件に、由来情報付きの独立した配布コピーを作る。元パッケージは変更しない。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>python3 research/edge-setup/prepare_release.py
+# 元パッケージとは別に配布コピーを作成
+# README差分とGitコミットをDEPLOYMENT_PROVENANCE.jsonへ保存</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>manifest OK: 1622 files
+  &quot;archive&quot;: &quot;csi-lomb-e2e-edge-20261019.tar.gz&quot;,
+  &quot;bytes&quot;: 277344246,
+  &quot;sha256&quot;: &quot;384d3b7f60d8de92aaca5d02295b007d650351ad0bee5cfad4321210eae8425f&quot;,
+  &quot;manifest_files&quot;: 1622</pre></div></div>
+          <div class="result"><b>確認結果</b><p>配布コピーの整合性検査成功。アーカイブ277,344,246 bytes、SHA-256は384d3b7f…8425f。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>manifestは1,622件。由来情報1件と既存依存の.binリンク10件も新たに検査対象へ含めた。回路・鍵の再生成はしていない。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>python3 research/edge-setup/prepare_release.py</pre><pre>STEP 14 | 配布用コピーのmanifest更新・アーカイブ作成
+START 2026-10-19T09:35:02.759298+09:00
+READMEのみの不一致であることを条件に、由来情報付きの独立した配布コピーを作る。元パッケージは変更しない。
+
+{
+  &quot;checked_files&quot;: 1611,
+  &quot;differences&quot;: [
+    {
+      &quot;path&quot;: &quot;README.md&quot;,
+      &quot;expected&quot;: &quot;506dbcbda57876cb4a71fe68481a5ddf787a0f5b90b1de5260884c354a914545&quot;,
+      &quot;actual&quot;: &quot;a4d826fb9b098b2683933638d87775e0e7a3af9ed8cc1241020f4ec03f2a1f41&quot;
+    }
+  ]
+}
+manifest OK: 1622 files
+{
+  &quot;archive&quot;: &quot;csi-lomb-e2e-edge-20261019.tar.gz&quot;,
+  &quot;bytes&quot;: 277344246,
+  &quot;sha256&quot;: &quot;384d3b7f60d8de92aaca5d02295b007d650351ad0bee5cfad4321210eae8425f&quot;,
+  &quot;manifest_files&quot;: 1622
+}
+
+END exit_code=0 elapsed_seconds=12.130
+</pre><ul><li><a href="records/14-20261019T093502759298.txt">試行 1: passed / 2026-10-19T09:35:02.759298+09:00</a></li></ul></details>
+          </section><section class="step" id="step-15" data-step="15">
+          <div class="eyebrow">STEP 15 · 操作元Mac → エッジPC</div>
+          <h2>証明パッケージのエッジ転送</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:35:14.999126+09:00 / 34.808 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>WASM・proving key・verification key・snarkjs依存一式をSSH経由で配置する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>scp research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz \
+  research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz.sha256 \
+  infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/downloads/</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>END exit_code=0 elapsed_seconds=34.808</pre></div></div>
+          <div class="result"><b>確認結果</b><p>パッケージとSHA-256ファイルを約34.8秒で転送した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>生CSIを端末から送らず、証明に必要なコード・鍵を端末へ届ける構成。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>scp -o BatchMode=yes research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz.sha256 infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/downloads/</pre><pre>STEP 15 | 証明パッケージのエッジ転送
+START 2026-10-19T09:35:14.999126+09:00
+WASM・proving key・verification key・snarkjs依存一式をSSH経由で配置する。
+
+
+END exit_code=0 elapsed_seconds=34.808
+</pre><ul><li><a href="records/15-20261019T093514999126.txt">試行 1: passed / 2026-10-19T09:35:14.999126+09:00</a></li></ul></details>
+          </section><section class="step" id="step-16" data-step="16">
+          <div class="eyebrow">STEP 16 · エッジPC</div>
+          <h2>証明パッケージ・snarkjsの配置と整合性検査</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:35:49.910945+09:00 / 3.954 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>アーカイブと内部全ファイルのSHA-256を確認し、同梱snarkjsを導入する。コンパイル済みWASM/鍵を使うためCircom・Trusted Setupは端末では不要。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>cd &quot;$CSI_ZKP_ROOT/downloads&quot;
+sha256sum --check csi-lomb-e2e-edge-20261019.tar.gz.sha256
+tar -xzf csi-lomb-e2e-edge-20261019.tar.gz -C &quot;$CSI_ZKP_ROOT/packages&quot;
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+./install.sh</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>csi-lomb-e2e-edge-20261019.tar.gz: OK
+manifest OK: 1622 files
+Environment OK: node=v22.23.3 python=Python 3.11.14
+snarkjs 0.7.6
+440M	.</pre></div></div>
+          <div class="result"><b>確認結果</b><p>転送前後のアーカイブSHA-256と内部1,622ファイルの整合性が一致。snarkjs 0.7.6、Node・Pythonの実行環境を確認した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>端末で証明するだけならコンパイル済みWASMと証明鍵を使える。CircomのコンパイルやTrusted Setupは今回不要。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/downloads&quot;
+sha256sum --check csi-lomb-e2e-edge-20261019.tar.gz.sha256
+test ! -e &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+tar -xzf csi-lomb-e2e-edge-20261019.tar.gz -C &quot;$CSI_ZKP_ROOT/packages&quot;
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+./install.sh
+node -p &#x27;&quot;snarkjs &quot; + require(&quot;./vendor/runtime/node_modules/snarkjs/package.json&quot;).version&#x27;
+sha256sum artifacts/csi_lomb_scargle_end_to_end.wasm artifacts/csi_lomb_scargle_end_to_end_final.zkey artifacts/verification_key.json
+du -sh . artifacts vendor/runtime
+</pre><pre>STEP 16 | 証明パッケージ・snarkjsの配置と整合性検査
+START 2026-10-19T09:35:49.910945+09:00
+アーカイブと内部全ファイルのSHA-256を確認し、同梱snarkjsを導入する。コンパイル済みWASM/鍵を使うためCircom・Trusted Setupは端末では不要。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/downloads
++ sha256sum --check csi-lomb-e2e-edge-20261019.tar.gz.sha256
+csi-lomb-e2e-edge-20261019.tar.gz: OK
++ test &#x27;!&#x27; -e /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
++ tar -xzf csi-lomb-e2e-edge-20261019.tar.gz -C /home/infonetworking/csi-zkp/packages
++ cd /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
++ ./install.sh
+manifest OK: 1622 files
+Environment OK: node=v22.23.3 python=Python 3.11.14
+Run ./bin/self_test.sh to generate and verify a complete local proof.
++ node -p &#x27;&quot;snarkjs &quot; + require(&quot;./vendor/runtime/node_modules/snarkjs/package.json&quot;).version&#x27;
+snarkjs 0.7.6
++ sha256sum artifacts/csi_lomb_scargle_end_to_end.wasm artifacts/csi_lomb_scargle_end_to_end_final.zkey artifacts/verification_key.json
+3c26f89a02bfbc30b6ee013e263a99142c10c11deecb6b932c1fc4064cf6ae32  artifacts/csi_lomb_scargle_end_to_end.wasm
+4735316719e48201abed06ea8f943392efb99285af4d88b14b01ec1199e241c5  artifacts/csi_lomb_scargle_end_to_end_final.zkey
+476838ec24c11350a60aa6eea1504727dcde726d9a7aa8547c7774f17381bd3c  artifacts/verification_key.json
+440M	.
++ du -sh . artifacts vendor/runtime
+
+END exit_code=0 elapsed_seconds=3.954
+</pre><ul><li><a href="records/16-20261019T093549910945.txt">試行 1: passed / 2026-10-19T09:35:49.910945+09:00</a></li></ul></details>
+          </section><section class="step" id="step-17" data-step="17">
+          <div class="eyebrow">STEP 17 · エッジPC</div>
+          <h2>合成15 BPM信号による自己診断</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:35:53.946542+09:00 / 14.795 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>端末上でwitness生成→Groth16証明生成→検証→保存JSONから再検証まで通す。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+/usr/bin/time -v ./bin/self_test.sh</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>[INFO]  snarkJS: OK!
+witness_seconds=1 proof_seconds=13 verify_seconds=0
+[INFO]  snarkJS: OK!
+self-test passed
+  &quot;estimatedBpm&quot;: 15.330708661417322,
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.34
+	Maximum resident set size (kbytes): 5498552
+	Exit status: 0</pre></div></div>
+          <div class="result"><b>確認結果</b><p>合成15 BPM信号を約15.33 BPMと推定し、証明生成・ローカル検証・保存JSONからの再検証まで成功。全体14.34秒、最大RSS約5.24 GiB。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>この端末でGroth16生成が完走することを実証。約0.33 BPMの差だけで実CSIの精度を評価したとはいえない。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+/usr/bin/time -v ./bin/self_test.sh
+</pre><pre>STEP 17 | 合成15 BPM信号による自己診断
+START 2026-10-19T09:35:53.946542+09:00
+端末上でwitness生成→Groth16証明生成→検証→保存JSONから再検証まで通す。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
++ /usr/bin/time -v ./bin/self_test.sh
+[INFO]  snarkJS: OK!
+proof written: /tmp/csi-lomb-self-test.em8szG/result.json
+witness_seconds=1 proof_seconds=13 verify_seconds=0
+[INFO]  snarkJS: OK!
+self-test passed
+{
+  &quot;csiCommitment&quot;: &quot;16321607559812079937626861827168685950663181809365538435249906554904584751810&quot;,
+  &quot;isNormal&quot;: true,
+  &quot;selectedSubcarrier&quot;: 0,
+  &quot;estimatedFrequencyBin&quot;: 18,
+  &quot;estimatedFrequencyHz&quot;: 0.255511811023622,
+  &quot;estimatedBpm&quot;: 15.330708661417322,
+  &quot;globalPeakFrequencyBin&quot;: 18,
+  &quot;globalPeakFrequencyHz&quot;: 0.255511811023622,
+  &quot;globalPeakBpm&quot;: 15.330708661417322,
+  &quot;timestampsMs&quot;: [
+    0,
+    963,
+    1915,
+    2849,
+    3768,
+    4683,
+    5607,
+    6548,
+    7505,
+    8470,
+    9430,
+    10374,
+    11302,
+    12218,
+    13135,
+    14065,
+    15013,
+    15975,
+    16939,
+    17894,
+    18831,
+    19753,
+    20668,
+    21589,
+    22526,
+    23480,
+    24445,
+    25407,
+    26355,
+    27286,
+    28203,
+    29119,
+    30046,
+    30990,
+    31949,
+    32914,
+    33872,
+    34813,
+    35738,
+    36653,
+    37572,
+    38505,
+    39456,
+    40419,
+    41383,
+    42335,
+    43269,
+    44189,
+    45104,
+    46027,
+    46967,
+    47924,
+    48889,
+    49849,
+    50795,
+    51722,
+    52639,
+    53556,
+    54485,
+    55432,
+    56394,
+    57358,
+    58314,
+    59252
+  ]
+}
+	Command being timed: &quot;./bin/self_test.sh&quot;
+	User time (seconds): 80.22
+	System time (seconds): 9.32
+	Percent of CPU this job got: 624%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.34
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5498552
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 9
+	Minor (reclaiming a frame) page faults: 6512916
+	Voluntary context switches: 14848
+	Involuntary context switches: 4344
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 49248
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+
+END exit_code=0 elapsed_seconds=14.795
+</pre><ul><li><a href="records/17-20261019T093553946542.txt">試行 1: passed / 2026-10-19T09:35:53.946542+09:00</a></li></ul></details>
+          </section><section class="step" id="step-18" data-step="18">
+          <div class="eyebrow">STEP 18 · 操作元Mac → エッジPC</div>
+          <h2>CSI調査スクリプトの配置</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:36:08.823219+09:00 / 0.32 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>CSI値を出力せずにフレーム数・幅・時間長・回路入力への変換可否を調べるツールを配置する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>scp research/edge-setup/inspect_csi.py \
+  infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/inspect_csi.py</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>END exit_code=0 elapsed_seconds=0.320</pre></div></div>
+          <div class="result"><b>確認結果</b><p>CSIの生値を出力せず、形状と時間長を調べるスクリプトを配置した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>研究の入力規模を把握するための計測も、証明生成とは独立したステップにした。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>scp -o BatchMode=yes research/edge-setup/inspect_csi.py infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/inspect_csi.py</pre><pre>STEP 18 | CSI調査スクリプトの配置
+START 2026-10-19T09:36:08.823219+09:00
+CSI値を出力せずにフレーム数・幅・時間長・回路入力への変換可否を調べるツールを配置する。
+
+
+END exit_code=0 elapsed_seconds=0.320
+</pre><ul><li><a href="records/18-20261019T093608823219.txt">試行 1: passed / 2026-10-19T09:36:08.823219+09:00</a></li></ul></details>
+          </section><section class="step" id="step-19" data-step="19">
+          <div class="eyebrow">STEP 19 · エッジPC</div>
+          <h2>保存済み実CSIの読み込み・形状確認</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:36:09.224978+09:00 / 4.361 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>4件の既存CSIを端末内で読み込み、元のCSI幅・アンテナ構成・期間・64×8変換の可否を記録する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>source /home/infonetworking/csi-zkp/env.sh
+python3 &quot;$CSI_ZKP_ROOT/scripts/inspect_csi.py&quot;</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>  &quot;file&quot;: &quot;csi_20260907_185130.csi&quot;,
+  &quot;modal_csi_width&quot;: 980,
+  &quot;modal_frame_count&quot;: 4518,
+  &quot;duration_seconds&quot;: 58.579475338,
+    &quot;numTones&quot;,
+  &quot;numTones&quot;: &quot;245&quot;,
+  &quot;canonicalization&quot;: &quot;ok&quot;
+  &quot;file&quot;: &quot;csi_20261005_115523.csi&quot;,
+  &quot;modal_csi_width&quot;: 980,
+  &quot;modal_frame_count&quot;: 1779,
+  &quot;duration_seconds&quot;: 59.618360718,
+    &quot;numTones&quot;,
+  &quot;numTones&quot;: &quot;245&quot;,
+  &quot;canonicalization&quot;: &quot;ok&quot;
+  &quot;file&quot;: &quot;csi_20261005_115619.csi&quot;,
+  &quot;modal_csi_width&quot;: 980,
+  &quot;modal_frame_count&quot;: 5531,
+  &quot;duration_seconds&quot;: 58.948076927,
+    &quot;numTones&quot;,
+  &quot;numTones&quot;: &quot;245&quot;,
+  &quot;canonicalization&quot;: &quot;ok&quot;
+  &quot;file&quot;: &quot;rx_2_260616_113124.csi&quot;,
+  &quot;modal_csi_width&quot;: 4004,
+  &quot;modal_frame_count&quot;: 400,
+  &quot;duration_seconds&quot;: 1.511691398,
+    &quot;numTones&quot;,
+  &quot;numTones&quot;: &quot;1001&quot;,
+  &quot;canonicalization&quot;: &quot;ok&quot;</pre></div></div>
+          <div class="result"><b>確認結果</b><p>全4件を読み込めた。直近3件は245トーン×送受信2×2、CSI幅980。約59～60秒、フレーム数4518・1779・5531。旧1件は1001トーン×2×2、幅4004、1.51秒。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>『全サブキャリア』を今後実装する際は、245トーンと4アンテナリンクを区別する必要がある。現在はフラット化した980系列から8系列だけを抜き出している。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+python3 &quot;$CSI_ZKP_ROOT/scripts/inspect_csi.py&quot;
+</pre><pre>STEP 19 | 保存済み実CSIの読み込み・形状確認
+START 2026-10-19T09:36:09.224978+09:00
+4件の既存CSIを端末内で読み込み、元のCSI幅・アンテナ構成・期間・64×8変換の可否を記録する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 /home/infonetworking/csi-zkp/scripts/inspect_csi.py
+{
+  &quot;file&quot;: &quot;csi_20260907_185130.csi&quot;,
+  &quot;path&quot;: &quot;/home/infonetworking/csi_data/main/csi_20260907_185130.csi&quot;,
+  &quot;bytes&quot;: 23700389,
+  &quot;sha256&quot;: &quot;29b3d3092f5276100d64d09bd4786a9f9a2622feeb4bc539c7fcf9c2671b9ffb&quot;,
+  &quot;source_format&quot;: &quot;picoscenes&quot;,
+  &quot;modal_csi_width&quot;: 980,
+  &quot;modal_frame_count&quot;: 4518,
+  &quot;selected_subcarrier_indices&quot;: [
+    0,
+    140,
+    280,
+    420,
+    559,
+    699,
+    839,
+    979
+  ],
+  &quot;duration_seconds&quot;: 58.579475338,
+  &quot;selected_matrix_shape&quot;: [
+    4518,
+    8
+  ],
+  &quot;first_frame_csi_shape&quot;: [
+    980
+  ],
+  &quot;first_frame_metadata_fields&quot;: [
+    &quot;CBW&quot;,
+    &quot;CSI&quot;,
+    &quot;CarrierFreq&quot;,
+    &quot;DeviceType&quot;,
+    &quot;FirmwareVersion&quot;,
+    &quot;Mag&quot;,
+    &quot;PacketFormat&quot;,
+    &quot;Phase&quot;,
+    &quot;SamplingRate&quot;,
+    &quot;SubcarrierBandwidth&quot;,
+    &quot;SubcarrierIndex&quot;,
+    &quot;ant_sel&quot;,
+    &quot;numCSI&quot;,
+    &quot;numESS&quot;,
+    &quot;numRx&quot;,
+    &quot;numTones&quot;,
+    &quot;numTx&quot;
+  ],
+  &quot;numTones&quot;: &quot;245&quot;,
+  &quot;numRx&quot;: &quot;2&quot;,
+  &quot;numTx&quot;: &quot;2&quot;,
+  &quot;numESS&quot;: &quot;0&quot;,
+  &quot;circuit_shape&quot;: [
+    64,
+    8
+  ],
+  &quot;canonicalization&quot;: &quot;ok&quot;
+}
+{
+  &quot;file&quot;: &quot;csi_20261005_115523.csi&quot;,
+  &quot;path&quot;: &quot;/home/infonetworking/csi_data/main/csi_20261005_115523.csi&quot;,
+  &quot;bytes&quot;: 7867009,
+  &quot;sha256&quot;: &quot;ce290aaa107a136d0cddfec21f559464b9686dcfcd149e7fb7714204f8677b40&quot;,
+  &quot;source_format&quot;: &quot;picoscenes&quot;,
+  &quot;modal_csi_width&quot;: 980,
+  &quot;modal_frame_count&quot;: 1779,
+  &quot;selected_subcarrier_indices&quot;: [
+    0,
+    140,
+    280,
+    420,
+    559,
+    699,
+    839,
+    979
+  ],
+  &quot;duration_seconds&quot;: 59.618360718,
+  &quot;selected_matrix_shape&quot;: [
+    1779,
+    8
+  ],
+  &quot;first_frame_csi_shape&quot;: [
+    980
+  ],
+  &quot;first_frame_metadata_fields&quot;: [
+    &quot;CBW&quot;,
+    &quot;CSI&quot;,
+    &quot;CarrierFreq&quot;,
+    &quot;DeviceType&quot;,
+    &quot;FirmwareVersion&quot;,
+    &quot;Mag&quot;,
+    &quot;PacketFormat&quot;,
+    &quot;Phase&quot;,
+    &quot;SamplingRate&quot;,
+    &quot;SubcarrierBandwidth&quot;,
+    &quot;SubcarrierIndex&quot;,
+    &quot;ant_sel&quot;,
+    &quot;numCSI&quot;,
+    &quot;numESS&quot;,
+    &quot;numRx&quot;,
+    &quot;numTones&quot;,
+    &quot;numTx&quot;
+  ],
+  &quot;numTones&quot;: &quot;245&quot;,
+  &quot;numRx&quot;: &quot;2&quot;,
+  &quot;numTx&quot;: &quot;2&quot;,
+  &quot;numESS&quot;: &quot;0&quot;,
+  &quot;circuit_shape&quot;: [
+    64,
+    8
+  ],
+  &quot;canonicalization&quot;: &quot;ok&quot;
+}
+{
+  &quot;file&quot;: &quot;csi_20261005_115619.csi&quot;,
+  &quot;path&quot;: &quot;/home/infonetworking/csi_data/main/csi_20261005_115619.csi&quot;,
+  &quot;bytes&quot;: 24396188,
+  &quot;sha256&quot;: &quot;fd03205e3724ce81a3d79e7f079a22b283e18df763ab946d8933f15d423d0a12&quot;,
+  &quot;source_format&quot;: &quot;picoscenes&quot;,
+  &quot;modal_csi_width&quot;: 980,
+  &quot;modal_frame_count&quot;: 5531,
+  &quot;selected_subcarrier_indices&quot;: [
+    0,
+    140,
+    280,
+    420,
+    559,
+    699,
+    839,
+    979
+  ],
+  &quot;duration_seconds&quot;: 58.948076927,
+  &quot;selected_matrix_shape&quot;: [
+    5531,
+    8
+  ],
+  &quot;first_frame_csi_shape&quot;: [
+    980
+  ],
+  &quot;first_frame_metadata_fields&quot;: [
+    &quot;CBW&quot;,
+    &quot;CSI&quot;,
+    &quot;CarrierFreq&quot;,
+    &quot;DeviceType&quot;,
+    &quot;FirmwareVersion&quot;,
+    &quot;Mag&quot;,
+    &quot;PacketFormat&quot;,
+    &quot;Phase&quot;,
+    &quot;SamplingRate&quot;,
+    &quot;SubcarrierBandwidth&quot;,
+    &quot;SubcarrierIndex&quot;,
+    &quot;ant_sel&quot;,
+    &quot;numCSI&quot;,
+    &quot;numESS&quot;,
+    &quot;numRx&quot;,
+    &quot;numTones&quot;,
+    &quot;numTx&quot;
+  ],
+  &quot;numTones&quot;: &quot;245&quot;,
+  &quot;numRx&quot;: &quot;2&quot;,
+  &quot;numTx&quot;: &quot;2&quot;,
+  &quot;numESS&quot;: &quot;0&quot;,
+  &quot;circuit_shape&quot;: [
+    64,
+    8
+  ],
+  &quot;canonicalization&quot;: &quot;ok&quot;
+}
+{
+  &quot;file&quot;: &quot;rx_2_260616_113124.csi&quot;,
+  &quot;path&quot;: &quot;/home/infonetworking/rx_2_260616_113124.csi&quot;,
+  &quot;bytes&quot;: 6667462,
+  &quot;sha256&quot;: &quot;8f31e2dcdd5dc79f4cdda1a95455fe183d698a333be515a518816cace41b74e9&quot;,
+  &quot;source_format&quot;: &quot;picoscenes&quot;,
+  &quot;modal_csi_width&quot;: 4004,
+  &quot;modal_frame_count&quot;: 400,
+  &quot;selected_subcarrier_indices&quot;: [
+    0,
+    572,
+    1144,
+    1716,
+    2287,
+    2859,
+    3431,
+    4003
+  ],
+  &quot;duration_seconds&quot;: 1.511691398,
+  &quot;selected_matrix_shape&quot;: [
+    400,
+    8
+  ],
+  &quot;first_frame_csi_shape&quot;: [
+    4004
+  ],
+  &quot;first_frame_metadata_fields&quot;: [
+    &quot;CBW&quot;,
+    &quot;CSI&quot;,
+    &quot;CarrierFreq&quot;,
+    &quot;DeviceType&quot;,
+    &quot;FirmwareVersion&quot;,
+    &quot;Mag&quot;,
+    &quot;PacketFormat&quot;,
+    &quot;Phase&quot;,
+    &quot;SamplingRate&quot;,
+    &quot;SubcarrierBandwidth&quot;,
+    &quot;SubcarrierIndex&quot;,
+    &quot;ant_sel&quot;,
+    &quot;numCSI&quot;,
+    &quot;numESS&quot;,
+    &quot;numRx&quot;,
+    &quot;numTones&quot;,
+    &quot;numTx&quot;
+  ],
+  &quot;numTones&quot;: &quot;1001&quot;,
+  &quot;numRx&quot;: &quot;2&quot;,
+  &quot;numTx&quot;: &quot;2&quot;,
+  &quot;numESS&quot;: &quot;0&quot;,
+  &quot;circuit_shape&quot;: [
+    64,
+    8
+  ],
+  &quot;canonicalization&quot;: &quot;ok&quot;
+}
+
+END exit_code=0 elapsed_seconds=4.361
+</pre><ul><li><a href="records/19-20261019T093609224978.txt">試行 1: passed / 2026-10-19T09:36:09.224978+09:00</a></li></ul></details>
+          </section><section class="step" id="step-20" data-step="20">
+          <div class="eyebrow">STEP 20 · エッジPC</div>
+          <h2>実CSI①：2026-10-05 11:56収録の証明生成</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:37:40.683871+09:00 / 15.853 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>約59秒・5531フレームの実CSIを端末内で解析し、証明生成・検証する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+/usr/bin/time -v ./bin/prove.sh \
+  /home/infonetworking/csi_data/main/csi_20261005_115619.csi \
+  &quot;$CSI_ZKP_ROOT/results/real_20261005_115619.json&quot;</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>[INFO]  snarkJS: OK!
+proof written: /home/infonetworking/csi-zkp/results/real_20261005_115619.json
+witness_seconds=1 proof_seconds=13 verify_seconds=0
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.58
+	Maximum resident set size (kbytes): 5795624
+	Exit status: 0</pre></div></div>
+          <div class="result"><b>確認結果</b><p>実CSI①の証明・検証に成功。witness 1秒、proof 13秒、verify 0秒（整数秒計測）。読み込み等を含む全体15.58秒、最大RSS約5.53 GiB。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>5,531フレーム・980系列を読み込み、既存ルールで64×8へ縮約した入力について証明した。全フレーム・全系列の計算を証明したものではない。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+test ! -e &quot;$CSI_ZKP_ROOT/results/real_20261005_115619.json&quot;
+/usr/bin/time -v ./bin/prove.sh /home/infonetworking/csi_data/main/csi_20261005_115619.csi &quot;$CSI_ZKP_ROOT/results/real_20261005_115619.json&quot;
+</pre><pre>STEP 20 | 実CSI①：2026-10-05 11:56収録の証明生成
+START 2026-10-19T09:37:40.683871+09:00
+約59秒・5531フレームの実CSIを端末内で解析し、証明生成・検証する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
++ test &#x27;!&#x27; -e /home/infonetworking/csi-zkp/results/real_20261005_115619.json
++ /usr/bin/time -v ./bin/prove.sh /home/infonetworking/csi_data/main/csi_20261005_115619.csi /home/infonetworking/csi-zkp/results/real_20261005_115619.json
+[INFO]  snarkJS: OK!
+proof written: /home/infonetworking/csi-zkp/results/real_20261005_115619.json
+witness_seconds=1 proof_seconds=13 verify_seconds=0
+	Command being timed: &quot;./bin/prove.sh /home/infonetworking/csi_data/main/csi_20261005_115619.csi /home/infonetworking/csi-zkp/results/real_20261005_115619.json&quot;
+	User time (seconds): 81.12
+	System time (seconds): 11.36
+	Percent of CPU this job got: 593%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.58
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5795624
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 5
+	Minor (reclaiming a frame) page faults: 6621226
+	Voluntary context switches: 13586
+	Involuntary context switches: 3818
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 49232
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+
+END exit_code=0 elapsed_seconds=15.853
+</pre><ul><li><a href="records/20-20261019T093740683871.txt">試行 1: passed / 2026-10-19T09:37:40.683871+09:00</a></li></ul></details>
+          </section><section class="step" id="step-21" data-step="21">
+          <div class="eyebrow">STEP 21 · エッジPC</div>
+          <h2>実CSI②：2026-10-05 11:55収録の証明生成</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:37:56.622801+09:00 / 15.08 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>別の約60秒の実CSIでも同じ環境で証明できるか確認する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+/usr/bin/time -v ./bin/prove.sh \
+  /home/infonetworking/csi_data/main/csi_20261005_115523.csi \
+  &quot;$CSI_ZKP_ROOT/results/real_20261005_115523.json&quot;</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>[INFO]  snarkJS: OK!
+proof written: /home/infonetworking/csi-zkp/results/real_20261005_115523.json
+witness_seconds=1 proof_seconds=13 verify_seconds=0
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.77
+	Maximum resident set size (kbytes): 5756984
+	Exit status: 0</pre></div></div>
+          <div class="result"><b>確認結果</b><p>実CSI②でも証明・検証に成功。全体14.77秒、証明生成13秒、最大RSS約5.49 GiB。後続確認でisNormal=falseの結果だった。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>判定結果がfalseでも有効な証明を生成できる。証明の正当性と、正常・異常という判定値を区別する。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+test ! -e &quot;$CSI_ZKP_ROOT/results/real_20261005_115523.json&quot;
+/usr/bin/time -v ./bin/prove.sh /home/infonetworking/csi_data/main/csi_20261005_115523.csi &quot;$CSI_ZKP_ROOT/results/real_20261005_115523.json&quot;
+</pre><pre>STEP 21 | 実CSI②：2026-10-05 11:55収録の証明生成
+START 2026-10-19T09:37:56.622801+09:00
+別の約60秒の実CSIでも同じ環境で証明できるか確認する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
++ test &#x27;!&#x27; -e /home/infonetworking/csi-zkp/results/real_20261005_115523.json
++ /usr/bin/time -v ./bin/prove.sh /home/infonetworking/csi_data/main/csi_20261005_115523.csi /home/infonetworking/csi-zkp/results/real_20261005_115523.json
+[INFO]  snarkJS: OK!
+proof written: /home/infonetworking/csi-zkp/results/real_20261005_115523.json
+witness_seconds=1 proof_seconds=13 verify_seconds=0
+	Command being timed: &quot;./bin/prove.sh /home/infonetworking/csi_data/main/csi_20261005_115523.csi /home/infonetworking/csi-zkp/results/real_20261005_115523.json&quot;
+	User time (seconds): 80.41
+	System time (seconds): 11.60
+	Percent of CPU this job got: 622%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.77
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5756984
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 10
+	Minor (reclaiming a frame) page faults: 6605277
+	Voluntary context switches: 13584
+	Involuntary context switches: 4219
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 49232
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+
+END exit_code=0 elapsed_seconds=15.080
+</pre><ul><li><a href="records/21-20261019T093756622801.txt">試行 1: passed / 2026-10-19T09:37:56.622801+09:00</a></li></ul></details>
+          </section><section class="step" id="step-22" data-step="22">
+          <div class="eyebrow">STEP 22 · エッジPC</div>
+          <h2>実CSI③：2026-09-07収録の証明生成</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:38:11.785942+09:00 / 16.06 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>収録日が異なる約59秒の実CSIで互換性を確認する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+/usr/bin/time -v ./bin/prove.sh \
+  /home/infonetworking/csi_data/main/csi_20260907_185130.csi \
+  &quot;$CSI_ZKP_ROOT/results/real_20260907_185130.json&quot;</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>[INFO]  snarkJS: OK!
+proof written: /home/infonetworking/csi-zkp/results/real_20260907_185130.json
+witness_seconds=1 proof_seconds=13 verify_seconds=0
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.76
+	Maximum resident set size (kbytes): 5650116
+	Exit status: 0</pre></div></div>
+          <div class="result"><b>確認結果</b><p>実CSI③も証明・検証に成功。全体15.76秒、証明生成13秒、最大RSS約5.39 GiB。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>保存済み実CSI 3件で動作した。異なる入力各1回なので、性能のばらつき評価には今後の反復測定が必要。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+cd &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e&quot;
+test ! -e &quot;$CSI_ZKP_ROOT/results/real_20260907_185130.json&quot;
+/usr/bin/time -v ./bin/prove.sh /home/infonetworking/csi_data/main/csi_20260907_185130.csi &quot;$CSI_ZKP_ROOT/results/real_20260907_185130.json&quot;
+</pre><pre>STEP 22 | 実CSI③：2026-09-07収録の証明生成
+START 2026-10-19T09:38:11.785942+09:00
+収録日が異なる約59秒の実CSIで互換性を確認する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
++ test &#x27;!&#x27; -e /home/infonetworking/csi-zkp/results/real_20260907_185130.json
++ /usr/bin/time -v ./bin/prove.sh /home/infonetworking/csi_data/main/csi_20260907_185130.csi /home/infonetworking/csi-zkp/results/real_20260907_185130.json
+[INFO]  snarkJS: OK!
+proof written: /home/infonetworking/csi-zkp/results/real_20260907_185130.json
+witness_seconds=1 proof_seconds=13 verify_seconds=0
+	Command being timed: &quot;./bin/prove.sh /home/infonetworking/csi_data/main/csi_20260907_185130.csi /home/infonetworking/csi-zkp/results/real_20260907_185130.json&quot;
+	User time (seconds): 81.67
+	System time (seconds): 11.51
+	Percent of CPU this job got: 591%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.76
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5650116
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 13
+	Minor (reclaiming a frame) page faults: 6570500
+	Voluntary context switches: 13472
+	Involuntary context switches: 4209
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 49232
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+
+END exit_code=0 elapsed_seconds=16.059
+</pre><ul><li><a href="records/22-20261019T093811785942.txt">試行 1: passed / 2026-10-19T09:38:11.785942+09:00</a></li></ul></details>
+          </section><section class="step" id="step-23" data-step="23">
+          <div class="eyebrow">STEP 23 · 操作元Mac → エッジPC</div>
+          <h2>検証・環境記録スクリプトの配置</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:38:27.928458+09:00 / 0.413 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>保存証明の再検証、判定改変テスト、元CSIのハッシュ確認、環境固定情報の保存を準備する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>scp research/edge-setup/validate_results.py \
+  research/edge-setup/final_inventory.py \
+  infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>END exit_code=0 elapsed_seconds=0.413</pre></div></div>
+          <div class="result"><b>確認結果</b><p>証明の再検証・改変拒否・元データ保全・環境情報固定のためのスクリプトを配置した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>生成成功だけでなく、保存後の検証と不正な結果の拒否まで確認する。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>scp -o BatchMode=yes research/edge-setup/validate_results.py research/edge-setup/final_inventory.py infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/</pre><pre>STEP 23 | 検証・環境記録スクリプトの配置
+START 2026-10-19T09:38:27.928458+09:00
+保存証明の再検証、判定改変テスト、元CSIのハッシュ確認、環境固定情報の保存を準備する。
+
+
+END exit_code=0 elapsed_seconds=0.413
+</pre><ul><li><a href="records/23-20261019T093827928458.txt">試行 1: passed / 2026-10-19T09:38:27.928458+09:00</a></li></ul></details>
+          </section><section class="step" id="step-24" data-step="24">
+          <div class="eyebrow">STEP 24 · エッジPC</div>
+          <h2>再検証・判定改変の拒否・元データ保全の確認</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:38:28.423108+09:00 / 1.882 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>3証明を再検証し、公開判定を反転した証明を拒否できるか確かめる。秘密入力キーの不在と元CSIハッシュも確認する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>source /home/infonetworking/csi-zkp/env.sh
+python3 &quot;$CSI_ZKP_ROOT/scripts/validate_results.py&quot;
+# 元の証明は保持し、一時コピーのpublicSignals[1]だけ反転
+# 全4件の元CSI SHA-256を再計算して照合</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>REVERIFY real_20261005_115619.json: exit=0
+REVERIFY real_20261005_115523.json: exit=0
+REVERIFY real_20260907_185130.json: exit=0
+TAMPERED VERDICT: exit=1
+[ERROR] snarkJS: Invalid proof
+SOURCE UNCHANGED: csi_20260907_185130.csi
+SOURCE UNCHANGED: csi_20261005_115523.csi
+SOURCE UNCHANGED: csi_20261005_115619.csi
+SOURCE UNCHANGED: rx_2_260616_113124.csi</pre></div></div>
+          <div class="result"><b>確認結果</b><p>3証明の再検証成功。判定反転はexit 1・Invalid proof。結果JSONにCSI I/Q・秘密nonce・witnessがないこと、元CSI4件が不変であることも確認した。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>現在のJSONには公開信号69個があり、BPMとタイムスタンプも含む。生CSI非開示は確認できたが、判定1ビットだけの公開は次の回路変更課題。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+python3 &quot;$CSI_ZKP_ROOT/scripts/validate_results.py&quot;
+</pre><pre>STEP 24 | 再検証・判定改変の拒否・元データ保全の確認
+START 2026-10-19T09:38:28.423108+09:00
+3証明を再検証し、公開判定を反転した証明を拒否できるか確かめる。秘密入力キーの不在と元CSIハッシュも確認する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 /home/infonetworking/csi-zkp/scripts/validate_results.py
+REVERIFY real_20261005_115619.json: exit=0
+[INFO]  snarkJS: OK!
+REVERIFY real_20261005_115523.json: exit=0
+[INFO]  snarkJS: OK!
+REVERIFY real_20260907_185130.json: exit=0
+[INFO]  snarkJS: OK!
+TAMPERED VERDICT: exit=1
+[ERROR] snarkJS: Invalid proof
+SOURCE UNCHANGED: csi_20260907_185130.csi
+SOURCE UNCHANGED: csi_20261005_115523.csi
+SOURCE UNCHANGED: csi_20261005_115619.csi
+SOURCE UNCHANGED: rx_2_260616_113124.csi
+{
+  &quot;real_proofs&quot;: [
+    {
+      &quot;file&quot;: &quot;real_20261005_115619.json&quot;,
+      &quot;proof_verified&quot;: true,
+      &quot;public_signals&quot;: 69,
+      &quot;isNormal&quot;: true,
+      &quot;estimatedBpm&quot;: 18.070866141732285,
+      &quot;globalPeakBpm&quot;: 18.070866141732285,
+      &quot;bytes&quot;: 3291,
+      &quot;sha256&quot;: &quot;65b339ff180966ae1685b7f3d9c07b242a0c5e2270037214d7839a971b22dfdd&quot;,
+      &quot;private_input_keys_absent&quot;: true
+    },
+    {
+      &quot;file&quot;: &quot;real_20261005_115523.json&quot;,
+      &quot;proof_verified&quot;: true,
+      &quot;public_signals&quot;: 69,
+      &quot;isNormal&quot;: false,
+      &quot;estimatedBpm&quot;: 6.425196850393701,
+      &quot;globalPeakBpm&quot;: 4.3700787401574805,
+      &quot;bytes&quot;: 3308,
+      &quot;sha256&quot;: &quot;e1ee16e935481986c6ca574daedc21473469cefe7958ce720c8bfd713204bf2b&quot;,
+      &quot;private_input_keys_absent&quot;: true
+    },
+    {
+      &quot;file&quot;: &quot;real_20260907_185130.json&quot;,
+      &quot;proof_verified&quot;: true,
+      &quot;public_signals&quot;: 69,
+      &quot;isNormal&quot;: true,
+      &quot;estimatedBpm&quot;: 7.110236220472441,
+      &quot;globalPeakBpm&quot;: 7.110236220472441,
+      &quot;bytes&quot;: 3294,
+      &quot;sha256&quot;: &quot;b45554bc447df734e47540c796a6c99c079b39b02d5ee7a6da12dd22a7d200c7&quot;,
+      &quot;private_input_keys_absent&quot;: true
+    }
+  ],
+  &quot;changed_verdict_rejected&quot;: true,
+  &quot;sources_unchanged&quot;: true,
+  &quot;accuracy_evaluated&quot;: false,
+  &quot;limitation&quot;: &quot;Existing 64x8 circuit: BPM, subcarrier index, commitment and timestamps remain public.&quot;
+}
+
+END exit_code=0 elapsed_seconds=1.882
+</pre><ul><li><a href="records/24-20261019T093828423108.txt">試行 1: passed / 2026-10-19T09:38:28.423108+09:00</a></li></ul></details>
+          </section><section class="step" id="step-25" data-step="25">
+          <div class="eyebrow">STEP 25 · エッジPC</div>
+          <h2>環境固定情報・最終状態の記録</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:38:30.386819+09:00 / 1.91 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>実際に動いたバージョン、ソースのコミット、配置先、ディスク・メモリ状態を保存する。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>source /home/infonetworking/csi-zkp/env.sh
+python3 &quot;$CSI_ZKP_ROOT/scripts/final_inventory.py&quot;
+python3 -m pip check
+python3 &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e/bin/verify_manifest.py&quot;
+du -sh &quot;$CSI_ZKP_ROOT&quot;
+free -h
+ps -C PicoScenes -o pid,etime,%cpu,%mem,comm</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>No broken requirements found.
+manifest OK: 1622 files
+1.4G	/home/infonetworking/csi-zkp
+/dev/nvme0n1p2  468G   23G  422G   6% /
+Mem:            15Gi       998Mi       7.9Gi        38Mi       6.5Gi        14Gi
+Swap:          2.0Gi          0B       2.0Gi
+  63729 13-21:43:07  0.4  0.5 PicoScenes</pre></div></div>
+          <div class="result"><b>確認結果</b><p>環境全体は約1.4GiB、ディスク残量約422GiB、利用可能メモリ約14GiB、Swap未使用。PicoScenesは同じPIDで継続稼働。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>environment.jsonとpython-freeze.txtで実際に動いたバージョンを保存した。今後の実験ではこの構成を基準に比較できる。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+source /home/infonetworking/csi-zkp/env.sh
+python3 &quot;$CSI_ZKP_ROOT/scripts/final_inventory.py&quot;
+python3 -m pip check
+python3 &quot;$CSI_ZKP_ROOT/packages/lomb_scargle_e2e/bin/verify_manifest.py&quot;
+du -sh &quot;$CSI_ZKP_ROOT&quot; &quot;$CSI_ZKP_ROOT&quot;/tools/* &quot;$CSI_ZKP_ROOT/venv&quot; &quot;$CSI_ZKP_ROOT/packages&quot; &quot;$CSI_ZKP_ROOT/results&quot;
+df -h /
+free -h
+ps -C PicoScenes -o pid,etime,%cpu,%mem,comm
+sha256sum /home/infonetworking/csi_data/main/*.csi /home/infonetworking/rx_2_260616_113124.csi
+find &quot;$CSI_ZKP_ROOT&quot; -maxdepth 2 -type d -not -path &#x27;*/cache/*&#x27; -not -path &#x27;*/.git/*&#x27;
+</pre><pre>STEP 25 | 環境固定情報・最終状態の記録
+START 2026-10-19T09:38:30.386819+09:00
+実際に動いたバージョン、ソースのコミット、配置先、ディスク・メモリ状態を保存する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 /home/infonetworking/csi-zkp/scripts/final_inventory.py
+{
+  &quot;host&quot;: &quot;infonetworking-CSI&quot;,
+  &quot;python&quot;: &quot;3.11.14 (main, Feb 12 2026, 00:42:50) [Clang 21.1.4 ]&quot;,
+  &quot;executable&quot;: &quot;/home/infonetworking/csi-zkp/venv/bin/python3&quot;,
+  &quot;node&quot;: &quot;v22.23.3&quot;,
+  &quot;npm&quot;: &quot;10.9.9&quot;,
+  &quot;uv&quot;: &quot;uv 0.13.1 (x86_64-unknown-linux-gnu)&quot;,
+  &quot;packages&quot;: {
+    &quot;pip&quot;: &quot;26.2.1&quot;,
+    &quot;setuptools&quot;: &quot;75.8.2&quot;,
+    &quot;wheel&quot;: &quot;0.45.1&quot;,
+    &quot;Cython&quot;: &quot;3.0.12&quot;,
+    &quot;numpy&quot;: &quot;1.26.4&quot;,
+    &quot;scipy&quot;: &quot;1.15.3&quot;,
+    &quot;picoscenes&quot;: &quot;0.1.0&quot;
+  },
+  &quot;parser_commit&quot;: &quot;f676855accedf79e848bf2f1d10ee5c1f649a33a&quot;,
+  &quot;parser_submodules&quot;: &quot;75b099d9841e539e8c3c50151e1442b5f4bd5382 rxs_parsing_core (heads/master)&quot;,
+  &quot;environment_script&quot;: &quot;/home/infonetworking/csi-zkp/env.sh&quot;,
+  &quot;package_dir&quot;: &quot;/home/infonetworking/csi-zkp/packages/lomb_scargle_e2e&quot;
+}
+Cython==3.0.12
+numpy==1.26.4
+picoscenes @ file:///home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
+pip==26.2.1
+scipy==1.15.3
+setuptools==75.8.2
+wheel==0.45.1
+
++ python3 -m pip check
+No broken requirements found.
++ python3 /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e/bin/verify_manifest.py
+manifest OK: 1622 files
++ du -sh /home/infonetworking/csi-zkp /home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64 /home/infonetworking/csi-zkp/tools/python /home/infonetworking/csi-zkp/tools/python-bin /home/infonetworking/csi-zkp/tools/uv /home/infonetworking/csi-zkp/venv /home/infonetworking/csi-zkp/packages /home/infonetworking/csi-zkp/results
+1.4G	/home/infonetworking/csi-zkp
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p2  468G   23G  422G   6% /
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       998Mi       7.9Gi        38Mi       6.5Gi        14Gi
+Swap:          2.0Gi          0B       2.0Gi
++ df -h /
++ free -h
++ ps -C PicoScenes -o pid,etime,%cpu,%mem,comm
+    PID     ELAPSED %CPU %MEM COMMAND
+  63729 13-21:43:07  0.4  0.5 PicoScenes
++ sha256sum /home/infonetworking/csi_data/main/csi_20260907_185130.csi /home/infonetworking/csi_data/main/csi_20261005_115523.csi /home/infonetworking/csi_data/main/csi_20261005_115619.csi /home/infonetworking/rx_2_260616_113124.csi
+29b3d3092f5276100d64d09bd4786a9f9a2622feeb4bc539c7fcf9c2671b9ffb  /home/infonetworking/csi_data/main/csi_20260907_185130.csi
+ce290aaa107a136d0cddfec21f559464b9686dcfcd149e7fb7714204f8677b40  /home/infonetworking/csi_data/main/csi_20261005_115523.csi
+fd03205e3724ce81a3d79e7f079a22b283e18df763ab946d8933f15d423d0a12  /home/infonetworking/csi_data/main/csi_20261005_115619.csi
+8f31e2dcdd5dc79f4cdda1a95455fe183d698a333be515a518816cace41b74e9  /home/infonetworking/rx_2_260616_113124.csi
+/home/infonetworking/csi-zkp
+/home/infonetworking/csi-zkp/downloads
+/home/infonetworking/csi-zkp/packages
+/home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
+/home/infonetworking/csi-zkp/venv
+/home/infonetworking/csi-zkp/venv/lib
+/home/infonetworking/csi-zkp/venv/bin
+/home/infonetworking/csi-zkp/reports
+/home/infonetworking/csi-zkp/sources
+/home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
+/home/infonetworking/csi-zkp/tools
+/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64
+/home/infonetworking/csi-zkp/tools/python
+/home/infonetworking/csi-zkp/tools/uv
+/home/infonetworking/csi-zkp/tools/python-bin
+/home/infonetworking/csi-zkp/scripts
+/home/infonetworking/csi-zkp/cache
+/home/infonetworking/csi-zkp/results
++ find /home/infonetworking/csi-zkp -maxdepth 2 -type d -not -path &#x27;*/cache/*&#x27; -not -path &#x27;*/.git/*&#x27;
+
+END exit_code=0 elapsed_seconds=1.910
+</pre><ul><li><a href="records/25-20261019T093830386819.txt">試行 1: passed / 2026-10-19T09:38:30.386819+09:00</a></li></ul></details>
+          </section><section class="step" id="step-26" data-step="26">
+          <div class="eyebrow">STEP 26 · 操作元Mac</div>
+          <h2>報告用メタデータの回収</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:39:20.973297+09:00 / 1.461 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>環境情報・CSI形状・証明検証結果のみを操作元へ回収し、実測に基づく報告資料の根拠とする。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre>python3 research/edge-setup/collect_evidence.py
+# 回収：environment.json / python-freeze.txt
+#       csi_inventory.json / validation_summary.json</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>Retrieved metadata: environment.json (746 bytes)
+Retrieved metadata: python-freeze.txt (171 bytes)
+Retrieved metadata: csi_inventory.json (4418 bytes)
+Retrieved metadata: validation_summary.json (1329 bytes)
+No raw CSI, private input JSON or witness files transferred.</pre></div></div>
+          <div class="result"><b>確認結果</b><p>報告用メタデータのみを操作元Macに回収。実CSI・秘密入力・witnessは回収していない。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>ローカルのHTMLと生ログを報告に使い、エッジ側の結果JSONで独立した再検証を行える。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>python3 research/edge-setup/collect_evidence.py</pre><pre>STEP 26 | 報告用メタデータの回収
+START 2026-10-19T09:39:20.973297+09:00
+環境情報・CSI形状・証明検証結果のみを操作元へ回収し、実測に基づく報告資料の根拠とする。
+
+Retrieved metadata: environment.json (746 bytes)
+Retrieved metadata: python-freeze.txt (171 bytes)
+Retrieved metadata: csi_inventory.json (4418 bytes)
+Retrieved metadata: validation_summary.json (1329 bytes)
+No raw CSI, private input JSON or witness files transferred.
+
+END exit_code=0 elapsed_seconds=1.461
+</pre><ul><li><a href="records/26-20261019T093920973297.txt">試行 1: passed / 2026-10-19T09:39:20.973297+09:00</a></li></ul></details>
+          </section><section class="step" id="step-27" data-step="27">
+          <div class="eyebrow">STEP 27 · 操作元Mac</div>
+          <h2>資料撮影用Playwright・Chromiumのインストール</h2><span class="badge failed">不一致検出 → 後続ステップで対応済み</span>
+          <p class="timing">2026-10-19T09:42:08.582215+09:00 / 258.776 秒 / exit 143</p>
+          <div class="goal"><b>目的</b><p>操作元MacでHTMLの実表示を確認し、各ステップのPNGと報告用PDFを作る。エッジ側の依存ではない。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre># 操作元Macで実行
+npm install --prefix research/edge-setup/artifacts/report-renderer --no-audit --no-fund playwright@1.56.1
+export PLAYWRIGHT_BROWSERS_PATH=&quot;$PWD/research/edge-setup/artifacts/report-renderer/browsers&quot;
+node research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js install chromium --only-shell</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>added 2 packages in 7s</pre></div></div>
+          <div class="result"><b>確認結果</b><p>Playwrightのnpm導入とブラウザZIP取得は成功したが、展開の進捗が約4分間止まったため、このインストーラを中断した。原因は未特定。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>ZIPをartifactsへ退避後、当該インストーラだけを停止。次段でOSのunzipを使う復旧を記録し、成功したように扱わない。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+# This step runs on the operator Mac, not on the edge PC.
+npm install --prefix research/edge-setup/artifacts/report-renderer --no-audit --no-fund playwright@1.56.1
+export PLAYWRIGHT_BROWSERS_PATH=&quot;$PWD/research/edge-setup/artifacts/report-renderer/browsers&quot;
+node research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js install chromium --only-shell
+node research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js --version
+</pre><pre>STEP 27 | 資料撮影用Playwright・Chromiumのインストール
+START 2026-10-19T09:42:08.582215+09:00
+操作元MacでHTMLの実表示を確認し、各ステップのPNGと報告用PDFを作る。エッジ側の依存ではない。
+
++ npm install --prefix research/edge-setup/artifacts/report-renderer --no-audit --no-fund playwright@1.56.1
+
+added 2 packages in 7s
++ export PLAYWRIGHT_BROWSERS_PATH=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers
++ PLAYWRIGHT_BROWSERS_PATH=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers
++ node research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js install chromium --only-shell
+Downloading Chromium Headless Shell 141.0.7390.37 (playwright build v1194) from https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1194/chromium-headless-shell-mac.zip
+|                                                                                |   0% of 85.1 MiB
+|■■■■■■■■                                                                        |  10% of 85.1 MiB
+|■■■■■■■■■■■■■■■■                                                                |  20% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 85.1 MiB
+bash: line 5: 25019 Terminated: 15          node research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js install chromium --only-shell
+
+END exit_code=143 elapsed_seconds=258.776
+</pre><ul><li><a href="records/27-20261019T094208582215.txt">試行 1: failed / 2026-10-19T09:42:08.582215+09:00</a></li></ul></details>
+          </section><section class="step" id="step-28" data-step="28">
+          <div class="eyebrow">STEP 28 · 操作元Mac</div>
+          <h2>撮影用ブラウザの展開停滞からの復旧</h2><span class="badge passed">完了</span>
+          <p class="timing">2026-10-19T09:46:48.227147+09:00 / 6.016 秒 / exit 0</p>
+          <div class="goal"><b>目的</b><p>ダウンロード済みZIPの整合性を検査し、OSのunzipで別フォルダへ展開して撮影用ブラウザを利用可能にする。</p></div>
+          <div class="columns"><div><h3>主要コマンド・再実行例（実行時の全量は詳細）</h3><pre># 操作元Macで実行：取得済みZIPを別フォルダへ展開
+unzip -t chromium-headless-shell-mac15-1194.zip
+unzip -q chromium-headless-shell-mac15-1194.zip -d browsers/manual-chromium-1194
+browsers/manual-chromium-1194/chrome-mac/headless_shell --version
+node node_modules/playwright/cli.js --version</pre></div>
+          <div><h3>実際の出力（抜粋）</h3><pre>a84cf791a7c7d195c3fdfced9e28c591383522d396a15242602304587b825755  /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
+No errors detected in compressed data of /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip.
+Chromium 141.0.7390.37
+Version 1.56.1</pre></div></div>
+          <div class="result"><b>確認結果</b><p>ZIPをCRC検査後、専用の別フォルダへ展開。撮影スクリプトはこの実行ファイルを明示して起動する。ブラウザ表示の検査結果はbrowser-validation.jsonへ保存。</p></div>
+          <p class="takeaway"><b>発表で説明する点：</b>中断した自動展開先は調査用に保持。エッジPCへの追加インストールや変更はない。</p>
+          <details><summary>全コマンド・全ログ・試行履歴</summary><pre>set -euxo pipefail
+# Step 27 downloaded the complete ZIP but its extraction stopped making progress.
+# Before stopping only that installer, the archive was preserved under artifacts.
+RENDER_ROOT=&quot;$PWD/research/edge-setup/artifacts/report-renderer&quot;
+ARCHIVE=&quot;$RENDER_ROOT/chromium-headless-shell-mac15-1194.zip&quot;
+DEST=&quot;$RENDER_ROOT/browsers/manual-chromium-1194&quot;
+test -f &quot;$ARCHIVE&quot;
+test ! -e &quot;$DEST&quot;
+shasum -a 256 &quot;$ARCHIVE&quot;
+unzip -t &quot;$ARCHIVE&quot;
+mkdir -p &quot;$DEST&quot;
+unzip -q &quot;$ARCHIVE&quot; -d &quot;$DEST&quot;
+&quot;$DEST/chrome-mac/headless_shell&quot; --version
+node &quot;$RENDER_ROOT/node_modules/playwright/cli.js&quot; --version
+</pre><pre>STEP 28 | 撮影用ブラウザの展開停滞からの復旧
+START 2026-10-19T09:46:48.227147+09:00
+ダウンロード済みZIPの整合性を検査し、OSのunzipで別フォルダへ展開して撮影用ブラウザを利用可能にする。
+
++ RENDER_ROOT=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer
++ ARCHIVE=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
++ DEST=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194
++ test -f /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
++ test &#x27;!&#x27; -e /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194
++ shasum -a 256 /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
+a84cf791a7c7d195c3fdfced9e28c591383522d396a15242602304587b825755  /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
++ unzip -t /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
+Archive:  /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip
+    testing: chrome-mac/              OK
+    testing: chrome-mac/libEGL.dylib   OK
+    testing: chrome-mac/headless_command_resources.pak   OK
+    testing: chrome-mac/vk_swiftshader_icd.json   OK
+    testing: chrome-mac/icudtl.dat    OK
+    testing: chrome-mac/resources/    OK
+    testing: chrome-mac/resources/inspector_overlay/   OK
+    testing: chrome-mac/resources/inspector_overlay/main.js   OK
+    testing: chrome-mac/resources/inspector_overlay/inspector_overlay_resources.grd   OK
+    testing: chrome-mac/headless_lib_strings.pak   OK
+    testing: chrome-mac/libvk_swiftshader.dylib   OK
+    testing: chrome-mac/headless_lib_data.pak   OK
+    testing: chrome-mac/v8_context_snapshot.x86_64.bin   OK
+    testing: chrome-mac/headless_shell   OK
+    testing: chrome-mac/libGLESv2.dylib   OK
+No errors detected in compressed data of /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip.
++ mkdir -p /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194
++ unzip -q /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/chromium-headless-shell-mac15-1194.zip -d /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194
++ /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers/manual-chromium-1194/chrome-mac/headless_shell --version
+Chromium 141.0.7390.37
++ node /Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js --version
+Version 1.56.1
+
+END exit_code=0 elapsed_seconds=6.016
+</pre><ul><li><a href="records/28-20261019T094648227147.txt">試行 1: passed / 2026-10-19T09:46:48.227147+09:00</a></li></ul></details>
+          </section></main><footer>生成時刻：2026-10-19T09:46:56.878743+09:00 · records/ に実行ログとJSONメタデータ。findings.json に説明文。生CSI・秘密入力・witnessはこの資料に含めません。</footer>
+<script>
+const cards=[...document.querySelectorAll('.step')],select=document.querySelector('#selector');let index=0;
+cards.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.dataset.step+' '+c.querySelector('h2').textContent;select.append(o)});
+function show(i){index=Math.max(0,Math.min(cards.length-1,i));cards.forEach((c,n)=>c.classList.toggle('active',n===index));select.value=index;history.replaceState(null,'','#step-'+cards[index].dataset.step);if(!document.body.classList.contains('capture'))cards[index].scrollIntoView();else window.scrollTo(0,0)}
+document.querySelector('#mode').onclick=()=>{document.body.classList.toggle('capture');document.querySelector('#mode').textContent=document.body.classList.contains('capture')?'一覧に戻る':'スクショモードに切り替え';show(index)};
+document.querySelector('#prev').onclick=()=>show(index-1);document.querySelector('#next').onclick=()=>show(index+1);select.onchange=()=>show(Number(select.value));
+document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{index=cards.findIndex(c=>c.dataset.step===a.dataset.target);select.value=index});
+document.addEventListener('keydown',e=>{if(e.target.tagName==='SELECT')return;if(e.key==='ArrowRight')show(index+1);if(e.key==='ArrowLeft')show(index-1)});
+const requested=location.hash.replace('#step-',''),found=cards.findIndex(c=>c.dataset.step===requested);if(found>=0)index=found;cards[index]?.classList.add('active');select.value=index;
+if(new URLSearchParams(location.search).has('capture')){document.body.classList.add('capture');document.querySelector('#mode').textContent='一覧に戻る'}
+</script></body></html>

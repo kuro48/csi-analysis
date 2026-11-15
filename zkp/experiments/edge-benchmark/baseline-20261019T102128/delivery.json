@@ -1,0 +1,54 @@
+{
+  "archive": "report-bundle.zip",
+  "sha256": "16b54a9e1e0ff51f6a24f68a0542a8b5be0ea42dc2af1e7dfead5c0d8fa2f244",
+  "bytes": 2788476,
+  "remote": "/home/infonetworking/csi-zkp/reports/baseline-20261019T102128",
+  "steps": [
+    {
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "-o",
+        "ConnectTimeout=15",
+        "infonetworking@100.111.253.60",
+        "test ! -e /home/infonetworking/csi-zkp/reports/baseline-20261019T102128 && test ! -e /home/infonetworking/csi-zkp/reports/baseline-20261019T102128.zip"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "argv": [
+        "scp",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "-o",
+        "ConnectTimeout=15",
+        "/Users/kurokawaryuunosuke/csi-analysis/research/edge-benchmark/baseline-20261019T102128/report-bundle.zip",
+        "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/reports/baseline-20261019T102128.zip"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "-o",
+        "ConnectTimeout=15",
+        "infonetworking@100.111.253.60",
+        "set -eu; umask 077; echo '16b54a9e1e0ff51f6a24f68a0542a8b5be0ea42dc2af1e7dfead5c0d8fa2f244  /home/infonetworking/csi-zkp/reports/baseline-20261019T102128.zip' | sha256sum --check -; mkdir /home/infonetworking/csi-zkp/reports/baseline-20261019T102128; /usr/bin/python3 -m zipfile -e /home/infonetworking/csi-zkp/reports/baseline-20261019T102128.zip /home/infonetworking/csi-zkp/reports/baseline-20261019T102128; test -s /home/infonetworking/csi-zkp/reports/baseline-20261019T102128/report.html; test -s /home/infonetworking/csi-zkp/reports/baseline-20261019T102128/report.pdf"
+      ],
+      "exit_code": 0,
+      "output": "/home/infonetworking/csi-zkp/reports/baseline-20261019T102128.zip: OK\n"
+    }
+  ],
+  "delivered": true
+}

@@ -1,0 +1,23 @@
+	Command being timed: "python3 /home/infonetworking/csi-zkp/packages/vmd-comparison-20261019-v2/worker.py --source /home/infonetworking/csi_data/main/csi_20260907_185130.csi --output /home/infonetworking/csi-zkp/results/vmd-20261019T123503/real-C"
+	User time (seconds): 41.10
+	System time (seconds): 4.51
+	Percent of CPU this job got: 332%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:13.73
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 3196292
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 2
+	Minor (reclaiming a frame) page faults: 3267580
+	Voluntary context switches: 8955
+	Involuntary context switches: 1574
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 20864
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

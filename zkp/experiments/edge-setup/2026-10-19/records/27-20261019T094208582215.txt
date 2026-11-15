@@ -1,0 +1,25 @@
+STEP 27 | 資料撮影用Playwright・Chromiumのインストール
+START 2026-10-19T09:42:08.582215+09:00
+操作元MacでHTMLの実表示を確認し、各ステップのPNGと報告用PDFを作る。エッジ側の依存ではない。
+
++ npm install --prefix research/edge-setup/artifacts/report-renderer --no-audit --no-fund playwright@1.56.1
+
+added 2 packages in 7s
++ export PLAYWRIGHT_BROWSERS_PATH=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers
++ PLAYWRIGHT_BROWSERS_PATH=/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/artifacts/report-renderer/browsers
++ node research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js install chromium --only-shell
+Downloading Chromium Headless Shell 141.0.7390.37 (playwright build v1194)[2m from https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1194/chromium-headless-shell-mac.zip[22m
+|                                                                                |   0% of 85.1 MiB
+|■■■■■■■■                                                                        |  10% of 85.1 MiB
+|■■■■■■■■■■■■■■■■                                                                |  20% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 85.1 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 85.1 MiB
+bash: line 5: 25019 Terminated: 15          node research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js install chromium --only-shell
+
+END exit_code=143 elapsed_seconds=258.776

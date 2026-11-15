@@ -1,0 +1,55 @@
+{
+  "created_at": "2026-10-19T09:47:40.778419+09:00",
+  "step_count": 28,
+  "resolved_failures": [
+    "13: old README manifest",
+    "27: browser extraction stopped"
+  ],
+  "archive": "report-bundle.zip",
+  "bytes": 7697665,
+  "sha256": "e42b8cbc1bafdfac8cd7612b0ebcdd153fbde83921c07cebc2caadd766892681",
+  "contains_raw_csi": false,
+  "commands": [
+    {
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "infonetworking@100.111.253.60",
+        "test ! -e /home/infonetworking/csi-zkp/reports/environment-20261019.zip && test ! -e /home/infonetworking/csi-zkp/reports/2026-10-19"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "argv": [
+        "scp",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "/Users/kurokawaryuunosuke/csi-analysis/research/edge-setup/2026-10-19/report-bundle.zip",
+        "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/reports/environment-20261019.zip"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "infonetworking@100.111.253.60",
+        "set -eu; umask 077; echo 'e42b8cbc1bafdfac8cd7612b0ebcdd153fbde83921c07cebc2caadd766892681  /home/infonetworking/csi-zkp/reports/environment-20261019.zip' | sha256sum --check -; mkdir /home/infonetworking/csi-zkp/reports/2026-10-19; /usr/bin/python3 -m zipfile -e /home/infonetworking/csi-zkp/reports/environment-20261019.zip /home/infonetworking/csi-zkp/reports/2026-10-19; test -s /home/infonetworking/csi-zkp/reports/2026-10-19/report.html; test -s /home/infonetworking/csi-zkp/reports/2026-10-19/report.pdf; printf 'Report delivered: %s\\n' /home/infonetworking/csi-zkp/reports/2026-10-19"
+      ],
+      "exit_code": 0,
+      "output": "/home/infonetworking/csi-zkp/reports/environment-20261019.zip: OK\nReport delivered: /home/infonetworking/csi-zkp/reports/2026-10-19\n"
+    }
+  ],
+  "remote_report": "/home/infonetworking/csi-zkp/reports/2026-10-19/report.html",
+  "delivered": true
+}

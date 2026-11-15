@@ -1,0 +1,30 @@
+{
+  "id": "07",
+  "title": "pipのインストール",
+  "purpose": "専用仮想環境へPythonパッケージ管理ツールを導入する。",
+  "expect": "pip 26.2.1が専用仮想環境から実行される。",
+  "script": "scripts/07_pip.sh",
+  "started_at": "2026-10-19T09:33:56.062606+09:00",
+  "log": "07-20261019T093356062606.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\nuv pip install --python \"$CSI_ZKP_ROOT/venv/bin/python3\" 'pip==26.2.1'\npython3 -m pip --version\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 1.069,
+  "ended_at": "2026-10-19T09:33:57.132211+09:00"
+}

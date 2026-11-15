@@ -1,0 +1,207 @@
+{
+  "summary": [
+    "PicoScenes搭載PC（100.111.253.60）に、管理者権限を使わず証明生成環境を構築した。配置先は /home/infonetworking/csi-zkp。",
+    "合成15 BPM入力の自己診断と、保存済み実CSI 3件のGroth16証明生成・検証に成功した。3件とも証明生成13秒（1秒刻みの計測）。",
+    "実CSIの読み込みを含む全体時間は15.58秒・14.77秒・15.76秒。GNU timeによる最大RSSは約5.53・5.49・5.39 GiB。",
+    "保存した証明の再検証は3件とも成功。公開判定を反転すると Invalid proof で拒否された。これは改変拒否の動作確認であり、回路全体の健全性監査ではない。",
+    "元CSI 4件のSHA-256は作業前後で一致。既存PicoScenesプロセス（PID 63729）とシステムPython 3.10.12を維持した。",
+    "実CSI 3件では先頭フレームに245サブキャリア・送信2・受信2、採用フレームのCSI幅980を確認。今回の回路はそこから8系列を選択する既存方式。",
+    "旧manifestの不一致はREADMEのみ。回路・証明鍵・実行コードに差分がないことを確認し、別の配布コピーでmanifestを更新した。失敗ログも残した。"
+  ],
+  "installed": [
+    {"name":"Node.js / npm","version":"22.23.3 / 10.9.9","role":"witness・Groth16生成用。公式バイナリのSHA-256を照合"},
+    {"name":"uv","version":"0.13.1","role":"ユーザー領域へのPython導入。配布アーカイブのSHA-256を照合"},
+    {"name":"専用Python","version":"3.11.14","role":"開発用ヘッダー付き。仮想環境を /csi-zkp/venv に作成"},
+    {"name":"pip","version":"26.2.1","role":"専用仮想環境のパッケージ管理"},
+    {"name":"setuptools / wheel / Cython","version":"75.8.2 / 0.45.1 / 3.0.12","role":"PicoScenes解析器のC/C++拡張ビルド"},
+    {"name":"NumPy","version":"1.26.4","role":"複素数CSI配列、量子化、解析器ビルド"},
+    {"name":"SciPy","version":"1.15.3","role":"今後の浮動小数点Lomb–Scargle比較用"},
+    {"name":"PicoScenes Python Toolbox","version":"0.1.0 / f676855accedf79e848bf2f1d10ee5c1f649a33a","role":".csi解析。RXS-Parsing-Coreも固定コミット"},
+    {"name":"snarkjs","version":"0.7.6（パッケージ同梱）","role":"Groth16証明生成・検証。npmの全体更新は実施せず"},
+    {"name":"GCC / G++ / GNU time","version":"11.4.0 / 11.4.0 / 既存OS提供","role":"既存ツールの再利用。C++拡張ビルド・時間/RSS計測"},
+    {"name":"Circomコンパイラ / ptau","version":"端末には未導入","role":"今回の証明生成は配布済みWASM・zkeyを使用。回路変更・鍵再生成は別作業"}
+  ],
+  "limitations": [
+    "本回路の入力は64観測×8系列、32周波数bin。元の全サブキャリアを回路内で比較する実装ではない。",
+    "現行証明の公開信号は69個。判定値以外にコミットメント・選択番号・周波数bin・相対タイムスタンプを含む。『判定1ビットのみ公開』は未実装。",
+    "回路はエッジ向けの直接Lomb–Scargle方式。既存PythonのSNR選択・Butterworth・PCA経由の推定器と同一ではない。",
+    "実CSIの正解BPMは今回用意していないため、推定精度・異常検出精度を評価したものではない。証明が有効であることと推定の正確さは別。",
+    "1.51秒の旧CSIは読み込み・形状確認のみ。変換に成功しても呼吸推定に十分な観測時間であるとはいえない。",
+    "今回の証明・再検証は端末内で実施。オンチェーン検証・医療機関クライアントへの共有・測定デバイスの真正性保証は未実装。",
+    "proof_seconds等は既存スクリプトのdate +%s差分で1秒単位。verify_seconds=0は瞬時を意味しない。GNU timeの最大RSSはOS全体のピーク使用量ではない。",
+    "3実験は異なる入力各1回。中央値・ばらつき・同時収集への影響・最大入力規模の評価は今後の実験とする。",
+    "この記録は既存環境を再構築するための手順・バージョンを保持する。新規作成や上書き防止のガードがあるため、全ステップの無条件再実行用ではない。"
+  ],
+  "steps": {
+    "01": {
+      "commands":"ssh infonetworking@100.111.253.60\nlscpu\nfree -h\ndf -h /\npython3 -m pip --version\nsha256sum /home/infonetworking/csi_data/main/*.csi",
+      "evidence_patterns":["Core\\(s\\)","Model name:","CPU\\(s\\):", "^Mem:", "^Swap:", "^/dev/nvme", "No module named pip", "python_headers_missing", "sudo: a password"],
+      "result":"i5-12450H・8コア12スレッド・約16GB。Node/npm/pipとPython開発ヘッダーが不足。sudoは非対話では利用できなかった。",
+      "takeaway":"導入前の状態を先に記録し、システム変更ではなくユーザー領域の独立環境で不足を解消した。"
+    },
+    "02": {
+      "commands":"test ! -e /home/infonetworking/csi-zkp\numask 077\nmkdir -p /home/infonetworking/csi-zkp/{tools,downloads,cache,sources,packages,results,reports,scripts}",
+      "evidence_patterns":["^drwx"],
+      "result":"専用フォルダを所有者のみアクセス可能な権限で新規作成。既存csi_data・Desktop・PicoScenes本体とは分離した。",
+      "takeaway":"実行ツール、入力データ、結果、報告資料の配置を分けることで実験の再現と追跡がしやすくなる。"
+    },
+    "03": {
+      "commands":"scp research/edge-setup/env.sh \\\n  infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/env.sh\n# 以降、エッジで実行\nsource /home/infonetworking/csi-zkp/env.sh",
+      "evidence_patterns":["END exit_code"],
+      "result":"env.shを配置。専用Python/NodeへのPATH、uvの配置先、Nodeヒープ設定、元CSIを削除しない設定をまとめた。",
+      "takeaway":"既存の.bashrcやシステムPythonを変更せず、sourceで研究環境へ切り替えられる。"
+    },
+    "04": {
+      "commands":"source /home/infonetworking/csi-zkp/env.sh\n# 公式配布から取得したファイルを照合\ngrep ' node-v22.23.3-linux-x64.tar.xz$' node-v22.23.3-SHASUMS256.txt | sha256sum --check -\ntar -xJf node-v22.23.3-linux-x64.tar.xz -C \"$CSI_ZKP_ROOT/tools\"\nnode --version\nnpm --version",
+      "evidence_patterns":["tar.xz: OK", "^v22", "^10\\.9", "^/home/.*/bin/(node|npm)$"],
+      "result":"Node.js v22.23.3・npm 10.9.9をインストール。公式配布のSHA-256と一致した。",
+      "takeaway":"端末内でJavaScriptのwitness計算とsnarkjsを実行できる基盤を用意した。"
+    },
+    "05": {
+      "commands":"# uv 0.13.1の公式配布を取得\nsha256sum --check uv-x86_64-unknown-linux-gnu.tar.gz.sha256\ntar -xzf uv-x86_64-unknown-linux-gnu.tar.gz --strip-components=1 -C \"$CSI_ZKP_ROOT/tools/uv\"\nuv --version",
+      "evidence_patterns":["tar.gz: OK", "^uv 0"],
+      "result":"uv 0.13.1をユーザー領域に導入し、配布チェックサムを確認した。",
+      "takeaway":"管理者権限なしで開発用Pythonを取得するためのツールも、独立した導入ステップとして記録した。"
+    },
+    "06": {
+      "commands":"source /home/infonetworking/csi-zkp/env.sh\nuv python install 3.11.14\nuv venv --python 3.11.14 --managed-python \"$CSI_ZKP_ROOT/venv\"\npython3 --version\n/usr/bin/python3 --version",
+      "evidence_patterns":["^Installed Python", "^Python 3", "^executable:", "^headers:", "^Creating virtual"],
+      "result":"専用Python 3.11.14と仮想環境を作成し、Python.hの存在も確認。OS標準Pythonは3.10.12のまま。",
+      "takeaway":"既存CSI収集環境を保ったまま、解析器のネイティブ拡張をビルドできる。uvのPATH警告はvenv/bin経由で実行するため支障なし。"
+    },
+    "07": {
+      "commands":"uv pip install --python \"$CSI_ZKP_ROOT/venv/bin/python3\" 'pip==26.2.1'\npython3 -m pip --version",
+      "evidence_patterns":["^pip 26", "^Installed 1"],
+      "result":"専用仮想環境にpip 26.2.1を導入。",
+      "takeaway":"pipの導入も記録し、どのPython環境にパッケージをインストールしたか確認できるようにした。"
+    },
+    "08": {
+      "commands":"python3 -m pip install 'setuptools==75.8.2' 'wheel==0.45.1' 'Cython==3.0.12'\ngcc --version\ng++ --version",
+      "evidence_patterns":["^Successfully installed", "^setuptools 75", "^wheel 0", "^Cython 3", "^gcc ", "^g\\+\\+ "],
+      "result":"ビルド用Pythonツール3種を導入。GCC/G++ 11.4.0は既存環境のものを再利用した。",
+      "takeaway":"PicoScenesのPython解析器はC/C++コードを含むため、Pythonライブラリだけでなくビルド環境も必要。"
+    },
+    "09": {
+      "commands":"python3 -m pip install 'numpy==1.26.4'\npython3 -c 'import numpy as np; print(np.__version__); print(np.abs([3+4j]))'",
+      "evidence_patterns":["^Successfully installed", "^numpy 1", "^complex array smoke"],
+      "result":"NumPy 1.26.4を導入し、複素数3+4jの絶対値が5になることを確認した。",
+      "takeaway":"CSIの複素数行列と量子化処理の実行基盤を確認した。"
+    },
+    "10": {
+      "commands":"python3 -m pip install 'scipy==1.15.3'\npython3 -c 'import scipy; from scipy.signal import lombscargle; print(scipy.__version__, callable(lombscargle))'",
+      "evidence_patterns":["^Successfully installed", "^scipy 1", "^Lomb-Scargle import:"],
+      "result":"SciPy 1.15.3を導入し、Lomb–Scargle関数をimportできた。",
+      "takeaway":"今後の浮動小数点版との比較用。今回のWASM証明生成がSciPy内部の計算を証明するわけではない。"
+    },
+    "11": {
+      "commands":"git clone https://github.com/wifisensing/PicoScenes-Python-Toolbox.git\ncd PicoScenes-Python-Toolbox\ngit checkout --detach f676855accedf79e848bf2f1d10ee5c1f649a33a\ngit submodule update --init --recursive\ngit rev-parse HEAD\ngit submodule status --recursive",
+      "evidence_patterns":["^HEAD is now", "^f676", "^ 75b099", "^Submodule path"],
+      "result":"解析器をバックエンドと同じf676855…へ固定。RXS-Parsing-Coreは75b099…で取得した。",
+      "takeaway":"解析器の差による結果変化を追跡できるよう、メインとサブモジュール双方のコミットを記録した。"
+    },
+    "12": {
+      "commands":"cd \"$CSI_ZKP_ROOT/sources/PicoScenes-Python-Toolbox\"\n/usr/bin/time -v python3 -m pip install --no-build-isolation .\ncd \"$CSI_ZKP_ROOT\"\npython3 -c 'from picoscenes import Picoscenes; print(Picoscenes)'\npython3 -m pip check",
+      "evidence_patterns":["^Successfully built", "^Successfully installed", "Elapsed ", "Maximum resident", "^picoscenes module:", "^parser class:", "No broken requirements"],
+      "result":"ビルド成功。処理時間26.35秒、最大RSS 398,900 KiB。インストール済み.soのimportと依存関係検査に成功した。",
+      "takeaway":"PicoScenes搭載PC自身で、生CSIを読み込むための解析環境が動作した。"
+    },
+    "13": {
+      "resolved":true,
+      "commands":"python3 research/edge-setup/prepare_release.py --audit-only",
+      "evidence_patterns":["checked_files", "path", "expected", "actual", "END exit_code"],
+      "result":"1,611件を検査し、不一致はREADME.mdのみ。監査はexit 1で終了し、その事実を保持した。",
+      "takeaway":"不一致を無視せず特定。暗号成果物や実行コードには既存manifestとの差がなかったため、次段で配布コピーのみ更新した。"
+    },
+    "14": {
+      "commands":"python3 research/edge-setup/prepare_release.py\n# 元パッケージとは別に配布コピーを作成\n# README差分とGitコミットをDEPLOYMENT_PROVENANCE.jsonへ保存",
+      "evidence_patterns":["manifest OK", "archive", "bytes", "sha256", "manifest_files"],
+      "result":"配布コピーの整合性検査成功。アーカイブ277,344,246 bytes、SHA-256は384d3b7f…8425f。",
+      "takeaway":"manifestは1,622件。由来情報1件と既存依存の.binリンク10件も新たに検査対象へ含めた。回路・鍵の再生成はしていない。"
+    },
+    "15": {
+      "commands":"scp research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz \\\n  research/edge-setup/artifacts/csi-lomb-e2e-edge-20261019.tar.gz.sha256 \\\n  infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/downloads/",
+      "evidence_patterns":["END exit_code"],
+      "result":"パッケージとSHA-256ファイルを約34.8秒で転送した。",
+      "takeaway":"生CSIを端末から送らず、証明に必要なコード・鍵を端末へ届ける構成。"
+    },
+    "16": {
+      "commands":"cd \"$CSI_ZKP_ROOT/downloads\"\nsha256sum --check csi-lomb-e2e-edge-20261019.tar.gz.sha256\ntar -xzf csi-lomb-e2e-edge-20261019.tar.gz -C \"$CSI_ZKP_ROOT/packages\"\ncd \"$CSI_ZKP_ROOT/packages/lomb_scargle_e2e\"\n./install.sh",
+      "evidence_patterns":["tar.gz: OK", "manifest OK", "Environment OK", "^snarkjs 0", "440M"],
+      "result":"転送前後のアーカイブSHA-256と内部1,622ファイルの整合性が一致。snarkjs 0.7.6、Node・Pythonの実行環境を確認した。",
+      "takeaway":"端末で証明するだけならコンパイル済みWASMと証明鍵を使える。CircomのコンパイルやTrusted Setupは今回不要。"
+    },
+    "17": {
+      "commands":"source /home/infonetworking/csi-zkp/env.sh\ncd \"$CSI_ZKP_ROOT/packages/lomb_scargle_e2e\"\n/usr/bin/time -v ./bin/self_test.sh",
+      "evidence_patterns":["snarkJS.*OK", "^witness_seconds", "^self-test passed", "estimatedBpm", "Elapsed ", "Maximum resident", "Exit status"],
+      "result":"合成15 BPM信号を約15.33 BPMと推定し、証明生成・ローカル検証・保存JSONからの再検証まで成功。全体14.34秒、最大RSS約5.24 GiB。",
+      "takeaway":"この端末でGroth16生成が完走することを実証。約0.33 BPMの差だけで実CSIの精度を評価したとはいえない。"
+    },
+    "18": {
+      "commands":"scp research/edge-setup/inspect_csi.py \\\n  infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/inspect_csi.py",
+      "evidence_patterns":["END exit_code"],
+      "result":"CSIの生値を出力せず、形状と時間長を調べるスクリプトを配置した。",
+      "takeaway":"研究の入力規模を把握するための計測も、証明生成とは独立したステップにした。"
+    },
+    "19": {
+      "commands":"source /home/infonetworking/csi-zkp/env.sh\npython3 \"$CSI_ZKP_ROOT/scripts/inspect_csi.py\"",
+      "evidence_patterns":["\"file\"", "\"modal_csi_width\"", "\"modal_frame_count\"", "\"duration_seconds\"", "\"numTones\"", "\"canonicalization\""],
+      "result":"全4件を読み込めた。直近3件は245トーン×送受信2×2、CSI幅980。約59～60秒、フレーム数4518・1779・5531。旧1件は1001トーン×2×2、幅4004、1.51秒。",
+      "takeaway":"『全サブキャリア』を今後実装する際は、245トーンと4アンテナリンクを区別する必要がある。現在はフラット化した980系列から8系列だけを抜き出している。"
+    },
+    "20": {
+      "commands":"source /home/infonetworking/csi-zkp/env.sh\ncd \"$CSI_ZKP_ROOT/packages/lomb_scargle_e2e\"\n/usr/bin/time -v ./bin/prove.sh \\\n  /home/infonetworking/csi_data/main/csi_20261005_115619.csi \\\n  \"$CSI_ZKP_ROOT/results/real_20261005_115619.json\"",
+      "evidence_patterns":["snarkJS.*OK", "^proof written:", "^witness_seconds", "Elapsed ", "Maximum resident", "Exit status"],
+      "result":"実CSI①の証明・検証に成功。witness 1秒、proof 13秒、verify 0秒（整数秒計測）。読み込み等を含む全体15.58秒、最大RSS約5.53 GiB。",
+      "takeaway":"5,531フレーム・980系列を読み込み、既存ルールで64×8へ縮約した入力について証明した。全フレーム・全系列の計算を証明したものではない。"
+    },
+    "21": {
+      "commands":"source /home/infonetworking/csi-zkp/env.sh\ncd \"$CSI_ZKP_ROOT/packages/lomb_scargle_e2e\"\n/usr/bin/time -v ./bin/prove.sh \\\n  /home/infonetworking/csi_data/main/csi_20261005_115523.csi \\\n  \"$CSI_ZKP_ROOT/results/real_20261005_115523.json\"",
+      "evidence_patterns":["snarkJS.*OK", "^proof written:", "^witness_seconds", "Elapsed ", "Maximum resident", "Exit status"],
+      "result":"実CSI②でも証明・検証に成功。全体14.77秒、証明生成13秒、最大RSS約5.49 GiB。後続確認でisNormal=falseの結果だった。",
+      "takeaway":"判定結果がfalseでも有効な証明を生成できる。証明の正当性と、正常・異常という判定値を区別する。"
+    },
+    "22": {
+      "commands":"source /home/infonetworking/csi-zkp/env.sh\ncd \"$CSI_ZKP_ROOT/packages/lomb_scargle_e2e\"\n/usr/bin/time -v ./bin/prove.sh \\\n  /home/infonetworking/csi_data/main/csi_20260907_185130.csi \\\n  \"$CSI_ZKP_ROOT/results/real_20260907_185130.json\"",
+      "evidence_patterns":["snarkJS.*OK", "^proof written:", "^witness_seconds", "Elapsed ", "Maximum resident", "Exit status"],
+      "result":"実CSI③も証明・検証に成功。全体15.76秒、証明生成13秒、最大RSS約5.39 GiB。",
+      "takeaway":"保存済み実CSI 3件で動作した。異なる入力各1回なので、性能のばらつき評価には今後の反復測定が必要。"
+    },
+    "23": {
+      "commands":"scp research/edge-setup/validate_results.py \\\n  research/edge-setup/final_inventory.py \\\n  infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/",
+      "evidence_patterns":["END exit_code"],
+      "result":"証明の再検証・改変拒否・元データ保全・環境情報固定のためのスクリプトを配置した。",
+      "takeaway":"生成成功だけでなく、保存後の検証と不正な結果の拒否まで確認する。"
+    },
+    "24": {
+      "commands":"source /home/infonetworking/csi-zkp/env.sh\npython3 \"$CSI_ZKP_ROOT/scripts/validate_results.py\"\n# 元の証明は保持し、一時コピーのpublicSignals[1]だけ反転\n# 全4件の元CSI SHA-256を再計算して照合",
+      "evidence_patterns":["^REVERIFY", "^TAMPERED", "snarkJS.*Invalid proof", "^SOURCE UNCHANGED"],
+      "result":"3証明の再検証成功。判定反転はexit 1・Invalid proof。結果JSONにCSI I/Q・秘密nonce・witnessがないこと、元CSI4件が不変であることも確認した。",
+      "takeaway":"現在のJSONには公開信号69個があり、BPMとタイムスタンプも含む。生CSI非開示は確認できたが、判定1ビットだけの公開は次の回路変更課題。"
+    },
+    "25": {
+      "commands":"source /home/infonetworking/csi-zkp/env.sh\npython3 \"$CSI_ZKP_ROOT/scripts/final_inventory.py\"\npython3 -m pip check\npython3 \"$CSI_ZKP_ROOT/packages/lomb_scargle_e2e/bin/verify_manifest.py\"\ndu -sh \"$CSI_ZKP_ROOT\"\nfree -h\nps -C PicoScenes -o pid,etime,%cpu,%mem,comm",
+      "evidence_patterns":["No broken requirements", "manifest OK", "1.4G", "^/dev/nvme", "^Mem:", "^Swap:", "63729.*PicoScenes"],
+      "result":"環境全体は約1.4GiB、ディスク残量約422GiB、利用可能メモリ約14GiB、Swap未使用。PicoScenesは同じPIDで継続稼働。",
+      "takeaway":"environment.jsonとpython-freeze.txtで実際に動いたバージョンを保存した。今後の実験ではこの構成を基準に比較できる。"
+    },
+    "26": {
+      "commands":"python3 research/edge-setup/collect_evidence.py\n# 回収：environment.json / python-freeze.txt\n#       csi_inventory.json / validation_summary.json",
+      "evidence_patterns":["^Retrieved metadata", "^No raw"],
+      "result":"報告用メタデータのみを操作元Macに回収。実CSI・秘密入力・witnessは回収していない。",
+      "takeaway":"ローカルのHTMLと生ログを報告に使い、エッジ側の結果JSONで独立した再検証を行える。"
+    },
+    "27": {
+      "resolved":true,
+      "commands":"# 操作元Macで実行\nnpm install --prefix research/edge-setup/artifacts/report-renderer --no-audit --no-fund playwright@1.56.1\nexport PLAYWRIGHT_BROWSERS_PATH=\"$PWD/research/edge-setup/artifacts/report-renderer/browsers\"\nnode research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js install chromium --only-shell",
+      "evidence_patterns":["added .*packages", "downloaded to", "^Version"],
+      "result":"Playwrightのnpm導入とブラウザZIP取得は成功したが、展開の進捗が約4分間止まったため、このインストーラを中断した。原因は未特定。",
+      "takeaway":"ZIPをartifactsへ退避後、当該インストーラだけを停止。次段でOSのunzipを使う復旧を記録し、成功したように扱わない。"
+    },
+    "28": {
+      "commands":"# 操作元Macで実行：取得済みZIPを別フォルダへ展開\nunzip -t chromium-headless-shell-mac15-1194.zip\nunzip -q chromium-headless-shell-mac15-1194.zip -d browsers/manual-chromium-1194\nbrowsers/manual-chromium-1194/chrome-mac/headless_shell --version\nnode node_modules/playwright/cli.js --version",
+      "evidence_patterns":["No errors detected", "^Chromium", "^Google Chrome", "^Version", "^[a-f0-9]{64}"],
+      "result":"ZIPをCRC検査後、専用の別フォルダへ展開。撮影スクリプトはこの実行ファイルを明示して起動する。ブラウザ表示の検査結果はbrowser-validation.jsonへ保存。",
+      "takeaway":"中断した自動展開先は調査用に保持。エッジPCへの追加インストールや変更はない。"
+    }
+  }
+}

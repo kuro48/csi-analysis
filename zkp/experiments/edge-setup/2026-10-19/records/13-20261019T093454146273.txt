@@ -1,0 +1,16 @@
+STEP 13 | 既存配布物のチェックサム監査
+START 2026-10-19T09:34:54.146273+09:00
+配布前に全ファイルを旧manifestと比較し、不一致箇所を特定する。
+
+{
+  "checked_files": 1611,
+  "differences": [
+    {
+      "path": "README.md",
+      "expected": "506dbcbda57876cb4a71fe68481a5ddf787a0f5b90b1de5260884c354a914545",
+      "actual": "a4d826fb9b098b2683933638d87775e0e7a3af9ed8cc1241020f4ec03f2a1f41"
+    }
+  ]
+}
+
+END exit_code=1 elapsed_seconds=1.476

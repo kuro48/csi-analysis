@@ -1,0 +1,19 @@
+STEP 02 | 専用作業フォルダの作成
+START 2026-10-19T09:33:31.533959+09:00
+ユーザー権限で研究環境を独立配置する。既存ディレクトリがあれば停止する。
+
++ test '!' -e /home/infonetworking/csi-zkp
++ umask 077
++ mkdir -p /home/infonetworking/csi-zkp/tools /home/infonetworking/csi-zkp/downloads /home/infonetworking/csi-zkp/cache /home/infonetworking/csi-zkp/sources /home/infonetworking/csi-zkp/packages /home/infonetworking/csi-zkp/results /home/infonetworking/csi-zkp/reports /home/infonetworking/csi-zkp/scripts
++ ls -ld /home/infonetworking/csi-zkp /home/infonetworking/csi-zkp/cache /home/infonetworking/csi-zkp/downloads /home/infonetworking/csi-zkp/packages /home/infonetworking/csi-zkp/reports /home/infonetworking/csi-zkp/results /home/infonetworking/csi-zkp/scripts /home/infonetworking/csi-zkp/sources /home/infonetworking/csi-zkp/tools
+drwx------ 10 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/cache
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/downloads
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/packages
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/reports
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/results
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/scripts
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/sources
+drwx------  2 infonetworking infonetworking 4096 Oct 19 09:33 /home/infonetworking/csi-zkp/tools
+
+END exit_code=0 elapsed_seconds=0.378

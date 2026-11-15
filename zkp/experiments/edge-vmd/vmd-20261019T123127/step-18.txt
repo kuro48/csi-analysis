@@ -1,0 +1,1 @@
+scp -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/results/vmd-20261019T123127/sources.sha256 /Users/kurokawaryuunosuke/csi-analysis/research/edge-vmd/vmd-20261019T123127/sources.sha256

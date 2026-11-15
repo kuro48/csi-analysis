@@ -1,0 +1,7 @@
+python3 /Users/kurokawaryuunosuke/csi-analysis/research/edge-vmd/build_package.py
+{
+  "archive": "/Users/kurokawaryuunosuke/csi-analysis/research/edge-vmd/artifacts/vmd-comparison-20261019.tar.gz",
+  "bytes": 130809849,
+  "sha256": "dd01f4949a9bdab8fe4718e52373fdcd7f7c14c9516d8c5dbb62d0e37323be57",
+  "files": 11
+}

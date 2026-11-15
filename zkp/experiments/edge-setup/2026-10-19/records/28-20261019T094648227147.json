@@ -1,0 +1,19 @@
+{
+  "id": "28",
+  "title": "撮影用ブラウザの展開停滞からの復旧",
+  "purpose": "ダウンロード済みZIPの整合性を検査し、OSのunzipで別フォルダへ展開して撮影用ブラウザを利用可能にする。",
+  "expect": "ZIP検査成功、Chromiumのバージョン表示成功。",
+  "script": "scripts/28_browser_recovery.sh",
+  "remote": false,
+  "started_at": "2026-10-19T09:46:48.227147+09:00",
+  "log": "28-20261019T094648227147.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\n# Step 27 downloaded the complete ZIP but its extraction stopped making progress.\n# Before stopping only that installer, the archive was preserved under artifacts.\nRENDER_ROOT=\"$PWD/research/edge-setup/artifacts/report-renderer\"\nARCHIVE=\"$RENDER_ROOT/chromium-headless-shell-mac15-1194.zip\"\nDEST=\"$RENDER_ROOT/browsers/manual-chromium-1194\"\ntest -f \"$ARCHIVE\"\ntest ! -e \"$DEST\"\nshasum -a 256 \"$ARCHIVE\"\nunzip -t \"$ARCHIVE\"\nmkdir -p \"$DEST\"\nunzip -q \"$ARCHIVE\" -d \"$DEST\"\n\"$DEST/chrome-mac/headless_shell\" --version\nnode \"$RENDER_ROOT/node_modules/playwright/cli.js\" --version\n",
+  "executed_argv": [
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 6.016,
+  "ended_at": "2026-10-19T09:46:54.243418+09:00"
+}

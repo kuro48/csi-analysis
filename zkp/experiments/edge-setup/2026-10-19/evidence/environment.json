@@ -1,0 +1,21 @@
+{
+  "host": "infonetworking-CSI",
+  "python": "3.11.14 (main, Feb 12 2026, 00:42:50) [Clang 21.1.4 ]",
+  "executable": "/home/infonetworking/csi-zkp/venv/bin/python3",
+  "node": "v22.23.3",
+  "npm": "10.9.9",
+  "uv": "uv 0.13.1 (x86_64-unknown-linux-gnu)",
+  "packages": {
+    "pip": "26.2.1",
+    "setuptools": "75.8.2",
+    "wheel": "0.45.1",
+    "Cython": "3.0.12",
+    "numpy": "1.26.4",
+    "scipy": "1.15.3",
+    "picoscenes": "0.1.0"
+  },
+  "parser_commit": "f676855accedf79e848bf2f1d10ee5c1f649a33a",
+  "parser_submodules": "75b099d9841e539e8c3c50151e1442b5f4bd5382 rxs_parsing_core (heads/master)",
+  "environment_script": "/home/infonetworking/csi-zkp/env.sh",
+  "package_dir": "/home/infonetworking/csi-zkp/packages/lomb_scargle_e2e"
+}

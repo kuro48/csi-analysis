@@ -1,0 +1,30 @@
+{
+  "id": "06",
+  "title": "Python 3.11・仮想環境の構築",
+  "purpose": "バックエンドと同じPython 3.11系を専用配置し、PicoScenes解析器のビルドに必要なPython.hを確保する。",
+  "expect": "専用Python 3.11.14とPython.hを確認し、システムPythonは3.10.12のまま。",
+  "script": "scripts/06_python.sh",
+  "started_at": "2026-10-19T09:33:52.915394+09:00",
+  "log": "06-20261019T093352915394.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\nuv python install 3.11.14\nuv python find --managed-python 3.11.14\nuv venv --python 3.11.14 --managed-python \"$CSI_ZKP_ROOT/venv\"\npython3 --version\npython3 -c 'import sys, sysconfig; from pathlib import Path; print(\"executable:\", sys.executable); p=Path(sysconfig.get_path(\"include\"))/\"Python.h\"; print(\"headers:\", p, \"exists:\", p.is_file()); assert p.is_file()'\n/usr/bin/python3 --version\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 3.061,
+  "ended_at": "2026-10-19T09:33:55.976619+09:00"
+}

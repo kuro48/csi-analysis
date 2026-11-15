@@ -1,0 +1,134 @@
+STEP 17 | 合成15 BPM信号による自己診断
+START 2026-10-19T09:35:53.946542+09:00
+端末上でwitness生成→Groth16証明生成→検証→保存JSONから再検証まで通す。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
++ /usr/bin/time -v ./bin/self_test.sh
+[32;22m[INFO]  [39;1msnarkJS[0m: OK!
+proof written: /tmp/csi-lomb-self-test.em8szG/result.json
+witness_seconds=1 proof_seconds=13 verify_seconds=0
+[32;22m[INFO]  [39;1msnarkJS[0m: OK!
+self-test passed
+{
+  "csiCommitment": "16321607559812079937626861827168685950663181809365538435249906554904584751810",
+  "isNormal": true,
+  "selectedSubcarrier": 0,
+  "estimatedFrequencyBin": 18,
+  "estimatedFrequencyHz": 0.255511811023622,
+  "estimatedBpm": 15.330708661417322,
+  "globalPeakFrequencyBin": 18,
+  "globalPeakFrequencyHz": 0.255511811023622,
+  "globalPeakBpm": 15.330708661417322,
+  "timestampsMs": [
+    0,
+    963,
+    1915,
+    2849,
+    3768,
+    4683,
+    5607,
+    6548,
+    7505,
+    8470,
+    9430,
+    10374,
+    11302,
+    12218,
+    13135,
+    14065,
+    15013,
+    15975,
+    16939,
+    17894,
+    18831,
+    19753,
+    20668,
+    21589,
+    22526,
+    23480,
+    24445,
+    25407,
+    26355,
+    27286,
+    28203,
+    29119,
+    30046,
+    30990,
+    31949,
+    32914,
+    33872,
+    34813,
+    35738,
+    36653,
+    37572,
+    38505,
+    39456,
+    40419,
+    41383,
+    42335,
+    43269,
+    44189,
+    45104,
+    46027,
+    46967,
+    47924,
+    48889,
+    49849,
+    50795,
+    51722,
+    52639,
+    53556,
+    54485,
+    55432,
+    56394,
+    57358,
+    58314,
+    59252
+  ]
+}
+	Command being timed: "./bin/self_test.sh"
+	User time (seconds): 80.22
+	System time (seconds): 9.32
+	Percent of CPU this job got: 624%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:14.34
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5498552
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 9
+	Minor (reclaiming a frame) page faults: 6512916
+	Voluntary context switches: 14848
+	Involuntary context switches: 4344
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 49248
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+
+END exit_code=0 elapsed_seconds=14.795

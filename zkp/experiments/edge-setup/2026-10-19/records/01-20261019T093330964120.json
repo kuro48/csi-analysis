@@ -1,0 +1,30 @@
+{
+  "id": "01",
+  "title": "接続・実機スペック・導入前環境の記録",
+  "purpose": "CPU・メモリ・既存PicoScenes・欠けているツールを確認し、元CSIのSHA-256を保存する。",
+  "expect": "SSH成功、実機情報と4件の元データのハッシュが記録される。pip・ヘッダー不足は導入前の観測。",
+  "script": "scripts/01_preflight.sh",
+  "started_at": "2026-10-19T09:33:30.964120+09:00",
+  "log": "01-20261019T093330964120.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\ndate -Is\nid -un\nhostname\nuname -srm\ncat /etc/os-release\nlscpu | grep -E 'Architecture:|CPU\\(s\\):|Model name:|Core\\(s\\)|Thread\\(s\\)|Socket\\(s\\)|CPU max'\nfree -h\ndf -h /\npython3 --version\ncommand -v PicoScenes gcc g++ make git curl\ndpkg-query -W 'picoscenes*'\nfor tool in node npm circom snarkjs; do command -v \"$tool\" || true; done\npython3 -m pip --version || true\ntest -f /usr/include/python3.10/Python.h && echo python_headers_present || echo python_headers_missing\nsudo -n -l || true\nps -C PicoScenes -o pid,etime,%cpu,%mem,comm\nfind /home/infonetworking/csi_data -type f -name '*.csi' -printf '%s %p\\n'\nsha256sum /home/infonetworking/csi_data/main/*.csi /home/infonetworking/rx_2_260616_113124.csi\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 0.486,
+  "ended_at": "2026-10-19T09:33:31.450390+09:00"
+}

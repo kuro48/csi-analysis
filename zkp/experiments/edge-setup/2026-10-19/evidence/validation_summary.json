@@ -1,0 +1,41 @@
+{
+  "real_proofs": [
+    {
+      "file": "real_20261005_115619.json",
+      "proof_verified": true,
+      "public_signals": 69,
+      "isNormal": true,
+      "estimatedBpm": 18.070866141732285,
+      "globalPeakBpm": 18.070866141732285,
+      "bytes": 3291,
+      "sha256": "65b339ff180966ae1685b7f3d9c07b242a0c5e2270037214d7839a971b22dfdd",
+      "private_input_keys_absent": true
+    },
+    {
+      "file": "real_20261005_115523.json",
+      "proof_verified": true,
+      "public_signals": 69,
+      "isNormal": false,
+      "estimatedBpm": 6.425196850393701,
+      "globalPeakBpm": 4.3700787401574805,
+      "bytes": 3308,
+      "sha256": "e1ee16e935481986c6ca574daedc21473469cefe7958ce720c8bfd713204bf2b",
+      "private_input_keys_absent": true
+    },
+    {
+      "file": "real_20260907_185130.json",
+      "proof_verified": true,
+      "public_signals": 69,
+      "isNormal": true,
+      "estimatedBpm": 7.110236220472441,
+      "globalPeakBpm": 7.110236220472441,
+      "bytes": 3294,
+      "sha256": "b45554bc447df734e47540c796a6c99c079b39b02d5ee7a6da12dd22a7d200c7",
+      "private_input_keys_absent": true
+    }
+  ],
+  "changed_verdict_rejected": true,
+  "sources_unchanged": true,
+  "accuracy_evaluated": false,
+  "limitation": "Existing 64x8 circuit: BPM, subcarrier index, commitment and timestamps remain public."
+}

@@ -1,0 +1,8 @@
+Cython==3.0.12
+joblib==1.4.2
+numpy==1.26.4
+picoscenes @ file:///home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
+scikit-learn==1.5.2
+scipy==1.15.3
+threadpoolctl==3.5.0
+vmdpy==0.2

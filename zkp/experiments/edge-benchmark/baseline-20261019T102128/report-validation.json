@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "cards": 6,
+  "browser": "141.0.7390.37",
+  "checks": [
+    "18 trials",
+    "5 measured trials per case",
+    "all verified and reproducible",
+    "sources unchanged",
+    "6 screenshots",
+    "no card overflow",
+    "no JavaScript errors"
+  ]
+}

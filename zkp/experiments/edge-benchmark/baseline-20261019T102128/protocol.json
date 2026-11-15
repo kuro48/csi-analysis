@@ -1,0 +1,33 @@
+{
+  "run_id": "baseline-20261019T102128",
+  "purpose": "Current-circuit baseline, not a comparison with a new circuit or VMD",
+  "repetitions_per_case": 5,
+  "warmups_per_case": 1,
+  "parallel_proofs": 1,
+  "order": "Warmup A,B,C; measured rounds rotate A,B,C / B,C,A / C,A,B",
+  "source_hashes": {
+    "A": "fd03205e3724ce81a3d79e7f079a22b283e18df763ab946d8933f15d423d0a12",
+    "B": "ce290aaa107a136d0cddfec21f559464b9686dcfcd149e7fb7714204f8677b40",
+    "C": "29b3d3092f5276100d64d09bd4786a9f9a2622feeb4bc539c7fcf9c2671b9ffb"
+  },
+  "artifact_hashes": {
+    "artifacts/csi_lomb_scargle_end_to_end.wasm": "3c26f89a02bfbc30b6ee013e263a99142c10c11deecb6b932c1fc4064cf6ae32",
+    "artifacts/csi_lomb_scargle_end_to_end_final.zkey": "4735316719e48201abed06ea8f943392efb99285af4d88b14b01ec1199e241c5",
+    "artifacts/generate_witness.js": "4995a2e6b01432f76182abec6a831fdaf7f840384035072002ccaa43101b14d4",
+    "artifacts/verification_key.json": "476838ec24c11350a60aa6eea1504727dcde726d9a7aa8547c7774f17381bd3c",
+    "artifacts/witness_calculator.js": "3bfca49ee5489996a827a1e5a0c8a1f558dbd99e657c7591f5b32e0d33189ce4"
+  },
+  "node_options": "--max-old-space-size=4096",
+  "script_sha256": "d19a3c50726b499d6589cdf431f67554d88fa1957c5fe3e5ca7c266846e00300",
+  "source_preservation": true,
+  "timing": "perf_counter around unchanged prove.sh including process startup and GNU time wrapper; excludes independent reverify",
+  "memory": "GNU time max RSS of command/children, not sum of simultaneous processes or OS-wide peak",
+  "caveats": [
+    "Warm cache, no cache flushing",
+    "Existing PicoScenes process is not stopped",
+    "Phase timers from prove.sh have integer-second resolution",
+    "No ground-truth respiratory rate or clinical accuracy evaluation",
+    "Commitment/proof randomness excluded from deterministic comparison",
+    "No new circuit, algorithm, package or tool installed"
+  ]
+}

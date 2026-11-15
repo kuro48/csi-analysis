@@ -1,0 +1,26 @@
+{
+  "id": "18",
+  "title": "CSI調査スクリプトの配置",
+  "purpose": "CSI値を出力せずにフレーム数・幅・時間長・回路入力への変換可否を調べるツールを配置する。",
+  "expect": "スクリプト転送成功。",
+  "command": [
+    "scp",
+    "-o",
+    "BatchMode=yes",
+    "research/edge-setup/inspect_csi.py",
+    "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/inspect_csi.py"
+  ],
+  "started_at": "2026-10-19T09:36:08.823219+09:00",
+  "log": "18-20261019T093608823219.txt",
+  "status": "passed",
+  "executed_argv": [
+    "scp",
+    "-o",
+    "BatchMode=yes",
+    "research/edge-setup/inspect_csi.py",
+    "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/inspect_csi.py"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 0.32,
+  "ended_at": "2026-10-19T09:36:09.143685+09:00"
+}

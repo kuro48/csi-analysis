@@ -1,0 +1,4 @@
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 infonetworking@100.111.253.60 'bash -c '"'"'set -euo pipefail; umask 077; source /home/infonetworking/csi-zkp/env.sh; python3 -m pip check; python3 -c "import numpy,scipy,sklearn,vmdpy; print(numpy.__version__,scipy.__version__,sklearn.__version__); print(vmdpy.__file__)"'"'"''
+No broken requirements found.
+1.26.4 1.15.3 1.5.2
+/home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages/vmdpy/__init__.py

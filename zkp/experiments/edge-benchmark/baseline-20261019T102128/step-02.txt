@@ -1,0 +1,1 @@
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 infonetworking@100.111.253.60 'test ! -e /home/infonetworking/csi-zkp/scripts/baseline-20261019T102128.py; test ! -e /home/infonetworking/csi-zkp/results/benchmarks/baseline-20261019T102128'

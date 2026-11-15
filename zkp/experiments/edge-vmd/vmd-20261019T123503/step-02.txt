@@ -1,0 +1,12 @@
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 infonetworking@100.111.253.60 'bash -c '"'"'set -euo pipefail; umask 077; source /home/infonetworking/csi-zkp/env.sh; python3 -m pip install --only-binary=:all: --no-deps joblib==1.4.2; python3 -m pip show joblib'"'"''
+Requirement already satisfied: joblib==1.4.2 in ./csi-zkp/venv/lib/python3.11/site-packages (1.4.2)
+Name: joblib
+Version: 1.4.2
+Summary: Lightweight pipelining with Python functions
+Home-page: https://joblib.readthedocs.io
+Author: 
+Author-email: Gael Varoquaux <gael.varoquaux@normalesup.org>
+License: BSD 3-Clause
+Location: /home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages
+Requires: 
+Required-by: scikit-learn

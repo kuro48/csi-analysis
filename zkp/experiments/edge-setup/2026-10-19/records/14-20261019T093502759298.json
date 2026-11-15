@@ -1,0 +1,20 @@
+{
+  "id": "14",
+  "title": "配布用コピーのmanifest更新・アーカイブ作成",
+  "purpose": "READMEのみの不一致であることを条件に、由来情報付きの独立した配布コピーを作る。元パッケージは変更しない。",
+  "expect": "新manifest検査成功、配布アーカイブのSHA-256とサイズを記録。",
+  "command": [
+    "python3",
+    "research/edge-setup/prepare_release.py"
+  ],
+  "started_at": "2026-10-19T09:35:02.759298+09:00",
+  "log": "14-20261019T093502759298.txt",
+  "status": "passed",
+  "executed_argv": [
+    "python3",
+    "research/edge-setup/prepare_release.py"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 12.13,
+  "ended_at": "2026-10-19T09:35:14.889563+09:00"
+}

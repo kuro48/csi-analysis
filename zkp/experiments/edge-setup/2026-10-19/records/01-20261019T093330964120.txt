@@ -1,0 +1,92 @@
+STEP 01 | 接続・実機スペック・導入前環境の記録
+START 2026-10-19T09:33:30.964120+09:00
+CPU・メモリ・既存PicoScenes・欠けているツールを確認し、元CSIのSHA-256を保存する。
+
++ date -Is
+2026-10-19T09:33:31+09:00
+infonetworking
++ id -un
++ hostname
+infonetworking-CSI
+Linux 6.5.0-15-generic x86_64
++ uname -srm
++ cat /etc/os-release
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+NAME="Ubuntu"
+VERSION_ID="22.04"
+VERSION="22.04.5 LTS (Jammy Jellyfish)"
+VERSION_CODENAME=jammy
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=jammy
+Architecture:                       x86_64
+CPU(s):                             12
+Model name:                         12th Gen Intel(R) Core(TM) i5-12450H
+Thread(s) per core:                 2
+Core(s) per socket:                 8
+Socket(s):                          1
+CPU max MHz:                        4400.0000
+NUMA node0 CPU(s):                  0-11
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       994Mi       9.5Gi        38Mi       4.9Gi        14Gi
+Swap:          2.0Gi          0B       2.0Gi
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p2  468G   22G  423G   5% /
+Python 3.10.12
+/usr/bin/PicoScenes
+/usr/bin/gcc
+/usr/bin/g++
+/usr/bin/make
+/usr/bin/git
+/usr/bin/curl
++ lscpu
++ grep -E 'Architecture:|CPU\(s\):|Model name:|Core\(s\)|Thread\(s\)|Socket\(s\)|CPU max'
++ free -h
++ df -h /
++ python3 --version
++ command -v PicoScenes gcc g++ make git curl
++ dpkg-query -W 'picoscenes*'
+picoscenes-all	20200715
+picoscenes-driver-modules-6.5.0-15-generic	20240210
+picoscenes-platform	2025.1217.1547
+picoscenes-plugins-demo-echoprobe-forwarder	2025.1217.1604
+picoscenes-source-updater	1.3
++ for tool in node npm circom snarkjs
++ command -v node
++ true
++ for tool in node npm circom snarkjs
++ command -v npm
++ true
++ for tool in node npm circom snarkjs
++ command -v circom
++ true
++ for tool in node npm circom snarkjs
++ command -v snarkjs
++ true
++ python3 -m pip --version
+/usr/bin/python3: No module named pip
+python_headers_missing
++ true
++ test -f /usr/include/python3.10/Python.h
++ echo python_headers_missing
++ sudo -n -l
+sudo: a password is required
++ true
++ ps -C PicoScenes -o pid,etime,%cpu,%mem,comm
+    PID     ELAPSED %CPU %MEM COMMAND
+  63729 13-21:38:06  0.4  0.5 PicoScenes
++ find /home/infonetworking/csi_data -type f -name '*.csi' -printf '%s %p\n'
+7867009 /home/infonetworking/csi_data/main/csi_20261005_115523.csi
+24396188 /home/infonetworking/csi_data/main/csi_20261005_115619.csi
+23700389 /home/infonetworking/csi_data/main/csi_20260907_185130.csi
++ sha256sum /home/infonetworking/csi_data/main/csi_20260907_185130.csi /home/infonetworking/csi_data/main/csi_20261005_115523.csi /home/infonetworking/csi_data/main/csi_20261005_115619.csi /home/infonetworking/rx_2_260616_113124.csi
+29b3d3092f5276100d64d09bd4786a9f9a2622feeb4bc539c7fcf9c2671b9ffb  /home/infonetworking/csi_data/main/csi_20260907_185130.csi
+ce290aaa107a136d0cddfec21f559464b9686dcfcd149e7fb7714204f8677b40  /home/infonetworking/csi_data/main/csi_20261005_115523.csi
+fd03205e3724ce81a3d79e7f079a22b283e18df763ab946d8933f15d423d0a12  /home/infonetworking/csi_data/main/csi_20261005_115619.csi
+8f31e2dcdd5dc79f4cdda1a95455fe183d698a333be515a518816cace41b74e9  /home/infonetworking/rx_2_260616_113124.csi
+
+END exit_code=0 elapsed_seconds=0.485

@@ -1,0 +1,19 @@
+{
+  "id": "27",
+  "title": "資料撮影用Playwright・Chromiumのインストール",
+  "purpose": "操作元MacでHTMLの実表示を確認し、各ステップのPNGと報告用PDFを作る。エッジ側の依存ではない。",
+  "expect": "Playwright 1.56.1と専用headless Chromiumをプロジェクトのartifacts内へ配置する。",
+  "script": "scripts/27_report_tools.sh",
+  "remote": false,
+  "started_at": "2026-10-19T09:42:08.582215+09:00",
+  "log": "27-20261019T094208582215.txt",
+  "status": "failed",
+  "script_text": "set -euxo pipefail\n# This step runs on the operator Mac, not on the edge PC.\nnpm install --prefix research/edge-setup/artifacts/report-renderer --no-audit --no-fund playwright@1.56.1\nexport PLAYWRIGHT_BROWSERS_PATH=\"$PWD/research/edge-setup/artifacts/report-renderer/browsers\"\nnode research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js install chromium --only-shell\nnode research/edge-setup/artifacts/report-renderer/node_modules/playwright/cli.js --version\n",
+  "executed_argv": [
+    "bash",
+    "-se"
+  ],
+  "exit_code": 143,
+  "elapsed_seconds": 258.776,
+  "ended_at": "2026-10-19T09:46:27.354604+09:00"
+}

@@ -1,0 +1,81 @@
+STEP 24 | 再検証・判定改変の拒否・元データ保全の確認
+START 2026-10-19T09:38:28.423108+09:00
+3証明を再検証し、公開判定を反転した証明を拒否できるか確かめる。秘密入力キーの不在と元CSIハッシュも確認する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ python3 /home/infonetworking/csi-zkp/scripts/validate_results.py
+REVERIFY real_20261005_115619.json: exit=0
+[32;22m[INFO]  [39;1msnarkJS[0m: OK!
+REVERIFY real_20261005_115523.json: exit=0
+[32;22m[INFO]  [39;1msnarkJS[0m: OK!
+REVERIFY real_20260907_185130.json: exit=0
+[32;22m[INFO]  [39;1msnarkJS[0m: OK!
+TAMPERED VERDICT: exit=1
+[31;22m[ERROR] [39;1msnarkJS[0m: Invalid proof
+SOURCE UNCHANGED: csi_20260907_185130.csi
+SOURCE UNCHANGED: csi_20261005_115523.csi
+SOURCE UNCHANGED: csi_20261005_115619.csi
+SOURCE UNCHANGED: rx_2_260616_113124.csi
+{
+  "real_proofs": [
+    {
+      "file": "real_20261005_115619.json",
+      "proof_verified": true,
+      "public_signals": 69,
+      "isNormal": true,
+      "estimatedBpm": 18.070866141732285,
+      "globalPeakBpm": 18.070866141732285,
+      "bytes": 3291,
+      "sha256": "65b339ff180966ae1685b7f3d9c07b242a0c5e2270037214d7839a971b22dfdd",
+      "private_input_keys_absent": true
+    },
+    {
+      "file": "real_20261005_115523.json",
+      "proof_verified": true,
+      "public_signals": 69,
+      "isNormal": false,
+      "estimatedBpm": 6.425196850393701,
+      "globalPeakBpm": 4.3700787401574805,
+      "bytes": 3308,
+      "sha256": "e1ee16e935481986c6ca574daedc21473469cefe7958ce720c8bfd713204bf2b",
+      "private_input_keys_absent": true
+    },
+    {
+      "file": "real_20260907_185130.json",
+      "proof_verified": true,
+      "public_signals": 69,
+      "isNormal": true,
+      "estimatedBpm": 7.110236220472441,
+      "globalPeakBpm": 7.110236220472441,
+      "bytes": 3294,
+      "sha256": "b45554bc447df734e47540c796a6c99c079b39b02d5ee7a6da12dd22a7d200c7",
+      "private_input_keys_absent": true
+    }
+  ],
+  "changed_verdict_rejected": true,
+  "sources_unchanged": true,
+  "accuracy_evaluated": false,
+  "limitation": "Existing 64x8 circuit: BPM, subcarrier index, commitment and timestamps remain public."
+}
+
+END exit_code=0 elapsed_seconds=1.882

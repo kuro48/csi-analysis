@@ -1,0 +1,30 @@
+{
+  "id": "10",
+  "title": "SciPyのインストール",
+  "purpose": "今後の浮動小数点Lomb–Scargle比較実験用ライブラリを導入する。既存エッジ証明自体の必須依存ではない。",
+  "expect": "SciPy 1.15.3とLomb–Scargle関数のimportが成功する。",
+  "script": "scripts/10_scipy.sh",
+  "started_at": "2026-10-19T09:34:03.944564+09:00",
+  "log": "10-20261019T093403944564.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\npython3 -m pip install 'scipy==1.15.3'\npython3 -c 'import scipy; from scipy.signal import lombscargle; print(\"scipy\", scipy.__version__); print(\"Lomb-Scargle import:\", callable(lombscargle))'\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 6.191,
+  "ended_at": "2026-10-19T09:34:10.136041+09:00"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "03",
+  "title": "環境切り替えスクリプトの配置",
+  "purpose": "source env.sh だけで専用Node/Pythonを使用できるようにする。元CSIを削除する設定は無効にする。",
+  "expect": "env.sh の転送成功。シェルの既存設定ファイルは変更しない。",
+  "command": [
+    "scp",
+    "-o",
+    "BatchMode=yes",
+    "research/edge-setup/env.sh",
+    "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/env.sh"
+  ],
+  "started_at": "2026-10-19T09:33:31.998414+09:00",
+  "log": "03-20261019T093331998414.txt",
+  "status": "passed",
+  "executed_argv": [
+    "scp",
+    "-o",
+    "BatchMode=yes",
+    "research/edge-setup/env.sh",
+    "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/env.sh"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 0.379,
+  "ended_at": "2026-10-19T09:33:32.378135+09:00"
+}

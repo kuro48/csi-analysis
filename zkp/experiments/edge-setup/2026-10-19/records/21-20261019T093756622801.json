@@ -1,0 +1,30 @@
+{
+  "id": "21",
+  "title": "実CSI②：2026-10-05 11:55収録の証明生成",
+  "purpose": "別の約60秒の実CSIでも同じ環境で証明できるか確認する。",
+  "expect": "2件目の証明・検証が成功する。これは別入力の動作確認であり同一入力の反復統計ではない。",
+  "script": "scripts/21_real_b.sh",
+  "started_at": "2026-10-19T09:37:56.622801+09:00",
+  "log": "21-20261019T093756622801.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\ncd \"$CSI_ZKP_ROOT/packages/lomb_scargle_e2e\"\ntest ! -e \"$CSI_ZKP_ROOT/results/real_20261005_115523.json\"\n/usr/bin/time -v ./bin/prove.sh /home/infonetworking/csi_data/main/csi_20261005_115523.csi \"$CSI_ZKP_ROOT/results/real_20261005_115523.json\"\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 15.08,
+  "ended_at": "2026-10-19T09:38:11.703151+09:00"
+}

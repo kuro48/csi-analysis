@@ -1,0 +1,53 @@
+STEP 04 | Node.js・npmのインストール
+START 2026-10-19T09:33:32.460807+09:00
+証明生成用JavaScriptランタイムを公式バイナリから配置し、公式SHA-256と照合する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/downloads
++ curl --fail --show-error --location --retry 3 --max-time 180 -O https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ 13 29.5M   13 4095k    0     0  10.9M      0  0:00:02 --:--:--  0:00:02 10.9M
+ 61 29.5M   61 18.3M    0     0  13.2M      0  0:00:02  0:00:01  0:00:01 13.2M
+100 29.5M  100 29.5M    0     0  13.5M      0  0:00:02  0:00:02 --:--:-- 13.5M
++ curl --fail --show-error --location --retry 3 --max-time 60 -o node-v22.23.3-SHASUMS256.txt https://nodejs.org/dist/v22.23.3/SHASUMS256.txt
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100  3981  100  3981    0     0  54008      0 --:--:-- --:--:-- --:--:-- 54534
++ grep ' node-v22.23.3-linux-x64.tar.xz$' node-v22.23.3-SHASUMS256.txt
++ sha256sum --check -
+node-v22.23.3-linux-x64.tar.xz: OK
++ tar -xJf node-v22.23.3-linux-x64.tar.xz -C /home/infonetworking/csi-zkp/tools
++ node --version
+v22.23.3
++ npm --version
+10.9.9
+/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin/node
+/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin/npm
++ command -v node npm
+
+END exit_code=0 elapsed_seconds=4.272

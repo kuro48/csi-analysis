@@ -1,0 +1,30 @@
+{
+  "id": "08",
+  "title": "setuptools・wheel・Cythonのインストール",
+  "purpose": "PicoScenes Python ToolboxのC/C++拡張をビルドするためのPython側ツールを導入する。gcc/g++は既存のものを使う。",
+  "expect": "各バージョンと既存コンパイラを確認できる。",
+  "script": "scripts/08_build_deps.sh",
+  "started_at": "2026-10-19T09:33:57.215654+09:00",
+  "log": "08-20261019T093357215654.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\npython3 -m pip install 'setuptools==75.8.2' 'wheel==0.45.1' 'Cython==3.0.12'\npython3 -c 'import setuptools, wheel, Cython; print(\"setuptools\", setuptools.__version__); print(\"wheel\", wheel.__version__); print(\"Cython\", Cython.__version__)'\ngcc --version | head -1\ng++ --version | head -1\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 2.818,
+  "ended_at": "2026-10-19T09:34:00.034262+09:00"
+}

@@ -1,0 +1,1 @@
+scp -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -r infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/results/benchmarks/baseline-20261019T102128/progress.json /Users/kurokawaryuunosuke/csi-analysis/research/edge-benchmark/baseline-20261019T102128/progress.json

@@ -1,0 +1,16 @@
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 infonetworking@100.111.253.60 'bash -c '"'"'set -euo pipefail; umask 077; source /home/infonetworking/csi-zkp/env.sh; python3 -m pip install --only-binary=:all: --no-deps vmdpy==0.2; python3 -m pip show vmdpy'"'"''
+Collecting vmdpy==0.2
+  Downloading vmdpy-0.2-py2.py3-none-any.whl.metadata (3.0 kB)
+Downloading vmdpy-0.2-py2.py3-none-any.whl (6.5 kB)
+Installing collected packages: vmdpy
+Successfully installed vmdpy-0.2
+Name: vmdpy
+Version: 0.2
+Summary: Variational Mode Decomposition (VMD) algorithm
+Home-page: http://github.com/vrcarva/vmdpy
+Author: Vinicius Rezende Carvalho
+Author-email: vrcarva@ufmg.br
+License: UNKNOWN
+Location: /home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages
+Requires: numpy
+Required-by: 

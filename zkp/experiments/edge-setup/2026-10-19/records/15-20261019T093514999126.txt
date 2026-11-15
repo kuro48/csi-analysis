@@ -1,0 +1,6 @@
+STEP 15 | 証明パッケージのエッジ転送
+START 2026-10-19T09:35:14.999126+09:00
+WASM・proving key・verification key・snarkjs依存一式をSSH経由で配置する。
+
+
+END exit_code=0 elapsed_seconds=34.808

@@ -1,0 +1,6 @@
+STEP 03 | 環境切り替えスクリプトの配置
+START 2026-10-19T09:33:31.998414+09:00
+source env.sh だけで専用Node/Pythonを使用できるようにする。元CSIを削除する設定は無効にする。
+
+
+END exit_code=0 elapsed_seconds=0.379

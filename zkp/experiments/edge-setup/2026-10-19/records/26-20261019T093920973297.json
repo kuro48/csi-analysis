@@ -1,0 +1,20 @@
+{
+  "id": "26",
+  "title": "報告用メタデータの回収",
+  "purpose": "環境情報・CSI形状・証明検証結果のみを操作元へ回収し、実測に基づく報告資料の根拠とする。",
+  "expect": "4つのメタデータファイルを回収。生CSI・秘密入力・witnessを外部へ転送しない。",
+  "command": [
+    "python3",
+    "research/edge-setup/collect_evidence.py"
+  ],
+  "started_at": "2026-10-19T09:39:20.973297+09:00",
+  "log": "26-20261019T093920973297.txt",
+  "status": "passed",
+  "executed_argv": [
+    "python3",
+    "research/edge-setup/collect_evidence.py"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 1.461,
+  "ended_at": "2026-10-19T09:39:22.435200+09:00"
+}

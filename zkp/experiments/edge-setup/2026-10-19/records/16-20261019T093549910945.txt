@@ -1,0 +1,45 @@
+STEP 16 | 証明パッケージ・snarkjsの配置と整合性検査
+START 2026-10-19T09:35:49.910945+09:00
+アーカイブと内部全ファイルのSHA-256を確認し、同梱snarkjsを導入する。コンパイル済みWASM/鍵を使うためCircom・Trusted Setupは端末では不要。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/downloads
++ sha256sum --check csi-lomb-e2e-edge-20261019.tar.gz.sha256
+csi-lomb-e2e-edge-20261019.tar.gz: OK
++ test '!' -e /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
++ tar -xzf csi-lomb-e2e-edge-20261019.tar.gz -C /home/infonetworking/csi-zkp/packages
++ cd /home/infonetworking/csi-zkp/packages/lomb_scargle_e2e
++ ./install.sh
+manifest OK: 1622 files
+Environment OK: node=v22.23.3 python=Python 3.11.14
+Run ./bin/self_test.sh to generate and verify a complete local proof.
++ node -p '"snarkjs " + require("./vendor/runtime/node_modules/snarkjs/package.json").version'
+snarkjs 0.7.6
++ sha256sum artifacts/csi_lomb_scargle_end_to_end.wasm artifacts/csi_lomb_scargle_end_to_end_final.zkey artifacts/verification_key.json
+3c26f89a02bfbc30b6ee013e263a99142c10c11deecb6b932c1fc4064cf6ae32  artifacts/csi_lomb_scargle_end_to_end.wasm
+4735316719e48201abed06ea8f943392efb99285af4d88b14b01ec1199e241c5  artifacts/csi_lomb_scargle_end_to_end_final.zkey
+476838ec24c11350a60aa6eea1504727dcde726d9a7aa8547c7774f17381bd3c  artifacts/verification_key.json
+440M	.
++ du -sh . artifacts vendor/runtime
+
+END exit_code=0 elapsed_seconds=3.954

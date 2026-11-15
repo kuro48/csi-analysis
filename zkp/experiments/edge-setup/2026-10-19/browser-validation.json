@@ -1,0 +1,184 @@
+{
+  "browser": "141.0.7390.37",
+  "step_count": 28,
+  "images": [
+    {
+      "step": "01",
+      "file": "step-01.png",
+      "width_css": 1410,
+      "height_css": 781.796875
+    },
+    {
+      "step": "02",
+      "file": "step-02.png",
+      "width_css": 1410,
+      "height_css": 938.53125
+    },
+    {
+      "step": "03",
+      "file": "step-03.png",
+      "width_css": 1410,
+      "height_css": 625.0625
+    },
+    {
+      "step": "04",
+      "file": "step-04.png",
+      "width_css": 1410,
+      "height_css": 692.234375
+    },
+    {
+      "step": "05",
+      "file": "step-05.png",
+      "width_css": 1410,
+      "height_css": 647.453125
+    },
+    {
+      "step": "06",
+      "file": "step-06.png",
+      "width_css": 1410,
+      "height_css": 692.234375
+    },
+    {
+      "step": "07",
+      "file": "step-07.png",
+      "width_css": 1410,
+      "height_css": 602.671875
+    },
+    {
+      "step": "08",
+      "file": "step-08.png",
+      "width_css": 1410,
+      "height_css": 669.84375
+    },
+    {
+      "step": "09",
+      "file": "step-09.png",
+      "width_css": 1410,
+      "height_css": 602.671875
+    },
+    {
+      "step": "10",
+      "file": "step-10.png",
+      "width_css": 1410,
+      "height_css": 602.671875
+    },
+    {
+      "step": "11",
+      "file": "step-11.png",
+      "width_css": 1410,
+      "height_css": 669.84375
+    },
+    {
+      "step": "12",
+      "file": "step-12.png",
+      "width_css": 1410,
+      "height_css": 714.625
+    },
+    {
+      "step": "13",
+      "file": "step-13.png",
+      "width_css": 1410,
+      "height_css": 692.234375
+    },
+    {
+      "step": "14",
+      "file": "step-14.png",
+      "width_css": 1410,
+      "height_css": 669.84375
+    },
+    {
+      "step": "15",
+      "file": "step-15.png",
+      "width_css": 1410,
+      "height_css": 602.671875
+    },
+    {
+      "step": "16",
+      "file": "step-16.png",
+      "width_css": 1410,
+      "height_css": 647.453125
+    },
+    {
+      "step": "17",
+      "file": "step-17.png",
+      "width_css": 1410,
+      "height_css": 714.625
+    },
+    {
+      "step": "18",
+      "file": "step-18.png",
+      "width_css": 1410,
+      "height_css": 602.671875
+    },
+    {
+      "step": "19",
+      "file": "step-19.png",
+      "width_css": 1410,
+      "height_css": 1162.4375
+    },
+    {
+      "step": "20",
+      "file": "step-20.png",
+      "width_css": 1410,
+      "height_css": 692.234375
+    },
+    {
+      "step": "21",
+      "file": "step-21.png",
+      "width_css": 1410,
+      "height_css": 692.234375
+    },
+    {
+      "step": "22",
+      "file": "step-22.png",
+      "width_css": 1410,
+      "height_css": 692.234375
+    },
+    {
+      "step": "23",
+      "file": "step-23.png",
+      "width_css": 1410,
+      "height_css": 602.671875
+    },
+    {
+      "step": "24",
+      "file": "step-24.png",
+      "width_css": 1410,
+      "height_css": 737.015625
+    },
+    {
+      "step": "25",
+      "file": "step-25.png",
+      "width_css": 1410,
+      "height_css": 714.625
+    },
+    {
+      "step": "26",
+      "file": "step-26.png",
+      "width_css": 1410,
+      "height_css": 647.453125
+    },
+    {
+      "step": "27",
+      "file": "step-27.png",
+      "width_css": 1410,
+      "height_css": 692.234375
+    },
+    {
+      "step": "28",
+      "file": "step-28.png",
+      "width_css": 1410,
+      "height_css": 714.625
+    }
+  ],
+  "checks": [
+    "DOM card count",
+    "step selector",
+    "capture mode toggle",
+    "previous/next navigation",
+    "no horizontal code overflow",
+    "no browser JavaScript errors"
+  ],
+  "pdf": "report.pdf",
+  "passed": true
+}

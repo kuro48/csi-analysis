@@ -1,0 +1,253 @@
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 infonetworking@100.111.253.60 'bash -c '"'"'set -euo pipefail; umask 077; source /home/infonetworking/csi-zkp/env.sh; export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1; /usr/bin/time -v -o /home/infonetworking/csi-zkp/results/vmd-20261019T123127/real-C.time.txt python3 /home/infonetworking/csi-zkp/packages/vmd-comparison-20261019/worker.py --source /home/infonetworking/csi_data/main/csi_20260907_185130.csi --output /home/infonetworking/csi-zkp/results/vmd-20261019T123127/real-C'"'"''
+{
+  "metadata": {
+    "original_frames": 4518,
+    "unique_timestamps": 4518,
+    "original_series": 8,
+    "duration_seconds": 58.579475338,
+    "mean_packet_rate_hz": 77.1089186773556,
+    "interval_cv": 2.7658104796173144,
+    "max_gap_seconds": 0.6690365269999994,
+    "uniform_fs_hz": 100,
+    "uniform_samples": 5858,
+    "resampling": "amplitude linear interpolation within recorded time range; even length, no extrapolation",
+    "selected_series": 8,
+    "selected_pc_0based": 2,
+    "preprocess_seconds": 1.447878017090261,
+    "pca": "3 components, full SVD, shared FFT-band-ratio PC selection",
+    "filter": "existing fourth-order Butterworth + filtfilt, 0.1..1 Hz",
+    "approximation_padded_samples": 10,
+    "approximation_truncated_samples": 0,
+    "approximation_fs_hz": 2,
+    "approximation_samples": 128
+  },
+  "float_ls": {
+    "result": {
+      "bpm": 9.705705705705705,
+      "in_band_peak_bpm": 9.705705705705705,
+      "in_research_band": true,
+      "no_signal": false
+    },
+    "trials": [
+      {
+        "seconds": 0.21667353808879852,
+        "result": {
+          "bpm": 9.705705705705705,
+          "in_band_peak_bpm": 9.705705705705705,
+          "in_research_band": true,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.2171074915677309,
+        "result": {
+          "bpm": 9.705705705705705,
+          "in_band_peak_bpm": 9.705705705705705,
+          "in_research_band": true,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.2166062332689762,
+        "result": {
+          "bpm": 9.705705705705705,
+          "in_band_peak_bpm": 9.705705705705705,
+          "in_research_band": true,
+          "no_signal": false
+        }
+      }
+    ],
+    "repetitions": 3,
+    "median_seconds": 0.21667353808879852,
+    "min_seconds": 0.2166062332689762,
+    "max_seconds": 0.2171074915677309
+  },
+  "float_vmd": {
+    "result": {
+      "bpm": 7.169682485489928,
+      "in_research_band": true,
+      "selected_mode": 4,
+      "no_signal": false
+    },
+    "trials": [
+      {
+        "seconds": 0.8012951840646565,
+        "result": {
+          "bpm": 7.169682485489928,
+          "in_research_band": true,
+          "selected_mode": 4,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.8010086789727211,
+        "result": {
+          "bpm": 7.169682485489928,
+          "in_research_band": true,
+          "selected_mode": 4,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.8004599739797413,
+        "result": {
+          "bpm": 7.169682485489928,
+          "in_research_band": true,
+          "selected_mode": 4,
+          "no_signal": false
+        }
+      }
+    ],
+    "repetitions": 3,
+    "median_seconds": 0.8010086789727211,
+    "min_seconds": 0.8004599739797413,
+    "max_seconds": 0.8012951840646565
+  },
+  "compact_float_ls": {
+    "result": {
+      "bpm": 9.705705705705705,
+      "in_band_peak_bpm": 9.705705705705705,
+      "in_research_band": true,
+      "no_signal": false
+    },
+    "trials": [
+      {
+        "seconds": 0.004883112385869026,
+        "result": {
+          "bpm": 9.705705705705705,
+          "in_band_peak_bpm": 9.705705705705705,
+          "in_research_band": true,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.004991918336600065,
+        "result": {
+          "bpm": 9.705705705705705,
+          "in_band_peak_bpm": 9.705705705705705,
+          "in_research_band": true,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.004962841980159283,
+        "result": {
+          "bpm": 9.705705705705705,
+          "in_band_peak_bpm": 9.705705705705705,
+          "in_research_band": true,
+          "no_signal": false
+        }
+      }
+    ],
+    "repetitions": 3,
+    "median_seconds": 0.004962841980159283,
+    "min_seconds": 0.004883112385869026,
+    "max_seconds": 0.004991918336600065
+  },
+  "compact_float_vmd": {
+    "result": {
+      "bpm": 21.5625,
+      "in_research_band": true,
+      "selected_mode": 2,
+      "no_signal": false
+    },
+    "trials": [
+      {
+        "seconds": 0.003572732675820589,
+        "result": {
+          "bpm": 21.5625,
+          "in_research_band": true,
+          "selected_mode": 2,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.005784453824162483,
+        "result": {
+          "bpm": 21.5625,
+          "in_research_band": true,
+          "selected_mode": 2,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.0038901478983461857,
+        "result": {
+          "bpm": 21.5625,
+          "in_research_band": true,
+          "selected_mode": 2,
+          "no_signal": false
+        }
+      }
+    ],
+    "repetitions": 3,
+    "median_seconds": 0.0038901478983461857,
+    "min_seconds": 0.003572732675820589,
+    "max_seconds": 0.005784453824162483
+  },
+  "compact_integer_vmd": {
+    "result": {
+      "bpm": 7.5,
+      "peak_bin": 8,
+      "selected_mode": 0,
+      "in_research_band": true,
+      "no_signal": false
+    },
+    "trials": [
+      {
+        "seconds": 0.004216562025249004,
+        "result": {
+          "bpm": 7.5,
+          "peak_bin": 8,
+          "selected_mode": 0,
+          "in_research_band": true,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.004278226755559444,
+        "result": {
+          "bpm": 7.5,
+          "peak_bin": 8,
+          "selected_mode": 0,
+          "in_research_band": true,
+          "no_signal": false
+        }
+      },
+      {
+        "seconds": 0.004241613671183586,
+        "result": {
+          "bpm": 7.5,
+          "peak_bin": 8,
+          "selected_mode": 0,
+          "in_research_band": true,
+          "no_signal": false
+        }
+      }
+    ],
+    "repetitions": 3,
+    "median_seconds": 0.004241613671183586,
+    "min_seconds": 0.004216562025249004,
+    "max_seconds": 0.004278226755559444
+  },
+  "vmd_proof": {
+    "verified": true,
+    "matches_integer_reference": true,
+    "tampered_verdict_rejected": true,
+    "public_signal_count": 5,
+    "parent_commitment": "0",
+    "chain_linked": false,
+    "scope": "128-sample preprocessed waveform only; raw CSI preprocessing not proved",
+    "witness_seconds": 0.25768269784748554,
+    "proof_seconds": 6.120645292103291,
+    "verify_seconds": 0.29413219494745135,
+    "result": {
+      "bpm": 7.5,
+      "peak_bin": 8,
+      "selected_mode": 0,
+      "in_research_band": true,
+      "no_signal": false
+    }
+  },
+  "ground_truth_available": false
+}

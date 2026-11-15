@@ -1,0 +1,53 @@
+{
+  "sha256": "b7263559f67ad82cc816542e9b3ce774baaee18a7066645ed66c6e7979d35fc0",
+  "bytes": 6788965,
+  "destination": "/home/infonetworking/csi-zkp/reports/vmd-20261019T123503",
+  "steps": [
+    {
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "-o",
+        "ConnectTimeout=15",
+        "infonetworking@100.111.253.60",
+        "test ! -e /home/infonetworking/csi-zkp/reports/vmd-20261019T123503 && test ! -e /home/infonetworking/csi-zkp/reports/vmd-20261019T123503.zip"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "argv": [
+        "scp",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "-o",
+        "ConnectTimeout=15",
+        "/Users/kurokawaryuunosuke/csi-analysis/research/edge-vmd/vmd-20261019T123503/report-bundle.zip",
+        "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/reports/vmd-20261019T123503.zip"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "-o",
+        "ConnectTimeout=15",
+        "infonetworking@100.111.253.60",
+        "set -eu; umask 077; echo 'b7263559f67ad82cc816542e9b3ce774baaee18a7066645ed66c6e7979d35fc0  /home/infonetworking/csi-zkp/reports/vmd-20261019T123503.zip' | sha256sum --check -; mkdir /home/infonetworking/csi-zkp/reports/vmd-20261019T123503; /usr/bin/python3 -m zipfile -e /home/infonetworking/csi-zkp/reports/vmd-20261019T123503.zip /home/infonetworking/csi-zkp/reports/vmd-20261019T123503; test -s /home/infonetworking/csi-zkp/reports/vmd-20261019T123503/report.pdf"
+      ],
+      "exit_code": 0,
+      "output": "/home/infonetworking/csi-zkp/reports/vmd-20261019T123503.zip: OK\n"
+    }
+  ],
+  "delivered": true
+}

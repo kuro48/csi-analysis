@@ -1,0 +1,46 @@
+STEP 06 | Python 3.11・仮想環境の構築
+START 2026-10-19T09:33:52.915394+09:00
+バックエンドと同じPython 3.11系を専用配置し、PicoScenes解析器のビルドに必要なPython.hを確保する。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ uv python install 3.11.14
+Downloading cpython-3.11.14-linux-x86_64-gnu (download) (29.8MiB)
+ Downloaded cpython-3.11.14-linux-x86_64-gnu (download)
+Installed Python 3.11.14 in 2.60s
+ + cpython-3.11.14-linux-x86_64-gnu (python3.11)
+warning: `/home/infonetworking/csi-zkp/tools/python-bin` is not on your PATH. To use installed Python executables, run `export PATH="/home/infonetworking/csi-zkp/tools/python-bin:$PATH"` or `uv python update-shell`.
++ uv python find --managed-python 3.11.14
+/home/infonetworking/csi-zkp/tools/python/cpython-3.11.14-linux-x86_64-gnu/bin/python3.11
++ uv venv --python 3.11.14 --managed-python /home/infonetworking/csi-zkp/venv
+Using CPython 3.11.14
+Creating virtual environment at: csi-zkp/venv
+Activate with: source csi-zkp/venv/bin/activate
++ python3 --version
+Python 3.11.14
++ python3 -c 'import sys, sysconfig; from pathlib import Path; print("executable:", sys.executable); p=Path(sysconfig.get_path("include"))/"Python.h"; print("headers:", p, "exists:", p.is_file()); assert p.is_file()'
+executable: /home/infonetworking/csi-zkp/venv/bin/python3
+headers: /home/infonetworking/csi-zkp/tools/python/cpython-3.11.14-linux-x86_64-gnu/include/python3.11/Python.h exists: True
+Python 3.10.12
++ /usr/bin/python3 --version
+
+END exit_code=0 elapsed_seconds=3.061

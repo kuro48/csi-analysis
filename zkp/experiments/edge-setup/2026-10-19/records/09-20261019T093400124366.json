@@ -1,0 +1,30 @@
+{
+  "id": "09",
+  "title": "NumPyのインストール",
+  "purpose": "CSIの複素数配列・量子化処理、および解析器のビルドに必要なNumPyを導入する。",
+  "expect": "NumPy 1.26.4の複素数演算テストが成功する。",
+  "script": "scripts/09_numpy.sh",
+  "started_at": "2026-10-19T09:34:00.124366+09:00",
+  "log": "09-20261019T093400124366.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\npython3 -m pip install 'numpy==1.26.4'\npython3 -c 'import numpy as np; print(\"numpy\", np.__version__); a=np.array([3+4j]); print(\"complex array smoke test\", np.abs(a)); assert np.abs(a)[0] == 5'\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 3.736,
+  "ended_at": "2026-10-19T09:34:03.860825+09:00"
+}

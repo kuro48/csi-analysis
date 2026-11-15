@@ -1,0 +1,30 @@
+{
+  "id": "05",
+  "title": "uvのインストール",
+  "purpose": "管理者権限なしで開発用ヘッダーを含むPythonを導入するため、uv 0.13.1を配置する。",
+  "expect": "公式配布チェックサムが一致し、uv --version が成功する。",
+  "script": "scripts/05_uv.sh",
+  "started_at": "2026-10-19T09:33:50.086388+09:00",
+  "log": "05-20261019T093350086388.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\ncd \"$CSI_ZKP_ROOT/downloads\"\ncurl --fail --show-error --location --retry 3 --max-time 180 -O https://github.com/astral-sh/uv/releases/download/0.13.1/uv-x86_64-unknown-linux-gnu.tar.gz\ncurl --fail --show-error --location --retry 3 --max-time 60 -O https://github.com/astral-sh/uv/releases/download/0.13.1/uv-x86_64-unknown-linux-gnu.tar.gz.sha256\nsha256sum --check uv-x86_64-unknown-linux-gnu.tar.gz.sha256\nmkdir -p \"$CSI_ZKP_ROOT/tools/uv\"\ntar -xzf uv-x86_64-unknown-linux-gnu.tar.gz --strip-components=1 -C \"$CSI_ZKP_ROOT/tools/uv\"\nuv --version\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 2.746,
+  "ended_at": "2026-10-19T09:33:52.832603+09:00"
+}

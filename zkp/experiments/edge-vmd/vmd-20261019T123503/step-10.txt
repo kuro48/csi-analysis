@@ -1,0 +1,11 @@
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 infonetworking@100.111.253.60 'bash -c '"'"'set -euo pipefail; umask 077; source /home/infonetworking/csi-zkp/env.sh; export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1; cd /home/infonetworking/csi-zkp/packages/vmd-comparison-20261019-v2; python3 -m unittest -v test_worker'"'"''
+test_15bpm (test_worker.WorkerTests.test_15bpm) ... ok
+test_compact_search_below_nyquist (test_worker.WorkerTests.test_compact_search_below_nyquist) ... ok
+test_range_rejected (test_worker.WorkerTests.test_range_rejected) ... ok
+test_timestamp_sort_dedup_even_no_extrapolation (test_worker.WorkerTests.test_timestamp_sort_dedup_even_no_extrapolation) ... ok
+test_zero_is_not_normal (test_worker.WorkerTests.test_zero_is_not_normal) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.060s
+
+OK

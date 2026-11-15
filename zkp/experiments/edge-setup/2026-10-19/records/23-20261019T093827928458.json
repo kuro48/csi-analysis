@@ -1,0 +1,28 @@
+{
+  "id": "23",
+  "title": "検証・環境記録スクリプトの配置",
+  "purpose": "保存証明の再検証、判定改変テスト、元CSIのハッシュ確認、環境固定情報の保存を準備する。",
+  "expect": "2本のスクリプトを転送する。",
+  "command": [
+    "scp",
+    "-o",
+    "BatchMode=yes",
+    "research/edge-setup/validate_results.py",
+    "research/edge-setup/final_inventory.py",
+    "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/"
+  ],
+  "started_at": "2026-10-19T09:38:27.928458+09:00",
+  "log": "23-20261019T093827928458.txt",
+  "status": "passed",
+  "executed_argv": [
+    "scp",
+    "-o",
+    "BatchMode=yes",
+    "research/edge-setup/validate_results.py",
+    "research/edge-setup/final_inventory.py",
+    "infonetworking@100.111.253.60:/home/infonetworking/csi-zkp/scripts/"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 0.413,
+  "ended_at": "2026-10-19T09:38:28.341812+09:00"
+}

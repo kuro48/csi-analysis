@@ -1,0 +1,30 @@
+{
+  "id": "11",
+  "title": "PicoScenes Python Toolboxの取得",
+  "purpose": "既存バックエンドと同じコミットを固定し、解析コアのサブモジュールも取得する。",
+  "expect": "コミットf676855…とサブモジュールの実際のリビジョンが記録される。",
+  "script": "scripts/11_parser_source.sh",
+  "started_at": "2026-10-19T09:34:10.217178+09:00",
+  "log": "11-20261019T093410217178.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\ngit clone https://github.com/wifisensing/PicoScenes-Python-Toolbox.git \"$CSI_ZKP_ROOT/sources/PicoScenes-Python-Toolbox\"\ncd \"$CSI_ZKP_ROOT/sources/PicoScenes-Python-Toolbox\"\ngit checkout --detach f676855accedf79e848bf2f1d10ee5c1f649a33a\ngit submodule update --init --recursive\ngit rev-parse HEAD\ngit submodule status --recursive\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 8.439,
+  "ended_at": "2026-10-19T09:34:18.656937+09:00"
+}

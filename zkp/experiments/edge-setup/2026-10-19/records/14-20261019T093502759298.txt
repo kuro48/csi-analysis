@@ -1,0 +1,23 @@
+STEP 14 | 配布用コピーのmanifest更新・アーカイブ作成
+START 2026-10-19T09:35:02.759298+09:00
+READMEのみの不一致であることを条件に、由来情報付きの独立した配布コピーを作る。元パッケージは変更しない。
+
+{
+  "checked_files": 1611,
+  "differences": [
+    {
+      "path": "README.md",
+      "expected": "506dbcbda57876cb4a71fe68481a5ddf787a0f5b90b1de5260884c354a914545",
+      "actual": "a4d826fb9b098b2683933638d87775e0e7a3af9ed8cc1241020f4ec03f2a1f41"
+    }
+  ]
+}
+manifest OK: 1622 files
+{
+  "archive": "csi-lomb-e2e-edge-20261019.tar.gz",
+  "bytes": 277344246,
+  "sha256": "384d3b7f60d8de92aaca5d02295b007d650351ad0bee5cfad4321210eae8425f",
+  "manifest_files": 1622
+}
+
+END exit_code=0 elapsed_seconds=12.130

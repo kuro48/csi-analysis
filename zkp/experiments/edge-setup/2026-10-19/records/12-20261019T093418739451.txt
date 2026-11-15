@@ -1,0 +1,70 @@
+STEP 12 | PicoScenes Python Toolboxのビルド・インストール
+START 2026-10-19T09:34:18.739451+09:00
+端末上でCSIファイルを読めるようにC/C++拡張をビルドする。ビルド時間・最大RSSも測る。
+
++ source /home/infonetworking/csi-zkp/env.sh
+++ export CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ CSI_ZKP_ROOT=/home/infonetworking/csi-zkp
+++ export UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ UV_PYTHON_INSTALL_DIR=/home/infonetworking/csi-zkp/tools/python
+++ export UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ UV_PYTHON_BIN_DIR=/home/infonetworking/csi-zkp/tools/python-bin
+++ export UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ UV_CACHE_DIR=/home/infonetworking/csi-zkp/cache/uv
+++ export PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ PATH=/home/infonetworking/csi-zkp/venv/bin:/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin:/home/infonetworking/csi-zkp/tools/uv:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+++ export NODE_OPTIONS=--max-old-space-size=4096
+++ NODE_OPTIONS=--max-old-space-size=4096
+++ export PYTHONDONTWRITEBYTECODE=1
+++ PYTHONDONTWRITEBYTECODE=1
+++ export PYTHONUNBUFFERED=1
+++ PYTHONUNBUFFERED=1
+++ export PIP_DISABLE_PIP_VERSION_CHECK=1
+++ PIP_DISABLE_PIP_VERSION_CHECK=1
+++ export DELETE_SOURCE_AFTER_PROOF=0
+++ DELETE_SOURCE_AFTER_PROOF=0
++ cd /home/infonetworking/csi-zkp/sources/PicoScenes-Python-Toolbox
++ /usr/bin/time -v python3 -m pip install --no-build-isolation .
+Processing ./.
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: numpy>=1.21.3 in /home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages (from picoscenes==0.1.0) (1.26.4)
+Building wheels for collected packages: picoscenes
+  Building wheel for picoscenes (pyproject.toml): started
+  Building wheel for picoscenes (pyproject.toml): finished with status 'done'
+  Created wheel for picoscenes: filename=picoscenes-0.1.0-cp311-cp311-linux_x86_64.whl size=4063315 sha256=3487d904d1b8500d5f1cc78e04b6b4453a5d55b10923cd4196cfe39a8b942b91
+  Stored in directory: /tmp/pip-ephem-wheel-cache-ekzbjdrf/wheels/95/b1/0f/4518b758779bf3297d5696c286d8e08fb194f1e22b5c89d201
+Successfully built picoscenes
+Installing collected packages: picoscenes
+Successfully installed picoscenes-0.1.0
+	Command being timed: "python3 -m pip install --no-build-isolation ."
+	User time (seconds): 26.02
+	System time (seconds): 5.50
+	Percent of CPU this job got: 119%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:26.35
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 398900
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 388
+	Minor (reclaiming a frame) page faults: 1188979
+	Voluntary context switches: 1008
+	Involuntary context switches: 381
+	Swaps: 0
+	File system inputs: 71600
+	File system outputs: 298128
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
++ cd /home/infonetworking/csi-zkp
++ python3 -c 'import picoscenes; from picoscenes import Picoscenes; print("picoscenes module:", picoscenes.__file__); print("parser class:", Picoscenes)'
+picoscenes module: /home/infonetworking/csi-zkp/venv/lib/python3.11/site-packages/picoscenes.cpython-311-x86_64-linux-gnu.so
+parser class: <class 'picoscenes.Picoscenes'>
++ python3 -m pip check
+No broken requirements found.
+
+END exit_code=0 elapsed_seconds=27.326

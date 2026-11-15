@@ -1,0 +1,11 @@
+STEP 26 | 報告用メタデータの回収
+START 2026-10-19T09:39:20.973297+09:00
+環境情報・CSI形状・証明検証結果のみを操作元へ回収し、実測に基づく報告資料の根拠とする。
+
+Retrieved metadata: environment.json (746 bytes)
+Retrieved metadata: python-freeze.txt (171 bytes)
+Retrieved metadata: csi_inventory.json (4418 bytes)
+Retrieved metadata: validation_summary.json (1329 bytes)
+No raw CSI, private input JSON or witness files transferred.
+
+END exit_code=0 elapsed_seconds=1.461

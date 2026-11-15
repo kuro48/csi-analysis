@@ -1,0 +1,30 @@
+{
+  "id": "17",
+  "title": "合成15 BPM信号による自己診断",
+  "purpose": "端末上でwitness生成→Groth16証明生成→検証→保存JSONから再検証まで通す。",
+  "expect": "self-test passed。証明時間とGNU time最大RSSを記録する。",
+  "script": "scripts/17_self_test.sh",
+  "started_at": "2026-10-19T09:35:53.946542+09:00",
+  "log": "17-20261019T093553946542.txt",
+  "status": "passed",
+  "script_text": "set -euxo pipefail\nsource /home/infonetworking/csi-zkp/env.sh\ncd \"$CSI_ZKP_ROOT/packages/lomb_scargle_e2e\"\n/usr/bin/time -v ./bin/self_test.sh\n",
+  "executed_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "infonetworking@100.111.253.60",
+    "bash",
+    "-se"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 14.795,
+  "ended_at": "2026-10-19T09:36:08.741806+09:00"
+}
