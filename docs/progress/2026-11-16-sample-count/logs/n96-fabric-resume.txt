@@ -1,0 +1,13 @@
+{"package":"/Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/sample-count/n96/fabric/chaincode","manifest":"/Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/sample-count/n96/fabric/deployment/manifest.json","deploymentId":"0x59f7f250fc0921b9c442cbfac5003ed8d16a0731e693ce35cf53a99cef7009a2","debugMode":true}
+Using organization 1
+Using organization 2
+2026-11-16 09:34:08.982 JST 0001 INFO [chaincodeCmd] ClientWait -> txid [4b9a54e186d088bb732f7b5fe09da611412d7f400467fdf61e15e546c367f1d7] committed with status (VALID) at localhost:9051
+Using organization 1
+2026-11-16 09:34:11.077 JST 0001 INFO [chaincodeCmd] ClientWait -> txid [805580adfcaeec8dabd0e08a1f7fb93e2defbe3760e5f473db6ee725e25eaf40] committed with status (VALID) at localhost:9051
+2026-11-16 09:34:11.078 JST 0002 INFO [chaincodeCmd] ClientWait -> txid [805580adfcaeec8dabd0e08a1f7fb93e2defbe3760e5f473db6ee725e25eaf40] committed with status (VALID) at localhost:7051
+Using organization 1
+Committed chaincode definition for chaincode 'csisamples96v1' on channel 'csi':
+Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]
+Using organization 2
+Committed chaincode definition for chaincode 'csisamples96v1' on channel 'csi':
+Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]

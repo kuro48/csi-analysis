@@ -1,0 +1,135 @@
+Using docker and docker-compose
+deploying chaincode on channel 'csi'
+executing with the following
+- CHANNEL_NAME: csi
+- CC_NAME: csisamples128v1
+- CC_SRC_PATH: /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/sample-count/n128/fabric/chaincode
+- CC_SRC_LANGUAGE: javascript
+- CC_VERSION: 1.0
+- CC_SEQUENCE: 1
+- CC_END_POLICY: AND('Org1MSP.peer','Org2MSP.peer')
+- CC_COLL_CONFIG: NA
+- CC_INIT_FCN: NA
+- DELAY: 3
+- MAX_RETRY: 5
+- VERBOSE: false
+executing with the following
+- CC_NAME: csisamples128v1
+- CC_SRC_PATH: /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/sample-count/n128/fabric/chaincode
+- CC_SRC_LANGUAGE: javascript
+- CC_VERSION: 1.0
++ '[' false = true ']'
++ peer lifecycle chaincode package csisamples128v1.tar.gz --path /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/sample-count/n128/fabric/chaincode --lang node --label csisamples128v1_1.0
++ res=0
+Chaincode is packaged
+Installing chaincode on peer0.org1...
+Using organization 1
++ peer lifecycle chaincode queryinstalled --output json
++ jq -r 'try (.installed_chaincodes[].package_id)'
++ grep '^csisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55$'
++ test 1 -ne 0
++ peer lifecycle chaincode install csisamples128v1.tar.gz
++ res=0
+2026-11-16 10:59:49.415 JST 0001 INFO [cli.lifecycle.chaincode] submitInstallProposal -> Installed remotely: response:<status:200 payload:"\nTcsisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55\022\023csisamples128v1_1.0" >
+2026-11-16 10:59:49.415 JST 0002 INFO [cli.lifecycle.chaincode] submitInstallProposal -> Chaincode code package identifier: csisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55
+Chaincode is installed on peer0.org1
+Install chaincode on peer0.org2...
+Using organization 2
++ peer lifecycle chaincode queryinstalled --output json
++ jq -r 'try (.installed_chaincodes[].package_id)'
++ grep '^csisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55$'
++ test 1 -ne 0
++ peer lifecycle chaincode install csisamples128v1.tar.gz
++ res=0
+2026-11-16 11:00:10.136 JST 0001 INFO [cli.lifecycle.chaincode] submitInstallProposal -> Installed remotely: response:<status:200 payload:"\nTcsisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55\022\023csisamples128v1_1.0" >
+2026-11-16 11:00:10.136 JST 0002 INFO [cli.lifecycle.chaincode] submitInstallProposal -> Chaincode code package identifier: csisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55
+Chaincode is installed on peer0.org2
+Using organization 1
++ peer lifecycle chaincode queryinstalled --output json
++ jq -r 'try (.installed_chaincodes[].package_id)'
++ grep '^csisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55$'
++ res=0
+csisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55
+Query installed successful on peer0.org1 on channel
+Using organization 1
++ peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/fabric/fabric-samples/test-network/organizations/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem --channelID csi --name csisamples128v1 --version 1.0 --package-id csisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55 --sequence 1 --signature-policy 'AND('\''Org1MSP.peer'\'','\''Org2MSP.peer'\'')'
++ res=0
+2026-11-16 11:00:12.334 JST 0001 INFO [chaincodeCmd] ClientWait -> txid [267de0f67c4f3be9de9d52cd68f037b21591c8dca1a8306d113fdac85fb2bc50] committed with status (VALID) at localhost:7051
+Chaincode definition approved on peer0.org1 on channel 'csi'
+Using organization 1
+Checking the commit readiness of the chaincode definition on peer0.org1 on channel 'csi'...
+Attempting to check the commit readiness of the chaincode definition on peer0.org1, Retry after 3 seconds.
++ peer lifecycle chaincode checkcommitreadiness --channelID csi --name csisamples128v1 --version 1.0 --sequence 1 --signature-policy 'AND('\''Org1MSP.peer'\'','\''Org2MSP.peer'\'')' --output json
++ res=0
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": false
+	}
+}
+Checking the commit readiness of the chaincode definition successful on peer0.org1 on channel 'csi'
+Using organization 2
+Checking the commit readiness of the chaincode definition on peer0.org2 on channel 'csi'...
+Attempting to check the commit readiness of the chaincode definition on peer0.org2, Retry after 3 seconds.
++ peer lifecycle chaincode checkcommitreadiness --channelID csi --name csisamples128v1 --version 1.0 --sequence 1 --signature-policy 'AND('\''Org1MSP.peer'\'','\''Org2MSP.peer'\'')' --output json
++ res=0
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": false
+	}
+}
+Checking the commit readiness of the chaincode definition successful on peer0.org2 on channel 'csi'
+Using organization 2
++ peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/fabric/fabric-samples/test-network/organizations/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem --channelID csi --name csisamples128v1 --version 1.0 --package-id csisamples128v1_1.0:6c47061e5d242b7dd0b3b7e0de096b3dfde8f97a974fcd572f42a17dfdeb5d55 --sequence 1 --signature-policy 'AND('\''Org1MSP.peer'\'','\''Org2MSP.peer'\'')'
++ res=0
+2026-11-16 11:00:20.658 JST 0001 INFO [chaincodeCmd] ClientWait -> txid [55f4f550216c60c6c8749c5ac47800f15b1f12f421ab048f4c82fe4178de6f19] committed with status (VALID) at localhost:9051
+Chaincode definition approved on peer0.org2 on channel 'csi'
+Using organization 1
+Checking the commit readiness of the chaincode definition on peer0.org1 on channel 'csi'...
+Attempting to check the commit readiness of the chaincode definition on peer0.org1, Retry after 3 seconds.
++ peer lifecycle chaincode checkcommitreadiness --channelID csi --name csisamples128v1 --version 1.0 --sequence 1 --signature-policy 'AND('\''Org1MSP.peer'\'','\''Org2MSP.peer'\'')' --output json
++ res=0
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": true
+	}
+}
+Checking the commit readiness of the chaincode definition successful on peer0.org1 on channel 'csi'
+Using organization 2
+Checking the commit readiness of the chaincode definition on peer0.org2 on channel 'csi'...
+Attempting to check the commit readiness of the chaincode definition on peer0.org2, Retry after 3 seconds.
++ peer lifecycle chaincode checkcommitreadiness --channelID csi --name csisamples128v1 --version 1.0 --sequence 1 --signature-policy 'AND('\''Org1MSP.peer'\'','\''Org2MSP.peer'\'')' --output json
++ res=0
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": true
+	}
+}
+Checking the commit readiness of the chaincode definition successful on peer0.org2 on channel 'csi'
+Using organization 1
+Using organization 2
++ peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/fabric/fabric-samples/test-network/organizations/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem --channelID csi --name csisamples128v1 --peerAddresses localhost:7051 --tlsRootCertFiles /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/fabric/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/tlsca/tlsca.org1.example.com-cert.pem --peerAddresses localhost:9051 --tlsRootCertFiles /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/fabric/fabric-samples/test-network/organizations/peerOrganizations/org2.example.com/tlsca/tlsca.org2.example.com-cert.pem --version 1.0 --sequence 1 --signature-policy 'AND('\''Org1MSP.peer'\'','\''Org2MSP.peer'\'')'
++ res=0
+2026-11-16 11:00:28.927 JST 0001 INFO [chaincodeCmd] ClientWait -> txid [de11cac29ad2911e6fda8b98fe4b5734c01c225f6ab45e229a3f7716fa2a9a91] committed with status (VALID) at localhost:9051
+2026-11-16 11:00:28.927 JST 0002 INFO [chaincodeCmd] ClientWait -> txid [de11cac29ad2911e6fda8b98fe4b5734c01c225f6ab45e229a3f7716fa2a9a91] committed with status (VALID) at localhost:7051
+Chaincode definition committed on channel 'csi'
+Using organization 1
+Querying chaincode definition on peer0.org1 on channel 'csi'...
+Attempting to Query committed status on peer0.org1, Retry after 3 seconds.
++ peer lifecycle chaincode querycommitted --channelID csi --name csisamples128v1
++ res=0
+Committed chaincode definition for chaincode 'csisamples128v1' on channel 'csi':
+Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]
+Query chaincode definition successful on peer0.org1 on channel 'csi'
+Using organization 2
+Querying chaincode definition on peer0.org2 on channel 'csi'...
+Attempting to Query committed status on peer0.org2, Retry after 3 seconds.
++ peer lifecycle chaincode querycommitted --channelID csi --name csisamples128v1
++ res=0
+Committed chaincode definition for chaincode 'csisamples128v1' on channel 'csi':
+Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]
+Query chaincode definition successful on peer0.org2 on channel 'csi'
+Chaincode initialization is not required

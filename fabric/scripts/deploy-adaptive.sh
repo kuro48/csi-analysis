@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 export FABRIC_WORK_DIR="${FABRIC_WORK_DIR:-$ROOT/.local/fabric-adaptive}"
 export FABRIC_NETWORK_DIR="${FABRIC_NETWORK_DIR:-$ROOT/.local/fabric/fabric-samples/test-network}"
-export FABRIC_CHAINCODE_NAME="csiadaptive4004"
+export FABRIC_CHAINCODE_NAME="${FABRIC_CHAINCODE_NAME:-csiadaptive4004}"
 export ADAPTIVE_ARTIFACT_MANIFEST="${ADAPTIVE_ARTIFACT_MANIFEST:-$ROOT/.local/circom-adaptive-4004/artifacts.json}"
 : "${FABRIC_VKEY:?Set FABRIC_VKEY to the new 4004-candidate verification key}"
 node "$ROOT/fabric/scripts/prepare-chaincode.mjs"

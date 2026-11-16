@@ -7,6 +7,13 @@ const decimal = (value, field) => typeof value === 'string' && /^(0|[1-9][0-9]{0
 function protocol(config = {}) {
   const count = config.publicSignalCount ?? 1;
   const index = config.isNormalIndex ?? 0;
+  // Explicitly isolated research deployments; never reinterpret a production key.
+  if (config.experiment !== undefined) {
+    if (config.experiment === 'sample-count-v1' && [64, 96, 128].includes(config.sampleCount)
+      && config.capacity === 4004 && count === config.sampleCount + 6 && index === 1
+      && config.circuit === `csi_lomb_scargle_adaptive_n${config.sampleCount}_c4004`) return { count, index };
+    throw new Error('Unsupported observation protocol');
+  }
   if (count === 1 && index === 0) return { count, index };
   if (count === 70 && index === 1 && config.circuit === 'csi_lomb_scargle_adaptive_4004') return { count, index };
   throw new Error('Unsupported observation protocol');
@@ -28,7 +35,7 @@ function normalize(input, config = {}) {
       || p.pi_a[2] !== '1' || p.pi_c[2] !== '1' || p.pi_b[2][0] !== '1' || p.pi_b[2][1] !== '0'
       || !Array.isArray(input.publicSignals) || input.publicSignals.length !== count
       || !input.publicSignals.every(v => decimal(v, FR)) || !['0', '1'].includes(input.publicSignals[index])) throw new Error('Invalid proof encoding');
-  if (count === 70 && (BigInt(input.publicSignals[69]) < 1n || BigInt(input.publicSignals[69]) > 4004n)) throw new Error('Invalid candidate count');
+  if (count > 1 && (BigInt(input.publicSignals[count - 1]) < 1n || BigInt(input.publicSignals[count - 1]) > 4004n)) throw new Error('Invalid candidate count');
   return { observationId: input.observationId, patientRef: input.patientRef, observedAt: input.observedAt,
     durationSeconds: input.durationSeconds, proof: {protocol: 'groth16', curve: 'bn128', pi_a: p.pi_a, pi_b: p.pi_b, pi_c: p.pi_c},
     publicSignals: input.publicSignals };

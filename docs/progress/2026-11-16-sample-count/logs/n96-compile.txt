@@ -1,0 +1,29 @@
+template instances: 295
+non-linear constraints: 15841638
+linear constraints: 5225724
+public inputs: 97
+private inputs: 768769
+public outputs: 5
+wires: 20251898
+labels: 26081167
+Written successfully: .local/sample-count/n96/build/n96.r1cs
+Written successfully: .local/sample-count/n96/build/n96_js/n96.wasm
+Everything went okay
+     1745.62 real      1347.56 user       260.93 sys
+          7327817728  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+            70701028  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+              293177  voluntary context switches
+             1111653  involuntary context switches
+      14822569172105  instructions retired
+       6209262870243  cycles elapsed
+         19199844352  peak memory footprint

@@ -25,6 +25,9 @@ const vkey = readFileSync(
     ),
 );
 const hash = (b) => createHash("sha256").update(b).digest("hex");
+const artifacts = process.env.ADAPTIVE_ARTIFACT_MANIFEST
+  ? JSON.parse(readFileSync(process.env.ADAPTIVE_ARTIFACT_MANIFEST)) : null;
+const sampleExperiment = artifacts?.experiment === "sample-count-v1";
 const identity = (org) => {
   const msp = join(
     network,
@@ -56,8 +59,9 @@ const config = {
   readerMspIds: ["Org1MSP", "Org2MSP"],
   verificationKeyHash: "0x" + hash(vkey),
   publicSignalCount: JSON.parse(vkey).nPublic,
-  isNormalIndex: JSON.parse(vkey).nPublic === 70 ? 1 : 0,
-  circuit: JSON.parse(vkey).nPublic === 70 ? "csi_lomb_scargle_adaptive_4004" : "csi_breathing_certificate",
+  isNormalIndex: JSON.parse(vkey).nPublic === 1 ? 0 : 1,
+  circuit: sampleExperiment ? artifacts.circuit : JSON.parse(vkey).nPublic === 70 ? "csi_lomb_scargle_adaptive_4004" : "csi_breathing_certificate",
+  ...(sampleExperiment ? { experiment: artifacts.experiment, sampleCount: artifacts.sampleCount, capacity: artifacts.capacity } : {}),
   verificationKeyFile: "verification_key.json",
   sourceHash: hash(
     [
@@ -80,13 +84,14 @@ const config = {
     singleHost: true,
   },
 };
-if (![1, 70].includes(config.publicSignalCount)) throw Error("Unsupported proof protocol");
-if (config.publicSignalCount === 70 && config.chaincodeName === "csiobservations") throw Error("Adaptive proofs require a separate chaincode name");
-if (config.publicSignalCount === 70) {
+const { protocol } = await import("../chaincode/lib/proof.js");
+protocol(config);
+if (config.publicSignalCount > 1 && config.chaincodeName === "csiobservations") throw Error("Adaptive proofs require a separate chaincode name");
+if (sampleExperiment && !/^csisamples[0-9a-z]+$/.test(config.chaincodeName)) throw Error("Sample experiments require their own csisamples namespace");
+if (config.publicSignalCount > 1) {
   if (!process.env.ADAPTIVE_ARTIFACT_MANIFEST) throw Error("Adaptive deployment requires its artifact manifest");
-  const artifacts = JSON.parse(readFileSync(process.env.ADAPTIVE_ARTIFACT_MANIFEST));
-  if (artifacts.circuit !== config.circuit || artifacts.capacity !== 4004 || artifacts.sampleCount !== 64
-      || artifacts.publicSignalCount !== 70 || artifacts.isNormalIndex !== 1 || artifacts.sha256.verificationKey !== hash(vkey)) {
+  if (artifacts.circuit !== config.circuit || artifacts.capacity !== 4004 || artifacts.sampleCount !== (sampleExperiment ? config.sampleCount : 64)
+      || artifacts.publicSignalCount !== config.publicSignalCount || artifacts.isNormalIndex !== 1 || artifacts.sha256.verificationKey !== hash(vkey)) {
     throw Error("Fabric key does not match the full-pool artifact manifest");
   }
 }

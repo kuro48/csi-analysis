@@ -7,7 +7,7 @@ include "circomlib/circuits/poseidon.circom";
 // Private-CSI selection. No score, index or rank is supplied by the prover.
 // This is a motion-sensitivity heuristic, not a classifier of motion sources.
 template CSIMotionSelector(N, C) {
-    assert(N >= 4 && N <= 64);
+    assert(N >= 4 && N <= 128);
     assert(C >= 1 && C <= 4096);
     signal input csiI[N][C];
     signal input csiQ[N][C];
@@ -90,13 +90,13 @@ template CSIMotionSelector(N, C) {
         numerator[sc] <== variation[sc] * variation[sc];
         denominator[sc] <== (totalSquared[sc] + 1)
             * (variation[sc] + N * roughness[sc] + 1);
-        strong[sc] = GreaterEqThan(30);
+        strong[sc] = GreaterEqThan(N <= 64 ? 30 : 31);
         strong[sc].in[0] <== total[sc];
         strong[sc].in[1] <== N * 16;
         variable[sc] = IsZero();
         variable[sc].in <== variation[sc];
         // Power CV^2 <= 1 rejects very sparse spikes/deep fades cheaply.
-        notImpulsive[sc] = LessEqThan(59);
+        notImpulsive[sc] = LessEqThan(N <= 64 ? 59 : 61);
         notImpulsive[sc].in[0] <== variation[sc];
         notImpulsive[sc].in[1] <== totalSquared[sc];
         eligibleA[sc] <== active[sc].out * strong[sc].out;
@@ -109,6 +109,9 @@ template CSIMotionSelector(N, C) {
     // p <= 2^23, S <= 2^29, 0 <= V < 2^58, D < 2^52;
     // numerator < 2^116, denominator < 2^118, products < 2^234.
     // Comparison at 240 bits therefore cannot wrap the BN254 scalar field.
+    // For 65..128 samples: S <= 2^30, V < 2^60, D < 2^53;
+    // numerator < 2^120, denominator < 2^122, products < 2^242.
+    // 248-bit comparison is safe. Keep <=64 widths unchanged for old keys.
     signal bestNumerator[C + 1];
     signal bestDenominator[C + 1];
     signal bestIndex[C + 1];
@@ -121,7 +124,7 @@ template CSIMotionSelector(N, C) {
     for (var sc = 0; sc < C; sc++) {
         left[sc] <== eligibleNumerator[sc] * bestDenominator[sc];
         right[sc] <== bestNumerator[sc] * denominator[sc];
-        better[sc] = GreaterThan(240);
+        better[sc] = GreaterThan(N <= 64 ? 240 : 248);
         better[sc].in[0] <== left[sc];
         better[sc].in[1] <== right[sc];
         bestNumerator[sc + 1] <== bestNumerator[sc]
