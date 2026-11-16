@@ -1,0 +1,36 @@
+14852699 wires, 70 public, 15453708 constraints
+constraints 0/15453708
+constraints 1000000/15453708
+constraints 2000000/15453708
+constraints 3000000/15453708
+constraints 4000000/15453708
+constraints 5000000/15453708
+constraints 6000000/15453708
+constraints 7000000/15453708
+constraints 8000000/15453708
+constraints 9000000/15453708
+constraints 10000000/15453708
+constraints 11000000/15453708
+constraints 12000000/15453708
+constraints 13000000/15453708
+constraints 14000000/15453708
+constraints 15000000/15453708
+completed in 349.860s
+      349.91 real       817.54 user       104.51 sys
+          8985698304  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+            29053600  page reclaims
+                 225  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+              100766  voluntary context switches
+             1188968  involuntary context switches
+       6702082125342  instructions retired
+       3434936826008  cycles elapsed
+         20225880064  peak memory footprint

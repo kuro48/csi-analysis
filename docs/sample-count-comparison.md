@@ -110,3 +110,10 @@ OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 .venv/bin/python \
 - [入力と参照・回路実行・証明](../scripts/evaluate_sample_counts.py)
 - [台帳への配備・記録・検証の測定](../scripts/sample_count_ledgers.mjs)
 - [結果集計](../scripts/report_sample_counts.py)
+
+## 周波数グリッドも変更する追加比較
+
+時刻点数64・96・128と周波数グリッド数32・64・128の9条件を比較する実装を追加した。
+固定した2,048周波数のPython参照と比較し、同じ時刻点・同じ列の場合の差も分けて記録する。
+条件・再実行手順は[周波数グリッド比較](frequency-grid-comparison.md)を参照。
+実測値とグラフは[9条件の比較結果](progress/2026-11-16-frequency-grid/README.md)にまとめている。

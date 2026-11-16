@@ -26,3 +26,17 @@ test('real 64-point proof cannot be reinterpreted as a 96-point proof', () => {
   const changed = structuredClone(input); changed.publicSignals[69]='4005';
   assert.throws(() => normalize(changed, config(64)), /Invalid candidate count/);
 });
+
+test('frequency-grid deployments require the exact grid and an isolated protocol', () => {
+  for (const n of [64,96,128]) {
+    for (const k of [64,128]) {
+      const grid = { ...config(n), experiment:'frequency-grid-v1', frequencyGridCount:k,
+        circuit:`csi_lomb_scargle_adaptive_n${n}_k${k}_c4004` };
+      assert.deepEqual(protocol(grid),{count:n+6,index:1});
+      for (const change of [{frequencyGridCount:32},{frequencyGridCount:256},{experiment:'sample-count-v1'},
+        {circuit:config(n).circuit},{capacity:53},{isNormalIndex:0},{sampleCount:65}]) {
+        assert.throws(() => protocol({...grid,...change}),/Unsupported/);
+      }
+    }
+  }
+});

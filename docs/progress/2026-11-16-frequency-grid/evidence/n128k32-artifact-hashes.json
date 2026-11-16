@@ -1,0 +1,7 @@
+{
+  "prover": "d76744fe84bc155bce43fa8c0357ec34eea6eabedbe16f060d72a45c158cb0fd",
+  "r1cs": "7e6029b9a917f84cc7a5933967e03c4fd7d9afe5749a914c20c24ca4ffeb7c4c",
+  "wasm": "756ba4692be3d5515d246d00661f1b3e24029bdd3c92b990027a5c7608a90de4",
+  "provingKey": "26a6520bc3d2e74c319b3f9e0ef303201be8a6d684a9b929f2fbe920e25fdd32",
+  "verificationKey": "b4d522e2961e00b619eea6bbd6fc8dfab22e05fad8dace4bc2934a45d282a4d8"
+}

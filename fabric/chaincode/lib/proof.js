@@ -12,6 +12,10 @@ function protocol(config = {}) {
     if (config.experiment === 'sample-count-v1' && [64, 96, 128].includes(config.sampleCount)
       && config.capacity === 4004 && count === config.sampleCount + 6 && index === 1
       && config.circuit === `csi_lomb_scargle_adaptive_n${config.sampleCount}_c4004`) return { count, index };
+    if (config.experiment === 'frequency-grid-v1' && [64, 96, 128].includes(config.sampleCount)
+      && [64, 128].includes(config.frequencyGridCount) && config.capacity === 4004
+      && count === config.sampleCount + 6 && index === 1
+      && config.circuit === `csi_lomb_scargle_adaptive_n${config.sampleCount}_k${config.frequencyGridCount}_c4004`) return { count, index };
     throw new Error('Unsupported observation protocol');
   }
   if (count === 1 && index === 0) return { count, index };

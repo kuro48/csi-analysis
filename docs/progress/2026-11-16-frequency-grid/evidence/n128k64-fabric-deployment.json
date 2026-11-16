@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "channelName": "csi",
+  "chaincodeName": "csisamples128k64v1",
+  "networkName": "Fabric local consortium",
+  "debugMode": true,
+  "recorderMspId": "Org1MSP",
+  "recorderCertificateHash": "418a2651e6fe2aff41396226c6a824160e14efe36ad92a860669f88a067170aa",
+  "readerMspIds": [
+    "Org1MSP",
+    "Org2MSP"
+  ],
+  "verificationKeyHash": "0x451c9c9350c6291f024aad2fb8f85a952d9aa7131a43bb55092aba21f621c2cf",
+  "publicSignalCount": 134,
+  "isNormalIndex": 1,
+  "circuit": "csi_lomb_scargle_adaptive_n128_k64_c4004",
+  "experiment": "frequency-grid-v1",
+  "sampleCount": 128,
+  "capacity": 4004,
+  "frequencyGridCount": 64,
+  "verificationKeyFile": "verification_key.json",
+  "sourceHash": "1c9e6a75572a8d6fe1ef2fea06eb53832fe5b3ae52c7bed90b9eecf5f3856a1c",
+  "topology": {
+    "peerOrganizations": 2,
+    "peers": 2,
+    "orderers": 1,
+    "consensus": "Raft",
+    "endorsementPolicy": "AND('Org1MSP.peer','Org2MSP.peer')",
+    "fabricVersion": "2.5.16",
+    "singleHost": true
+  },
+  "deploymentId": "0x86d2f10558d9737ede34a8e93e7c79886304aa86ac723c7cba96f37fd06b1f45"
+}

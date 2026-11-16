@@ -1,0 +1,273 @@
+{
+  "chainId": 1337,
+  "sampleCount": 128,
+  "publicSignalCount": 134,
+  "verifierAddress": "0xA586074FA4Fe3E546A132a16238abe37951D41fE",
+  "verifierAbi": [
+    {
+      "inputs": [
+        {
+          "internalType": "uint256[2]",
+          "name": "_pA",
+          "type": "uint256[2]"
+        },
+        {
+          "internalType": "uint256[2][2]",
+          "name": "_pB",
+          "type": "uint256[2][2]"
+        },
+        {
+          "internalType": "uint256[2]",
+          "name": "_pC",
+          "type": "uint256[2]"
+        },
+        {
+          "internalType": "uint256[134]",
+          "name": "_pubSignals",
+          "type": "uint256[134]"
+        }
+      ],
+      "name": "verifyProof",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "registryAddress": "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A",
+  "registryAbi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "verifierAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "recorderAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "allowDebugInputs",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "Duplicate",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidObservation",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidProof",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "Unauthorized",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "observationId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "patientRef",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "observedAt",
+          "type": "uint64"
+        }
+      ],
+      "name": "ObservationRecorded",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "debugMode",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "observationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getObservation",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "patientRef",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "observedAt",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "durationSeconds",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "recordedBlock",
+          "type": "uint64"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "proofDigest",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "observationId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "patientRef",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "observedAt",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "durationSeconds",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint256[2]",
+          "name": "a",
+          "type": "uint256[2]"
+        },
+        {
+          "internalType": "uint256[2][2]",
+          "name": "b",
+          "type": "uint256[2][2]"
+        },
+        {
+          "internalType": "uint256[2]",
+          "name": "c",
+          "type": "uint256[2]"
+        },
+        {
+          "internalType": "uint256[134]",
+          "name": "signals",
+          "type": "uint256[134]"
+        }
+      ],
+      "name": "recordObservation",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "recorder",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "verifier",
+      "outputs": [
+        {
+          "internalType": "contract IAdaptiveBreathingVerifier",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "verifierCodeHash",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "observationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "verifyObservation",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "isNormal",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "registryCodeHash": "0xdfacc5918bf4081054d3ffe7137bd5514cfc78df96ddf3b05133ee9db373b6a8",
+  "verifierCodeHash": "0xed88a8cfb2adbb30de63baf04883fe446fa9ec26ea68b97b74f1e14be20b8f69",
+  "verificationKeyHash": "11e5b7d39adb76360c63a0ae425bbb0410535e361ec862cd5ee5ccc07debb6aa",
+  "deploymentMs": 387.59544000000005
+}

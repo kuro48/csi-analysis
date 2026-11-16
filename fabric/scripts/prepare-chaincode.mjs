@@ -27,7 +27,7 @@ const vkey = readFileSync(
 const hash = (b) => createHash("sha256").update(b).digest("hex");
 const artifacts = process.env.ADAPTIVE_ARTIFACT_MANIFEST
   ? JSON.parse(readFileSync(process.env.ADAPTIVE_ARTIFACT_MANIFEST)) : null;
-const sampleExperiment = artifacts?.experiment === "sample-count-v1";
+const sampleExperiment = ["sample-count-v1", "frequency-grid-v1"].includes(artifacts?.experiment);
 const identity = (org) => {
   const msp = join(
     network,
@@ -62,6 +62,7 @@ const config = {
   isNormalIndex: JSON.parse(vkey).nPublic === 1 ? 0 : 1,
   circuit: sampleExperiment ? artifacts.circuit : JSON.parse(vkey).nPublic === 70 ? "csi_lomb_scargle_adaptive_4004" : "csi_breathing_certificate",
   ...(sampleExperiment ? { experiment: artifacts.experiment, sampleCount: artifacts.sampleCount, capacity: artifacts.capacity } : {}),
+  ...(artifacts?.experiment === "frequency-grid-v1" ? { frequencyGridCount: artifacts.frequencyGridCount } : {}),
   verificationKeyFile: "verification_key.json",
   sourceHash: hash(
     [

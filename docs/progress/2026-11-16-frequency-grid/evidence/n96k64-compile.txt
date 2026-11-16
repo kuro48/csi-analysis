@@ -1,0 +1,29 @@
+template instances: 297
+non-linear constraints: 16227074
+linear constraints: 5300615
+public inputs: 97
+private inputs: 768769
+public outputs: 5
+wires: 20686248
+labels: 26589402
+Written successfully: /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/frequency-grid/n96k64/build/n96k64.r1cs
+Written successfully: /Users/kurokawaryuunosuke/Research/WiFi-CSI-Privacy/Code/csi-web-platform/.local/frequency-grid/n96k64/build/n96k64_js/n96k64.wasm
+Everything went okay
+     1773.04 real      1367.97 user       253.21 sys
+          7552270336  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+            66646968  page reclaims
+                1170  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+              313962  voluntary context switches
+             1122763  involuntary context switches
+      14927568505110  instructions retired
+       6253638676778  cycles elapsed
+         19360411648  peak memory footprint

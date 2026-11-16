@@ -14,16 +14,20 @@ const require = createRequire(join(root, 'backend/contracts/package.json'));
 const { JsonRpcProvider, ContractFactory, Contract, NonceManager, id, keccak256 } = require('ethers');
 const snarkjs = createRequire(join(root, 'zkp/package.json'))('snarkjs');
 const ejs = createRequire(require.resolve('snarkjs'))('ejs');
-const [stage, workArg, nArg] = process.argv.slice(2);
+const [stage, workArg, nArg, kArg] = process.argv.slice(2);
+const k = kArg === undefined ? 32 : Number(kArg);
+if (![32,64,128].includes(k)) throw Error("Unsupported frequency grid");
+const gridExperiment = k !== 32;
 const n = Number(nArg), work = resolve(workArg || '.local/sample-count');
 if (!['deploy', 'measure'].includes(stage) || ![64, 96, 128].includes(n)) throw Error('Usage: sample_count_ledgers.mjs deploy|measure WORK 64|96|128');
-const dir = join(work, `n${n}`), count = n + 6;
+const dir = join(work, gridExperiment ? `n${n}k${k}` : `n${n}`), count = n + 6;
 const read = path => JSON.parse(readFileSync(path));
 const save = (path, value) => writeFileSync(path, JSON.stringify(value, (_, v) => typeof v === 'bigint' ? v.toString() : v, 2) + '\n');
 const hash = path => createHash('sha256').update(readFileSync(path)).digest('hex');
-const base = read(n === 64 ? join(root, '.local/circom-adaptive-4004/artifacts.json') : join(dir, 'artifacts.json'));
-const artifacts = { ...base, experiment: 'sample-count-v1', sampleCount: n, capacity: 4004,
-  circuit: `csi_lomb_scargle_adaptive_n${n}_c4004`, publicSignalCount: count, isNormalIndex: 1 };
+const base = read(n === 64 && !gridExperiment ? join(root, '.local/circom-adaptive-4004/artifacts.json') : join(dir, 'artifacts.json'));
+const artifacts = { ...base, experiment: gridExperiment ? 'frequency-grid-v1' : 'sample-count-v1', sampleCount: n, capacity: 4004,
+  ...(gridExperiment ? { frequencyGridCount: k } : {}),
+  circuit: gridExperiment ? `csi_lomb_scargle_adaptive_n${n}_k${k}_c4004` : `csi_lomb_scargle_adaptive_n${n}_c4004`, publicSignalCount: count, isNormalIndex: 1 };
 assert.equal(hash(base.files.verificationKey), base.sha256.verificationKey);
 const key = read(base.files.verificationKey);
 const bundle = read(join(dir, 'csi_20260519_114943/bundle.json'));
@@ -38,7 +42,7 @@ assert.equal(Number((await provider.getNetwork()).chainId), 1337);
 const signer = new NonceManager(await provider.getSigner());
 const fabricDir = join(dir, 'fabric');
 const network = join(root, '.local/fabric/fabric-samples/test-network');
-const chaincodeName = `csisamples${n}v1`;
+const chaincodeName = gridExperiment ? `csisamples${n}k${k}v1` : `csisamples${n}v1`;
 
 function run(command, args, log, env = process.env, cwd = root) {
   return new Promise((accept, reject) => {
@@ -105,7 +109,7 @@ try {
     const writer = openGateway(read(join(fabricDir, 'gateway-writer.json')), 'writer');
     const reader = openGateway(read(join(fabricDir, 'gateway-reader.json')), 'reader');
     const progressPath = join(dir, 'ledger-progress.json');
-    const report = existsSync(progressPath) ? read(progressPath) : { sampleCount: n, publicSignalCount: count, capture: 'csi_20260519_114943',
+    const report = existsSync(progressPath) ? read(progressPath) : { sampleCount: n, frequencyGridCount: k, publicSignalCount: count, capture: 'csi_20260519_114943',
       candidateCount: 4004, recordedProofSha256: hash(join(dir, 'csi_20260519_114943/bundle.json')),
       recordRepetitions: 1, verifyWarmRepetitions: 10,
       verificationMode: 'EVM eth_call / Fabric evaluateTransaction: ledger state read plus in-chain verifier, not a new transaction',
