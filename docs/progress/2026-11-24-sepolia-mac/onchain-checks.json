@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-11-24T09:24:18.769Z",
+  "chainId": 11155111,
+  "verifier": "0x760Dc28a9be97d737e6b37BB8F6C5b7512ddeDc3",
+  "registry": "0x60BA83318d2B75575cdc5F9B912fF688bB7B745b",
+  "realProofValid": true,
+  "changedPublicOutputRejected": true,
+  "missingObservationRejected": true,
+  "unauthorizedRecordRejected": true,
+  "validVerifierCallMs": 40.410864999999944,
+  "method": "Read-only Sepolia eth_call; no wallet or transaction; no new records created"
+}

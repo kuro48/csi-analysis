@@ -1,0 +1,266 @@
+{
+  "version": 1,
+  "kind": "breathing-observations",
+  "chainId": 11155111,
+  "networkName": "Ethereum Sepolia",
+  "registryAddress": "0x60BA83318d2B75575cdc5F9B912fF688bB7B745b",
+  "registryCodeHash": "0x14c07890e5383b166b9499405d7e0b37d19b6d4f80a6ef94bd716eb39c88fc93",
+  "registryAbi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "verifierAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "recorderAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "allowDebugInputs",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "Duplicate",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidObservation",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidProof",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "Unauthorized",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "observationId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "patientRef",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "observedAt",
+          "type": "uint64"
+        }
+      ],
+      "name": "ObservationRecorded",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "debugMode",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "observationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getObservation",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "patientRef",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "observedAt",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "durationSeconds",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "recordedBlock",
+          "type": "uint64"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "proofDigest",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "observationId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "patientRef",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "observedAt",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "durationSeconds",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint256[2]",
+          "name": "a",
+          "type": "uint256[2]"
+        },
+        {
+          "internalType": "uint256[2][2]",
+          "name": "b",
+          "type": "uint256[2][2]"
+        },
+        {
+          "internalType": "uint256[2]",
+          "name": "c",
+          "type": "uint256[2]"
+        },
+        {
+          "internalType": "uint256[70]",
+          "name": "signals",
+          "type": "uint256[70]"
+        }
+      ],
+      "name": "recordObservation",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "recorder",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "verifier",
+      "outputs": [
+        {
+          "internalType": "contract IAdaptiveBreathingVerifier",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "verifierCodeHash",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "observationId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "verifyObservation",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "isNormal",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "verifierAddress": "0x760Dc28a9be97d737e6b37BB8F6C5b7512ddeDc3",
+  "verifierCodeHash": "0xfce3d6f74070d11b6379d74d280740ac1a1b301bcd95f91b9a4bba9c9cc74144",
+  "recorderAddress": "0xbe0EEc5d93231938Cf743a792516fbb103B48651",
+  "debugMode": true,
+  "deploymentBlock": 12201711,
+  "deploymentTransaction": "0x8c1a26843c5e3be1a73fa29163476d7d89625e8d6d401d1ac24c28275f657d52",
+  "deploymentTransactions": {
+    "verifier": {
+      "status": "confirmed",
+      "transactionHash": "0xd96632f4fe60f3a0acfeb403575993af5ea95ed39ad44915b0ac4c87333a1b6a",
+      "address": "0x760Dc28a9be97d737e6b37BB8F6C5b7512ddeDc3",
+      "blockNumber": 12201709,
+      "gasUsed": "12445691",
+      "gasPriceWei": "21",
+      "feeWei": "261359511"
+    },
+    "registry": {
+      "status": "confirmed",
+      "transactionHash": "0x8c1a26843c5e3be1a73fa29163476d7d89625e8d6d401d1ac24c28275f657d52",
+      "address": "0x60BA83318d2B75575cdc5F9B912fF688bB7B745b",
+      "blockNumber": 12201711,
+      "gasUsed": "4506518",
+      "gasPriceWei": "21",
+      "feeWei": "94636878"
+    }
+  },
+  "circuit": "csi_lomb_scargle_adaptive_4004",
+  "capacity": 4004,
+  "publicSignalCount": 70,
+  "isNormalIndex": 1,
+  "verificationKeyFile": "verification_key.json",
+  "verificationKeyHash": "0x9985133091b50d97f8ca1f59197ff2b28fcb8646bd8d375477252434a65b04a1"
+}

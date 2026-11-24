@@ -1,0 +1,25 @@
+{
+  "chainId": 11155111,
+  "recorderAddress": "0xbe0EEc5d93231938Cf743a792516fbb103B48651",
+  "debugMode": true,
+  "stages": {
+    "verifier": {
+      "status": "confirmed",
+      "transactionHash": "0xd96632f4fe60f3a0acfeb403575993af5ea95ed39ad44915b0ac4c87333a1b6a",
+      "address": "0x760Dc28a9be97d737e6b37BB8F6C5b7512ddeDc3",
+      "blockNumber": 12201709,
+      "gasUsed": "12445691",
+      "gasPriceWei": "21",
+      "feeWei": "261359511"
+    },
+    "registry": {
+      "status": "confirmed",
+      "transactionHash": "0x8c1a26843c5e3be1a73fa29163476d7d89625e8d6d401d1ac24c28275f657d52",
+      "address": "0x60BA83318d2B75575cdc5F9B912fF688bB7B745b",
+      "blockNumber": 12201711,
+      "gasUsed": "4506518",
+      "gasPriceWei": "21",
+      "feeWei": "94636878"
+    }
+  }
+}

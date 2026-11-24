@@ -1,0 +1,31 @@
+{
+  "captureId": "de8aa194-5200-4f0f-8b4f-01664b081c56",
+  "patientId": "24b55901-1a9b-4418-8d74-6d706eaa8d5a",
+  "registry": "0x60BA83318d2B75575cdc5F9B912fF688bB7B745b",
+  "chainId": 11155111,
+  "sourceCaptureSha256": "91501d0acc55c2f617fc73df8575765944199ac0a64bf8ee7ef46c47f7f7641a",
+  "result": {
+    "status": "verified",
+    "isNormal": false,
+    "patientId": "24b55901-1a9b-4418-8d74-6d706eaa8d5a",
+    "observedAt": 1779158991,
+    "durationSeconds": 54,
+    "verifiedAtBlock": 12201715,
+    "confirmations": 2,
+    "transactionHash": "0xe37695fa75ed5961371a8273de3038bb94c2deb3a1edb0eb53b39f57ae299b2d",
+    "chainId": 11155111,
+    "debugInput": true
+  },
+  "verifyReadMs": 262.5107578933239,
+  "verificationMethod": "Sepolia eth_call to verifyObservation; no verification transaction",
+  "newProofGenerated": false,
+  "recordReceipt": {
+    "transactionHash": "0xe37695fa75ed5961371a8273de3038bb94c2deb3a1edb0eb53b39f57ae299b2d",
+    "blockNumber": 12201715,
+    "status": 1,
+    "gasUsed": 8850850,
+    "effectiveGasPriceWei": 21,
+    "feeWei": "185867850",
+    "confirmationsRequired": 2
+  }
+}

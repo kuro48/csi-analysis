@@ -1,0 +1,34 @@
+{
+  "monitorStartedAtUnix": 1795512235.359581,
+  "method": "poll SQLite status at 1s intervals; includes worker/RPC/confirmation wait, excludes proof generation",
+  "transitions": [
+    {
+      "status": "processing",
+      "tx_hash": null,
+      "attempts": 0,
+      "error": null,
+      "elapsedSeconds": 0.00104927783831954
+    },
+    {
+      "status": "submitted",
+      "tx_hash": "0xe37695fa75ed5961371a8273de3038bb94c2deb3a1edb0eb53b39f57ae299b2d",
+      "attempts": 0,
+      "error": null,
+      "elapsedSeconds": 3.015634941868484
+    },
+    {
+      "status": "processing",
+      "tx_hash": "0xe37695fa75ed5961371a8273de3038bb94c2deb3a1edb0eb53b39f57ae299b2d",
+      "attempts": 0,
+      "error": null,
+      "elapsedSeconds": 34.17002868978307
+    },
+    {
+      "status": "recorded",
+      "tx_hash": "0xe37695fa75ed5961371a8273de3038bb94c2deb3a1edb0eb53b39f57ae299b2d",
+      "attempts": 0,
+      "error": null,
+      "elapsedSeconds": 35.179409133736044
+    }
+  ]
+}

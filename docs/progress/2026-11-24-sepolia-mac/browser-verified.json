@@ -1,0 +1,37 @@
+{
+  "checkedAt": "2026-11-24T09:24:44.701Z",
+  "url": "https://approaches-beside-trading-travelers.trycloudflare.com",
+  "onchainVerified": true,
+  "patientId": "24b55901-1a9b-4418-8d74-6d706eaa8d5a",
+  "captureId": "de8aa194-5200-4f0f-8b4f-01664b081c56",
+  "measurementListWithholdsResult": true,
+  "resultHiddenBeforeVerification": true,
+  "result": {
+    "status": "verified",
+    "isNormal": false,
+    "patientId": "24b55901-1a9b-4418-8d74-6d706eaa8d5a",
+    "observedAt": 1779158991,
+    "durationSeconds": 54,
+    "verifiedAtBlock": 12201716,
+    "confirmations": 3,
+    "transactionHash": "0xe37695fa75ed5961371a8273de3038bb94c2deb3a1edb0eb53b39f57ae299b2d",
+    "chainId": 11155111,
+    "debugInput": true
+  },
+  "verifyHttpRoundTripMs": 891.2662019999998,
+  "pageErrors": [],
+  "responses": [
+    {
+      "url": "https://approaches-beside-trading-travelers.trycloudflare.com/api/v2/observations/patients",
+      "status": 200
+    },
+    {
+      "url": "https://approaches-beside-trading-travelers.trycloudflare.com/api/v2/observations/patients/24b55901-1a9b-4418-8d74-6d706eaa8d5a/measurements",
+      "status": 200
+    },
+    {
+      "url": "https://approaches-beside-trading-travelers.trycloudflare.com/api/v2/observations/measurements/de8aa194-5200-4f0f-8b4f-01664b081c56/verify",
+      "status": 200
+    }
+  ]
+}
