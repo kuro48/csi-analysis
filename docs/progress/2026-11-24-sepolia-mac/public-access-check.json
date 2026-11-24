@@ -1,0 +1,35 @@
+{
+  "url": "https://approaches-beside-trading-travelers.trycloudflare.com",
+  "checks": [
+    {
+      "method": "GET",
+      "path": "/",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/observations/patients",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/observations/patients",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "path": "/capture",
+      "status": 404
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/observations/captures",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/openapi.json",
+      "status": 404
+    }
+  ]
+}

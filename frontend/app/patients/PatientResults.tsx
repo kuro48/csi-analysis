@@ -18,7 +18,11 @@ type Result = {
   observedAt?: number;
   durationSeconds?: number;
   debugInput?: boolean;
+  chainId?: number;
+  transactionHash?: string;
+  verifiedAtBlock?: number;
 };
+const verifierOnly = process.env.NEXT_PUBLIC_VERIFIER_ONLY === "true";
 const selectClass =
   "mt-2 w-full min-w-0 rounded-xl border border-neutral-300 bg-white p-3 text-base text-neutral-900 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100 disabled:bg-neutral-100";
 const dateLabel = (seconds: number) =>
@@ -136,7 +140,7 @@ export function PatientResults() {
             CSI <span className="font-normal">Care</span>
           </Link>
           <span className="rounded-full bg-white px-3 py-1 text-xs text-neutral-600">
-            呼吸判定の照会
+            {verifierOnly ? "Sepolia · 証明検証" : "呼吸判定の照会"}
           </span>
         </header>
         <div className="py-10 sm:py-14">
@@ -267,9 +271,27 @@ export function PatientResults() {
               <p className="mt-3 text-xs leading-6 text-neutral-600">
                 設定された周波数帯域と狭帯域条件による判定です。証明の有効性と判定結果は別の情報です。
               </p>
+              {result.chainId === 11155111 && (
+                <div className="mt-4 text-sm leading-7 text-neutral-700">
+                  <p>検証先：Ethereum Sepolia</p>
+                  {result.verifiedAtBlock !== undefined && (
+                    <p>検証したブロック：{result.verifiedAtBlock.toLocaleString()}</p>
+                  )}
+                  {result.transactionHash && /^0x[0-9a-fA-F]{64}$/.test(result.transactionHash) && (
+                    <a
+                      href={`https://sepolia.etherscan.io/tx/${result.transactionHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-4"
+                    >
+                      チェーン上の記録を見る
+                    </a>
+                  )}
+                </div>
+              )}
               {result.debugInput && (
                 <p className="mt-4 rounded-lg border border-amber-300 bg-white/70 p-3 text-sm leading-6 text-amber-950">
-                  デバッグ計測です。短い入力の補完を許可した検証先を使用しています。通常運用の計測条件を満たすことは確認していません。
+                  デバッグ用の検証先を使用した計測です。通常運用の計測条件を満たすことは確認していません。
                 </p>
               )}
             </section>
@@ -279,9 +301,11 @@ export function PatientResults() {
           <p>
             患者は表示用IDで識別しています。計測時刻は端末のタイムゾーンで表示します。
           </p>
-          <Link className="underline" href="/capture">
-            収集管理・デバッグ
-          </Link>
+          {!verifierOnly && (
+            <Link className="underline" href="/capture">
+              収集管理・デバッグ
+            </Link>
+          )}
         </footer>
       </div>
     </main>

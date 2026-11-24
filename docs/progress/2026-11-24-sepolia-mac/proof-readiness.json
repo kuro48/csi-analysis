@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-11-24T08:51:21.663Z",
+  "inputKind": "saved-real-capture-proof",
+  "offlineProofValid": true,
+  "onchainVerified": false,
+  "newProofGenerated": false,
+  "publicSignalCount": 70,
+  "candidateCount": 4004,
+  "bundleSha256": "11cefdde4f427e460068a176a7762dd4d385bf4f7421647a19c2b906cefd1065",
+  "verificationKeyHash": "0x9985133091b50d97f8ca1f59197ff2b28fcb8646bd8d375477252434a65b04a1",
+  "sourceCaptureSha256": "91501d0acc55c2f617fc73df8575765944199ac0a64bf8ee7ef46c47f7f7641a",
+  "observedAt": 1779158991,
+  "durationSeconds": 54
+}

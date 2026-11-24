@@ -1,0 +1,10 @@
+# Mac-only public verifier proxy. Host API/UI must be running on ports 8014/3014.
+name: csi-sepolia-viewer
+services:
+  gateway:
+    image: nginx:1.28-alpine
+    ports: ["127.0.0.1:8084:80"]
+    volumes:
+      - ../../nginx/sepolia-viewer.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
