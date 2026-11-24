@@ -1,3 +1,5 @@
+# Transitional application bundle on GMKtec: API and prover must share this local queue.
+# This is not yet a split deployment of a GMKtec prover and a remote viewer API.
 name: csi-staging
 x-app: &app
   image: csi-staging-app:${RELEASE_TAG:?Set immutable release tag}

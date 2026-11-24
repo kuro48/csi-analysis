@@ -1,37 +1,48 @@
-# 手持ち3台で構築するSepolia・Fabric実証環境
+# GMKtecでCSI取得・証明生成を行うSepolia・Fabric実証環境
 
-2026-11-24。**配備用コードと設定を準備した段階。3台への配備、Sepoliaへのコントラクト配備、分散環境での性能測定はまだ実施していない。** 既存ローカル環境・デバッグUIは継続利用できる。
+2026-11-24、役割を訂正。**GMKtecがCSI取得と証明生成を担当し、このMacは実行環境に含めない。** 前案の「手持ち3台で追加PC不要」はMacを常時稼働させる想定だったため撤回する。実機への新システム配備・Sepolia配備・分散環境の性能測定は未実施。
 
-## 今回の構成
+## 確定した担当と配置案
 
-| 実機 | 担当 | 現時点で分かっていること |
+| 実機 | 担当 | 状態 |
 | --- | --- | --- |
-| GMKtec ミニPC | CSI取得、計測側HospitalMSPのpeer、writer bridge、orderer 1 | OS・RAM・空き容量を確認待ち。既存CSI計測設定を維持する |
-| このMac | 閲覧側ResearchMSPのpeer、reader bridge、orderer 2、WebUI/API・証明worker | Core i5-8500B / x86_64 / RAM 16 GiB。DockerのVM割当と証明生成の同時負荷を確認する |
-| Raspberry Pi 4 | orderer 3 | RAM 8GB。64bit OS・SSD・有線LANの有無を確認待ち |
+| GMKtec ミニPC | CSI取得、回路内サブキャリア選択を含む証明生成、証明の記録要求 | SSH確認済み。i5-12450H / 8コア12スレッド / RAM約16GB / Ubuntu 22.04.5 / 空き約420GiB。PicoScenes稼働中 |
+| このMac | 常時運用の役割なし | 現在の開発・移行準備にのみ使用。最終的には停止していても取得・生成・記録・閲覧できる構成にする |
+| Raspberry Pi 4 / 8GB | Fabric ordererの候補 | OS・SSD・ネットワークを確認待ち |
+| 台帳側ホストA（未確定） | 計測側HospitalMSPのpeer、writer bridge、orderer | 既存PCまたは追加PCを割り当てる案 |
+| 台帳側ホストB（未確定） | 閲覧側ResearchMSPのpeer、reader bridge、orderer、第三者用WebUI/API | 閲覧サービスを分離した後の配置案。まだ分離実装・配備はしていない |
 
-3台に1つずつ配置するRaft ordererと、別々の実機に置く2組織のpeerを使用する。channelは`csi-staging`、chaincodeは`csiadaptive4004`。書き込みには両組織peerの承認を必要とする。閲覧時のGroth16検証はreader側peerのchaincodeで実行するが、evaluateは1 peerへの問い合わせであり、両組織の再承認や新しいブロック生成を伴わない。
+GMKtecは計測と証明生成を優先し、上の配置案ではpeer/ordererを同居させない。前回準備した「2組織peer・3ホストRaft orderer」を維持する場合、Piに加えて台帳側ホストが2台必要になる。これはその分散構成の条件であり、Fabric全般の最小台数や購入指示ではない。配置や冗長性を変える場合は、比較実験の条件も合わせて変更する。
 
-これは2組織を模したLAN実証である。同一所有者が3台を管理する間は、独立組織による運用や拠点間WANの実証とは区別する。ordererは1台停止に耐える構成だが、各組織peerは1台なので、どちらかのpeer停止中は新規記録できない。WebUI・SQLite観測キュー・workerも単一ホストであり、アプリ全体のHA構成ではない。
+channelは`csi-staging`、chaincodeは`csiadaptive4004`。書き込みには両組織peerの承認を必要とする。閲覧時のGroth16検証はreader側peerのchaincodeで実行するが、evaluateは1 peerへの問い合わせであり、両組織の再承認や新しいブロック生成を伴わない。
 
-### 追加PCが必要になった場合の目安
+同一所有者が機器を管理する間は2組織を模した実証であり、独立組織・拠点間WANの実証とは区別する。3ホストRaftはorderer 1台停止を想定できるが、各組織peerが1台なので、どちらかのpeer停止中は新規記録できない。
 
-以下はこの実装の**初期配置・調達目安**であり、性能保証された最低仕様ではない。まず実機の最大メモリ・処理時間・温度・ディスク遅延を測る。最初から追加購入する必要はない。
+### 現在の実装と移行先を混同しない
 
-| 役割 | 試験開始の目安 | 備考 |
+`compose.app.yml`はWebUI/API/SQLite観測キュー/workerを同一ホストで動かす移行途中の構成。これを使う場合の実行先はGMKtecであり、Macではない。workerだけをGMKtecへ移し、APIのSQLiteを別端末へ残す使い方には対応していない。GMKtecにはDockerコマンドが見つかっておらず、このComposeを実配備したわけではない。
+
+最終構成ではGMKtec内で取得・前処理・witness計算・証明生成・ローカルキューを完結させ、完成した証明・公開入力・観測メタデータを記録先へ渡す。第三者用APIは記録参照と検証を担当する。そのためのリモート受け渡し・観測一覧同期は今後の実装対象であり、SQLiteのNFS共有で代用しない。詳細は[GMKtec移行手順](gmktec-edge-migration.md)を参照。
+
+「取得と同時に生成」は、計測を続けながら取得済みの窓を別ジョブで証明する方式とする。未来のサンプルを待たずに証明できるという意味ではない。GMKtecでの新回路の生成時間・最大RAM・CSI取りこぼしは未測定で、リアルタイム処理能力を保証しない。
+
+### ハードウェアの目安
+
+以下は初期配置の目安であり、性能保証された最低仕様ではない。GMKtecのメモリ増設や機器追加は、実際の同時稼働測定と配置確定後に判断する。
+
+| 役割 | 試験開始の目安 | 今回の扱い |
 | --- | --- | --- |
-| orderer専用 | 64bit CPU 2コア、RAM 4GB、SSD空き32GB以上 | 手持ちPi 4 / 8GBをまずこの役割に使う |
-| peer + orderer + bridge | 64bit CPU 4コア、RAM 8GB、SSD空き64GB以上 | CSI計測と同居するGMKtecは計測落ちも監視する |
-| 証明生成専用PC | 64bit CPU 4コア、RAM 16GB、SSD空き100GB以上 | 既存16GB機で実測済みだがスワップ・待ち時間が発生。新規調達ならRAM 32GB以上を推奨 |
-| 証明生成 + WebUI + peer同居 | RAM 32GB以上を推奨 | 現在のMac 16GBでは同時負荷に余裕がない。最初は1ジョブずつ実測し、必要なら証明生成を分離 |
+| orderer専用 | 64bit CPU 2コア、RAM 4GB、SSD空き32GB以上 | Pi 4 / 8GBを候補とする |
+| peer + orderer + bridge | 64bit CPU 4コア、RAM 8GB、SSD空き64GB以上 | 台帳側ホストA/Bの配置目安。WebUI同居時は追加の余裕を測る |
+| CSI取得 + 証明生成 | 64bit CPU 4コア、RAM 16GB、SSD空き100GB以上 | GMKtecは初期試験の候補。取得との同時稼働は未検証。RAM32GBなら余裕を持たせやすい |
 
 Pi 4には64bit OSと有線LANを使用する。台帳の継続書き込み先はSSDを推奨する。Fabric 2.5.16 peer/ordererの配布マニフェストに`linux/arm64`と`linux/amd64`があることを確認した。Piでのこのチェーンコードの動作・性能は未測定。32bit OSのままではこの配備構成を使えない。OS再インストールやCSI機の設定変更は自動では行わない。
 
 ## 利用者にお願いする最初の作業
 
-1. 3台を同じLANへ、可能なら有線接続する。ルーターのDHCP予約などでIPを固定する。Fabric用ポートをインターネットへ転送しない。
-2. GMKtecのOS・RAM、PiのOSが64bitか、SSDがあるかを確認する。Mac/Linuxならこのリポジトリで`bash scripts/staging/host-info.sh`を実行すれば、CPU・RAM・空き容量・Docker情報が表示される。Windowsなら「設定 → システム → バージョン情報」とディスク空き容量を確認する。
-3. GMKtecとPiへSSH接続できる一般ユーザーを用意する。こちらへ伝えるのはLAN IPまたはSSH設定名・ユーザー名まで。パスワード・秘密鍵はチャットに貼らない。
+1. GMKtec・Pi・割り当てる台帳側ホストを、可能なら同じ有線LANへ接続する。Macの常時接続は不要。ルーターのDHCP予約などでIPを固定する。Fabric用ポートをインターネットへ転送しない。
+2. GMKtecのOS・RAMはSSHで確認済み。PiのOSが64bitか、SSDがあるかと、台帳側ホストに割り当てられる機器を確認する。Mac/Linuxならこのリポジトリで`bash scripts/staging/host-info.sh`を実行すれば、CPU・RAM・空き容量・Docker情報が表示される。Windowsなら「設定 → システム → バージョン情報」とディスク空き容量を確認する。
+3. GMKtecは`ssh infonetworking@100.111.253.60`で接続確認済み。Piと台帳側ホストへのSSH接続先を確認する。こちらへ伝えるのはLAN IPまたはSSH設定名・ユーザー名まで。パスワード・秘密鍵はチャットに貼らない。
 4. 下記2つの専用アドレスにSepoliaの**テストETH**を用意する。2026-11-24の読み取り確認では、どちらも0だった。メインネットETHは不要。
 
 | 用途 | アドレス |
@@ -45,7 +56,7 @@ Pi 4には64bit OSと有線LANを使用する。台帳の継続書き込み先�
 node backend/contracts/scripts/check-staging.mjs
 ```
 
-公開ドメインは今すぐ必要ない。まずLANの`csi.home.arpa`などをLAN DNSでMacのIPへ向け、内部CAのHTTPSで利用する。ブラウザーを使うPCにそのCA証明書を信頼登録する必要がある。外部公開時は管理可能なドメインと到達経路を用意し、公開CAのHTTPS設定へ切り替える。大学・研究室回線のポート開放や外部公開が許可されているかは管理者に確認する。
+公開ドメインは今すぐ必要ない。まずLANの`csi.home.arpa`などをLAN DNSでWebUIを配備するホストのIPへ向け、内部CAのHTTPSで利用する。ブラウザーを使うPCにそのCA証明書を信頼登録する必要がある。外部公開時は管理可能なドメインと到達経路を用意し、公開CAのHTTPS設定へ切り替える。大学・研究室回線のポート開放や外部公開が許可されているかは管理者に確認する。
 
 ## 配備作業の順番（実機情報確定後に進める部分）
 
@@ -53,11 +64,11 @@ node backend/contracts/scripts/check-staging.mjs
 
 ### 1. 基盤と名前解決
 
-LinuxではDocker Engine + Compose、Node.js 22、Fabric 2.5.16 CLI（`peer`、`configtxgen`、`osnadmin`）、`jq`を使用する。Macは既存Docker Desktopを使用。Linux ARM64にはARM64版CLIを使用する。
+LinuxではDocker Engine + Compose、Node.js 22、Fabric 2.5.16 CLI（`peer`、`configtxgen`、`osnadmin`）、`jq`を使用する。Mac上のDocker Desktopは開発時の検査にのみ使用する。Linux ARM64にはARM64版CLIを使用する。
 
-`deploy/staging/inventory.example.json`をGit対象外の`.local/distributed/inventory.json`へコピーし、組織名、ホストID、実際に解決できるDNS名へ変更する。例の`.invalid`は意図的に配備スクリプトが拒否する。Mac・GMKtec・PiのhostIdはそれぞれ別にする。
+`deploy/staging/inventory.example.json`をGit対象外の`.local/distributed/inventory.json`へコピーし、組織名、ホストID、実際に解決できるDNS名へ変更する。例の`.invalid`は意図的に配備スクリプトが拒否する。ordererを置くPi・台帳側ホストA・台帳側ホストBのhostIdはそれぞれ別にする。GMKtecとMacを台帳ノードとして自動登録しない。
 
-DNS名はブラウザーだけでなく**各コンテナからも**解決できる必要がある。Macの`/etc/hosts`を変更しただけではコンテナに伝わらない。LAN DNSの登録を基本とし、証明書のSANにも同じDNS名を入れる。
+DNS名はブラウザーだけでなく**各コンテナからも**解決できる必要がある。開発機の`/etc/hosts`を変更しただけでは他ホストやコンテナに伝わらない。LAN DNSの登録を基本とし、証明書のSANにも同じDNS名を入れる。
 
 | 通信 | 制限 |
 | --- | --- |
@@ -189,7 +200,7 @@ SepoliaはgasUsed・実test ETH費用、Fabricはgasなしと明記し、実機�
 
 ## 運用上残る作業
 
-実サーバーの配置・証明書発行・実配備、Linux版proverによる実CSIの証明生成、Piでの起動と継続稼働、バックアップ復元、障害試験はまだ完了していない。workerメモリ上限12GiBは仮設定で、MacのDocker VM割当を超えないよう調整し、OOM時は上限だけを増やさず役割分離も検討する。
+実サーバーの配置・証明書発行・実配備、Linux版proverによる実CSIの証明生成、Piでの起動と継続稼働、バックアップ復元、障害試験はまだ完了していない。workerメモリ上限12GiBは仮設定で、GMKtecのCSI取得・OS用メモリを残せるよう実測して調整する。PicoScenes稼働中に検証なしで重い証明ジョブを自動起動しない。
 
 台帳・Postgres・観測SQLite・CAのバックアップは別々に管理する。SQLiteはworker停止＋SQLite backup APIなど整合性の取れる方法を使い、稼働中のdbファイル単独コピーは避ける。peerのDocker socketはそのホストの強い権限に相当するため、参加組織の管理者だけが操作できる専用実行環境とする。API/workerにはDocker socketを渡さない。
 

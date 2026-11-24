@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-11-24T05:52:26.525754+00:00",
+  "readOnly": true,
+  "architecture": "x86_64",
+  "os": "Ubuntu 22.04.5 LTS",
+  "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+  "logicalCpus": 12,
+  "memoryBytes": {
+    "MemTotal": 16484343808,
+    "MemAvailable": 14992601088,
+    "SwapTotal": 2147479552,
+    "SwapFree": 2147479552
+  },
+  "diskFreeBytes": 451207204864,
+  "edgeRoot": "/home/infonetworking/csi-zkp",
+  "python": "Python 3.11.14",
+  "node": [
+    {
+      "path": "/home/infonetworking/csi-zkp/tools/node-v22.23.3-linux-x64/bin/node",
+      "version": "v22.23.3"
+    }
+  ],
+  "dockerOnPath": null,
+  "picoScenesRunning": true,
+  "legacyPackagePresent": true,
+  "newProofGenerated": false,
+  "captureFilesRead": false
+}
