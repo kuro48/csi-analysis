@@ -1,6 +1,6 @@
 # GMKtecへの証明生成移行
 
-2026-11-24。GMKtecがCSI取得と証明生成を担当し、このMacを常時運用から外す方針。今回実施したのはSSHによる読み取り確認と配置・手順の訂正であり、新しい証明コードの転送やサービス切替はまだ行っていない。
+2026-11-24。本番まではMacでWebUI・証明コードの検証を続け、段階的にGMKtecへ集約する。次の構成は「WebUIだけMac、API・証明worker・キューはGMKtec」。本番前にはWebUIもGMKtecへ移す。SSH確認と接続設定の準備までで、新回路の実移行・サービス切替はまだ行っていない。
 
 ## 接続・確認結果
 
@@ -29,7 +29,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=yes \
 1. GMKtec：PicoScenesで取得。収録が完了した計測窓をローカルキューに登録する。
 2. GMKtec：既存前処理を適用し、Circom内でサブキャリアを選択してwitness・証明を生成する。
 3. GMKtecの記録クライアント：完成した証明・公開入力・観測メタデータをSepoliaまたはFabricへ送信し、結果を永続化する。
-4. 第三者用API：患者・計測時刻から記録を参照し、台帳側での検証成功後に`isNormal`を返す。WebUI/APIの最終配備ホストは未確定。
+4. 第三者用API：患者・計測時刻から記録を参照し、台帳側での検証成功後に`isNormal`を返す。分離検証ではAPIをGMKtec、WebUIをMacに置き、最終的にはWebUIもGMKtecへ移す。
 
 CSI収録と証明生成は別プロセスで並行する。次の窓を収録しながら前の窓を証明する想定であり、証明生成が窓の到着速度に追いつくかは未測定。キュー上限・再試行・計測ファイルの確定検出・原本保持を実装・検査してから自動連携する。
 
@@ -46,21 +46,50 @@ CSI収録と証明生成は別プロセスで並行する。次の窓を収録�
 
 既存`csi-zkp`の環境を上書きせず、例えば`packages/adaptive4004-v1/`のような新releaseを用意する。新しいユーザー領域環境で依存・Linux ABI・実CSIの前処理・保存済み証明の検証を確認した後、新規証明生成を試す。現行のportable manifestはコンテナの`/artifacts`を参照するため、ネイティブ配備ではパスの再配置も必要。
 
-## 現行コードから追加で必要な実装
+## WebUIだけMacに置く検証手順
 
-現在の`compose.app.yml`はAPIとworkerが同一ホストのSQLiteを共有する。同じセットをGMKtecに配置する移行途中の形には使えるが、workerだけのリモート移動には使えない。
+この構成ではAPIとworkerはGMKtec内の同じキューを利用する。WebUIはHTTP経由でAPIに接続するだけなので、SQLite同期やリモートジョブ配送の新実装は不要。以下はDocker・回路アーティファクト・台帳manifest・認証情報を準備した後の手順であり、実際にはまだ起動していない。
 
-GMKtecと第三者用APIを分離する段階では、以下を実装する。
+GMKtecでAPI・worker・DBだけを起動する。既存のCSI計測・開発UIは先に停止しない。
 
-- GMKtec内の取り込み・証明・記録キューと、完了済みファイルだけを取り込む処理。
-- 観測ID、患者参照、時刻、proof digest、deployment ID、transaction IDを結合した記録通知と一覧同期。
-- 通知を信頼済み判定として扱わず、第三者用APIが台帳上の証明を検証する経路。
-- 通信断・再起動・二重送信を想定した永続化と冪等性。
+```bash
+# GMKtec上、リポジトリ直下
+# api.envのALLOWED_ORIGINSには検証用 http://127.0.0.1:3001 を明示する。
+# Compose全体の変数はapp.env.exampleを元に設定済みとする。
+docker compose --env-file /srv/csi/config/compose.env \
+  -f deploy/staging/compose.app.yml -f deploy/staging/compose.edge-api.yml \
+  up --build -d backend worker postgres
+```
 
-NFSでSQLiteを共有する方法には置き換えない。現時点ではこの分離を実装済み・動作確認済みとはしていない。
+開発用APIはGMKtecの`127.0.0.1:8000`にだけ公開する。Macでは別ターミナルでSSHトンネルを開く。`18000`が使用中なら別のローカルポートに変更する。
+
+```bash
+# Mac上
+ssh -N -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=yes \
+  -L 127.0.0.1:18000:127.0.0.1:8000 infonetworking@100.111.253.60
+```
+
+MacのNext.jsは既存のAPI rewriteを利用する。`NEXT_PUBLIC_API_URL`は空文字にしてブラウザーからは同じオリジンの`/api/v2/...`を使う。既存devサーバーとビルド出力を共有しないよう、別worktreeからポート3001で起動する。ポートだけ変えて同じディレクトリで二重起動しない。
+
+```bash
+# Mac上、別ターミナル。リポジトリ直下から初回だけworktreeを作成する。
+git worktree add --detach .local/webui-edge-check HEAD
+cd .local/webui-edge-check/frontend
+npm ci
+NEXT_PUBLIC_API_URL= API_INTERNAL_URL=http://127.0.0.1:18000 \
+  npm run dev -- --hostname 127.0.0.1 --port 3001
+```
+
+ブラウザーは`http://127.0.0.1:3001`へアクセスする。これらはSSH認証を利用した開発用接続であり、インターネット公開用の設定ではない。APIの操作権限は既存のoperator token等のルールを維持する。Next.jsのrewrite設定は起動・ビルド時に解決されるため、API接続先を変えたらdevサーバーを再起動し、production buildでは再ビルドする。
+
+最終的にWebUIもGMKtecに配置するときは、`compose.app.yml`のfrontend/gateway/TLSを使用する。開発用`compose.edge-api.yml`は外し、公開ポートをHTTPS側にまとめる。公開CAまたは内部CAの設定は[配備手順](distributed-staging.md)を参照。
+
+### APIまで別端末にする場合だけ必要な追加作業
+
+APIをMac等へ残したままworkerだけをGMKtecへ移す場合は、リモートジョブ受け渡し・観測一覧同期・通信断時の再試行を別途実装する。今回の「WebUIだけMac」の必須条件ではない。SQLiteのNFS共有は使用しない。
 
 ## 次の実機試験
 
 まず保存済みの実CSIを使い、1ジョブの証明生成時間、最大RSS、swap、CPU使用率を測る。次に実収録と並行した際のフレーム数・欠落・キュー滞留を比較する。合成CSIは使わない。16GBで足りるかは、この同時稼働試験で判断する。
 
-最終確認ではMacへのRPC・ファイル参照・署名・API依存が残っていないことを調べ、Macがオフラインでも取得→証明→記録→第三者検証が完了することを確かめる。
+本番前の最終確認ではMacへのRPC・ファイル参照・署名・API依存が残っていないことを調べ、Macがオフラインでも取得→証明→記録→第三者検証が完了することを確かめる。

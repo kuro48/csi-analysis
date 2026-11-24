@@ -24,8 +24,8 @@ def main():
             "PUBLIC_DOMAIN": "csi.home.arpa", "ACME_EMAIL": "validation@example.invalid",
         }
         configs = {}
-        for name in ("peer", "orderer", "bridge", "app", "lan"):
-            paths = ["app", "lan"] if name == "lan" else [name]
+        for name in ("peer", "orderer", "bridge", "app", "lan", "edge-api"):
+            paths = ["app", name] if name in ("lan", "edge-api") else [name]
             command = ["docker", "compose", "--env-file", str(env_file)]
             for path in paths:
                 command += ["-f", str(ROOT / "deploy/staging" / f"compose.{path}.yml")]
@@ -41,6 +41,12 @@ def main():
         assert configs["orderer"]["services"]["orderer"]["environment"]["ORDERER_ADMIN_TLS_ENABLED"] == "true"
         lan_mounts = configs["lan"]["services"]["tls"]["volumes"]
         assert any(volume["source"].endswith("Caddyfile.lan") for volume in lan_mounts)
+        edge = configs["edge-api"]["services"]
+        assert edge["backend"]["ports"][0]["host_ip"] == "127.0.0.1"
+        assert edge["backend"]["ports"][0]["target"] == 8000
+        assert all(not edge[name].get("ports") for name in ("worker", "postgres"))
+        for name in ("backend", "worker"):
+            assert any(v["source"] == "observations" and v["target"] == "/data/observations" for v in edge[name]["volumes"])
         print(json.dumps({"composeProfiles": list(configs), "checks": "passed", "servicesStarted": False}))
 
 

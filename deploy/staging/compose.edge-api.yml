@@ -1,0 +1,6 @@
+# Development overlay on GMKtec. Start only backend, worker and postgres.
+# Forward this loopback port over SSH to the Mac WebUI; no public API listener.
+services:
+  backend:
+    ports:
+      - "127.0.0.1:${EDGE_API_PORT:-8000}:8000"

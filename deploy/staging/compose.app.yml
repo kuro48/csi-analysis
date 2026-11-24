@@ -1,5 +1,5 @@
-# Transitional application bundle on GMKtec: API and prover must share this local queue.
-# This is not yet a split deployment of a GMKtec prover and a remote viewer API.
+# API and prover share a local queue on one host (Mac during development, GMKtec after migration).
+# The WebUI can run on another host; compose.edge-api.yml supports SSH-forwarded development access.
 name: csi-staging
 x-app: &app
   image: csi-staging-app:${RELEASE_TAG:?Set immutable release tag}

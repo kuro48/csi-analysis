@@ -1,28 +1,38 @@
-# GMKtecでCSI取得・証明生成を行うSepolia・Fabric実証環境
+# Macで検証を続け、GMKtecへ段階的に集約する実証環境
 
-2026-11-24、役割を訂正。**GMKtecがCSI取得と証明生成を担当し、このMacは実行環境に含めない。** 前案の「手持ち3台で追加PC不要」はMacを常時稼働させる想定だったため撤回する。実機への新システム配備・Sepolia配備・分散環境の性能測定は未実施。
+2026-11-24、段階的な移行方針を確認。**本番まではMacでWebUI・開発・検証を継続し、最終的にCSI取得・証明生成・アプリをGMKtecへ集約する。** 「今からMacを実行環境から外す」という前回の解釈を訂正する。新回路のGMKtec移行・実Sepolia配備・分散Fabric測定は未実施。
 
-## 確定した担当と配置案
+## 検証段階と最終配置
 
-| 実機 | 担当 | 状態 |
+| 段階 | GMKtec | Mac |
 | --- | --- | --- |
-| GMKtec ミニPC | CSI取得、回路内サブキャリア選択を含む証明生成、証明の記録要求 | SSH確認済み。i5-12450H / 8コア12スレッド / RAM約16GB / Ubuntu 22.04.5 / 空き約420GiB。PicoScenes稼働中 |
-| このMac | 常時運用の役割なし | 現在の開発・移行準備にのみ使用。最終的には停止していても取得・生成・記録・閲覧できる構成にする |
-| Raspberry Pi 4 / 8GB | Fabric ordererの候補 | OS・SSD・ネットワークを確認待ち |
-| 台帳側ホストA（未確定） | 計測側HospitalMSPのpeer、writer bridge、orderer | 既存PCまたは追加PCを割り当てる案 |
-| 台帳側ホストB（未確定） | 閲覧側ResearchMSPのpeer、reader bridge、orderer、第三者用WebUI/API | 閲覧サービスを分離した後の配置案。まだ分離実装・配備はしていない |
+| 現在 | 既存CSI取得・旧証明環境を維持 | 現行WebUI、証明コードの開発・検証を継続 |
+| 次の分離検証 | 新回路の証明生成、API、観測キュー、記録処理 | WebUIを動かし、GMKtecのAPI経由で操作・結果を確認 |
+| 本番前の集約 | CSI取得・API・証明生成・WebUIを運用 | 常時稼働に依存しない。開発・保守には引き続き使用可能 |
 
-GMKtecは計測と証明生成を優先し、上の配置案ではpeer/ordererを同居させない。前回準備した「2組織peer・3ホストRaft orderer」を維持する場合、Piに加えて台帳側ホストが2台必要になる。これはその分散構成の条件であり、Fabric全般の最小台数や購入指示ではない。配置や冗長性を変える場合は、比較実験の条件も合わせて変更する。
+GMKtecはSSH確認済み（i5-12450H / 8コア12スレッド / RAM約16GB / Ubuntu 22.04.5 / 空き約420GiB）。CSI取得・新証明生成・WebUIの同時負荷を測ってから集約する。Mac側での検証を先に止める必要はない。
+
+WebUIの配置と証明の正しさは独立している。UIはAPIに要求を送り、APIが台帳検証に成功した場合だけ結果を返す。WebUIを別端末に置く場合も、ブラウザーに証明鍵や記録用秘密鍵を渡さない。
+
+### 台帳の配置はアプリ移行と別に決める
+
+Pi 4 / 8GBはFabricノード候補。2組織peer・3ホストRaftの設定は準備済みだが、各ノードの実機配置はまだ確定していない。Macも検証期間の候補に戻す。ただし、WebUIをMacに置く方針だけを理由に台帳ノードまで自動配置はしない。
+
+前回の「追加PC不要」と、その後の「追加2台が必要」という断定はいずれも採用しない。台帳ノードの同居可否・障害時要件・計測への負荷を決めてから必要台数を判断する。3ホストRaftを維持するなら、3つの異なるホストが必要という条件自体は変わらない。
+
+「GMKtecへ集約」は計測・証明・アプリの配置方針。Sepolia自体や、独立組織で運用するFabricの全ノードまでGMKtec一台へ集約するという意味ではない。
 
 channelは`csi-staging`、chaincodeは`csiadaptive4004`。書き込みには両組織peerの承認を必要とする。閲覧時のGroth16検証はreader側peerのchaincodeで実行するが、evaluateは1 peerへの問い合わせであり、両組織の再承認や新しいブロック生成を伴わない。
 
 同一所有者が機器を管理する間は2組織を模した実証であり、独立組織・拠点間WANの実証とは区別する。3ホストRaftはorderer 1台停止を想定できるが、各組織peerが1台なので、どちらかのpeer停止中は新規記録できない。
 
-### 現在の実装と移行先を混同しない
+### WebUIと証明生成は、まずAPIを境界に分ける
 
-`compose.app.yml`はWebUI/API/SQLite観測キュー/workerを同一ホストで動かす移行途中の構成。これを使う場合の実行先はGMKtecであり、Macではない。workerだけをGMKtecへ移し、APIのSQLiteを別端末へ残す使い方には対応していない。GMKtecにはDockerコマンドが見つかっておらず、このComposeを実配備したわけではない。
+`compose.app.yml`のAPIとworkerは同一ホストのSQLite観測キューを共有する。**WebUIだけをMacに置き、API・worker・キューをGMKtecに置くなら、このキューを分離する必要はない。** 逆に、APIをMacに残してworkerだけをGMKtecへ移す構成には、別途リモートジョブ連携が必要。この2つを混同しない。
 
-最終構成ではGMKtec内で取得・前処理・witness計算・証明生成・ローカルキューを完結させ、完成した証明・公開入力・観測メタデータを記録先へ渡す。第三者用APIは記録参照と検証を担当する。そのためのリモート受け渡し・観測一覧同期は今後の実装対象であり、SQLiteのNFS共有で代用しない。詳細は[GMKtec移行手順](gmktec-edge-migration.md)を参照。
+`compose.edge-api.yml`を追加した。GMKtecのAPIをloopbackに公開し、SSHトンネル経由でMacのWebUIから使うための開発用設定。設定検査済みだがGMKtecへの実配備・WebUIからの疎通は未実施。GMKtecにはDockerコマンドが見つかっておらず、導入またはネイティブ配備の準備も必要。具体的な接続手順は[GMKtec移行手順](gmktec-edge-migration.md)を参照。
+
+最終的には同じAPIインターフェースを保ったままWebUIもGMKtecへ移す。画面移動だけのために回路や証明鍵を作り直す必要はない。
 
 「取得と同時に生成」は、計測を続けながら取得済みの窓を別ジョブで証明する方式とする。未来のサンプルを待たずに証明できるという意味ではない。GMKtecでの新回路の生成時間・最大RAM・CSI取りこぼしは未測定で、リアルタイム処理能力を保証しない。
 
@@ -33,14 +43,14 @@ channelは`csi-staging`、chaincodeは`csiadaptive4004`。書き込みには両�
 | 役割 | 試験開始の目安 | 今回の扱い |
 | --- | --- | --- |
 | orderer専用 | 64bit CPU 2コア、RAM 4GB、SSD空き32GB以上 | Pi 4 / 8GBを候補とする |
-| peer + orderer + bridge | 64bit CPU 4コア、RAM 8GB、SSD空き64GB以上 | 台帳側ホストA/Bの配置目安。WebUI同居時は追加の余裕を測る |
+| peer + orderer + bridge | 64bit CPU 4コア、RAM 8GB、SSD空き64GB以上 | 今後割り当てる台帳側ホストの配置目安。WebUI同居時は追加の余裕を測る |
 | CSI取得 + 証明生成 | 64bit CPU 4コア、RAM 16GB、SSD空き100GB以上 | GMKtecは初期試験の候補。取得との同時稼働は未検証。RAM32GBなら余裕を持たせやすい |
 
 Pi 4には64bit OSと有線LANを使用する。台帳の継続書き込み先はSSDを推奨する。Fabric 2.5.16 peer/ordererの配布マニフェストに`linux/arm64`と`linux/amd64`があることを確認した。Piでのこのチェーンコードの動作・性能は未測定。32bit OSのままではこの配備構成を使えない。OS再インストールやCSI機の設定変更は自動では行わない。
 
 ## 利用者にお願いする最初の作業
 
-1. GMKtec・Pi・割り当てる台帳側ホストを、可能なら同じ有線LANへ接続する。Macの常時接続は不要。ルーターのDHCP予約などでIPを固定する。Fabric用ポートをインターネットへ転送しない。
+1. GMKtec・Pi・割り当てる台帳側ホストを、可能なら同じ有線LANへ接続する。MacにWebUIを置く検証期間は、MacからGMKtecへ接続できるようにする。ルーターのDHCP予約などでIPを固定する。Fabric用ポートをインターネットへ転送しない。
 2. GMKtecのOS・RAMはSSHで確認済み。PiのOSが64bitか、SSDがあるかと、台帳側ホストに割り当てられる機器を確認する。Mac/Linuxならこのリポジトリで`bash scripts/staging/host-info.sh`を実行すれば、CPU・RAM・空き容量・Docker情報が表示される。Windowsなら「設定 → システム → バージョン情報」とディスク空き容量を確認する。
 3. GMKtecは`ssh infonetworking@100.111.253.60`で接続確認済み。Piと台帳側ホストへのSSH接続先を確認する。こちらへ伝えるのはLAN IPまたはSSH設定名・ユーザー名まで。パスワード・秘密鍵はチャットに貼らない。
 4. 下記2つの専用アドレスにSepoliaの**テストETH**を用意する。2026-11-24の読み取り確認では、どちらも0だった。メインネットETHは不要。
@@ -64,9 +74,9 @@ node backend/contracts/scripts/check-staging.mjs
 
 ### 1. 基盤と名前解決
 
-LinuxではDocker Engine + Compose、Node.js 22、Fabric 2.5.16 CLI（`peer`、`configtxgen`、`osnadmin`）、`jq`を使用する。Mac上のDocker Desktopは開発時の検査にのみ使用する。Linux ARM64にはARM64版CLIを使用する。
+LinuxではDocker Engine + Compose、Node.js 22、Fabric 2.5.16 CLI（`peer`、`configtxgen`、`osnadmin`）、`jq`を使用する。Mac上のDocker Desktopと既存開発環境は、本番移行までWebUI・証明コードの検証に使用する。Linux ARM64にはARM64版CLIを使用する。
 
-`deploy/staging/inventory.example.json`をGit対象外の`.local/distributed/inventory.json`へコピーし、組織名、ホストID、実際に解決できるDNS名へ変更する。例の`.invalid`は意図的に配備スクリプトが拒否する。ordererを置くPi・台帳側ホストA・台帳側ホストBのhostIdはそれぞれ別にする。GMKtecとMacを台帳ノードとして自動登録しない。
+`deploy/staging/inventory.example.json`をGit対象外の`.local/distributed/inventory.json`へコピーし、組織名、ホストID、実際に解決できるDNS名へ変更する。例の`.invalid`は意図的に配備スクリプトが拒否する。ordererを置く3ホストのhostIdはそれぞれ別にする。配備先が確定するまでGMKtec・Mac・Piを台帳ノードとして自動登録しない。
 
 DNS名はブラウザーだけでなく**各コンテナからも**解決できる必要がある。開発機の`/etc/hosts`を変更しただけでは他ホストやコンテナに伝わらない。LAN DNSの登録を基本とし、証明書のSANにも同じDNS名を入れる。
 
