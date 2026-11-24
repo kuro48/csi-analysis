@@ -1,0 +1,34 @@
+{
+  "monitorStartedAtUnix": 1795513540.285137,
+  "uploadStartedAtUnix": 1795513516.538377,
+  "method": "SQLite polling every 2 seconds; includes new proof generation, RPC and confirmation wait",
+  "transitions": [
+    {
+      "status": "processing",
+      "tx_hash": null,
+      "attempts": 0,
+      "error": null,
+      "proofSaved": 0,
+      "elapsedSeconds": 0.0015163538046181202,
+      "sinceUploadSeconds": 23.748276948928833
+    },
+    {
+      "status": "submitted",
+      "tx_hash": "0xb4b19a6e62ffa6bf500c6623d79552c5da85b9d36a8d79c6c6f1e1e52534bfac",
+      "attempts": 0,
+      "error": null,
+      "proofSaved": 1,
+      "elapsedSeconds": 682.3604072937742,
+      "sinceUploadSeconds": 706.097895860672
+    },
+    {
+      "status": "recorded",
+      "tx_hash": "0xb4b19a6e62ffa6bf500c6623d79552c5da85b9d36a8d79c6c6f1e1e52534bfac",
+      "attempts": 0,
+      "error": null,
+      "proofSaved": 1,
+      "elapsedSeconds": 714.4391437810846,
+      "sinceUploadSeconds": 738.1757690906525
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-11-24T09:58:11.319Z",
+  "chainId": 11155111,
+  "registry": "0x60BA83318d2B75575cdc5F9B912fF688bB7B745b",
+  "verifier": "0x760Dc28a9be97d737e6b37BB8F6C5b7512ddeDc3",
+  "storedProofReturnsTrue": true,
+  "realProofValid": true,
+  "changedTrueToFalseRejected": true,
+  "registryVerifyReadMs": 49.984915,
+  "method": "Sepolia eth_call without signer; tampered proof only simulated, never recorded"
+}

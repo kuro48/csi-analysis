@@ -8,6 +8,8 @@ URL：<https://approaches-beside-trading-travelers.trycloudflare.com>
 
 公開画面で「患者 24b55901」→「2026/5/19 11:49:51 JST」→「証明を検証して結果を取得」を選ぶ。検証後の公開出力は `isNormal: false`。証明が無効という意味ではなく、検証に成功した証明の判定値。
 
+同日18:57 JST、別の既存実CSIから新規生成した証明で **isNormal=true** も確認した。患者 **8ff672b0**、時刻 **2026/5/26 03:40:08 JST**。[trueの実行結果・スクリーンショット](../2026-11-24-sepolia-true-case/README.md)
+
 ![公開URL経由で実際のSepolia記録を検証した結果](public-sepolia-verified.png)
 
 準備時点の空の画面は [public-awaiting-record.png](public-awaiting-record.png) に保存している。`browser-check.json` と `sepolia-readiness.json` は入金前の履歴、最新の成功証跡は `browser-verified.json` と `sepolia-readiness-funded.json`。

@@ -1,0 +1,37 @@
+{
+  "checkedAt": "2026-11-24T09:57:56.222Z",
+  "url": "https://approaches-beside-trading-travelers.trycloudflare.com",
+  "onchainVerified": true,
+  "patientId": "8ff672b0-232e-4f18-8e2d-c68ed27306e5",
+  "patientLabel": "患者 8ff672b0",
+  "captureId": "71edbd49-c1ca-474e-804f-a4354df9160b",
+  "measurementListWithholdsResult": true,
+  "resultHiddenBeforeVerification": true,
+  "patientSwitchClearsResult": true,
+  "result": {
+    "status": "verified",
+    "isNormal": true,
+    "patientId": "8ff672b0-232e-4f18-8e2d-c68ed27306e5",
+    "observedAt": 1779734408,
+    "durationSeconds": 59,
+    "verifiedAtBlock": 12201868,
+    "confirmations": 4,
+    "transactionHash": "0xb4b19a6e62ffa6bf500c6623d79552c5da85b9d36a8d79c6c6f1e1e52534bfac",
+    "chainId": 11155111,
+    "debugInput": true
+  },
+  "verifyHttpRoundTripMs": 743.5371059999998,
+  "previousFalseCase": {
+    "status": "verified",
+    "isNormal": false,
+    "patientId": "24b55901-1a9b-4418-8d74-6d706eaa8d5a",
+    "observedAt": 1779158991,
+    "durationSeconds": 54,
+    "verifiedAtBlock": 12201868,
+    "confirmations": 155,
+    "transactionHash": "0xe37695fa75ed5961371a8273de3038bb94c2deb3a1edb0eb53b39f57ae299b2d",
+    "chainId": 11155111,
+    "debugInput": true
+  },
+  "pageErrors": []
+}

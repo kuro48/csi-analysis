@@ -1,0 +1,42 @@
+{
+  "patientId": "8ff672b0-232e-4f18-8e2d-c68ed27306e5",
+  "patientLabel": "\u60a3\u8005 8ff672b0",
+  "captureId": "71edbd49-c1ca-474e-804f-a4354df9160b",
+  "sourceFile": "csi_sample_base.csi",
+  "sourceSha256": "170b087573307c8edcdd5b62b8b6268b82e0af5243d62e2d60b0338ad7da2e71",
+  "observedAt": 1779734408,
+  "durationSeconds": 59,
+  "chainId": 11155111,
+  "newProofGenerated": true,
+  "uploadStartedAtUnix": 1795513516.538377,
+  "recorded": true,
+  "registry": "0x60BA83318d2B75575cdc5F9B912fF688bB7B745b",
+  "transactionHash": "0xb4b19a6e62ffa6bf500c6623d79552c5da85b9d36a8d79c6c6f1e1e52534bfac",
+  "attempts": 0,
+  "recordReceipt": {
+    "blockNumber": 12201866,
+    "gasUsed": 8958746,
+    "effectiveGasPriceWei": 18,
+    "feeWei": "161257428",
+    "feeSepoliaETH": "1.61257428E-10"
+  },
+  "proofMetrics": {
+    "artifactCheckMs": 19912.289464999998,
+    "witnessMs": 20251.769146000002,
+    "proveMs": 662655.142231,
+    "verifyMs": 312.9348709998885,
+    "totalProverMs": 703132.135713,
+    "preparationMs": 653.2851620577276
+  },
+  "publicOutputs": {
+    "isNormal": true,
+    "selectedColumn": 44,
+    "estimatedFrequencyBin": 26,
+    "globalPeakFrequencyBin": 26,
+    "candidateCount": 53,
+    "relativeDurationMs": 58088,
+    "gridPeakHz": 0.3468503937007874,
+    "gridPeakCyclesPerMinute": 20.811023622047244
+  },
+  "groundTruth": null
+}
