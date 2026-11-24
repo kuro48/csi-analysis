@@ -84,3 +84,21 @@ out/
 # アップロードファイル
 uploads/
 files/
+
+# Root-context staging builds must never send keys, captures or local artifacts.
+.local/
+.venv/
+**/.env*
+**/*.key
+**/*.pem
+**/*.token
+sampledata/
+**/*.csi
+output/
+docs/progress/
+zkp/native-prover/target/
+zkp/keys/
+zkp/build/
+backend/contracts/build/
+!fabric/chaincode/lib/
+!fabric/chaincode/lib/*.js

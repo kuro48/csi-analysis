@@ -1,0 +1,5 @@
+# Overlay on compose.app.yml until a public domain is available.
+services:
+  tls:
+    volumes:
+      - ./Caddyfile.lan:/etc/caddy/Caddyfile:ro

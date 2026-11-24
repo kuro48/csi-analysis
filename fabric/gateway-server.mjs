@@ -1,16 +1,25 @@
 import http from "node:http";
+import https from "node:https";
 import { readFileSync } from "node:fs";
 import { timingSafeEqual } from "node:crypto";
 import { openGateway } from "./gateway.mjs";
 
 const config = JSON.parse(readFileSync(process.env.FABRIC_GATEWAY_CONFIG));
 const role = process.env.FABRIC_BRIDGE_ROLE;
-const token = process.env.FABRIC_BRIDGE_TOKEN;
+const token = process.env.FABRIC_BRIDGE_TOKEN_FILE
+  ? readFileSync(process.env.FABRIC_BRIDGE_TOKEN_FILE, "utf8").trim()
+  : process.env.FABRIC_BRIDGE_TOKEN;
 if (!token || token.length < 32)
   throw new Error("Set a bridge token of at least 32 characters");
+const tlsCert = process.env.FABRIC_BRIDGE_TLS_CERT;
+const tlsKey = process.env.FABRIC_BRIDGE_TLS_KEY;
+const host = process.env.FABRIC_BRIDGE_HOST || "127.0.0.1";
+if (Boolean(tlsCert) !== Boolean(tlsKey)) throw Error("Both TLS certificate and key are required");
+if (!tlsCert && !["127.0.0.1", "::1", "localhost"].includes(host))
+  throw Error("Non-loopback bridges require TLS");
 const gateway = openGateway(config, role);
 await gateway.configuration();
-const server = http.createServer(async (req, res) => {
+const handler = async (req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Cache-Control", "no-store");
   const supplied = Buffer.from(req.headers.authorization || ""),
@@ -67,11 +76,14 @@ const server = http.createServer(async (req, res) => {
       }),
     );
   }
-});
+};
+const server = tlsCert
+  ? https.createServer({ cert: readFileSync(tlsCert), key: readFileSync(tlsKey), minVersion: "TLSv1.2" }, handler)
+  : http.createServer(handler);
 server.requestTimeout = 150000;
 server.listen(
   Number(process.env.FABRIC_BRIDGE_PORT || (role === "reader" ? 8801 : 8802)),
-  process.env.FABRIC_BRIDGE_HOST || "127.0.0.1",
+  host,
 );
 for (const signal of ["SIGINT", "SIGTERM"])
   process.on(signal, () =>

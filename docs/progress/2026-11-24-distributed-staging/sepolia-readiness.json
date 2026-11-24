@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-11-24T05:33:44.781Z",
+  "target": "sepolia",
+  "readOnly": true,
+  "deploymentChecked": false,
+  "chainId": 11155111,
+  "blockNumber": 12200604,
+  "wallets": [
+    {
+      "role": "deployer",
+      "address": "0xec77D2B256e1c9079CbA30869ca74bBFBb28C32f",
+      "testETH": "0.0"
+    },
+    {
+      "role": "recorder",
+      "address": "0xbe0EEc5d93231938Cf743a792516fbb103B48651",
+      "testETH": "0.0"
+    }
+  ],
+  "funded": false,
+  "blocker": "Fund both wallets with Sepolia test ETH"
+}

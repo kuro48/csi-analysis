@@ -11,13 +11,19 @@ export function openGateway(config, role) {
   const identity = config[role];
   if (!identity || !["reader", "writer"].includes(role))
     throw new Error("Missing gateway identity");
+  if (Boolean(config.tlsClientKey) !== Boolean(config.tlsClientCert))
+    throw new Error("Both TLS client key and certificate are required");
   const client = new grpc.Client(
     config.peerEndpoint,
-    grpc.credentials.createSsl(readFileSync(config.tlsRootCert)),
-    {
+    grpc.credentials.createSsl(
+      readFileSync(config.tlsRootCert),
+      config.tlsClientKey ? readFileSync(config.tlsClientKey) : undefined,
+      config.tlsClientCert ? readFileSync(config.tlsClientCert) : undefined,
+    ),
+    config.peerHostAlias ? {
       "grpc.ssl_target_name_override": config.peerHostAlias,
       "grpc.default_authority": config.peerHostAlias,
-    },
+    } : {},
   );
   const gateway = connect({
     client,

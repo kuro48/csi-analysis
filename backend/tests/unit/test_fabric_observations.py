@@ -12,6 +12,43 @@ from app.services.onchain_service import ChainUnavailable
 from tests.unit.test_observations import context, ingest  # noqa: F401
 
 
+def test_remote_bridge_uses_verified_private_ca(monkeypatch):
+    import ssl
+    from app.services import fabric_observation
+
+    chain = FabricObservation.__new__(FabricObservation)
+    chain.url = "https://reader.csi.home.arpa:8843"
+    chain.token = "r" * 64
+    tls = ssl.create_default_context()
+    context_factory = Mock(return_value=tls)
+    response = Mock()
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=False)
+    response.read.return_value = b'{"status":"verified","isNormal":false}'
+    request = Mock(return_value=response)
+    monkeypatch.setattr(settings, "FABRIC_BRIDGE_CA_FILE", "/trust/bridges-ca.crt")
+    monkeypatch.setattr(fabric_observation.ssl, "create_default_context", context_factory)
+    monkeypatch.setattr(fabric_observation, "urlopen", request)
+    assert chain.request("/configuration")["isNormal"] is False
+    context_factory.assert_called_once_with(cafile="/trust/bridges-ca.crt")
+    assert request.call_args.kwargs["context"] is tls
+    assert tls.check_hostname and tls.verify_mode == ssl.CERT_REQUIRED
+
+
+def test_invalid_bridge_ca_fails_closed(monkeypatch):
+    from app.services import fabric_observation
+
+    chain = FabricObservation.__new__(FabricObservation)
+    chain.url = "https://reader.csi.home.arpa:8843"
+    chain.token = "r" * 64
+    monkeypatch.setattr(settings, "FABRIC_BRIDGE_CA_FILE", "/missing/ca.crt")
+    request = Mock()
+    monkeypatch.setattr(fabric_observation, "urlopen", request)
+    with pytest.raises(ChainUnavailable):
+        chain.request("/configuration")
+    request.assert_not_called()
+
+
 def test_capture_pins_ledger_and_rejects_switch_on_retry(context):
     client, db, headers = context
     patient = db.add_patient()["id"]

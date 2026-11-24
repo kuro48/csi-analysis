@@ -1,0 +1,6 @@
+# LAN phase: install the exported Caddy root certificate on client browsers.
+# Do not disable browser or API certificate verification.
+{$PUBLIC_DOMAIN} {
+    tls internal
+    reverse_proxy gateway:80
+}

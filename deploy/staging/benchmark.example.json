@@ -1,0 +1,18 @@
+{
+  "environment": "distributed-staging",
+  "fixtures": ".local/distributed-benchmark/fixtures.json",
+  "targets": ["fabric", "sepolia"],
+  "fabricWriterGateway": ".local/distributed-benchmark/writer-gateway.json",
+  "fabricReaderGateway": ".local/distributed-benchmark/reader-gateway.json",
+  "trials": 5,
+  "warmup": 1,
+  "evm": {
+    "manifest": ".local/adaptive-evm/11155111/manifest.json",
+    "recorderKeyFile": ".local/sepolia-adaptive/recorder.key",
+    "rpcEnv": "ADAPTIVE_ETHEREUM_RPC_URL",
+    "confirmations": 2,
+    "timeoutMs": 180000,
+    "maxTxWei": "10000000000000000"
+  },
+  "output": ".local/distributed-benchmark/results-001"
+}

@@ -88,7 +88,7 @@ const report = {
       ? "Synthetic inputs are not real patient CSI."
       : "Captured CSI input; preprocessing time reported separately from proof generation.",
     "Fabric Evaluate and EVM eth_call both execute verification as read-only requests. No verification transaction is mined.",
-    "Fabric single-host test network is not representative of a geographically distributed production consortium.",
+    "Fabric topology is read from the deployed manifest; physical host placement must be checked against the deployment inventory.",
     "Sepolia fees use test ETH, not a real-money price. Infrastructure is excluded unless explicit assumptions are supplied.",
     "Timing boundaries: proof generation separately; record includes commit / configured confirmations; verify includes the read RPC. Startup excluded.",
   ],
@@ -113,12 +113,17 @@ if (config.infrastructure) {
 async function setup() {
   for (const target of targets) {
     if (target === "fabric") {
-      const cfg = JSON.parse(readFileSync(config.fabricGateway));
-      const writer = openGateway(cfg, "writer"),
-        reader = openGateway(cfg, "reader");
+      const writerConfig = JSON.parse(readFileSync(config.fabricWriterGateway || config.fabricGateway));
+      const readerConfig = JSON.parse(readFileSync(config.fabricReaderGateway || config.fabricGateway));
+      const writer = openGateway(writerConfig, "writer"),
+        reader = openGateway(readerConfig, "reader");
       connections.fabric = { writer, reader };
       const actual = await writer.configuration();
-      await reader.configuration();
+      const readerActual = await reader.configuration();
+      if (actual.deploymentId !== readerActual.deploymentId) throw Error("Reader/writer deployment mismatch");
+      if (config.environment === "distributed-staging" && (actual.topology?.singleHost !== false ||
+          writerConfig.peerEndpoint === readerConfig.peerEndpoint || !targets.includes("sepolia")))
+        throw Error("Distributed comparison requires separate peer endpoints and Sepolia");
       if (
         actual.verificationKeyHash !== bank.verificationKeyHash ||
         (actual.publicSignalCount ?? 1) !== publicSignalCount ||

@@ -1,0 +1,99 @@
+name: csi-staging
+x-app: &app
+  image: csi-staging-app:${RELEASE_TAG:?Set immutable release tag}
+  build:
+    context: ../..
+    dockerfile: deploy/staging/app.Dockerfile
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  read_only: true
+  tmpfs: [/tmp]
+services:
+  backend:
+    <<: *app
+    env_file: ["${API_ENV_FILE:?Set API env file}"]
+    environment:
+      PUBLIC_MODE: "true"
+      DEBUG: "false"
+      RESEARCH_MODE: "false"
+      ENABLE_TEST_ENDPOINTS: "false"
+      ZKP_AUTO_COMPILE: "false"
+      OBSERVATION_DATA_DIR: /data/observations
+      ADAPTIVE_OBSERVATION_MANIFEST: /deployments/sepolia/manifest.json
+      ADAPTIVE_FABRIC_MANIFEST: /deployments/fabric/manifest.json
+      FABRIC_BRIDGE_CA_FILE: /trust/bridges-ca.crt
+    volumes:
+      - observations:/data/observations
+      - ${DEPLOYMENT_DIR:?Set public deployment manifests directory}:/deployments:ro
+      - ${BRIDGE_CA_FILE:?Set CA bundle}:/trust/bridges-ca.crt:ro
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8000/health]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  worker:
+    <<: *app
+    command: [python, -m, app.services.observation_worker]
+    env_file: ["${WORKER_ENV_FILE:?Set worker env file}"]
+    environment:
+      ZKP_AUTO_COMPILE: "false"
+      OBSERVATION_DATA_DIR: /data/observations
+      ADAPTIVE_OBSERVATION_MANIFEST: /deployments/sepolia/manifest.json
+      ADAPTIVE_FABRIC_MANIFEST: /deployments/fabric/manifest.json
+      FABRIC_BRIDGE_CA_FILE: /trust/bridges-ca.crt
+      ADAPTIVE_ARTIFACT_MANIFEST: /tmp/artifacts.json
+      ADAPTIVE_PROVER_SCRIPT: /zkp/scripts/prove_adaptive_capture.cjs
+      ADAPTIVE_RECORDER_KEY_FILE: /run/secrets/recorder.key
+      PICOSCENES_PARSER: python
+    volumes:
+      - observations:/data/observations
+      - ${DEPLOYMENT_DIR}:/deployments:ro
+      - ${ARTIFACT_DIR:?Set portable artifact directory}:/artifacts:ro
+      - ${BRIDGE_CA_FILE}:/trust/bridges-ca.crt:ro
+      - ${RECORDER_KEY_FILE:?Set mode-0600 recorder key file}:/run/secrets/recorder.key:ro
+    # One durable SQLite queue, one worker. Do not scale or mount this volume over NFS.
+    stop_grace_period: 30s
+    mem_limit: ${WORKER_MEMORY_LIMIT:-12g}
+  postgres:
+    image: postgres:15-alpine
+    env_file: ["${DATABASE_ENV_FILE:?Set database env file}"]
+    volumes: ["postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U csi -d csi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+  frontend:
+    build:
+      context: ../../frontend
+      args:
+        NEXT_PUBLIC_API_URL: ""
+        NEXT_PUBLIC_APP_MODE: public
+        API_INTERNAL_URL: http://backend:8000
+    restart: unless-stopped
+  gateway:
+    image: nginx:1.28-alpine
+    volumes: ["../../nginx/public.conf:/etc/nginx/nginx.conf:ro"]
+    depends_on: [backend, frontend]
+    restart: unless-stopped
+  tls:
+    image: caddy:2-alpine
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?Set actual public DNS name}
+      ACME_EMAIL: ${ACME_EMAIL:?Set certificate contact email}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports: ["80:80", "443:443"]
+    depends_on: [gateway]
+    restart: unless-stopped
+volumes:
+  observations:
+  postgres:
+  caddy_data:
+  caddy_config:

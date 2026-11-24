@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "environment": "distributed-staging",
+  "networkName": "CSI consortium staging",
+  "channelName": "csi-staging",
+  "chaincodeName": "csiadaptive4004",
+  "debugMode": true,
+  "recorderMspId": "HospitalMSP",
+  "recorderCertificate": "/srv/csi/public/recorder.crt",
+  "ordererMspId": "OrderingMSP",
+  "organizations": [
+    {"mspId": "HospitalMSP", "peerHost": "peer.hospital.example.invalid", "hostId": "fabric-a"},
+    {"mspId": "ResearchMSP", "peerHost": "peer.research.example.invalid", "hostId": "fabric-b"}
+  ],
+  "orderers": [
+    {"host": "orderer1.example.invalid", "hostId": "fabric-a"},
+    {"host": "orderer2.example.invalid", "hostId": "fabric-b"},
+    {"host": "orderer3.example.invalid", "hostId": "fabric-c"}
+  ]
+}

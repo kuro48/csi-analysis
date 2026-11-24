@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import json
 import os
+import ssl
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -54,7 +55,8 @@ class FabricObservation:
             headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/json"},
         )
         try:
-            with urlopen(request, timeout=150) as response:
+            context = ssl.create_default_context(cafile=settings.FABRIC_BRIDGE_CA_FILE or None)
+            with urlopen(request, timeout=150, context=context) as response:
                 return json.load(response)
         except Exception as exc:
             raise ChainUnavailable("Fabricの処理を完了できません。判定結果は表示しません") from exc

@@ -1,0 +1,24 @@
+# One reader on the Research peer host; one writer on the Hospital peer host.
+name: csi-bridge
+services:
+  bridge:
+    build:
+      context: ../..
+      dockerfile: deploy/staging/bridge.Dockerfile
+    environment:
+      FABRIC_GATEWAY_CONFIG: /identity/gateway.json
+      FABRIC_BRIDGE_ROLE: ${BRIDGE_ROLE:?reader or writer}
+      FABRIC_BRIDGE_HOST: 0.0.0.0
+      FABRIC_BRIDGE_PORT: "8843"
+      FABRIC_BRIDGE_TOKEN_FILE: /identity/bridge.token
+      FABRIC_BRIDGE_TLS_CERT: /identity/tls/server.crt
+      FABRIC_BRIDGE_TLS_KEY: /identity/tls/server.key
+    volumes:
+      - ${BRIDGE_IDENTITY_DIR:?Set role-specific identity directory}:/identity:ro
+    ports:
+      - ${PRIVATE_BIND_IP:?Set private host IP}:8843:8843
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped

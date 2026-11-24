@@ -1,0 +1,37 @@
+name: csi-orderer
+services:
+  orderer:
+    image: hyperledger/fabric-orderer:2.5.16
+    environment:
+      FABRIC_LOGGING_SPEC: INFO
+      ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
+      ORDERER_GENERAL_LISTENPORT: "7050"
+      ORDERER_GENERAL_LOCALMSPID: ${ORDERER_MSP_ID:?Set ORDERER_MSP_ID}
+      ORDERER_GENERAL_LOCALMSPDIR: /etc/hyperledger/identity/msp
+      ORDERER_GENERAL_BOOTSTRAPMETHOD: none
+      ORDERER_GENERAL_TLS_ENABLED: "true"
+      ORDERER_GENERAL_TLS_PRIVATEKEY: /etc/hyperledger/identity/tls/server.key
+      ORDERER_GENERAL_TLS_CERTIFICATE: /etc/hyperledger/identity/tls/server.crt
+      ORDERER_GENERAL_TLS_ROOTCAS: '[/etc/hyperledger/identity/tls/ca.crt]'
+      ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE: /etc/hyperledger/identity/tls/server.crt
+      ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY: /etc/hyperledger/identity/tls/server.key
+      ORDERER_CHANNELPARTICIPATION_ENABLED: "true"
+      ORDERER_ADMIN_LISTENADDRESS: 0.0.0.0:7053
+      ORDERER_ADMIN_TLS_ENABLED: "true"
+      ORDERER_ADMIN_TLS_CLIENTAUTHREQUIRED: "true"
+      ORDERER_ADMIN_TLS_PRIVATEKEY: /etc/hyperledger/identity/tls/server.key
+      ORDERER_ADMIN_TLS_CERTIFICATE: /etc/hyperledger/identity/tls/server.crt
+      ORDERER_ADMIN_TLS_CLIENTROOTCAS: '[/etc/hyperledger/admin-tls-ca.crt]'
+      ORDERER_OPERATIONS_LISTENADDRESS: 0.0.0.0:9444
+      ORDERER_METRICS_PROVIDER: prometheus
+    volumes:
+      - ${NODE_IDENTITY_DIR:?Set orderer identity directory}:/etc/hyperledger/identity:ro
+      - ${ADMIN_TLS_CA_FILE:?Set admin TLS CA certificate}:/etc/hyperledger/admin-tls-ca.crt:ro
+      - orderer_data:/var/hyperledger/production/orderer
+    ports:
+      - ${PRIVATE_BIND_IP:?Set private host IP}:7050:7050
+      - ${PRIVATE_BIND_IP}:7053:7053
+      - 127.0.0.1:9444:9444
+    restart: unless-stopped
+volumes:
+  orderer_data:
