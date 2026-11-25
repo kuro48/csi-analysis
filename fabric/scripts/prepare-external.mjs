@@ -8,6 +8,20 @@ import { protocol } from "../chaincode/lib/proof.js";
 
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const identifier = /^[A-Za-z][A-Za-z0-9_-]{1,63}$/;
+function validateHost(host) {
+  if (typeof host !== "string" || !/^(?=.{1,253}$)[a-z0-9]+(?:[a-z0-9.-]*[a-z0-9])?$/.test(host)
+      || !host.includes(".") || /(^localhost$|\.localhost$|\.example\.(com|org|net)$|\.invalid$)/.test(host)
+      || /^\d+\.\d+\.\d+\.\d+$/.test(host)) throw Error("Use actual DNS names matching issued TLS certificates");
+}
+function validatePort(port) {
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) throw Error("Use an integer port between 1024 and 65535");
+}
+export function validatePeerEndpoint(endpoint) {
+  if (typeof endpoint !== "string" || !/^[a-z0-9.-]+:[1-9][0-9]{0,4}$/.test(endpoint)) throw Error("Use peer DNS:port endpoint");
+  const [host, port] = endpoint.split(":");
+  validateHost(host); validatePort(Number(port));
+  return endpoint;
+}
 export function validateExternalInventory(input) {
   if (input.version !== 1 || input.environment !== "distributed-staging") throw Error("Expected distributed-staging inventory");
   if (!/^[a-z][a-z0-9.-]{1,63}$/.test(input.channelName) || !identifier.test(input.chaincodeName)) throw Error("Invalid channel or chaincode");
@@ -19,11 +33,9 @@ export function validateExternalInventory(input) {
   const hosts = [...input.organizations.map(org => org.peerHost), ...input.orderers.map(node => node.host)];
   if (new Set(input.organizations.map(org => org.peerHost)).size !== 2 ||
       new Set(input.orderers.map(node => node.host)).size !== 3) throw Error("Distinct peer/orderer DNS endpoints required");
-  for (const host of hosts) {
-    if (typeof host !== "string" || !/^(?=.{1,253}$)[a-z0-9]+(?:[a-z0-9.-]*[a-z0-9])?$/.test(host)
-        || !host.includes(".") || /(^localhost$|\.localhost$|\.example\.(com|org|net)$|\.invalid$)/.test(host)
-        || /^\d+\.\d+\.\d+\.\d+$/.test(host)) throw Error("Use actual DNS names matching issued TLS certificates");
-  }
+  for (const host of hosts) validateHost(host);
+  for (const org of input.organizations) validatePort(org.peerPort ?? 7051);
+  for (const node of input.orderers) validatePort(node.port ?? 7050);
   if (input.organizations[0].hostId === input.organizations[1].hostId ||
       new Set(input.orderers.map(node => node.hostId)).size !== 3 ||
       [...input.organizations, ...input.orderers].some(node => !identifier.test(node.hostId)))

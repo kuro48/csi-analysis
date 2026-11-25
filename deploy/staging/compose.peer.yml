@@ -6,21 +6,21 @@ services:
     environment:
       FABRIC_LOGGING_SPEC: INFO
       CORE_PEER_ID: ${PEER_DNS:?Set PEER_DNS}
-      CORE_PEER_ADDRESS: ${PEER_DNS}:7051
-      CORE_PEER_LISTENADDRESS: 0.0.0.0:7051
+      CORE_PEER_ADDRESS: ${PEER_DNS}:${PEER_PORT:-7051}
+      CORE_PEER_LISTENADDRESS: 0.0.0.0:${PEER_PORT:-7051}
       CORE_PEER_LOCALMSPID: ${MSP_ID:?Set MSP_ID}
       CORE_PEER_MSPCONFIGPATH: /etc/hyperledger/identity/msp
       CORE_PEER_TLS_ENABLED: "true"
       CORE_PEER_TLS_CERT_FILE: /etc/hyperledger/identity/tls/server.crt
       CORE_PEER_TLS_KEY_FILE: /etc/hyperledger/identity/tls/server.key
       CORE_PEER_TLS_ROOTCERT_FILE: /etc/hyperledger/identity/tls/ca.crt
-      CORE_PEER_GOSSIP_EXTERNALENDPOINT: ${PEER_DNS}:7051
+      CORE_PEER_GOSSIP_EXTERNALENDPOINT: ${PEER_DNS}:${PEER_PORT:-7051}
       CORE_PEER_GOSSIP_USELEADERELECTION: "false"
       CORE_PEER_GOSSIP_ORGLEADER: "true"
-      CORE_PEER_CHAINCODEADDRESS: ${PEER_DNS}:7052
-      CORE_PEER_CHAINCODELISTENADDRESS: 0.0.0.0:7052
+      CORE_PEER_CHAINCODEADDRESS: ${PEER_DNS}:${CHAINCODE_PORT:-7052}
+      CORE_PEER_CHAINCODELISTENADDRESS: 0.0.0.0:${CHAINCODE_PORT:-7052}
       CORE_VM_ENDPOINT: unix:///host/var/run/docker.sock
-      CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE: csi-peer-runtime
+      CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE: ${PEER_NETWORK:-csi-peer-runtime}
       CORE_OPERATIONS_LISTENADDRESS: 0.0.0.0:9443
       CORE_METRICS_PROVIDER: prometheus
       CORE_LEDGER_STATE_STATEDATABASE: goleveldb
@@ -29,14 +29,14 @@ services:
       - peer_data:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
     ports:
-      - ${PRIVATE_BIND_IP:?Set private host IP}:7051:7051
-      - 127.0.0.1:9443:9443
+      - ${PRIVATE_BIND_IP:?Set private host IP}:${PEER_PORT:-7051}:${PEER_PORT:-7051}
+      - 127.0.0.1:${PEER_OPERATIONS_PORT:-9443}:9443
     restart: unless-stopped
     networks:
       runtime:
         aliases: ["${PEER_DNS}"]
 networks:
   runtime:
-    name: csi-peer-runtime
+    name: ${PEER_NETWORK:-csi-peer-runtime}
 volumes:
   peer_data:

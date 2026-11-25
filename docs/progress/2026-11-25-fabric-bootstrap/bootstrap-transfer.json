@@ -1,0 +1,21 @@
+{
+  "gmktecSsh": "infonetworking@100.111.253.60",
+  "remoteDirectory": "/home/infonetworking/csi-fabric-bootstrap-20261125",
+  "files": {
+    "install-docker-ubuntu.sh": "5c2babb63e16c27149075143eae9692129c068176c91b3519cb3b36ebe6a97e6",
+    "inspect_fabric_host.py": "1b858e7ac3ca6e08011ceedbf3bd19eca6df007fcf595bef2f00d64c0f7907a0"
+  },
+  "remoteChecksumsMatch": true,
+  "dockerInstalled": false,
+  "sudoInteractiveRequired": true,
+  "macContainerToGmktec": {
+    "dns": "infonetworking-csi.tail2285b4.ts.net",
+    "resolvedIpv4": "100.111.253.60",
+    "tcp22Reachable": true
+  },
+  "gmktecToMac": {
+    "dns": "mac-mini.tail2285b4.ts.net",
+    "resolvedIpv4": "100.110.182.121"
+  },
+  "fabricPortsConnectivityTested": false
+}

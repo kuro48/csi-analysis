@@ -2,12 +2,13 @@
 import { readFileSync, writeFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { X509Certificate, createPrivateKey, createHash } from "node:crypto";
+import { validatePeerEndpoint } from "./prepare-external.mjs";
 const [manifestPath, role, mspId, peerEndpoint, directory] = process.argv.slice(2);
 if (!directory || !["reader", "writer"].includes(role))
   throw Error("Usage: configure-external-gateway.mjs manifest.json reader|writer MSP peer.dns:7051 IDENTITY_DIR");
 const manifest = JSON.parse(readFileSync(manifestPath));
 if (manifest.topology?.singleHost !== false || !manifest.readerMspIds.includes(mspId)) throw Error("Wrong consortium manifest/MSP");
-if (!/^[a-z0-9.-]+:7051$/.test(peerEndpoint) || peerEndpoint.startsWith("localhost:")) throw Error("Use peer DNS endpoint");
+validatePeerEndpoint(peerEndpoint);
 const cert = new X509Certificate(readFileSync(join(directory, "client.crt")));
 const keyPath = join(directory, "client.key");
 if (statSync(keyPath).mode & 0o077) throw Error("Client key must have mode 0600");

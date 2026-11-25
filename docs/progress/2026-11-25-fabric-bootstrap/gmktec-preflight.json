@@ -1,0 +1,51 @@
+{
+  "checkedAt": "2026-11-25T05:24:56.254594+00:00",
+  "readOnly": true,
+  "os": "Linux",
+  "architecture": "x86_64",
+  "logicalCpus": 12,
+  "memoryBytes": 16484343808,
+  "diskFreeBytes": 451351302144,
+  "privateBindIp": "100.111.253.60",
+  "ports": [
+    {
+      "bindIp": "100.111.253.60",
+      "port": 17050,
+      "available": true
+    },
+    {
+      "bindIp": "100.111.253.60",
+      "port": 17051,
+      "available": true
+    },
+    {
+      "bindIp": "100.111.253.60",
+      "port": 17053,
+      "available": true
+    },
+    {
+      "bindIp": "100.111.253.60",
+      "port": 18843,
+      "available": true
+    },
+    {
+      "bindIp": "127.0.0.1",
+      "port": 19443,
+      "available": true
+    },
+    {
+      "bindIp": "127.0.0.1",
+      "port": 19444,
+      "available": true
+    }
+  ],
+  "dockerVersion": null,
+  "composeVersion": null,
+  "picoScenesRunning": true,
+  "blockers": [
+    "Docker daemon unavailable to this account",
+    "Docker Compose plugin unavailable"
+  ],
+  "networkDeployed": false,
+  "note": "Host preflight only; does not validate inter-host routing, container DNS, certificates or channel health"
+}

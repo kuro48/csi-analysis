@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { validateExternalInventory, prepareExternal } from "../scripts/prepare-external.mjs";
+import { validateExternalInventory, validatePeerEndpoint, prepareExternal } from "../scripts/prepare-external.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 function inventory() {
@@ -21,6 +21,38 @@ test("external profile rejects local topology and unresolved placeholders", () =
   assert.throws(() => validateExternalInventory(sameOrderer));
   const sameOrg = structuredClone(cfg); sameOrg.organizations[1].mspId = sameOrg.organizations[0].mspId;
   assert.throws(() => validateExternalInventory(sameOrg));
+});
+
+test("distributed channel and gateway use explicit ports while preserving existing defaults", () => {
+  const dir = mkdtempSync(join(tmpdir(), "csi-channel-ports-"));
+  try {
+    const cfg = inventory();
+    const render = name => {
+      const input = join(dir, name + ".json"), output = join(dir, name + ".yaml");
+      writeFileSync(input, JSON.stringify(cfg));
+      execFileSync(process.execPath, [join(root, "deploy/staging/render-channel.mjs"), input, output]);
+      return JSON.parse(readFileSync(output)).Profiles.CSIStaging;
+    };
+    const original = render("default");
+    assert.equal(original.Orderer.EtcdRaft.Consenters[0].Port, 7050);
+    assert.equal(original.Application.Organizations[0].AnchorPeers[0].Port, 7051);
+    cfg.organizations.forEach(org => { org.peerPort = 17051; });
+    cfg.orderers.forEach(node => { node.port = 17050; });
+    const changed = render("isolated");
+    assert.ok(changed.Orderer.Addresses.every(address => address.endsWith(":17050")));
+    assert.ok(changed.Orderer.Organizations[0].OrdererEndpoints.every(address => address.endsWith(":17050")));
+    assert.ok(changed.Orderer.EtcdRaft.Consenters.every(node => node.Port === 17050));
+    assert.ok(changed.Application.Organizations.every(org => org.AnchorPeers[0].Port === 17051));
+    assert.equal(validatePeerEndpoint("peer.hospital.csi.home.arpa:17051"), "peer.hospital.csi.home.arpa:17051");
+    for (const bad of ["localhost:17051", "127.0.0.1:17051", "peer.example.invalid:17051", "peer.csi.home.arpa:65536", "peer.csi.home.arpa:0"])
+      assert.throws(() => validatePeerEndpoint(bad));
+    for (const port of [0, -1, 65536, 7051.5, "17051"]) {
+      const invalid = structuredClone(cfg); invalid.organizations[0].peerPort = port;
+      assert.throws(() => validateExternalInventory(invalid), /port/);
+      const invalidOrderer = structuredClone(cfg); invalidOrderer.orderers[0].port = port;
+      assert.throws(() => validateExternalInventory(invalidOrderer), /port/);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("external package pins real verification key and recorder certificate without copying private keys", () => {

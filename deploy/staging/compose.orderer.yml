@@ -5,7 +5,7 @@ services:
     environment:
       FABRIC_LOGGING_SPEC: INFO
       ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
-      ORDERER_GENERAL_LISTENPORT: "7050"
+      ORDERER_GENERAL_LISTENPORT: ${ORDERER_PORT:-7050}
       ORDERER_GENERAL_LOCALMSPID: ${ORDERER_MSP_ID:?Set ORDERER_MSP_ID}
       ORDERER_GENERAL_LOCALMSPDIR: /etc/hyperledger/identity/msp
       ORDERER_GENERAL_BOOTSTRAPMETHOD: none
@@ -16,7 +16,7 @@ services:
       ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE: /etc/hyperledger/identity/tls/server.crt
       ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY: /etc/hyperledger/identity/tls/server.key
       ORDERER_CHANNELPARTICIPATION_ENABLED: "true"
-      ORDERER_ADMIN_LISTENADDRESS: 0.0.0.0:7053
+      ORDERER_ADMIN_LISTENADDRESS: 0.0.0.0:${ORDERER_ADMIN_PORT:-7053}
       ORDERER_ADMIN_TLS_ENABLED: "true"
       ORDERER_ADMIN_TLS_CLIENTAUTHREQUIRED: "true"
       ORDERER_ADMIN_TLS_PRIVATEKEY: /etc/hyperledger/identity/tls/server.key
@@ -29,9 +29,9 @@ services:
       - ${ADMIN_TLS_CA_FILE:?Set admin TLS CA certificate}:/etc/hyperledger/admin-tls-ca.crt:ro
       - orderer_data:/var/hyperledger/production/orderer
     ports:
-      - ${PRIVATE_BIND_IP:?Set private host IP}:7050:7050
-      - ${PRIVATE_BIND_IP}:7053:7053
-      - 127.0.0.1:9444:9444
+      - ${PRIVATE_BIND_IP:?Set private host IP}:${ORDERER_PORT:-7050}:${ORDERER_PORT:-7050}
+      - ${PRIVATE_BIND_IP}:${ORDERER_ADMIN_PORT:-7053}:${ORDERER_ADMIN_PORT:-7053}
+      - 127.0.0.1:${ORDERER_OPERATIONS_PORT:-9444}:9444
     restart: unless-stopped
 volumes:
   orderer_data:

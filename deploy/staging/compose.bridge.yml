@@ -16,7 +16,7 @@ services:
     volumes:
       - ${BRIDGE_IDENTITY_DIR:?Set role-specific identity directory}:/identity:ro
     ports:
-      - ${PRIVATE_BIND_IP:?Set private host IP}:8843:8843
+      - ${PRIVATE_BIND_IP:?Set private host IP}:${BRIDGE_PORT:-8843}:8843
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]

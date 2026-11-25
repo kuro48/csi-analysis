@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-11-25T05:24:55.869306+00:00",
+  "readOnly": true,
+  "os": "Darwin",
+  "architecture": "x86_64",
+  "logicalCpus": 6,
+  "memoryBytes": 17179869184,
+  "diskFreeBytes": 40358477824,
+  "privateBindIp": "100.110.182.121",
+  "ports": [
+    {
+      "bindIp": "100.110.182.121",
+      "port": 17050,
+      "available": true
+    },
+    {
+      "bindIp": "100.110.182.121",
+      "port": 17051,
+      "available": true
+    },
+    {
+      "bindIp": "100.110.182.121",
+      "port": 17053,
+      "available": true
+    },
+    {
+      "bindIp": "100.110.182.121",
+      "port": 18843,
+      "available": true
+    },
+    {
+      "bindIp": "127.0.0.1",
+      "port": 19443,
+      "available": true
+    },
+    {
+      "bindIp": "127.0.0.1",
+      "port": 19444,
+      "available": true
+    }
+  ],
+  "dockerVersion": "28.4.0",
+  "composeVersion": "2.39.4-desktop.1",
+  "picoScenesRunning": false,
+  "blockers": [],
+  "networkDeployed": false,
+  "note": "Host preflight only; does not validate inter-host routing, container DNS, certificates or channel health"
+}
