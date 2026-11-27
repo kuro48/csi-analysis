@@ -1,0 +1,44 @@
+{
+  "base": "http://100.110.182.121:8085",
+  "capturedAt": "2026-11-27T10:17:08.814Z",
+  "source": "existing real CSI proofs",
+  "cases": [
+    {
+      "name": "true",
+      "patient": "8ff672b0-232e-4f18-8e2d-c68ed27306e5",
+      "capture": "71edbd49-c1ca-474e-804f-a4354df9160b",
+      "httpStatus": 200,
+      "clickToHttpResponseMs": 125.61129900000014,
+      "result": {
+        "status": "verified",
+        "isNormal": true,
+        "patientId": "8ff672b0-232e-4f18-8e2d-c68ed27306e5",
+        "observedAt": 1779734408,
+        "durationSeconds": 59,
+        "transactionHash": "53535f3fe70c811a5c31865010cc21e0cef71a920254a97152c58ab52dbfefc3",
+        "ledger": "fabric",
+        "networkName": "CSI Mac-GMKtec two-host consortium",
+        "debugInput": true
+      }
+    },
+    {
+      "name": "false",
+      "patient": "24b55901-1a9b-4418-8d74-6d706eaa8d5a",
+      "capture": "de8aa194-5200-4f0f-8b4f-01664b081c56",
+      "httpStatus": 200,
+      "clickToHttpResponseMs": 85.77234500000031,
+      "result": {
+        "status": "verified",
+        "isNormal": false,
+        "patientId": "24b55901-1a9b-4418-8d74-6d706eaa8d5a",
+        "observedAt": 1779158991,
+        "durationSeconds": 54,
+        "transactionHash": "0dbe187b6926a5dcf657292919001cf7c3fff9396ef8b5019bef13535240c69a",
+        "ledger": "fabric",
+        "networkName": "CSI Mac-GMKtec two-host consortium",
+        "debugInput": true
+      }
+    }
+  ],
+  "mobileOverflow": false
+}

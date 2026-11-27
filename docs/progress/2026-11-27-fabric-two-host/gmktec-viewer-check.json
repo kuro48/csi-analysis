@@ -1,0 +1,53 @@
+{
+  "clientHost": "GMKtec",
+  "viewerHost": "Mac",
+  "checks": [
+    {
+      "method": "GET",
+      "path": "/patients",
+      "httpStatus": 200,
+      "elapsedMs": 18.725314177572727
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/observations/patients",
+      "httpStatus": 200,
+      "elapsedMs": 18.425071612000465
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/observations/measurements/71edbd49-c1ca-474e-804f-a4354df9160b/verify",
+      "httpStatus": 200,
+      "elapsedMs": 54.932099767029285,
+      "response": {
+        "status": "verified",
+        "isNormal": true,
+        "patientId": "8ff672b0-232e-4f18-8e2d-c68ed27306e5",
+        "observedAt": 1779734408,
+        "durationSeconds": 59,
+        "transactionHash": "53535f3fe70c811a5c31865010cc21e0cef71a920254a97152c58ab52dbfefc3",
+        "ledger": "fabric",
+        "networkName": "CSI Mac-GMKtec two-host consortium",
+        "debugInput": true
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/observations/captures",
+      "httpStatus": 404,
+      "elapsedMs": 20.428313873708248
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/observations/patients",
+      "httpStatus": 403,
+      "elapsedMs": 9.754637256264687
+    },
+    {
+      "method": "GET",
+      "path": "/capture",
+      "httpStatus": 404,
+      "elapsedMs": 12.146400287747383
+    }
+  ]
+}

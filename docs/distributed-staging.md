@@ -1,8 +1,8 @@
 # Macで検証を続け、GMKtecへ段階的に集約する実証環境
 
-2026-11-24、段階的な移行方針を確認。**本番まではMacでWebUI・開発・検証を継続し、最終的にCSI取得・証明生成・アプリをGMKtecへ集約する。** 「今からMacを実行環境から外す」という前回の解釈を訂正する。新回路のGMKtec移行・分散Fabric測定は未実施。Sepoliaは11月24日に実配備・true/falseの検証を完了した。
+2026-11-24、段階的な移行方針を確認。**本番まではMacでWebUI・開発・検証を継続し、最終的にCSI取得・証明生成・アプリをGMKtecへ集約する。** 「今からMacを実行環境から外す」という前回の解釈を訂正する。新回路の証明生成のGMKtec移行は未実施。Sepoliaは11月24日に実配備・true/falseの検証を完了した。
 
-**11月25日更新：FabricはGMKtec・Mac・Piの3ホストで準備を開始。PiはOS未書込・SSDなし、GMKtecはDocker導入のsudo操作待ち。最新の利用者向け操作は [fabric-three-host-setup.md](fabric-three-host-setup.md) を参照。** 既存環境との衝突を避けるため、新構成では17051/17050等のポートを指定する。以下は既定ポートでの一般手順を含む。
+**11月27日更新：Piを後回しにし、GMKtecとMacの2ホストFabricを実配備。実CSI証明の記録・検証と閲覧画面の別PCアクセスまで確認済み。最新の利用者向け手順は [fabric-two-host-setup.md](fabric-two-host-setup.md) を参照。** 1 ordererの初期構成で、ordererの故障許容はない。以下は将来の3ホスト構成・既定ポートを含む一般手順。
 
 ## 検証段階と最終配置
 
@@ -18,7 +18,7 @@ WebUIの配置と証明の正しさは独立している。UIはAPIに要求を�
 
 ### 台帳の配置はアプリ移行と別に決める
 
-Pi 4 / 8GBはFabricノード候補。2組織peer・3ホストRaftの設定は準備済みだが、各ノードの実機配置はまだ確定していない。Macも検証期間の候補に戻す。ただし、WebUIをMacに置く方針だけを理由に台帳ノードまで自動配置はしない。
+現在はHospital peerをGMKtec、Research peerとordererをMacへ配置済み。Pi 4 / 8GBは後日のorderer追加候補とする。3ホストRaftの設定は維持し、2ホスト構成は明示的な別profileで扱う。
 
 前回の「追加PC不要」と、その後の「追加2台が必要」という断定はいずれも採用しない。台帳ノードの同居可否・障害時要件・計測への負荷を決めてから必要台数を判断する。3ホストRaftを維持するなら、3つの異なるホストが必要という条件自体は変わらない。
 
@@ -32,7 +32,7 @@ channelは`csi-staging`、chaincodeは`csiadaptive4004`。書き込みには両�
 
 `compose.app.yml`のAPIとworkerは同一ホストのSQLite観測キューを共有する。**WebUIだけをMacに置き、API・worker・キューをGMKtecに置くなら、このキューを分離する必要はない。** 逆に、APIをMacに残してworkerだけをGMKtecへ移す構成には、別途リモートジョブ連携が必要。この2つを混同しない。
 
-`compose.edge-api.yml`を追加した。GMKtecのAPIをloopbackに公開し、SSHトンネル経由でMacのWebUIから使うための開発用設定。設定検査済みだがGMKtecへの実配備・WebUIからの疎通は未実施。GMKtecにはDockerコマンドが見つかっておらず、導入またはネイティブ配備の準備も必要。具体的な接続手順は[GMKtec移行手順](gmktec-edge-migration.md)を参照。
+`compose.edge-api.yml`を追加した。GMKtecのAPIをloopbackに公開し、SSHトンネル経由でMacのWebUIから使うための開発用設定。設定検査済みだがGMKtecへの実配備・WebUIからの疎通は未実施。GMKtecのDocker / Compose導入は11月27日に完了済み。具体的な接続手順は[GMKtec移行手順](gmktec-edge-migration.md)を参照。
 
 最終的には同じAPIインターフェースを保ったままWebUIもGMKtecへ移す。画面移動だけのために回路や証明鍵を作り直す必要はない。
 
@@ -169,7 +169,7 @@ node fabric/scripts/configure-external-gateway.mjs /srv/csi/release/deployment/m
 docker compose --env-file /srv/csi/config/bridge.env -f deploy/staging/compose.bridge.yml up --build -d
 ```
 
-閲覧側では`reader ResearchMSP`と閲覧側peerのDNS名・ディレクトリに変更する。`bridge.env`は`BRIDGE_ROLE`、`BRIDGE_IDENTITY_DIR`、`PRIVATE_BIND_IP`を設定する。生成したgateway.json内の`/identity`はコンテナ内パス。ホストからbenchmark CLIを実行するときは、CLI専用設定のパスをそのホストのファイルへ変更する。
+閲覧側では`reader ResearchMSP`と閲覧側peerのDNS名・ディレクトリに変更する。`bridge.env`は`BRIDGE_ROLE`、`BRIDGE_IDENTITY_DIR`、`PRIVATE_BIND_IP`、鍵所有者の`BRIDGE_UID`・`BRIDGE_GID`を設定する。生成したgateway.json内の`/identity`はコンテナ内パス。ホストからbenchmark CLIを実行するときは、CLI専用設定のパスをそのホストのファイルへ変更する。
 
 ### 6. Sepolia配備とアプリ
 

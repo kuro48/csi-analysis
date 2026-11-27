@@ -1,0 +1,7 @@
+{
+  "httpStatus": 503,
+  "httpElapsedMs": 38.477783999042,
+  "response": {
+    "error": "Fabric operation failed; no verified result available"
+  }
+}

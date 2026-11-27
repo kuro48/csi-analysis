@@ -1,0 +1,15 @@
+{
+  "httpStatus": 200,
+  "httpElapsedMs": 25.290273999416968,
+  "response": {
+    "status": "recorded",
+    "observationId": "0x1a0be434db4f353a188f7856e039ab27f24a849e4e5c2d42f03720ccbf6d60b0",
+    "patientRef": "0x325477f6b8eaec2a2b99d69d10ca310594ae258b8919538e7e54ba84ea59d1bb",
+    "observedAt": 1779734408,
+    "durationSeconds": 59,
+    "proofDigest": "0x79346fd29a0d51841ba4252fd88fb7ecc902f4fe08f6dff61042d976a88ea8f0",
+    "payloadHash": "e3a0b8f7bc04f98d78e9fe85b15065d5bee85cd03720e42646ba6a1548c01d41",
+    "transactionId": "53535f3fe70c811a5c31865010cc21e0cef71a920254a97152c58ab52dbfefc3",
+    "deploymentId": "0x19a0e1ddf0ea95d29cf45a4d4e86490a64c13a88a858f153d87dd961d6e16d41"
+  }
+}

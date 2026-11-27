@@ -1,0 +1,29 @@
+{
+  "httpStatus": 200,
+  "httpElapsedMs": 2122.2965084016323,
+  "response": {
+    "result": {
+      "status": "recorded",
+      "observationId": "0x14f42d0544d9af43ba7e862b1f40968b72e1287cdeb1464e58176520d89c244f",
+      "patientRef": "0xc9d01ab3e16b059a1b849afb33910d8325272483ac2412e04198e7e2eab63155",
+      "observedAt": 1779158991,
+      "durationSeconds": 54,
+      "proofDigest": "0x1bed851791bf607d6609f7ee4d10c7d4fdbffe8bbeb610e700a8cf03ae8d8920",
+      "payloadHash": "4cea06a9a7f14728f96d041570753ed541c85c1edcf2a027fcab069f81e167cf",
+      "transactionId": "0dbe187b6926a5dcf657292919001cf7c3fff9396ef8b5019bef13535240c69a",
+      "deploymentId": "0x19a0e1ddf0ea95d29cf45a4d4e86490a64c13a88a858f153d87dd961d6e16d41",
+      "reused": false
+    },
+    "commit": {
+      "transactionId": "0dbe187b6926a5dcf657292919001cf7c3fff9396ef8b5019bef13535240c69a",
+      "blockNumber": "5",
+      "code": 0
+    },
+    "timings": {
+      "endorseMs": 51.08947700000135,
+      "submitMs": 88.43206099999952,
+      "commitWaitMs": 1972.381312999998,
+      "recordCommitMs": 2111.902850999999
+    }
+  }
+}

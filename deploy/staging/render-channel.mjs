@@ -1,13 +1,15 @@
-// Requires only PUBLIC organization MSPs and node TLS certificates under /srv/csi/public.
+// Requires only PUBLIC organization MSPs and node TLS certificates; defaults to /srv/csi/public.
 import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { validateExternalInventory } from "../../fabric/scripts/prepare-external.mjs";
-const [inventory, output] = process.argv.slice(2);
-if (!output) throw Error("Usage: render-channel.mjs inventory.json configtx.yaml");
+const [inventory, output, publicDirectory = "/srv/csi/public"] = process.argv.slice(2);
+if (!output) throw Error("Usage: render-channel.mjs inventory.json configtx.yaml [ABS_PUBLIC_DIR]");
 const cfg = validateExternalInventory(JSON.parse(readFileSync(inventory)));
+const publicRoot = resolve(publicDirectory);
 const signature = Rule => ({ Type: "Signature", Rule });
 const implicit = Rule => ({ Type: "ImplicitMeta", Rule });
 const org = (id, peer, port = 7051) => ({
-  Name: id, ID: id, MSPDir: `/srv/csi/public/${id}/msp`,
+  Name: id, ID: id, MSPDir: `${publicRoot}/${id}/msp`,
   Policies: {
     Readers: signature(`OR('${id}.member')`),
     Writers: signature(`OR('${id}.member')`),
@@ -25,8 +27,8 @@ const outputConfig = { Profiles: { CSIStaging: {
     BatchTimeout: "2s", BatchSize: { MaxMessageCount: 10, AbsoluteMaxBytes: "99 MB", PreferredMaxBytes: "512 KB" },
     EtcdRaft: { Consenters: cfg.orderers.map(node => ({
       Host: node.host, Port: node.port ?? 7050,
-      ClientTLSCert: `/srv/csi/public/orderers/${node.host}.crt`,
-      ServerTLSCert: `/srv/csi/public/orderers/${node.host}.crt`,
+      ClientTLSCert: `${publicRoot}/orderers/${node.host}.crt`,
+      ServerTLSCert: `${publicRoot}/orderers/${node.host}.crt`,
     })) },
     Organizations: [org(cfg.ordererMspId)], Capabilities: { V2_0: true },
     Policies: { ...defaults, BlockValidation: implicit("ANY Writers") },

@@ -23,6 +23,24 @@ test("external profile rejects local topology and unresolved placeholders", () =
   assert.throws(() => validateExternalInventory(sameOrg));
 });
 
+test("two-host bootstrap explicitly permits one orderer but never collocates both peers", () => {
+  const cfg = inventory();
+  cfg.orderers = cfg.orderers.slice(0, 1);
+  assert.throws(() => validateExternalInventory(cfg), /three-host-raft/);
+  cfg.deploymentProfile = "two-host-bootstrap";
+  assert.equal(validateExternalInventory(cfg).orderers.length, 1);
+  const sameHost = structuredClone(cfg); sameHost.organizations[1].hostId = sameHost.organizations[0].hostId;
+  assert.throws(() => validateExternalInventory(sameHost));
+  const extraHost = structuredClone(cfg); extraHost.orderers[0].hostId = "unexpected-host";
+  assert.throws(() => validateExternalInventory(extraHost), /share/);
+  const collision = structuredClone(cfg);
+  collision.orderers[0].host = cfg.organizations[0].peerHost;
+  collision.orderers[0].port = 7051;
+  assert.throws(() => validateExternalInventory(collision), /collide/);
+  const unknown = structuredClone(cfg); unknown.deploymentProfile = "anything";
+  assert.throws(() => validateExternalInventory(unknown), /Unknown/);
+});
+
 test("distributed channel and gateway use explicit ports while preserving existing defaults", () => {
   const dir = mkdtempSync(join(tmpdir(), "csi-channel-ports-"));
   try {
@@ -72,6 +90,13 @@ test("external package pins real verification key and recorder certificate witho
     assert.deepEqual(readFileSync(join(out, "deployment/verification_key.json")), key);
     assert.ok(!readdirSync(out, { recursive: true }).some(name => String(name).endsWith(".key")));
     assert.throws(() => prepareExternal(cfg, join(dir, "artifacts.json"), out), /already exists/);
+    cfg.deploymentProfile = "two-host-bootstrap";
+    cfg.orderers = cfg.orderers.slice(0, 1);
+    const twoHost = prepareExternal(cfg, join(dir, "artifacts.json"), join(dir, "two-host"));
+    assert.equal(twoHost.topology.orderers, 1);
+    assert.equal(twoHost.topology.ordererFaultTolerance, 0);
+    assert.equal(twoHost.topology.hostIds.length, 2);
+    assert.notEqual(twoHost.deploymentId, result.deploymentId);
     artifact.sha256.verificationKey = "0".repeat(64);
     writeFileSync(join(dir, "artifacts.json"), JSON.stringify(artifact));
     assert.throws(() => prepareExternal(cfg, join(dir, "artifacts.json"), join(dir, "bad")), /verification key/);

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "channelName": "csi-staging",
+  "chaincodeName": "csiadaptive4004",
+  "networkName": "CSI Mac-GMKtec two-host consortium",
+  "debugMode": true,
+  "recorderMspId": "HospitalMSP",
+  "recorderCertificateHash": "02b33473db8d27def8cf349efc4b4885d7bb1156e7c51b6b042a64e384736555",
+  "readerMspIds": [
+    "HospitalMSP",
+    "ResearchMSP"
+  ],
+  "verificationKeyHash": "0x9985133091b50d97f8ca1f59197ff2b28fcb8646bd8d375477252434a65b04a1",
+  "publicSignalCount": 70,
+  "isNormalIndex": 1,
+  "circuit": "csi_lomb_scargle_adaptive_4004",
+  "verificationKeyFile": "verification_key.json",
+  "sourceHash": "1c9e6a75572a8d6fe1ef2fea06eb53832fe5b3ae52c7bed90b9eecf5f3856a1c",
+  "topology": {
+    "peerOrganizations": 2,
+    "peers": 2,
+    "orderers": 1,
+    "consensus": "Raft",
+    "deploymentProfile": "two-host-bootstrap",
+    "ordererFaultTolerance": 0,
+    "endorsementPolicy": "AND('HospitalMSP.peer','ResearchMSP.peer')",
+    "fabricVersion": "2.5.16",
+    "singleHost": false,
+    "environment": "distributed-staging",
+    "hostIds": [
+      "gmktec",
+      "mac"
+    ]
+  },
+  "deploymentId": "0x19a0e1ddf0ea95d29cf45a4d4e86490a64c13a88a858f153d87dd961d6e16d41"
+}

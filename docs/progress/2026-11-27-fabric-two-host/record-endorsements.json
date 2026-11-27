@@ -1,0 +1,8 @@
+{
+  "blockNumber": 4,
+  "transactionId": "53535f3fe70c811a5c31865010cc21e0cef71a920254a97152c58ab52dbfefc3",
+  "endorserMspIds": [
+    "HospitalMSP",
+    "ResearchMSP"
+  ]
+}

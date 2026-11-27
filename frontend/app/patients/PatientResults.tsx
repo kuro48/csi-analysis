@@ -21,6 +21,8 @@ type Result = {
   chainId?: number;
   transactionHash?: string;
   verifiedAtBlock?: number;
+  ledger?: "evm" | "fabric";
+  networkName?: string;
 };
 const verifierOnly = process.env.NEXT_PUBLIC_VERIFIER_ONLY === "true";
 const selectClass =
@@ -140,7 +142,7 @@ export function PatientResults() {
             CSI <span className="font-normal">Care</span>
           </Link>
           <span className="rounded-full bg-white px-3 py-1 text-xs text-neutral-600">
-            {verifierOnly ? "Sepolia · 証明検証" : "呼吸判定の照会"}
+            {verifierOnly ? "ブロックチェーン · 証明検証" : "呼吸判定の照会"}
           </span>
         </header>
         <div className="py-10 sm:py-14">
@@ -286,6 +288,17 @@ export function PatientResults() {
                     >
                       チェーン上の記録を見る
                     </a>
+                  )}
+                </div>
+              )}
+              {result.ledger === "fabric" && (
+                <div className="mt-4 text-sm leading-7 text-neutral-700">
+                  <p>検証先：Hyperledger Fabric</p>
+                  {result.networkName && <p>{result.networkName}</p>}
+                  {result.transactionHash && /^[0-9a-f]{64}$/.test(result.transactionHash) && (
+                    <p className="break-all font-mono text-xs">
+                      記録トランザクション：{result.transactionHash}
+                    </p>
                   )}
                 </div>
               )}

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "environment": "distributed-staging",
+  "networkName": "CSI two-host consortium staging",
+  "channelName": "csi-staging",
+  "chaincodeName": "csiadaptive4004",
+  "debugMode": true,
+  "recorderMspId": "HospitalMSP",
+  "recorderCertificate": "/srv/csi/public/recorder.crt",
+  "ordererMspId": "OrderingMSP",
+  "organizations": [
+    {
+      "mspId": "HospitalMSP",
+      "peerHost": "gmktec.example.invalid",
+      "peerPort": 17051,
+      "hostId": "gmktec"
+    },
+    {
+      "mspId": "ResearchMSP",
+      "peerHost": "mac.example.invalid",
+      "peerPort": 17051,
+      "hostId": "mac"
+    }
+  ],
+  "orderers": [
+    {
+      "host": "mac.example.invalid",
+      "port": 17050,
+      "hostId": "mac"
+    }
+  ],
+  "deploymentProfile": "two-host-bootstrap"
+}

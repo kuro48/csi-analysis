@@ -26,20 +26,29 @@ export function validateExternalInventory(input) {
   if (input.version !== 1 || input.environment !== "distributed-staging") throw Error("Expected distributed-staging inventory");
   if (!/^[a-z][a-z0-9.-]{1,63}$/.test(input.channelName) || !identifier.test(input.chaincodeName)) throw Error("Invalid channel or chaincode");
   if (typeof input.debugMode !== "boolean" || !input.networkName?.trim()) throw Error("Explicit network name/debugMode required");
-  if (input.organizations?.length !== 2 || input.orderers?.length !== 3) throw Error("This staging profile requires two peer organizations and three orderers");
+  const profile = input.deploymentProfile ?? "three-host-raft";
+  if (!["three-host-raft", "two-host-bootstrap"].includes(profile)) throw Error("Unknown deployment profile");
+  const ordererCount = profile === "two-host-bootstrap" ? 1 : 3;
+  if (input.organizations?.length !== 2 || input.orderers?.length !== ordererCount)
+    throw Error(`${profile} requires two peer organizations and ${ordererCount} orderers`);
   const orgIds = input.organizations.map(org => org.mspId);
   if (new Set(orgIds).size !== 2 || orgIds.some(id => !identifier.test(id))) throw Error("Distinct MSP IDs required");
   if (!identifier.test(input.ordererMspId) || orgIds.includes(input.ordererMspId)) throw Error("Separate orderer MSP required");
   const hosts = [...input.organizations.map(org => org.peerHost), ...input.orderers.map(node => node.host)];
   if (new Set(input.organizations.map(org => org.peerHost)).size !== 2 ||
-      new Set(input.orderers.map(node => node.host)).size !== 3) throw Error("Distinct peer/orderer DNS endpoints required");
+      new Set(input.orderers.map(node => node.host)).size !== ordererCount) throw Error("Distinct peer/orderer DNS endpoints required");
   for (const host of hosts) validateHost(host);
   for (const org of input.organizations) validatePort(org.peerPort ?? 7051);
   for (const node of input.orderers) validatePort(node.port ?? 7050);
   if (input.organizations[0].hostId === input.organizations[1].hostId ||
-      new Set(input.orderers.map(node => node.hostId)).size !== 3 ||
+      new Set(input.orderers.map(node => node.hostId)).size !== ordererCount ||
       [...input.organizations, ...input.orderers].some(node => !identifier.test(node.hostId)))
-    throw Error("Peers must use separate hosts; orderers need three distinct hostIds");
+    throw Error("Peers must use separate hosts; orderers need distinct hostIds");
+  if (profile === "two-host-bootstrap" && !input.organizations.some(org => org.hostId === input.orderers[0].hostId))
+    throw Error("Two-host bootstrap orderer must share one of the two peer hosts");
+  const endpoints = [...input.organizations.map(org => `${org.peerHost}:${org.peerPort ?? 7051}`),
+    ...input.orderers.map(node => `${node.host}:${node.port ?? 7050}`)];
+  if (new Set(endpoints).size !== endpoints.length) throw Error("Peer and orderer endpoints must not collide");
   if (!orgIds.includes(input.recorderMspId) || !input.recorderCertificate) throw Error("Recorder public certificate required");
   return input;
 }
@@ -67,7 +76,9 @@ export function prepareExternal(inventory, artifactsPath, destination) {
     circuit: artifacts.circuit, verificationKeyFile: "verification_key.json",
     sourceHash: hash(Buffer.concat(files.map(file => readFileSync(join(source, file))))),
     topology: {
-      peerOrganizations: 2, peers: 2, orderers: 3, consensus: "Raft",
+      peerOrganizations: 2, peers: 2, orderers: input.orderers.length, consensus: "Raft",
+      deploymentProfile: input.deploymentProfile ?? "three-host-raft",
+      ordererFaultTolerance: Math.floor((input.orderers.length - 1) / 2),
       endorsementPolicy: `AND('${orgIds[0]}.peer','${orgIds[1]}.peer')`,
       fabricVersion: "2.5.16", singleHost: false, environment: input.environment,
       // Claimed inventory, not proof that nodes are actually deployed.

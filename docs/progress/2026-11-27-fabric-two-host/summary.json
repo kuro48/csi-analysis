@@ -1,0 +1,53 @@
+{
+  "checkedAt": "2026-11-27T10:17:08.814Z",
+  "networkDeployed": true,
+  "physicalHosts": [
+    "GMKtec",
+    "Mac"
+  ],
+  "peerOrganizations": 2,
+  "peers": 2,
+  "orderers": 1,
+  "ordererFaultTolerance": 0,
+  "channel": "csi-staging",
+  "chaincode": "csiadaptive4004",
+  "deploymentId": "0x19a0e1ddf0ea95d29cf45a4d4e86490a64c13a88a858f153d87dd961d6e16d41",
+  "newProofGenerated": false,
+  "syntheticCsiUsed": false,
+  "recordSamplesPerCase": 1,
+  "ledgerHeightBothPeers": 7,
+  "ledgerCurrentHashBothPeers": "VzrlH5kbwTr7fiuuWO70vkuZfQy8x3XHM3OfGhGKNTo=",
+  "cases": [
+    {
+      "case": "true",
+      "sourceCapture": "sampledata/csi_sample_base.csi",
+      "sourceCaptureSha256": "170b087573307c8edcdd5b62b8b6268b82e0af5243d62e2d60b0338ad7da2e71",
+      "proofBundle": "docs/progress/2026-11-24-sepolia-true-case/proof-bundle.json",
+      "proofBundleSha256": "3989306030414c4189304d32f4ecc9508b38fbab3404ee9dd170cb1f895cda16",
+      "recordCommitMs": 2195.166752000001,
+      "readerBridgeFirstSuccessHttpMs": 565.5742529997951,
+      "viewerClickToHttpResponseMs": 125.61129900000014,
+      "transactionId": "53535f3fe70c811a5c31865010cc21e0cef71a920254a97152c58ab52dbfefc3",
+      "recordBlock": "4",
+      "isNormal": true
+    },
+    {
+      "case": "false",
+      "sourceCapture": "sampledata/csi_20260519_114943.csi",
+      "sourceCaptureSha256": "91501d0acc55c2f617fc73df8575765944199ac0a64bf8ee7ef46c47f7f7641a",
+      "proofBundle": "docs/progress/2026-11-09-adaptive-4004/evm-proof-bundle.json",
+      "proofBundleSha256": "11cefdde4f427e460068a176a7762dd4d385bf4f7421647a19c2b906cefd1065",
+      "recordCommitMs": 2111.902850999999,
+      "readerBridgeFirstSuccessHttpMs": 36.888923999867984,
+      "viewerClickToHttpResponseMs": 85.77234500000031,
+      "transactionId": "0dbe187b6926a5dcf657292919001cf7c3fff9396ef8b5019bef13535240c69a",
+      "recordBlock": "5",
+      "isNormal": false
+    }
+  ],
+  "tamperedOutputRejected": true,
+  "viewerUrl": "http://100.110.182.121:8085/patients",
+  "viewerAccess": "same Tailscale network; not a public Internet URL",
+  "matlabSupportConfiguration": "left pending; unrelated to Fabric",
+  "newCaptureAutomaticIngestionConfigured": false
+}

@@ -2,6 +2,8 @@
 name: csi-bridge
 services:
   bridge:
+    # Match the identity owner; do not broaden 0600 keys or restore root DAC caps.
+    user: ${BRIDGE_UID:?Set identity owner UID}:${BRIDGE_GID:?Set identity owner GID}
     build:
       context: ../..
       dockerfile: deploy/staging/bridge.Dockerfile

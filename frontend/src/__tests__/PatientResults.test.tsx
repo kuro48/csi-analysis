@@ -55,6 +55,20 @@ test("valid proof with output zero displays a verified false result", async () =
   expect(screen.queryByText("isNormal: false")).not.toBeInTheDocument();
 });
 
+test("a Fabric result identifies its network without linking to an Ethereum explorer", async () => {
+  await selectMeasurement(async () => ({
+    ok: true,
+    json: async () => ({
+      status: "verified", isNormal: true, ledger: "fabric",
+      networkName: "CSI two-host consortium", transactionHash: "a".repeat(64),
+    }),
+  }));
+  expect(await screen.findByText("検証先：Hyperledger Fabric")).toBeInTheDocument();
+  expect(screen.getByText("CSI two-host consortium")).toBeInTheDocument();
+  expect(screen.queryByText("検証先：Ethereum Sepolia")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "チェーン上の記録を見る" })).not.toBeInTheDocument();
+});
+
 test.each(["confirming", "pending", "failed"])(
   "%s never releases an unverified boolean",
   async (status) => {

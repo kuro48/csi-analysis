@@ -1,0 +1,10 @@
+# Host API/UI run on 8015/3015. Only the private Tailscale address is published.
+name: csi-fabric-viewer
+services:
+  gateway:
+    image: nginx:1.28-alpine
+    ports: ["${PRIVATE_BIND_IP:?Set private host IP}:8085:80"]
+    volumes:
+      - ../../nginx/fabric-viewer.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
